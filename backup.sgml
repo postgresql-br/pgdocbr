@@ -1,0 +1,1400 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/backup.sgml,v 2.54 2004/12/28 19:08:58 tgl Exp $
+-->
+<chapter id="backup">
+ <title>Criação e restauração de cópias de segurança</title>
+
+ <indexterm zone="backup"><primary>cópia de segurança</primary></>
+
+ <para>
+  Como tudo que contém dados importantes, devem ser feitas cópias de segurança
+  dos bancos de dados do <productname>PostgreSQL</productname> regularmente.
+  Embora o procedimento seja essencialmente simples, é importante possuir uma
+  compreensão básica das técnicas e princípios subjacentes.
+ </para>
+
+ <para>
+  Existem três abordagens fundamentalmente diferentes para fazer cópia de
+  segurança dos dados do <productname>PostgreSQL</productname>:
+  <itemizedlist>
+   <listitem><para>Método <acronym>SQL</acronym>-dump</para></listitem>
+   <listitem><para>Cópia de segurança no nível de sistema de arquivos</para></listitem>
+   <listitem><para>Cópia de segurança em-linha</para></listitem>
+  </itemizedlist>
+  Cada uma tem seus próprios pontos fortes e pontos fracos.
+ </para>
+
+ <sect1 id="backup-dump">
+  <title>Método <acronym>SQL</acronym>-dump</title>
+
+  <para>
+   A idéia por trás do Método <acronym>SQL</acronym>-dump é gerar um arquivo
+   texto contendo comandos SQL que, ao serem processados pelo servidor, recriam
+   o banco de dados no mesmo estado em que este se encontrava quando o arquivo
+   foi gerado. O <productname>PostgreSQL</productname> disponibiliza o programa
+   utilitário <xref linkend="app-pgdump"> para esta finalidade.
+   A forma básica de utilização deste programa é:
+<synopsis>
+pg_dump <replaceable class="parameter">nome_do_banco_de_dados</replaceable> &gt; <replaceable class="parameter">arquivo_de_saída</replaceable>
+</synopsis>
+   Conforme pode ser visto, o programa <application>pg_dump</application>
+   escreve o seu resultado na saída padrão. Será visto abaixo como isto pode
+   ser útil.
+  </para>
+
+  <para>
+   O <application>pg_dump</application> é um aplicativo cliente normal do
+   <productname>PostgreSQL</productname> (embora seja particularmente astuta).
+   Isto significa que o procedimento de cópia de segurança pode ser realizado
+   a partir de qualquer hospedeiro remoto que possua acesso ao banco de dados.
+   Porém, deve ser lembrado que o <application>pg_dump</application> não opera
+   com permissão especial. Em particular, é necessário possuir acesso de leitura
+   a todas as tabelas que se deseja fazer cópia de segurança. Portanto, na
+   prática, quase sempre é necessário ser um superusuário do banco de dados.
+  </para>
+
+  <para>
+   Para especificar qual servidor de banco de dados o <application>pg_dump</>
+   deve se conectar, devem ser utilizadas as opções de linha de comando
+   <option>-h <replaceable>hospedeiro</replaceable></option> e
+   <option>-p <replaceable>porta</replaceable></option>.
+   O hospedeiro padrão é o hospedeiro local, ou o que estiver especificado na
+   variável de ambiente <envar>PGHOST</envar>.
+   De maneira semelhante, a porta padrão é indicada pela variável de ambiente
+   <envar>PGPORT</envar> ou, na falta desta, pelo padrão de compilação
+   (Por conveniência, o servidor normalmente é compilado usando o mesmo padrão).
+  </para>
+
+  <para>
+   Assim como qualquer outro aplicativo cliente do <productname>PostgreSQL</>,
+   o <application>pg_dump</application> se conecta por padrão ao banco de dados
+   cujo nome é igual ao nome do usuário corrente do sistema operacional.
+   Para que seja outro, deve ser especificada a opção <option>-U</option>, ou
+   definida a variável de ambiente <envar>PGUSER</envar>.
+   Não deve ser esquecido que as conexões do <application>pg_dump</application>
+   estão sujeitas aos mecanismos normais de autenticação de cliente (conforme
+   descritos no <xref linkend="client-authentication">).
+  </para>
+
+  <para>
+   As cópias de segurança criadas pelo <application>pg_dump</application> são
+   consistentes internamente, ou seja, as atualizações feitas no banco de dados
+   enquanto o <application>pg_dump</application> está executando não estão
+   presentes na cópia de segurança. O <application>pg_dump</application> não
+   bloqueia outras operações no banco de dados enquanto está executando (Exceto
+   as operações que necessitam operar com modo de bloqueio exclusivo, como o
+   <command>VACUUM FULL</command>).
+  </para>
+
+  <important>
+   <para>
+    Quando o esquema do banco de dados é dependente dos OIDs (como chaves
+    estrangeiras, por exemplo) deve-se instruir o <application>pg_dump</> para
+    que também inclua os OIDs. Para que isto seja feito, deve ser utilizada a
+    opção de linha de comando <option>-o</option>. Também, não são feitas
+    cópias de segurança dos <quote>objetos grandes</quote> por padrão. Se forem
+    utilizados objetos grandes, deve ser consultada a página de referência do
+    programa <xref linkend="app-pgdump">.
+   </para>
+  </important>
+
+  <sect2 id="backup-dump-restore">
+   <title>Restauração da cópia de segurança</title>
+
+   <para>
+    Os arquivos texto criados pelo programa <application>pg_dump</application>
+    são feitos para serem lidos pelo programa <application>psql</application>.
+    A forma geral do comando para restaurar uma cópia de segurança é:
+<synopsis>
+psql <replaceable class="parameter">nome_do_banco_de_dados</replaceable> &lt; <replaceable class="parameter">arquivo_de_entrada</replaceable>
+</synopsis>
+    onde o
+    <replaceable class="parameter">arquivo_de_entrada</replaceable>
+    é o que foi utilizado como
+    <replaceable class="parameter">arquivo_de_saída</replaceable>
+    pelo programa <command>pg_dump</command>. O banco de dados
+    <replaceable class="parameter">nome_do_banco_de_dados</replaceable>
+    não será criado por este comando, devendo ser criado a partir de
+    <literal>template0</literal> antes de executar o
+    <application>psql</application> (por exemplo, usando
+    <literal>createdb -T template0
+    <replaceable class="parameter">nome_do_banco_de_dados</replaceable></literal>).
+    O <application>psql</application> possui opções semelhantes às do
+    <application>pg_dump</application> para controlar a identificação do
+    servidor de banco de dados e o nome do usuário. Para obter informações
+    adicionais deve ser consultada a página de referência do programa
+    <xref linkend="app-psql">.
+   </para>
+
+   <para>
+    Antes de começar a executar a restauração, não basta existir o banco de
+    dados de destino. Devem existir, também, todos os usuários que possuam
+    objetos ou concessões para os objetos contidos na cópia de segurança do
+    banco de dados. Caso estes usuários não existam, a restauração não será
+    capaz de recriar os objetos com os mesmos donos e concessões originais
+    (Algumas vezes é o que se deseja, mas geralmente não é).
+   </para>
+
+   <para>
+    Uma vez feita a restauração, é sensato executar o comando
+    <xref linkend="sql-analyze" endterm="sql-analyze-title">
+    em cada um dos bancos de dados, para que o otimizador possua estatísticas
+    úteis. Uma forma fácil de se fazer é executando
+    <command>vacuumdb -a -z</command> para efetuar o
+    <command>VACUUM ANALYZE</command> de todos os bancos de dados;
+    equivale a executar <command>VACUUM ANALYZE</command> manualmente.
+   </para>
+
+   <para>
+    A capacidade do <application>pg_dump</application> e do
+    <application>psql</application> de escrever e ler de canais
+    (<literal>pipes</literal>) torna possível replicar um banco de dados de um
+    servidor para outro diretamente; por exemplo:
+<programlisting>
+pg_dump -h <replaceable>hospedeiro1</> <replaceable>nome_do_banco_de_dados</replaceable> | psql -h <replaceable>hospedeiro2</> <replaceable>nome_do_banco_de_dados</replaceable>
+</programlisting>
+   </para>
+
+   <important>
+    <para>
+     As cópias de segurança produzidas pelo <application>pg_dump</application>
+     são relativas a <literal>template0</literal>. Isto significa que todas as
+     linguagens, procedimentos, etc. adicionados a <literal>template1</literal>
+     também serão incluídos na cópia de segurança feita pelo
+     <application>pg_dump</application>. Como resultado, se estiver sendo
+     utilizado um banco de dados <literal>template1</literal> personalizado,
+     ao ser feita a restauração deve ser criado um banco de dados vazio a
+     partir de <literal>template0</literal>, conforme mostrado no exemplo acima.
+    </para>
+   </important>
+
+   <para>
+    Para obter conselhos sobre como carregar grande quantidade de dados no
+    <productname>PostgreSQL</productname> de forma eficiente, deve ser
+    consultado o <xref linkend="populate">.
+   </para>
+  </sect2>
+
+  <sect2 id="backup-dump-all">
+   <title>Utilização do pg_dumpall</title>
+
+   <para>
+    O mecanismo mostrado acima não é cômodo nem apropriado para fazer a cópia
+    de segurança de todo o agrupamento de bancos de dados. Por este motivo é
+    fornecido o programa <xref linkend="app-pg-dumpall">.
+    O <application>pg_dumpall</application> faz a cópia de segurança de todos
+    os bancos de dados de um agrupamento, e também salva dados de todo o
+    agrupamento, como os usuários e grupos. A forma básica de utilização deste
+    programa é:
+<synopsis>
+pg_dumpall &gt; <replaceable>arquivo_de_saída</replaceable>
+</synopsis>
+    A cópia de segurança gerada pode ser restaurada pelo
+    <application>psql</application> usando:
+<synopsis>
+psql template1 &lt; <replaceable class="parameter">arquivo_de_entrada</replaceable>
+</synopsis>
+    (Na verdade, pode ser especificado qualquer nome de banco de dados existente
+    para começar, mas se estiver sendo feita a restauração em um agrupamento
+    vazio, então <literal>template1</literal> é a única escolha disponível).
+    É sempre necessário possuir acesso de superusuário do banco de dados para
+    fazer a restauração de uma cópia de segurança gerada pelo
+    <application>pg_dumpall</application>, para poder restaurar as informações
+    de usuário e de grupo.
+   </para>
+  </sect2>
+
+  <sect2 id="backup-dump-large">
+   <title>Tratamento de bancos de dados grandes</title>
+
+   <para>
+    Como o <productname>PostgreSQL</productname> permite a existência de
+    tabelas maiores do que o tamanho máximo de arquivo do sistema operacional,
+    pode ser problemático fazer a cópia de segurança de uma tabela como esta em
+    um arquivo, uma vez que o arquivo resultante provavelmente terá um tamanho
+    maior que o máximo permitido pelo sistema operacional. Como o
+    <application>pg_dump</application> pode escrever na saída padrão, podem ser
+    utilizadas ferramentas padrão do Unix para superar este possível problema.
+   </para>
+
+   <formalpara>
+    <title>Utilização de cópias de segurança comprimidas.</title>
+    <para>
+     Pode ser utilizado o programa de compressão favorito como, por exemplo, o
+     <application>gzip</application>.
+
+<programlisting>
+pg_dump <replaceable class="parameter">nome_do_banco_de_dados</replaceable> | gzip &gt; <replaceable class="parameter">nome_do_arquivo</replaceable>.gz
+</programlisting>
+
+     Restaurar com
+
+<programlisting>
+createdb <replaceable class="parameter">nome_do_banco_de_dados</replaceable>
+gunzip -c <replaceable class="parameter">nome_do_arquivo</replaceable>.gz | psql <replaceable class="parameter">nome_do_banco_de_dados</replaceable>
+</programlisting>
+
+     ou
+
+<programlisting>
+cat <replaceable class="parameter">nome_do_arquivo</replaceable>.gz | gunzip | psql <replaceable class="parameter">nome_do_banco_de_dados</replaceable>
+</programlisting>
+    </para>
+   </formalpara>
+
+   <formalpara>
+    <title>Utilização do comando split.</title>
+    <para>
+     O comando <command>split</command> permite dividir a saída em blocos de
+     tamanho aceitável para o sistema de arquivos subjacente. Por exemplo, para
+     fazer blocos de 1 megabyte:
+
+<programlisting>
+pg_dump <replaceable class="parameter">nome_do_banco_de_dados</replaceable> | split -b 1m - <replaceable class="parameter">nome_do_arquivo</replaceable>
+</programlisting>
+
+     Restaurar com
+
+<programlisting>
+createdb <replaceable class="parameter">nome_do_banco_de_dados</replaceable>
+cat <replaceable class="parameter">nome_do_arquivo</replaceable>* | psql <replaceable class="parameter">nome_do_banco_de_dados</replaceable>
+</programlisting>
+    </para>
+   </formalpara>
+
+   <formalpara>
+    <title>Utilização de formatos de cópia de segurança personalizados.</title>
+    <para>
+     Se o <productname>PostgreSQL</productname> foi construído em um sistema com
+     a biblioteca de compressão <application>zlib</application> instalada, o
+     formato de cópia de segurança personalizado comprime os dados ao escrever o
+     arquivo de saída. Produz cópias de segurança com tamanhos semelhantes às
+     produzidas utilizando o <command>gzip</command>, mas tem a vantagem
+     adicional de permitir a restauração seletiva das tabelas. O comando abaixo
+     gera a cópia de segurança do banco de dados utilizando o formato de cópia
+     de segurança personalizado (<literal>custom dump format</literal>):
+
+<programlisting>
+pg_dump -Fc <replaceable class="parameter">nome_do_banco_de_dados</replaceable> > <replaceable class="parameter">nome_do_arquivo</replaceable>
+</programlisting>
+
+     O formato de cópia de segurança personalizado não é um script para o
+     <application>psql</application>, devendo ser restaurado pelo
+     <application>pg_restore</application>. Para obter detalhes devem ser vistas
+     as páginas de referência do <xref linkend="app-pgdump"> e do
+     <xref linkend="app-pgrestore">.
+    </para>
+   </formalpara>
+
+  </sect2>
+
+  <sect2 id="backup-dump-caveats">
+   <title>Precauções</title>
+
+   <para>
+    Por motivo de compatibilidade com as versões anteriores, o
+    <application>pg_dump</application> não faz cópia de segurança dos objetos
+    grandes por padrão.
+    <indexterm><primary>objetos grandes</primary><secondary>cópias de segurança</secondary></indexterm>
+    Para fazer cópia de segurança dos objetos grandes deve ser utilizado o
+    formato de saída personalizado ou o formato <literal>tar</literal>,
+    e utilizada a opção <option>-b</option> do <application>pg_dump</>.
+    Para obter detalhes deve ser consultada a página de referência do
+    <xref linkend="app-pgdump">.
+    O diretório <filename class="directory">contrib/pg_dumplo</filename>, da
+    árvore do código fonte do <productname>PostgreSQL</productname>, também
+    contém um programa que pode ser utilizado para fazer cópias de segurança
+    dos objetos grandes.
+   </para>
+
+   <para>
+    Por favor se familiarize com a página de referência do
+    <xref linkend="app-pgdump">.
+   </para>
+  </sect2>
+ </sect1>
+
+ <sect1 id="backup-file">
+  <title>Cópia de segurança no nível de sistema de arquivo</title>
+
+  <para>
+   Uma estratégia alternativa para fazer cópia de segurança, é copiar
+   diretamente os arquivos que o <productname>PostgreSQL</productname> usa para
+   armazenar os dados dos bancos de dados. Na <xref linkend="creating-cluster">
+   é explicado onde estes arquivos estão localizados, mas provavelmente você já
+   os encontrou se está interessado neste método. Pode ser utilizada a forma
+   preferida para fazer as cópias de segurança usuais dos arquivos do sistema
+   como, por exemplo:
+
+<programlisting>
+tar -cf copia_de_seguranca.tar /usr/local/pgsql/data
+</programlisting>
+  </para>
+
+  <para>
+   Entretanto, existem duas restrições que fazem com que este método seja
+   impraticável ou, pelo menos, inferior ao <application>pg_dump</application>:
+
+   <orderedlist>
+    <listitem>
+     <para>
+      O servidor de banco de dados <emphasis>deve</emphasis> estar parado para
+      que se possa obter uma cópia de segurança utilizável.
+      Meias medidas, como impedir todas as conexões, não funcionam
+      (principalmente porque o <command>tar</command>, e as ferramentas
+      semelhantes, não capturam um instantâneo atômico do estado do sistema de
+      arquivos em um determinado ponto no tempo).
+      As informações sobre como parar o servidor podem ser encontradas na
+      <xref linkend="postmaster-shutdown">. É desnecessário dizer que também é
+      necessário parar o servidor antes de restaurar os dados.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Caso tenha se aprofundado nos detalhes da organização do sistema de
+      arquivos do banco de dados, poderá estar tentado a fazer cópias de
+      segurança ou restauração de apenas algumas determinadas tabelas ou bancos
+      de dados a partir de seus respectivos arquivos ou diretórios.
+      Isto <emphasis>não</emphasis> funciona, porque as informações contidas
+      nestes arquivos possuem apenas meia verdade.
+      A outra metade está nos arquivos de registro de efetivação
+      <filename>pg_clog/*</filename>, que contêm o status de efetivação de
+      todas as transações.
+      O arquivo da tabela somente possui utilidade com esta informação.
+      É claro que também não é possível restaurar apenas uma tabela
+      e seus dados associados em <filename>pg_clog</filename>,
+      porque isto torna todas as outras tabelas do agrupamento de bancos de
+      dados inúteis.
+      Portanto, as cópias de segurança do sistema de arquivos somente funcionam
+      para a restauração completa de todo o agrupamento de bancos de dados.
+     </para>
+    </listitem>
+   </orderedlist>
+  </para>
+
+  <para>
+   Uma abordagem alternativa para cópias de segurança do sistema de arquivos é
+   fazer um <quote>instantâneo consistente</quote> do diretório de dados, se o
+   sistema de arquivos possuir esta funcionalidade (e se há confiança que foi
+   implementado de forma correta). O procedimento típico é tirar um
+   <quote>instantâneo congelado</quote> (<literal>frozen snapshot</literal>)
+   d volume que contém o banco de dados, depois copiar todo o diretório de dados
+   (não apenas parte deste, veja acima) do instantâneo para uma unidade de
+   cópia de segurança, e depois liberar o instantâneo congelado.
+   Isto funciona mesmo com o banco de dados em operação.
+   Entretanto, a cópia de segurança criada desta maneira salva os arquivos do
+   banco de dados em um estado onde o servidor de banco de dados não foi
+   parado de forma apropriada; portanto, quando o servidor de banco de dados é
+   iniciado acessando um diretório restaurado a partir de uma cópia de segurança
+   deste tipo, considera que o servidor caiu e refaz o registro do WAL.
+   Isto não é um problema, mas deve-se estar atento a este fato
+   (e certifique-se de incluir os arquivos do WAL na cópia de segurança).
+  </para>
+
+  <para>
+   Se o banco de dados estiver distribuído através de vários volumes (por
+   exemplo, os arquivos e dados e o registro do WAL em discos diferentes) pode
+   ser que não haja nenhuma forma de obter instantâneos congelados simultâneos
+   de todos os volumes.
+   A documentação do sistema de arquivos deve ser lida com muita atenção antes
+   de acreditar na técnica de instantâneo consistente em uma situação como esta.
+   A abordagem mais segura é parar o servidor de banco de dados pelo tempo
+   necessário para estabelecer todos os instantâneos congelados.
+  </para>
+
+  <para>
+   Deve ser observado que a cópia de segurança do sistema de arquivos não será
+   necessariamente menor que a do Método SQL-dump. Ao contrário, é mais provável
+   que seja maior; por exemplo, o <application>pg_dump</application> não
+   necessita fazer cópia de segurança dos índices, mas apenas dos comandos para
+   recriá-los.
+  </para>
+ </sect1>
+
+ <sect1 id="backup-online">
+  <title>Cópia de segurança em-linha</title>
+
+  <indexterm zone="backup">
+   <primary>cópia de segurança em-linha</primary>
+  </indexterm>
+
+  <indexterm zone="backup">
+   <primary>recuperação ponto-no-tempo</primary>
+  </indexterm>
+
+  <indexterm zone="backup">
+   <primary>PITR</primary>
+  </indexterm>
+
+  <para>
+   Durante todo o tempo, o <productname>PostgreSQL</productname> mantém o
+   <firstterm>registro de escrita prévia</firstterm>
+   (<acronym>WAL</acronym> = <literal>write ahead log</literal>)
+   no subdiretório <filename class="directory">pg_xlog</filename>
+   do diretório de dados do agrupamento.
+   O <acronym>WAL</acronym> contém todas as alterações realizadas nos
+   arquivos de dados do banco de dados.
+   O <acronym>WAL</acronym> existe, principalmente, com a finalidade de fornecer
+   segurança contra quedas: se o sistema cair, o banco de dados pode retornar
+   a um estado consistente <quote>refazendo</quote> as entradas gravadas
+   desde o último ponto de controle.
+   Entretanto, a existência do <acronym>WAL</acronym> torna possível uma
+   terceira estratégia para fazer cópia de segurança de banco de dados: pode
+   ser combinada a cópia de segurança do banco de dados no nível de sistema de
+   arquivos, com cópia dos arquivos de segmento do <acronym>WAL</acronym>.
+   Se for necessário fazer a recuperação, pode ser feita a recuperação da cópia
+   de segurança do banco de dados no nível de sistema de arquivos e, depois,
+   refeitas as alterações a partir da cópia dos arquivos de segmento do
+   <acronym>WAL</acronym>, para trazer a restauração para o tempo presente.
+   A administração desta abordagem é mais complexa que a administração das
+   abordagens anteriores, mas existem alguns benefícios significativos:
+  <itemizedlist>
+   <listitem>
+    <para>
+     O ponto de partida não precisa ser uma cópia de segurança totalmente
+     consistente. Toda inconsistência interna na cópia de segurança é corrigida
+     quando o <acronym>WAL</acronym> é refeito (o que não é muito diferente
+     do que acontece durante a recuperação de uma queda). Portanto, não é
+     necessário um sistema operacional com capacidade de tirar instantâneos,
+     basta apenas o <application>tar</application>, ou outra ferramenta
+     semelhante.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Como pode ser reunida uma seqüência indefinidamente longa de arquivos de
+     segmento do <acronym>WAL</acronym> para serem refeitos, pode ser obtida uma
+     cópia de segurança contínua simplesmente continuando a fazer cópias dos
+     arquivos de segmento do <acronym>WAL</acronym>. Isto é particularmente útil
+     para bancos de dados grandes, onde pode não ser conveniente fazer cópias de
+     segurança completas regularmente.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Não existe nada que diga que as entradas do <acronym>WAL</acronym> devem
+     ser refeitas até o fim. Pode-se parar de refazer em qualquer ponto, e obter
+     um instantâneo consistente do banco de dados como se tivesse sido tirado
+     no instante da parada. Portanto, esta técnica suporta a
+     <firstterm>recuperação para um determinado ponto no tempo</firstterm>:
+     é possível restaurar voltando o banco de dados para o estado em que se
+     encontrava a qualquer instante posterior ao da realização da cópia de
+     segurança base.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Se outra máquina, carregada com a mesma cópia de segurança base do banco
+     de dados, for alimentada continuamente com a série de arquivos de segmento
+     do <acronym>WAL</acronym>, será criado um sistema reserva à quente
+     (<literal>hot standby</literal>): a qualquer instante esta outra máquina
+     pode ser ativada com uma cópia quase atual do banco de dados.
+    </para>
+   </listitem>
+  </itemizedlist>
+  </para>
+
+  <para>
+   Da mesma forma que o método de cópia de segurança no nível de sistema de
+   arquivos simples, este método suporta apenas a restauração de todo o
+   agrupamento de bancos de dados, e não a restauração de apenas um subconjunto
+   deste.
+   Requer, também, grande volume de armazenamento de arquivos: a cópia de
+   segurança base pode ser grande, e um sistema carregado gera vários megabytes
+   de tráfego para o <acronym>WAL</acronym> que precisam ser guardados.
+   Ainda assim, é o método de cópia de segurança preferido para muitas situações
+   onde é necessária uma alta confiabilidade.
+  </para>
+
+  <para>
+   Para fazer uma recuperação bem-sucedida utilizando cópia de segurança
+   em-linha, é necessária uma seqüência contínua de arquivos de segmento do
+   <acronym>WAL</acronym> guardados, que venha desde, pelo menos, o instante em
+   que foi feita a cópia de segurança base do banco de dados.
+   Para começar, deve ser configurado e testado o procedimento para fazer
+   cópia dos arquivos de segmento do <acronym>WAL</acronym>, <emphasis>antes</>
+   de ser feita a cópia de segurança base do banco de dados.
+   Assim sendo, primeiro será explicada a mecânica para fazer cópia dos
+   arquivos de segmento do <acronym>WAL</acronym>.
+  </para>
+
+  <sect2 id="backup-archiving-wal">
+   <title>Cópia dos arquivos de segmento do WAL</title>
+
+   <para>
+    Em um sentido abstrato, a execução do sistema <productname>PostgreSQL</>
+    produz uma seqüência indefinidamente longa de entradas no
+    <acronym>WAL</acronym>. O sistema divide fisicamente esta seqüência em
+    <firstterm>arquivos de segmento</firstterm> do <acronym>WAL</acronym>,
+    normalmente com 16 MB cada (embora o tamanho possa ser alterado durante
+    a construção do <productname>PostgreSQL</productname>). São atribuídos nomes
+    numéricos aos arquivos de segmento para refletir sua posição na seqüência
+    abstrata do <acronym>WAL</acronym>. Quando não é feita cópia dos arquivos
+    de segmento do <acronym>WAL</acronym>, normalmente o sistema cria apenas uns
+    poucos arquivos de segmento e, depois, <quote>recicla-os</quote> renomeando
+    os arquivos que não são mais de interesse com número de segmento mais alto.
+    Assume-se não existir mais interesse em um arquivo de segmento cujo conteúdo
+    preceda o ponto de controle anterior ao último, podendo, portanto,
+    ser reciclado.
+   </para>
+
+   <para>
+    Quando é feita a cópia dos arquivos de segmento do <acronym>WAL</acronym>,
+    deseja-se capturar o conteúdo de cada arquivo quando este é completado,
+    guardando os dados em algum lugar antes do arquivo de segmento ser reciclado
+    para ser reutilizado.
+    Dependendo da aplicação e dos periféricos disponíveis, podem haver muitas
+    maneiras de <quote>guardar os dados em algum lugar</quote>: os arquivos
+    de segmento podem ser copiados para outra máquina usando um diretório NFS
+    montado, podem ser escritos em uma unidade de fita (havendo garantia que
+    os arquivos poderão ser restaurados com seus nomes originais), podem ser
+    agrupados e gravados em CD, ou de alguma outra forma.
+    Para que o administrador de banco de dados tenha a máxima flexibilidade
+    possível, o <productname>PostgreSQL</productname> tenta não assumir nada
+    sobre como as cópias serão feitas.
+    Em vez disso, o <productname>PostgreSQL</productname> deixa o administrador
+    escolher o comando a ser executado para copiar o arquivo de segmento
+    completado para o local de destino.
+    O comando pode ser tão simples como <application>cp</application>, ou pode
+    envolver um script complexo para o interpretador de comandos &mdash; tudo
+    depende do administrador.
+   </para>
+
+   <para>
+    O comando a ser executado é especificado através do parâmetro de
+    configuração <xref linkend="guc-archive-command">, que na prática é sempre
+    colocado no arquivo <filename>postgresql.conf</filename>.
+    Na cadeia de caracteres do comando, todo <literal>%p</literal> é substituído
+    pelo caminho absoluto do arquivo a ser copiado, enquanto todo
+    <literal>%f</literal> é substituído pelo nome do arquivo apenas.
+    Se for necessário incorporar o caractere <literal>%</literal> ao comando,
+    deve ser escrito <literal>%%</>. A forma mais simples de um comando útil
+    é algo como
+<programlisting>
+archive_command = 'cp -i %p /mnt/servidor/dir_copias/%f &lt;/dev/null'
+</programlisting>
+    que irá copiar os arquivos de segmento do <acronym>WAL</acronym>, prontos
+    para serem copiados, para o diretório
+    <filename class="directory">/mnt/servidor/dir_copias</> (Isto é um exemplo,
+    e não uma recomendação, e pode não funcionar em todas as plataformas).
+   </para>
+
+   <para>
+    O comando para realizar a cópia é executado sob a propriedade do mesmo
+    usuário que está executando o servidor
+    <productname>PostgreSQL</productname>. Como a série de arquivos do
+    <acronym>WAL</acronym> contém efetivamente tudo que está no banco de dados,
+    deve haver certeza que a cópia está protegida contra olhos curiosos; por
+    exemplo, colocando a cópia em diretório sem acesso para grupo ou para todos.
+   </para>
+
+   <para>
+    É importante que o comando para realizar a cópia retorne o status de saída
+    zero se, e somente se, for bem-sucedido.
+    Ao receber o resultado zero, o <productname>PostgreSQL</productname> assume
+    que a cópia do arquivo de segmento do <acronym>WAL</acronym> foi
+    bem-sucedida, e remove ou recicla o arquivo de segmento.
+    Entretanto, um status diferente de zero informa ao
+    <productname>PostgreSQL</productname> que o arquivo não foi copiado;
+    serão feitas tentativas periódicas até ser bem-sucedida.
+   </para>
+
+   <para>
+    Geralmente o comando de cópia deve ser projetado de tal forma que não
+    sobrescreva algum arquivo de cópia pré-existente.
+    Esta é uma característica de segurança importante para preservar a
+    integridade da cópia no caso de um erro do administrador (tal como enviar
+    a saída de dois servidores diferentes para o mesmo diretório de cópias).
+    Aconselha-se a testar o comando de cópia proposto para ter certeza que não
+    sobrescreve um arquivo existente, <emphasis>e que retorna um status
+    diferente de zero neste caso</emphasis>. Tem sido observado que
+    <literal>cp -i</literal> faz isto corretamente em algumas plataformas, mas
+    não em outras. Se o comando escolhido não tratar este caso corretamente por
+    conta própria, deve ser adicionado um comando para testar a existência
+    do arquivo de cópia. Por exemplo, algo como
+<programlisting>
+archive_command = 'test ! -f .../%f &amp;&amp; cp %p .../%f'
+</programlisting>
+    funciona corretamente na maioria das variantes do Unix.
+   </para>
+
+   <para>
+    Ao projetar a configuração de cópia deve ser considerado o que vai acontecer
+    quando o comando de cópia falhar repetidas vezes, seja porque alguma
+    funcionalidade requer intervenção do operador, ou porque não há espaço para
+    armazenar a cópia.
+    Esta situação pode ocorrer, por exemplo, quando a cópia é escrita em fita
+    e não há um sistema automático para troca de fitas: quando a fita ficar
+    cheia, não será possível fazer outras cópias enquanto a fita não for
+    trocada.
+    Deve-se garantir que qualquer condição de erro, ou solicitação feita a um
+    operador humano, seja relatada de forma apropriada para que a situação
+    possa ser resolvida o mais rápido possível.
+    Enquanto a situação não for resolvida, continuarão sendo criados
+    novos arquivos de segmento do <acronym>WAL</acronym>
+    no diretório <filename class="directory">pg_xlog</filename>.
+   </para>
+
+   <para>
+    A velocidade do comando de cópia não é importante, desde que possa
+    acompanhar a taxa média de geração de dados para o <acronym>WAL</acronym>.
+    A operação normal prossegue mesmo que o processo de cópia fique um pouco
+    atrasado.
+    Se o processo de cópia ficar muito atrasado, vai aumentar a quantidade de
+    dados perdidos caso ocorra um desastre. Significa, também, que o diretório
+    <filename class="directory">pg_xlog</filename> vai conter um número grande
+    de arquivos de segmento que ainda não foram copiados, podendo, inclusive,
+    exceder o espaço livre em disco.
+    Aconselha-se que o processo de cópia seja monitorado para garantir que
+    esteja funcionando da forma planejada.
+   </para>
+
+   <para>
+    Havendo preocupação em se poder recuperar até o presente instante, devem
+    ser efetuados passos adicionais para garantir que o arquivo de segmento
+    do <acronym>WAL</acronym> corrente, parcialmente preenchido, também seja
+    copiado para algum lugar.
+    Isto é particularmente importante no caso do servidor gerar pouco tráfego
+    para o <acronym>WAL</acronym> (ou tiver períodos ociosos onde isto
+    acontece), uma vez que pode levar muito tempo até que o arquivo de segmento
+    fique totalmente preenchido e pronto para ser copiado.
+    Uma forma possível de tratar esta situação é definir uma entrada no
+    <application>cron</application>
+    <footnote>
+     <para>
+      <application>cron</application> &mdash;
+      processo (<literal>daemon</literal>) para executar comandos agendados.
+      (N. do T.)
+     </para>
+    </footnote>
+    que periodicamente, talvez uma vez por minuto, identifique o arquivo de
+    segmento do <acronym>WAL</> corrente e o guarde em algum lugar seguro.
+    Então, a combinação dos arquivos de segmento do <acronym>WAL</acronym>
+    guardados, com o arquivo de segmento do <acronym>WAL</> corrente guardado,
+    será suficiente para garantir que o banco de dados pode ser restaurado até
+    um minuto, ou menos, antes do presente instante.
+    Atualmente este comportamento não está presente no
+    <productname>PostgreSQL</productname>, porque não se deseja complicar a
+    definição de <xref linkend="guc-archive-command"> requerendo que este
+    acompanhe cópias bem-sucedidas, mas diferentes, do mesmo arquivo do
+    <acronym>WAL</acronym>.
+    O <xref linkend="guc-archive-command"> é chamado apenas para segmentos do
+    <acronym>WAL</acronym> completados.
+    Exceto no caso de novas tentativas devido a falha, só é chamado uma vez
+    para um determinado nome de arquivo.
+   </para>
+
+   <para>
+    Ao escrever o comando de cópia, deve ser assumido que os nomes dos arquivos
+    a serem copiados podem ter comprimento de até 64 caracteres, e que podem
+    conter qualquer combinação de letras ASCII, dígitos e pontos. Não é
+    necessário recordar o caminho original completo (<literal>%p</>), mas é
+    necessário recordar o nome do arquivo (<literal>%f</>).
+   </para>
+
+   <para>
+    Deve ser lembrado que embora a cópia do <acronym>WAL</acronym> permita
+    restaurar toda modificação feita nos dados dos bancos de dados do
+    <productname>PostgreSQL</productname>, não restaura a alterações feitas nos
+    arquivos de configuração (ou seja, nos arquivos
+    <filename>postgresql.conf</filename>, <filename>pg_hba.conf</filename> e
+    <filename>pg_ident.conf</filename>), uma vez que estes arquivos são editados
+    manualmente, em vez de através de operações SQL.
+    Aconselha-se a manter os arquivos de configuração em um local onde são
+    feitas cópias de segurança regulares do sistema de arquivos.
+    Para mudar os arquivos de configuração de lugar, deve ser consultada a
+    <xref linkend="runtime-config-file-locations">.
+   </para>
+  </sect2>
+
+  <sect2 id="backup-base-backup">
+   <title>Criação da cópia de segurança base</title>
+
+   <para>
+    O procedimento para fazer a cópia de segurança base é relativamente simples:
+  <orderedlist>
+   <listitem>
+    <para>
+     Garantir que a cópia dos arquivos de segmento do <acronym>WAL</acronym>
+     esteja habilitada e funcionando.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Conectar ao banco de dados como um superusuário e executar o comando
+<programlisting>
+SELECT pg_start_backup('rótulo');
+</programlisting>
+     onde <literal>rótulo</> é qualquer cadeia de caracteres que se deseje usar
+     para identificar unicamente esta operação de cópia de segurança (Uma boa
+     prática é utilizar o caminho completo de onde se deseja colocar o arquivo
+     de cópia de segurança).
+     A função <function>pg_start_backup</> cria o arquivo <firstterm>rótulo da
+     cópia de segurança</>, chamado <filename>backup_label</filename>, com
+     informações sobre a cópia de segurança, no diretório do agrupamento.
+    </para>
+
+    <para>
+     Para executar este comando, não importa qual banco de dados do agrupamento
+     é usado para fazer a conexão. O resultado retornado pela função pode ser
+     ignorado; mas se for relatado um erro, este deve ser tratado antes de
+     prosseguir.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Realizar a cópia de segurança utilizando qualquer ferramenta conveniente
+     para cópia de segurança do sistema de arquivos, como <application>tar</>
+     ou <application>cpio</>. Não é necessário, nem desejado, parar a operação
+     normal do banco de dados enquanto a cópia é feita.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Conectar novamente ao banco de dados como um superusuário e executar o
+     comando:
+<programlisting>
+SELECT pg_stop_backup();
+</programlisting>
+     Se a execução for bem sucedida, está terminado.
+    </para>
+   </listitem>
+  </orderedlist>
+   </para>
+
+   <para>
+    Não é necessário ficar muito preocupado com o tempo decorrido entre a
+    execução de <function>pg_start_backup</> e o início da realização da cópia
+    de segurança, nem entre o fim da realização da cópia de segurança e a
+    execução de <function>pg_stop_backup</>; uns poucos minutos de atraso não
+    vão criar nenhum problema. Entretanto, deve haver certeza que as operações
+    são realizadas seqüencialmente, sem que haja sobreposição.
+   </para>
+
+   <para>
+    Deve haver certeza que a cópia de segurança inclui todos os arquivos sob
+    o diretório do agrupamento de bancos de dados (por exemplo,
+    <filename class="directory">/usr/local/pgsql/data</filename>).
+    Se estiverem sendo utilizados espaços de tabelas que não residem sob este
+    diretório, deve-se ter o cuidado de inclui-los também (e ter certeza que
+    a cópia de segurança guarda vínculos simbólicos como vínculos, senão a
+    restauração vai danificar os espaços de tabelas).
+   </para>
+
+   <para>
+    Entretanto, podem ser omitidos da cópia de segurança os arquivos sob o
+    subdiretório <filename class="directory">pg_xlog</filename> do diretório
+    do agrupamento. Esta pequena complicação a mais vale a pena ser feita porque
+    reduz o risco de erros na restauração. É fácil de ser feito se
+    <filename class="directory">pg_xlog</filename> for um vínculo simbólico
+    apontando para algum lugar fora do agrupamento, o que é uma configuração
+    comum por razões de desempenho.
+   </para>
+
+   <para>
+    Para poder utilizar esta cópia de segurança base, devem ser mantidas por
+    perto todas as cópias dos arquivos de segmento do <acronym>WAL</acronym>
+    gerados no momento ou após o início da mesma.
+    Para ajudar a realizar esta tarefa, a função <function>pg_stop_backup</>
+    cria o <firstterm>arquivo de história de cópia de segurança</>, que é
+    armazenado imediatamente na área de cópia do <acronym>WAL</acronym>.
+    Este arquivo recebe um nome derivado do primeiro arquivo de segmento do
+    <acronym>WAL</acronym> que é necessário possuir para fazer uso da cópia de
+    segurança. Por exemplo, se o arquivo do <acronym>WAL</acronym> tiver o nome
+    <literal>0000000100001234000055CD</>, o arquivo de história de cópia de
+    segurança vai ter um nome parecido com
+    <literal>0000000100001234000055CD.007C9330.backup</literal>
+    (A segunda parte do nome do arquivo representa a posição exata dentro do
+    arquivo do <acronym>WAL</acronym>, podendo normalmente ser ignorada).
+    Uma vez que o arquivo contendo a cópia de segurança base tenha sido guardado
+    em local seguro, podem ser apagados todos os arquivos de segmento do
+    <acronym>WAL</acronym> com nomes numericamente precedentes a este número.
+    O arquivo de história de cópia de segurança é apenas um pequeno arquivo
+    texto. Contém a cadeia de caracteres rótulo fornecida à função
+    <function>pg_start_backup</function>, assim como as horas de início e
+    fim da cópia de segurança. Se o rótulo for utilizado para identificar onde
+    está armazenada a cópia de segurança base do banco de dados, então basta o
+    arquivo de história de cópia de segurança para se saber qual é o arquivo
+    de cópia de segurança a ser restaurado, no caso disto precisar ser feito.
+   </para>
+
+   <para>
+    Uma vez que é necessário manter por perto todos os arquivos de segmento do
+    <acronym>WAL</acronym> copiados desde a última cópia de segurança base,
+    o intervalo entre estas cópias de segurança geralmente deve ser escolhido
+    tendo por base quanto armazenamento se deseja consumir para os arquivos
+    do <acronym>WAL</acronym> guardados. Também deve ser considerado quanto
+    tempo se está preparado para despender com a restauração, no caso de ser
+    necessário fazer uma restauração &mdash; o sistema terá que refazer
+    todos os segmentos do <acronym>WAL</acronym>, o que pode ser muito demorado
+    se tiver sido decorrido muito tempo desde a última cópia de segurança base.
+   </para>
+
+   <para>
+    Também vale a pena notar que a função <function>pg_start_backup</function>
+    cria no diretório do agrupamento de bancos de dados um arquivo chamado
+    <filename>backup_label</filename>, que depois é removido pela função
+    <function>pg_stop_backup</function>.
+    Este arquivo fica guardado como parte do arquivo de cópia de segurança base.
+    O arquivo rótulo de cópia de segurança inclui a cadeia de caracteres rótulo
+    fornecida para a função <function>pg_start_backup</function>, assim como
+    a hora em que <function>pg_start_backup</function> foi executada, e o nome
+    do arquivo de segmento inicial do <acronym>WAL</acronym>. Em caso de dúvida,
+    é possível olhar dentro do arquivo de cópia de segurança base e determinar
+    com exatidão de qual sessão de cópia de segurança este arquivo provém.
+   </para>
+
+   <para>
+    Também é possível fazer a cópia de segurança base enquanto o postmaster
+    está parado. Neste caso, obviamente não podem ser utilizadas as funções
+    <function>pg_start_backup</> e <function>pg_stop_backup</>, sendo
+    responsabilidade do administrador controlar a que cópia de segurança
+    cada arquivo pertence, e até quanto tempo atrás os arquivos de segmento do
+    <acronym>WAL</acronym> associados vão.
+    Geralmente é melhor seguir os procedimentos para cópia de segurança
+    mostrados acima.
+   </para>
+  </sect2>
+
+  <sect2 id="backup-pitr-recovery">
+   <title>Recuperação a partir de cópia de segurança em-linha</title>
+
+   <para>
+    Certo, aconteceu o pior e é necessário recuperar a partir da cópia de
+    segurança. O procedimento está mostrado abaixo:
+  <orderedlist>
+   <listitem>
+    <para>
+     Parar o postmaster, se estiver executando.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Havendo espaço para isso, copiar todo o diretório de dados do agrupamento,
+     e todos os espaços de tabelas, para um lugar temporário, para o caso de
+     necessidade.
+     Deve ser observado que esta medida de precaução requer a existência de
+     espaço no sistema suficiente para manter duas cópias do banco de  dados
+     existente.
+     Se não houver espaço suficiente, é necessário pelo menos uma cópia do
+     conteúdo do subdiretório <filename class="directory">pg_xlog</filename>
+     do diretório de dados do agrupamento, porque pode conter arquivos de
+     segmento do <acronym>WAL</acronym> que não foram copiados quando o
+     sistema parou.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Apagar todos os arquivos e subdiretórios existentes sob o diretório de
+     dados do agrupamento, e sob os diretórios raiz dos espaços de tabelas em
+     uso.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Restaurar os arquivos do banco de dados a partir da cópia de segurança
+     base. Deve-se tomar cuidado para que sejam restaurados com o dono correto
+     (o usuário do sistema de banco de dados, e não o usuário
+     <literal>root</literal>), e com as permissões corretas. Se estiverem sendo
+     utilizados espaços de tabelas, deve ser verificado se foram restaurados
+     corretamente os vínculos simbólicos no subdiretório
+     <filename class="directory">pg_tblspc/</filename>.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Remover todos os arquivos presentes no subdiretório
+     <filename class="directory">pg_xlog</filename>; porque estes vêm da cópia
+     de segurança base e, portanto, provavelmente estão obsoletos.
+     Se o subdiretório <filename class="directory">pg_xlog</filename> não fizer
+     parte da cópia de segurança base, então este subdiretório deve ser criado,
+     assim como o subdiretório
+     <filename class="directory">pg_xlog/archive_status</filename>.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Se existirem arquivos de segmento do <acronym>WAL</acronym> que não foram
+     copiados para o diretório de cópias, mas que foram salvos no passo 2,
+     estes devem ser copiados para o diretório
+     <filename class="directory">pg_xlog</filename>; é melhor copiá-los em vez
+     de movê-los, para que ainda existam arquivos não modificados caso
+     ocorra algum problema e o processo tenha de ser recomeçado.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Criar o arquivo de comando de recuperação <filename>recovery.conf</> no
+     diretório de dados do agrupamento (consulte
+     <xref linkend="recovery-config-settings">). Também pode ser útil
+     modificar temporariamente o arquivo <filename>pg_hba.conf</>, para impedir
+     que os usuários comuns se conectem até que se tenha certeza que a
+     recuperação foi bem-sucedida.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Iniciar o postmaster. O postmaster vai entrar no modo de recuperação e
+     prosseguir lendo os arquivos do <acronym>WAL</acronym> necessários.
+     Após o término do processo de recuperação, o postmaster muda o nome do
+     arquivo <filename>recovery.conf</> para <filename>recovery.done</> (para
+     impedir que entre novamente no modo de recuperação no caso de uma queda
+     posterior), e depois começa as operações normais de banco de dados.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     Deve ser feita a inspeção do conteúdo do banco de dados para garantir
+     que a recuperação foi feita até onde deveria ser feita. Caso contrário,
+     deve-se retornar ao passo 1. Se tudo correu bem, liberar o acesso aos
+     usuários retornando <filename>pg_hba.conf</> à sua condição normal.
+    </para>
+   </listitem>
+  </orderedlist>
+   </para>
+
+   <para>
+    A parte chave de todo este procedimento é a definição do arquivo contendo o
+    comando de recuperação, que descreve como se deseja fazer a recuperação, e
+    até onde a recuperação deve ir.
+    Pode ser utilizado o arquivo <filename>recovery.conf.sample</> (geralmente
+    presente no diretório de instalação <filename class="directory">share</>)
+    na forma de um protótipo
+    <footnote>
+     <para>
+      O arquivo <filename>recovery.conf.sample</> está presente no diretório
+      <filename class="directory">/src/backend/access/transam</filename> da
+      distribuição do código fonte e do CVS. (N. do T.)
+     </para>
+    </footnote>.
+    O único parâmetro requerido no arquivo <filename>recovery.conf</> é
+    <varname>restore_command</>, que informa ao <productname>PostgreSQL</>
+    como trazer de volta os arquivos de segmento do <acronym>WAL</> copiados.
+    Como no <varname>archive_command</>, este parâmetro é uma cadeia de
+    caracteres para o interpretador de comandos. Pode conter <literal>%f</>,
+    que é substituído pelo nome do arquivo do <acronym>WAL</> a ser trazido
+    de volta, e <literal>%p</>, que é substituído pelo caminho absoluto para
+    onde o arquivo do <acronym>WAL</> será copiado.
+    Se for necessário incorporar o caractere <literal>%</literal> ao comando,
+    deve ser escrito <literal>%%</>.
+    A forma mais simples de um comando útil é algo como
+<programlisting>
+restore_command = 'cp /mnt/servidor/dir_copias/%f %p'
+</programlisting>
+    que irá copiar os arquivos de segmento do <acronym>WAL</acronym>
+    previamente guardados a partir do diretório
+    <filename class="directory">/mnt/servidor/dir_copias</>.
+    É claro que pode ser utilizado algo muito mais complicado, talvez um
+    script que solicite ao operador a montagem da fita apropriada.
+   </para>
+
+   <para>
+    É importante que o comando retorne um status de saída diferente de zero
+    em caso de falha. Será solicitado ao comando os arquivos do <acronym>WAL</>
+    cujos nomes não estejam presente entre as cópias; deve retornar um status
+    diferente de zero quando for feita a solicitação. Esta não é uma
+    condição de erro. Deve-se tomar cuidado para que o nome base do caminho
+    <literal>%p</> seja diferente de <literal>%f</>; não deve ser esperado
+    que sejam intercambiáveis.
+   </para>
+
+   <para>
+    Os arquivos de segmento do <acronym>WAL</> que não puderem ser encontrados
+    entre as cópias, serão procurados no diretório
+    <filename class="directory">pg_xlog/</>; isto permite que os arquivos de
+    segmento recentes, ainda não copiados, sejam utilizados.
+    Entretanto, os arquivos de segmento que estiverem entre as cópias terão
+    preferência sobre os arquivos em <filename class="directory">pg_xlog</>.
+    O sistema não sobrescreve os arquivos presentes em
+    <filename class="directory">pg_xlog</> quando busca os arquivos guardados.
+   </para>
+
+   <para>
+    Normalmente a recuperação prossegue através de todos os arquivos de
+    segmento do <acronym>WAL</>, portanto restaurando o banco de dados até o
+    presente momento (ou tão próximo quanto se pode chegar utilizando os
+    segmentos do <acronym>WAL</>). Mas se for necessário recuperar até algum
+    ponto anterior no tempo (digamos, logo antes do DBA júnior ter apagado a
+    tabela principal de transação de alguém), deve-se simplesmente especificar
+    no arquivo <filename>recovery.conf</filename> o ponto de parada requerido.
+    O ponto de parada, conhecido como <quote>destino da recuperação</quote>,
+    pode ser especificado tanto pela data e hora quanto pelo término de um
+    ID de transação específico. Até o momento em que este manual foi escrito,
+    somente podia ser utilizada a opção data e hora, pela falta de ferramenta
+    para ajudar a descobrir com precisão o identificador de transação a ser
+    utilizado.
+   </para>
+
+   <note>
+     <para>
+      O ponto de parada deve estar situado após o momento de término da cópia de
+      segurança base (o momento em que foi executada a função
+      <function>pg_stop_backup</>). A cópia de segurança não pode ser utilizada
+      para recuperar até um momento em que a cópia de segurança base estava em
+      andamento (Para recuperar até este ponto, deve-se retornar para uma
+      cópia de segurança base anterior e refazer a partir desta cópia).
+     </para>
+    </note>
+
+    <sect3 id="recovery-config-settings" xreflabel="Recovery Settings">
+     <title>Definições de recuperação</title>
+
+     <para>
+      Estas definições somente podem ser feitas no arquivo
+      <filename>recovery.conf</>, e são aplicadas apenas pela duração da
+      recuperação. Devem ser definidas novamente nas próximas recuperações que
+      se desejar realizar. As definições não podem ser alteradas após a
+      recuperação ter começado.
+     </para>
+
+     <variablelist>
+
+     <varlistentry id="restore-command" xreflabel="restore_command">
+      <term><varname>restore_command</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        O comando, para o interpretador de comandos, a ser executado para
+        trazer de volta os segmentos da série de arquivos do <acronym>WAL</>
+        guardados. Este parâmetro é requerido.
+        Todo <literal>%f</> presente na cadeia de caracteres é substituído pelo
+        nome do arquivo a ser trazido de volta das cópias, e todo <literal>%p</>
+        é substituído pelo caminho absoluto para onde o arquivo será copiado
+        no servidor.
+        Se for necessário incorporar o caractere <literal>%</literal> ao
+        comando, deve ser escrito <literal>%%</>.
+       </para>
+       <para>
+        É importante que o comando retorne o status de saída zero se, e somente
+        se, for bem-sucedido. Será solicitado ao comando os arquivos cujos
+        nomes não estejam presentes entre as cópias; deve retornar um status
+        diferente de zero quando for feita a solicitação. Exemplos:
+<programlisting>
+restore_command = 'cp /mnt/servidor/dir_copias/%f "%p"'
+restore_command = 'copy /mnt/servidor/dir_copias/%f "%p"'  # Windows
+</programlisting>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry id="recovery-target-time" xreflabel="recovery_target_time">
+      <term><varname>recovery_target_time</varname>
+           (<type>timestamp</type>)
+      </term>
+      <listitem>
+       <para>
+        Este parâmetro especifica o carimbo do tempo até onde a recuperação
+        deve prosseguir.
+        Somente pode ser especificado um entre <varname>recovery_target_time</>
+        e <xref linkend="recovery-target-xid">.
+        O padrão é recuperar até o fim do <acronym>WAL</>.
+        O ponto de parada preciso também é influenciado por
+        <xref linkend="recovery-target-inclusive">.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry id="recovery-target-xid" xreflabel="recovery_target_xid">
+      <term><varname>recovery_target_xid</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Este parâmetro especifica o identificador de transação até onde a
+        recuperação deve prosseguir. Deve-se ter em mente que enquanto os
+        identificadores são atribuídos seqüencialmente no início da transação,
+        as transações podem ficar completas em uma ordem numérica diferente.
+        As transações que serão recuperadas são aquelas que foram efetivadas
+        antes (e opcionalmente incluindo) a transação especificada.
+        Somente pode ser especificado um entre <varname>recovery_target_xid</>
+        e <xref linkend="recovery-target-time">.
+        O padrão é recuperar até o fim do <acronym>WAL</>.
+        O ponto de parada preciso também é influenciado por
+        <xref linkend="recovery-target-inclusive">.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry id="recovery-target-inclusive"
+                   xreflabel="recovery_target_inclusive">
+      <term><varname>recovery_target_inclusive</varname>
+        (<type>boolean</type>)
+      </term>
+      <listitem>
+       <para>
+        Especifica se a parada deve acontecer logo após o destino de recuperação
+        especificado (<literal>true</literal>), ou logo antes do destino de
+        recuperação especificado (<literal>false</literal>).
+        Aplica-se tanto a <xref linkend="recovery-target-time"> quanto a
+        <xref linkend="recovery-target-xid">, o que for especificado para esta
+        recuperação.
+        Indica se as transações que possuem exatamente a hora de efetivação ou
+        o identificador de destino, respectivamente, serão incluídas na
+        recuperação. O valor padrão é <literal>true</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry id="recovery-target-timeline"
+                   xreflabel="recovery_target_timeline">
+      <term><varname>recovery_target_timeline</varname>
+        (<type>string</type>)
+      </term>
+      <listitem>
+       <para>
+        Especifica a recuperação de uma determinada cronologia.
+        O padrão é recuperar ao longo da cronologia que era a cronologia
+        corrente quando foi feita a cópia de segurança base.
+        Somente será necessário definir este parâmetro em situações de
+        re-recuperações complexas, onde é necessário retornar para um estado
+        a que se chegou após uma recuperação para um ponto no tempo.
+        Consulte a explicação na <xref linkend="backup-timelines">.
+       </para>
+      </listitem>
+     </varlistentry>
+
+   </variablelist>
+
+   </sect3>
+
+  </sect2>
+
+  <sect2 id="backup-timelines">
+   <title>Cronologias</title>
+
+  <indexterm zone="backup">
+   <primary>cronologias</primary>
+  </indexterm>
+
+   <para>
+    A capacidade de restaurar um banco de dados para um determinado ponto
+    anterior no tempo cria algumas complexidades que são semelhantes às das
+    histórias de ficção científica sobre viagem no tempo e universos paralelos.
+    Por exemplo, na história original do banco de dados talvez tenha sido
+    removida uma tabela importante às 5:15 da tarde de terça-feira.
+    Imperturbável, o administrador pega a cópia de segurança e faz uma
+    restauração para o ponto no tempo 5:14 da tarde de terça feira, e o sistema
+    volta a funcionar.
+    <emphasis>Nesta</> história do universo do banco de dados, a tabela nunca
+    foi removida.
+    Mas suponha que mais tarde seja descoberto que esta não foi uma boa idéia,
+    e que se deseja voltar para algum ponto posterior da história original.
+    Mas isto não poderá ser feito, porque quando o banco de dados foi posto
+    em atividade este sobrescreveu alguns dos arquivos de segmento do
+    <acronym>WAL</> que levariam ao ponto no tempo onde agora quer se chegar.
+    Portanto, realmente é necessário fazer distinção entre a série de entradas
+    no <acronym>WAL</> geradas após a recuperação para um ponto no tempo, e
+    àquelas geradas durante a história original do banco de dados.
+   </para>
+
+   <para>
+    Para lidar com estes problemas, o <productname>PostgreSQL</> possui a noção
+    de <firstterm>cronologias</> (<literal>timelines</literal>).
+    Cada vez que é feita uma recuperação no tempo anterior ao fim da seqüência
+    do <acronym>WAL</>, é criada uma nova cronologia para identificar a série
+    de registros do <acronym>WAL</> geradas após a recuperação (entretanto,
+    se a recuperação prosseguir até o final do <acronym>WAL</>, não é criada uma
+    nova cronologia: apenas se estende a cronologia existente). O número
+    identificador da cronologia é parte dos nomes dos arquivos de segmento do
+    <acronym>WAL</> e, portanto, uma nova cronologia não sobrescreve os dados do
+    <acronym>WAL</> gerados pelas cronologias anteriores. É possível, na
+    verdade, guardar muitas cronologias diferentes. Embora possa parecer uma
+    funcionalidade sem utilidade, muitas vezes é de grande valia. Considere a
+    situação onde não se tem certeza absoluta de até que ponto no tempo deve
+    ser feita a recuperação e, portanto, devem ser feitas muitas tentativas
+    de recuperação até ser encontrado o melhor lugar para se desviar da
+    história antiga. Sem as cronologias este processo em pouco tempo cria uma
+    confusão impossível de ser gerenciada. Com as cronologias, pode ser feita a
+    recuperação até <emphasis>qualquer</emphasis> estado anterior, inclusive
+    os estados no desvio de cronologia abandonados posteriormente.
+   </para>
+
+   <para>
+    Toda vez que é criada uma nova cronologia, o <productname>PostgreSQL</> cria
+    um arquivo de <quote>história da cronologia</> que mostra de que
+    cronologia foi feito o desvio, e quando. Os arquivos de cronologia são
+    necessários para permitir o sistema buscar os arquivos de segmento do
+    <acronym>WAL</> corretos ao fazer a recuperação a partir de uma área de
+    cópias que contém várias cronologias. Portanto, estes arquivos são guardados
+    na área de cópias como qualquer arquivo de segmento do <acronym>WAL</>.
+    Os arquivos de cronologia são apenas pequenos arquivos texto sendo,
+    portanto, barato e apropriado mantê-los guardados indefinidamente (ao
+    contrário dos arquivos de segmento que são grandes). É possível, caso se
+    deseje fazê-lo, adicionar comentários aos arquivos de cronologia para fazer
+    anotações personalizadas sobre como e porque foi criada uma determinada
+    cronologia. Estes comentários são muito úteis quando há um grande número de
+    cronologias criadas como resultado de experiências.
+   </para>
+
+   <para>
+    O comportamento padrão de recuperação é recuperar ao longo da cronologia
+    que era a cronologia corrente quando foi feita a cópia de segurança base.
+    Se for desejado fazer a recuperação utilizando uma cronologia filha (ou
+    seja, deseja-se retornar para algum estado que foi gerado após uma tentativa
+    de recuperação), é necessário especificar o identificador da cronologia de
+    destino no arquivo <filename>recovery.conf</>. Não é possível fazer a
+    recuperação para um estado que foi um desvio anterior à cópia de
+    segurança base.
+   </para>
+  </sect2>
+
+  <sect2 id="backup-online-caveats">
+   <title>Cuidado</title>
+
+   <para>
+    No momento em que esta documentação foi escrita, haviam várias limitações
+    para o método de cópia de segurança em-linha, que provavelmente serão
+    corrigidas nas versões futuras:
+
+  <itemizedlist>
+   <listitem>
+    <para>
+     Atualmente não são gravadas no <acronym>WAL</> as operações em índices que
+     não são B-tree (índices <literal>hash</literal>, <literal>R-tree</literal>
+     e <literal>GiST</literal>), portanto quando o <acronym>WAL</> é refeito
+     os índices destes tipos não são atualizados.
+     A prática recomendada para contornar este problema é reindexar manualmente
+     todos os índices destes tipos após o término da operação de recuperação.
+    </para>
+   </listitem>
+  </itemizedlist>
+   </para>
+
+   <para>
+    Também deve ser notado que o formato atual do <acronym>WAL</acronym> é
+    muito volumoso, uma vez que inclui muitos instantâneos de páginas de disco.
+    Isto é apropriado para a finalidade de recuperação de quedas, uma vez que
+    pode ser necessário corrigir páginas de disco parcialmente preenchidas.
+    Entretanto, não é necessário armazenar tantas cópias de páginas para
+    operações de recuperação para um determinado ponto no tempo.
+    Uma área para desenvolvimento futuro é a compressão dos dados do
+    <acronym>WAL</acronym> copiados, pela remoção das cópias de página
+    desnecessárias.
+   </para>
+  </sect2>
+ </sect1>
+
+ <sect1 id="migration">
+  <title>Migração entre versões</title>
+
+  <indexterm zone="migration">
+   <primary>atualização</primary>
+  </indexterm>
+
+  <indexterm zone="migration">
+   <primary>versão</primary>
+   <secondary>compatibilidade</secondary>
+  </indexterm>
+
+  <para>
+   Esta seção explica como migrar o banco de dados de uma versão do
+   <productname>PostgreSQL</> para outra versão mais nova.
+   O procedimento de instalação do <productname>PostgreSQL</> não é assunto
+   desta seção; estes detalhes se encontram no <xref linkend="installation">.
+  </para>
+
+  <para>
+   Como regra geral, o formato interno de armazenamento dos dados está sujeito a
+   alterações entre versões principais do <productname>PostgreSQL</productname>
+   (onde muda o número após o primeiro ponto). Isto não se aplica às versões
+   secundárias sob a mesma versão principal (onde muda o número após o segundo
+   ponto); estas versões sempre possuem formatos de armazenamento compatíveis.
+   Por exemplo, as versões 7.0.1, 7.1.2 e 7.2 não são compatíveis, enquanto as
+   versões 7.1.1 e 7.1.2 são compatíveis. Quando é feita a atualização para uma
+   versão compatível, pode-se simplesmente substituir os executáveis e
+   reutilizar o diretório de dados no disco. Caso contrário, é necessário
+   fazer a cópia de segurança dos dados e <quote>restaurá-la</quote> no novo
+   servidor. A cópia de segurança tem de ser feita utilizando o
+   <application>pg_dump</application>; como é óbvio, os métodos de cópia de
+   segurança no nível de sistema operacional não funcionam. São realizadas
+   verificações que impedem que seja utilizado um diretório de dados de uma
+   versão incompatível do <productname>PostgreSQL</productname> e, portanto,
+   não pode ser causado nenhum grande dano quando se tenta ativar uma versão
+   errada do servidor em um diretório de dados.
+  </para>
+
+  <para>
+   É recomendada a utilização dos programas <application>pg_dump</> e
+   <application>pg_dumpall</> da nova versão do <productname>PostgreSQL</>,
+   para tirar vantagem das melhorias que podem ter sido introduzidas nestes
+   programas. As versões corrente dos programas de cópia de segurança podem
+   ler os dados de qualquer versão do servidor da 7.0 em diante.
+  </para>
+
+  <para>
+   O menor tempo de parada pode ser obtido instalando o novo servidor em um
+   diretório diferente, e executando tanto o servidor novo quanto o antigo
+   em paralelo, em portas diferentes. Depois pode ser executado algo como
+
+<programlisting>
+pg_dumpall -p 5432 | psql -d template1 -p 6543
+</programlisting>
+
+   para transferir os dados. Se for desejado, pode ser utilizado um arquivo
+   intermediário. Depois o servidor antigo pode ser parado, e o novo servidor
+   ativado na mesma porta que o servidor antigo estava utilizando. Deve haver
+   certeza que o banco de dados antigo não foi atualizado após ser executado o
+   <application>pg_dumpall</application>, senão obviamente serão perdidos dados.
+   Para obter informações sobre como proibir o acesso deve ser visto o
+   <xref linkend="client-authentication">.
+  </para>
+
+  <para>
+   Na prática, provavelmente será desejado testar os aplicativos cliente na nova
+   configuração antes de trocar de versão. Este é outro motivo para configurar
+   instalações simultâneas para as versões antiga e nova.
+  </para>
+
+  <para>
+   Se não for possível ou não for desejado executar dois servidores em paralelo,
+   pode ser realizada a etapa de cópia de segurança antes de instalar a nova
+   versão, parar o servidor, mover a versão antiga para outro lugar, instalar a
+   nova versão, ativar o novo servidor, e restaurar os dados. Por exemplo:
+
+<programlisting>
+pg_dumpall > backup
+pg_ctl stop
+mv /usr/local/pgsql /usr/local/pgsql.old
+cd ~/postgresql-&version;
+gmake install
+initdb -D /usr/local/pgsql/data
+postmaster -D /usr/local/pgsql/data
+psql template1 < backup
+</programlisting>
+
+   As formas de parar e ativar o servidor, e outros detalhes, devem ser vistos
+   no <xref linkend="runtime">. As instruções de instalação dão conselhos
+   sobre os lugares estratégicos para realizar estes passos.
+  </para>
+
+  <note>
+   <para>
+    Quando <quote>a instalação antiga é movida para outro lugar</quote>, talvez
+    não seja mais totalmente utilizável. Alguns programas executáveis contêm
+    caminhos absolutos para vários programas instalados e arquivos de dados.
+    Isto normalmente não é um grande problema, mas se for planejado utilizar
+    duas instalações em paralelo por um período de tempo, devem ser atribuídos
+    diretórios de instalação diferentes em tempo de construção
+    (Este problema foi corrigido na versão 8.0 e posteriores do
+    <productname>PostgreSQL</productname>, mas deve-se estar atento ao mesmo
+    quando instalações mais antigas são movidas de lugar).
+   </para>
+  </note>
+ </sect1>
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-tabs-mode:nil
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/share/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

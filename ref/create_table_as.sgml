@@ -1,0 +1,237 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_table_as.sgml,v 1.29 2005/01/09 05:57:45 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATETABLEAS">
+ <refmeta>
+  <refentrytitle id="sql-createtableas-title">CREATE TABLE AS</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE TABLE AS</refname>
+  <refpurpose>cria uma tabela a partir dos resultados de uma consulta</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createtableas">
+  <primary>CREATE TABLE AS</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE [ [ GLOBAL | LOCAL ] { TEMPORARY | TEMP } ] TABLE <replaceable>nome_da_tabela</replaceable> [ (<replaceable>nome_da_coluna</replaceable> [, ...] ) ] [ [ WITH | WITHOUT ] OIDS ]
+    AS <replaceable>comando</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE TABLE AS</command> cria uma tabela e a carrega
+   com dados computados pelo comando <command>SELECT</command>, ou por um
+   comando <command>EXECUTE</command> que executa um comando
+   <command>SELECT</command> preparado. As colunas da tabela possuem os
+   nomes e tipos de dado associados às colunas da saída do comando
+   <command>SELECT</command> (exceto que é possível mudar os nomes das
+   colunas fornecendo uma lista explícita de novos nomes de colunas).
+  </para>
+
+  <para>
+   O comando <command>CREATE TABLE AS</command> possui alguma semelhança
+   com a criação de uma visão, mas na realidade é bastante diferente: este
+   comando cria a nova tabela e executa a consulta apenas uma vez para fazer a
+   carga inicial da nova tabela. A nova tabela não acompanha as
+   mudanças posteriores ocorridas nas tabelas de origem da consulta.
+   Contrastando com este comportamento, a visão executa novamente o comando
+   <command>SELECT</command> que a define sempre que uma consulta é realizada.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><literal>GLOBAL</literal> ou <literal>LOCAL</literal></term>
+    <listitem>
+     <para>
+      Ignorado por compatibilidade. Consulte
+      <xref linkend="sql-createtable" endterm="sql-createtable-title">
+      para obter detalhes.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+
+  <variablelist>
+   <varlistentry>
+    <term><literal>TEMPORARY</literal> ou <literal>TEMP</literal></term>
+    <listitem>
+     <para>
+      Se for especificado, a tabela é criada como uma tabela temporária.
+      Consulte o comando
+      <xref linkend="sql-createtable" endterm="sql-createtable-title">
+      para obter mais detalhes.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable>nome_da_tabela</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) da tabela a ser criada.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable>nome_da_coluna</replaceable></term>
+    <listitem>
+     <para>
+      O nome da coluna na nova tabela. Se os nomes das colunas não
+      forem fornecidos, são obtidos a partir dos nomes das colunas
+      produzidas pela consulta. Se a tabela for criada a partir de um
+      comando <command>EXECUTE</command>, a lista de nomes de colunas
+      não pode ser especificada.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>WITH OIDS</literal></term>
+    <term><literal>WITHOUT OIDS</literal></term>
+     <listitem>
+      <para>
+       Esta cláusula opcional especifica se a tabela criada pelo comando
+       <command>CREATE TABLE AS</command> deve incluir os OIDs. Se não for
+       especificada nenhuma das formas desta cláusula, é utilizado o valor do
+       parâmetro de configuração <xref linkend="guc-default-with-oids">.
+      </para>
+     </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable>comando</replaceable></term>
+    <listitem>
+     <para>
+      Um comando de consulta (ou seja, um comando <command>SELECT</command>
+      ou um comando <command>EXECUTE</command> que executa um comando
+      <command>SELECT</command> preparado). Consulte
+      <xref linkend="sql-select" endterm="sql-select-title"> ou
+      <xref linkend="sql-execute" endterm="sql-execute-title">,
+      respectivamente, para obter a descrição da sintaxe permitida.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Este comando é funcionalmente equivalente ao
+   <xref linkend="sql-selectinto" endterm="sql-selectinto-title">
+   mas é preferível, porque é menos propenso a ser confundido com outros usos da
+   sintaxe do comando <command>SELECT ... INTO</command>.
+   Além disso, o comando <command>CREATE TABLE AS</command> oferece um
+   superconjunto das funcionalidades oferecidas pelo
+   <command>SELECT INTO</command>.
+  </para>
+
+  <para>
+   Antes do <productname>PostgreSQL</productname> 8.0, o comando
+   <command>CREATE TABLE AS</command> sempre incluía os OIDs nas tabelas
+   produzidas. A partir do <productname>PostgresSQL</productname> 8.0,
+   o comando <command>CREATE TABLE AS</command> permite ao usuário especificar
+   explicitamente se os OIDs devem ser incluídos. Se a presença dos OIDs não for
+   especificada explicitamente, é usada a variável de configuração
+   <xref linkend="guc-default-with-oids">. Embora o valor padrão corrente seja
+   <literal>true</literal>, este valor padrão pode ser mudado no futuro.
+   Portanto, os aplicativos que requerem que os OIDs sejam criados na tabela
+   pelo comando <command>CREATE TABLE AS</command> devem especificar
+   <literal>WITH OIDS</literal> para garantir a compatibilidade com as versões
+   futuras do <productname>PostgreSQL</productname>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Criar a tabela <literal>filmes_recentes</literal> consistindo apenas
+   das entradas recentes da tabela <literal>filmes</literal>:
+
+<programlisting>
+CREATE TABLE filmes_recentes AS
+  SELECT * FROM filmes WHERE data_prod &gt;= '2002-01-01';
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>CREATE TABLE AS</command> está especificado no padrão
+   SQL:2003. Existem algumas pequenas diferenças entre a definição do comando
+   no SQL:2003 e sua implementação no <productname>PostgreSQL</productname>:
+
+   <itemizedlist spacing="compact">
+    <listitem>
+     <para>
+      O padrão requer parênteses em torno da cláusula de subconsulta;
+      no <productname>PostgreSQL</productname> estes parênteses são
+      opcionais.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      O padrão define a cláusula <literal>ON COMMIT</literal>,
+      que não está atualmente implementada pelo <productname>PostgreSQL</productname>.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      O padrão define a cláusula <literal>WITH DATA</literal>,
+      que não está atualmente implementada pelo <productname>PostgreSQL</productname>.
+     </para>
+    </listitem>
+   </itemizedlist>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createtable" endterm="sql-createtable-title"></member>
+   <member><xref linkend="sql-execute" endterm="sql-execute-title"></member>
+   <member><xref linkend="sql-select" endterm="sql-select-title"></member>
+   <member><xref linkend="sql-selectinto" endterm="sql-selectinto-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

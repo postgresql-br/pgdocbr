@@ -1,0 +1,282 @@
+<!--
+$PostgreSQL $
+PostgreSQL documentation
+-->
+
+<refentry id="APP-REINDEXDB">
+ <refmeta>
+  <refentrytitle id="APP-REINDEXDB-TITLE"><application>reindexdb</application></refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Aplicativo</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname id="reindexdb">reindexdb</refname>
+  <refpurpose>Indexa novamente um banco de dados do <productname>PostgreSQL</productname></refpurpose>
+ </refnamediv>
+
+ <indexterm zone="app-reindexdb">
+  <primary>reindexdb</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>reindexdb</command>
+   <arg rep="repeat"><replaceable>opção_de_conexão</replaceable></arg>
+   <arg>--table | -t <replaceable>tabela</replaceable> </arg>
+   <arg>--index | -i <replaceable>índice</replaceable> </arg>
+   <arg><replaceable>nome_do_banco_de_dados</replaceable></arg>
+   <sbr>
+   <command>reindexdb</command>
+   <arg rep="repeat"><replaceable>opção_de_conexão</replaceable></arg>
+   <arg>--all | -a</arg>
+   <sbr>
+   <command>reindexdb</command>
+   <arg rep="repeat"><replaceable>opção_de_conexão</replaceable></arg>
+   <arg>--system | -s</arg>
+   <arg><replaceable>nome_do_banco_de_dados</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O utilitário <application>reindexdb</application> reconstrói os índices
+   de um banco de dados do <productname>PostgreSQL</productname>.
+  </para>
+
+  <para>
+   O <application>reindexdb</application> é um invólucro em torno do comando
+   <xref linkend="SQL-REINDEX" endterm="sql-reindex-title">
+   do <acronym>SQL</acronym>.
+   Não existe diferença efetiva entre reindexar os bancos de dados através
+   deste utilitário, ou através de outros métodos para acessar o servidor.
+  </para>
+
+ </refsect1>
+
+
+ <refsect1>
+  <title>Opções</title>
+
+   <para>
+    O <application>reindexdb</application> aceita os seguintes argumentos
+    de linha de comando:
+
+    <variablelist>
+     <varlistentry>
+      <term><option>-a</></term>
+      <term><option>--all</></term>
+      <listitem>
+       <para>
+        Reindexa todos os bancos de dados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-s</></term>
+      <term><option>--system</></term>
+      <listitem>
+       <para>
+        Reindexa os catálogos do sistema do banco de dados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-t <replaceable class="parameter">tabela</replaceable></></term>
+      <term><option>--table <replaceable class="parameter">tabela</replaceable></></term>
+      <listitem>
+       <para>
+        Reindexa apenas a <replaceable class="parameter">tabela</replaceable>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-i <replaceable class="parameter">índice</replaceable></></term>
+      <term><option>--index <replaceable class="parameter">índice</replaceable></></term>
+      <listitem>
+       <para>
+        Recria apenas o <replaceable class="parameter">índice</replaceable>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option><optional>-d</> <replaceable class="parameter">nome_do_banco_de_dados</replaceable></></term>
+      <term><option><optional>--dbname</> <replaceable class="parameter">nome_do_banco_de_dados</replaceable></></term>
+      <listitem>
+       <para>
+        Especifica o nome do banco de dados a ser reindexado.
+        Se não for especificado o nome do banco de dados, nem for utilizada a
+        opção <option>-a</option> (ou <option>--all</option>), o nome do banco
+        de dados será obtido da variável de ambiente <envar>PGDATABASE</envar>.
+        Se esta	variável não estiver definida, então será utilizado o
+        nome do usuário especificado na conexão.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-e</></term>
+      <term><option>--echo</></term>
+      <listitem>
+       <para>
+        Mostra os comandos que o <application>reindexdb</application> gera
+        e envia para o servidor.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-q</></term>
+      <term><option>--quiet</></term>
+      <listitem>
+       <para>
+        Não exibe resposta.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+   </para>
+
+   <para>
+    O <application>reindexdb</application> também aceita os seguintes
+    argumentos de linha de comando para os parâmetros de conexão:
+
+    <variablelist>
+     <varlistentry>
+      <term><option>-h <replaceable class="parameter">hospedeiro</replaceable></></term>
+      <term><option>--host <replaceable class="parameter">hospedeiro</replaceable></></term>
+      <listitem>
+       <para>
+        Especifica o nome de hospedeiro da máquina onde o servidor está
+        executando. Se o nome iniciar por barra (/), será utilizado como
+        o diretório do soquete do domínio <systemitem class="osname">Unix</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-p <replaceable class="parameter">porta</replaceable></></term>
+      <term><option>--port <replaceable class="parameter">porta</replaceable></></term>
+      <listitem>
+       <para>
+        Especifica a porta <acronym>TCP</acronym>, ou a extensão do arquivo
+        de soquete do domínio <systemitem class="osname">Unix</systemitem>
+        local, onde o servidor está atendendo as conexões.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-U <replaceable class="parameter">nome_do_usuário</replaceable></></term>
+      <term><option>--username <replaceable class="parameter">nome_do_usuário</replaceable></></term>
+      <listitem>
+       <para>
+        Nome do usuário para conectar.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-W</></term>
+      <term><option>--password</></term>
+      <listitem>
+       <para>
+        Força a solicitação da senha.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Ambiente</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><envar>PGDATABASE</envar></term>
+    <term><envar>PGHOST</envar></term>
+    <term><envar>PGPORT</envar></term>
+    <term><envar>PGUSER</envar></term>
+
+    <listitem>
+     <para>
+      Parâmetros de conexão padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Diagnósticos</title>
+
+  <para>
+   Havendo dificuldade, veja no comando
+   <xref linkend="SQL-REINDEX" endterm="sql-reindex-title"> e no
+   <xref linkend="APP-PSQL">
+   a discussão dos problemas possíveis e as mensagens de erro.
+   O servidor de banco de dados deve estar executando no hospedeiro
+   de destino. Também se aplicam todas as definições de conexão padrão
+   e as variáveis de ambiente utilizadas pela biblioteca cliente
+   <application>libpq</application>.
+  </para>
+
+ </refsect1>
+
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   O <application>reindexdb</application> pode precisar conectar várias
+   vezes ao servidor <productname>PostgreSQL</productname>, solicitando
+   a senha cada uma destas vezes.
+   Neste caso é conveniente existir o arquivo <filename>~/.pgpass</>.
+   Para obter mais informações deve ser consultada a
+   <xref linkend="libpq-pgpass">.
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Exemplos</title>
+
+   <para>
+    Para reindexar o banco de dados <database class="name">teste</database>:
+<screen>
+<prompt>$ </prompt><userinput>reindexdb teste</userinput>
+</screen>
+   </para>
+
+   <para>
+    Para reindexar o índice <database>bar</database> da tabela
+    <database class="table">foo</database> do banco de dados chamado
+    <database class="name">abcd</database>:
+<screen>
+<prompt>$ </prompt><userinput>reindexdb --table foo --index bar abcd</userinput>
+</screen>
+   </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-reindex" endterm="sql-reindex-title"></member>
+   <member>Variáveis de ambiente (<xref linkend="libpq-envars">)</member>
+  </simplelist>
+ </refsect1>
+
+</refentry>

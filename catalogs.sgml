@@ -1,0 +1,4811 @@
+<!--
+ Documentação dos catálogos do sistema, dirigida para os desenvolvedores do PostgreSQL
+ $PostgreSQL: pgsql/doc/src/sgml/catalogs.sgml,v 2.95 2005/01/05 23:42:03 tgl Exp $
+ -->
+
+<chapter id="catalogs">
+ <title>Catálogos do sistema</title>
+
+  <para>
+   Os catálogos do sistema são os locais onde os sistemas gerenciadores de
+   banco de dados relacionais armazenam os metadados do esquema, tais como
+   informações sobre tabelas e colunas, e informações de controle internas.
+   Os  catálogos do sistema do <productname>PostgreSQL</productname> são
+   tabelas comuns. Estas tabelas podem ser removidas e recriadas, podem ser
+   adicionadas colunas, podem ser inseridos e atualizados valores, e desta forma
+   arruinar inteiramente o sistema. Normalmente, os catálogos do
+   sistema não devem ser modificados manualmente, sempre existe um comando SQL
+   para fazê-lo (Por exemplo, <command>CREATE DATABASE</command> insere uma
+   linha no catálogo <structname>pg_database</structname>  &mdash; e cria
+   realmente o banco de dados no disco). Existem exceções para algumas operações
+   obscuras muito particulares, como adicionar método de acesso de índice.
+   <footnote>
+    <para>
+     No diretório do tutorial existe o arquivo
+     <ulink url="./syscat.sql">syscat.sql</ulink> contendo várias consultas
+     interessantes aos catálogos do sistema. (N. do T.)
+    </para>
+   </footnote>
+  </para>
+
+ <sect1 id="catalogs-overview">
+  <title>Visão geral</title>
+
+  <para>
+   A <xref linkend="catalog-table"> lista os catálogos do sistema.
+   A documentação mais detalhada sobre cada catálogo é mostrada a seguir.
+  </para>
+
+  <para>
+   Os catálogos do sistema são, em sua maioria, copiados do banco de dados
+   modelo durante a criação do banco de dados e, portanto, estes catálogos são
+   específicos do banco de dados.
+   Alguns poucos catálogos são compartilhados fisicamente entre todos os bancos
+   de dados do agrupamento; isto está indicado na descrição individual do
+   catálogo.
+  </para>
+
+  <table id="catalog-table">
+   <title>Catálogos do sistema</title>
+
+   <tgroup cols="2">
+    <thead>
+     <row>
+      <entry>Nome do catálogo</entry>
+      <entry>Finalidade</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><link linkend="catalog-pg-aggregate"><structname>pg_aggregate</structname></link></entry>
+      <entry>funções de agregação</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-am"><structname>pg_am</structname></link></entry>
+      <entry>métodos de acesso de índice</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-amop"><structname>pg_amop</structname></link></entry>
+      <entry>operadores de método de acesso</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-amproc"><structname>pg_amproc</structname></link></entry>
+      <entry>procedimentos de suporte de método de acesso</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-attrdef"><structname>pg_attrdef</structname></link></entry>
+      <entry>valor padrão das colunas</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-attribute"><structname>pg_attribute</structname></link></entry>
+      <entry>colunas de tabela (<quote>atributos</quote>)</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-cast"><structname>pg_cast</structname></link></entry>
+      <entry>casts (conversões de tipos de dado)</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-class"><structname>pg_class</structname></link></entry>
+      <entry>tabelas, índices, seqüências, visões (<quote>relações</quote>)</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-constraint"><structname>pg_constraint</structname></link></entry>
+      <entry>restrições de verificação, restrições de unicidade, restrições de chave primária, restrições de chave estrangeira</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-conversion"><structname>pg_conversion</structname></link></entry>
+      <entry>informações sobre conversão de codificação</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-database"><structname>pg_database</structname></link></entry>
+      <entry>bancos de dados que fazem parte deste agrupamento de bancos de dados</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-depend"><structname>pg_depend</structname></link></entry>
+      <entry>dependências entre objetos do banco de dados</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-description"><structname>pg_description</structname></link></entry>
+      <entry>descrições ou comentários sobre os objetos do banco de dados</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-group"><structname>pg_group</structname></link></entry>
+      <entry>grupos de usuários do banco de dados</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-index"><structname>pg_index</structname></link></entry>
+      <entry>informações adicionais sobre índices</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-inherits"><structname>pg_inherits</structname></link></entry>
+      <entry>hierarquia de herança de tabela</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-language"><structname>pg_language</structname></link></entry>
+      <entry>linguagens para escrever funções</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-largeobject"><structname>pg_largeobject</structname></link></entry>
+      <entry>objetos grandes</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-listener"><structname>pg_listener</structname></link></entry>
+      <entry>suporte a notificação assíncrona</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link></entry>
+      <entry>esquemas</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-opclass"><structname>pg_opclass</structname></link></entry>
+      <entry>classes de operador de método de acesso de índice</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-operator"><structname>pg_operator</structname></link></entry>
+      <entry>operadores</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link></entry>
+      <entry>funções e procedimentos</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-rewrite"><structname>pg_rewrite</structname></link></entry>
+      <entry>regras de reescrita dos comandos</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link></entry>
+      <entry>usuários do banco de dados</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-statistic"><structname>pg_statistic</structname></link></entry>
+      <entry>estatísticas do planejador</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-tablespace"><structname>pg_tablespace</structname></link></entry>
+      <entry>espaços de tabelas do agrupamento de bancos de dados</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-trigger"><structname>pg_trigger</structname></link></entry>
+      <entry>gatilhos</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="catalog-pg-type"><structname>pg_type</structname></link></entry>
+      <entry>tipos de dado</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+ </sect1>
+
+
+ <sect1 id="catalog-pg-aggregate">
+  <title><structname>pg_aggregate</structname></title>
+
+  <indexterm zone="catalog-pg-aggregate">
+   <primary>pg_aggregate</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_aggregate</structname> armazena informações sobre
+   funções de agregação.
+   Uma função de agregação é uma função que opera sobre um conjunto de valores
+   (tipicamente uma coluna de cada linha que corresponde à condição do comando),
+   e retorna um único valor calculado a partir destes valores.
+   As funções de agregação típicas são <function>sum</function>,
+   <function>count</function> e <function>max</function>.
+   Cada entrada em <structname>pg_aggregate</structname> é uma extensão de uma
+   entrada em <structname>pg_proc</structname>.
+   A entrada em <structname>pg_proc</structname> contém o nome da agregação, os
+   tipos de dado de entrada e de saída, além de outras informações semelhantes
+   às das funções comuns.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_aggregate</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+     <row>
+      <entry><structfield>aggfnoid</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>OID da função de agregação em <structname>pg_proc</structname></entry>
+     </row>
+     <row>
+      <entry><structfield>aggtransfn</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função de transição da agregação</entry>
+     </row>
+     <row>
+      <entry><structfield>aggfinalfn</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função final da agregação (zero se não houver nenhuma)</entry>
+     </row>
+     <row>
+      <entry><structfield>aggtranstype</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Tipo de dado da transição interna (estado) da função de agregação</entry>
+     </row>
+     <row>
+      <entry><structfield>agginitval</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>
+       Valor inicial do estado da transição. É um campo texto,
+       contendo o valor inicial na sua representação externa na forma de
+       cadeia de caracteres. Se o valor for nulo, o valor do
+       estado da transição começa por nulo.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   As novas funções de agregação são registradas através do comando
+   <command>CREATE AGGREGATE</command>.
+   Para obter informações adicionais sobre como escrever funções de agregação,
+   e o significado das funções de transição, etc., deve ser consultada a
+   <xref linkend="xaggr">
+  </para>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-am">
+  <title><structname>pg_am</structname></title>
+
+  <indexterm zone="catalog-pg-am">
+   <primary>pg_am</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_am</structname> armazena informações sobre os
+   métodos de acesso de índice. Existe uma linha para cada método de acesso
+   de índice suportado pelo sistema.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_am</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+
+     <row>
+      <entry><structfield>amname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome do método de acesso</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amowner</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usesysid</literal></entry>
+      <entry>ID de usuário do dono (atualmente não utilizado)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amstrategies</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Número de estratégias do operador para este método de acesso</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amsupport</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Número de rotinas de suporte para este método de acesso</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amorderstrategy</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Zero se o índice não oferece ordem de classificação, senão o número
+      da estratégia do operador de estratégia que descreve a ordem de
+      classificação</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amcanunique</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>O método de acesso suporta índices únicos?</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amcanmulticol</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>O método de acesso suporta índices de várias colunas?</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amindexnulls</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>O método de acesso suporta entradas de índice nulas?</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amconcurrent</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>O método de acesso suporta atualizações simultâneas?</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amgettuple</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função <quote>próxima tupla válida</quote></entry>
+     </row>
+
+     <row>
+      <entry><structfield>aminsert</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função <quote>inserir esta tupla</quote></entry>
+     </row>
+
+     <row>
+      <entry><structfield>ambeginscan</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função <quote>começar nova varredura</quote></entry>
+     </row>
+
+     <row>
+      <entry><structfield>amrescan</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função <quote>recomeçar esta varredura</quote></entry>
+     </row>
+
+     <row>
+      <entry><structfield>amendscan</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função <quote>terminar esta varredura</quote></entry>
+     </row>
+
+     <row>
+      <entry><structfield>ammarkpos</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função <quote>marcar a posição corrente da varredura</quote></entry>
+     </row>
+
+     <row>
+      <entry><structfield>amrestrpos</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função <quote>restaurar a posição de varredura marcada</quote></entry>
+     </row>
+
+     <row>
+      <entry><structfield>ambuild</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função <quote>construir novo índice</quote></entry>
+     </row>
+
+     <row>
+      <entry><structfield>ambulkdelete</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função <quote>apagar em massa</quote> (<literal>bulk-delete</literal>)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amvacuumcleanup</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função de limpeza pós-<command>VACUUM</command></entry>
+     </row>
+
+     <row>
+      <entry><structfield>amcostestimate</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função para estimar o custo da varredura de índice</entry>
+     </row>
+
+    </tbody>
+   </tgroup>
+  </table>
+
+   <para>
+    Um método de acesso de índice que suporta várias colunas (possui
+    <structfield>amcanmulticol</structfield> verdade) <emphasis>deve</emphasis>
+    suportar a indexação de valores nulos nas colunas após a primeira, porque o
+    planejador assume que o índice pode ser utilizado para comandos acessando
+    apenas a(s) primeira(s) coluna(s).
+    Por exemplo, considere um índice em (a,b) e um comando com
+    <literal>WHERE a = 4</literal>.
+    O sistema assume que o índice pode ser utilizado para ser varrido à procura
+    de linhas com <literal>a = 4</literal>, o que estaria errado se o índice
+    omitisse as linhas onde <literal>b</literal> é nulo.
+    Entretanto, não há problema se o índice omitir as linhas onde a primeira
+    coluna indexada for nula (atualmente o GiST faz assim).
+    <structfield>amindexnulls</structfield> deve ser definida como verdade
+    somente se o método de acesso do índice indexar todas as linhas, incluindo
+    combinações arbitrárias de valores nulos.
+   </para>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-amop">
+  <title><structname>pg_amop</structname></title>
+
+  <indexterm zone="catalog-pg-amop">
+   <primary>pg_amop</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_amop</structname> armazena informações sobre
+   operadores associados a classes de operadores de método de acesso de índice.
+   Existe uma linha para cada operador que é membro de uma classe de operadores.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_amop</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+
+     <row>
+      <entry><structfield>amopclaid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-opclass"><structname>pg_opclass</structname></link>.oid</literal></entry>
+      <entry>Para que classe de operador de índice esta entrada se destina</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amopsubtype</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Subtipo para distinguir várias entradas para a mesma estratégia;
+             zero por padrão</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amopstrategy</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Número da estratégia do operador</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amopreqcheck</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Acerto no índice deve ser verificado novamente</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amopopr</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-operator"><structname>pg_operator</structname></link>.oid</literal></entry>
+      <entry>OID do operador</entry>
+     </row>
+
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-amproc">
+  <title><structname>pg_amproc</structname></title>
+
+  <indexterm zone="catalog-pg-amproc">
+   <primary>pg_amproc</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_amproc</structname> armazena informações sobre
+   os procedimentos de suporte associados às classes de operadores de
+   método de acesso de índice. Existe uma linha para cada procedimento
+   de suporte que pertence a uma classe de operadores.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_amproc</structname></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+
+     <row>
+      <entry><structfield>amopclaid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-opclass"><structname>pg_opclass</structname></link>.oid</literal></entry>
+      <entry>Para que classe de operador de índice esta entrada se destina</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amprocsubtype</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Subtipo, se for uma rotina de tipo-cruzado, senão zero</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amprocnum</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Número do procedimento de suporte</entry>
+     </row>
+
+     <row>
+      <entry><structfield>amproc</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>OID do procedimento</entry>
+     </row>
+
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-attrdef">
+  <title><structname>pg_attrdef</structname></title>
+
+  <indexterm zone="catalog-pg-attrdef">
+   <primary>pg_attrdef</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_attrdef</structname> armazena o valor padrão das
+   colunas. As principais informações sobre as colunas estão armazenadas em
+   <structname>pg_attribute</structname> (veja abaixo). Somente as colunas que
+   especificam explicitamente o valor padrão (quando a tabela é criada ou a
+   coluna é adicionada) possuem uma entrada nesta tabela.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_attrdef</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>adrelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>Tabela que esta coluna pertence</entry>
+     </row>
+
+     <row>
+      <entry><structfield>adnum</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry><literal><link linkend="catalog-pg-attribute"><structname>pg_attribute</structname></link>.attnum</literal></entry>
+      <entry>Número da coluna</entry>
+     </row>
+
+     <row>
+      <entry><structfield>adbin</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Representação interna do valor padrão da coluna</entry>
+     </row>
+
+     <row>
+      <entry><structfield>adsrc</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Representação humanamente legível do valor padrão</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+   <para>
+    O campo <structfield>adsrc</structfield> é histórico, sendo melhor não
+    usá-lo, porque não acompanha mudanças externas que podem afetar a
+    representação do valor padrão.
+    A compilação reversa do campo <structfield>adbin</structfield>
+    (com <function>pg_get_expr</>, por exemplo) é uma forma melhor de mostrar o
+    valor padrão.
+   </para>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-attribute">
+  <title><structname>pg_attribute</structname></title>
+
+  <indexterm zone="catalog-pg-attribute">
+   <primary>pg_attribute</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_attribute</structname> armazena informações sobre
+   as colunas das tabelas. Existe exatamente uma linha em
+   <structname>pg_attribute</structname> para cada coluna de cada tabela
+   do banco de dados (Também existem entradas de atributo para os
+   índices, e todos os objetos que possuem entrada em
+   <structname>pg_class</structname>).
+  </para>
+
+  <para>
+   O termo atributo equivale a coluna, sendo usado por motivos históricos.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_attribute</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>attrelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>Tabela que esta coluna pertence</entry>
+     </row>
+
+     <row>
+      <entry><structfield>attname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome da coluna</entry>
+     </row>
+
+     <row>
+      <entry><structfield>atttypid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Tipo de dado desta coluna</entry>
+     </row>
+
+     <row>
+      <entry><structfield>attstattarget</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       <structfield>attstattarget</structfield> controla o nível de detalhe
+       das estatísticas acumuladas para esta coluna pelo comando
+       <xref linkend="sql-analyze" endterm="sql-analyze-title">.
+       O valor zero indica que não deve ser coletada nenhuma estatística.
+       Um valor negativo diz para usar o padrão do sistema para estatísticas.
+       O significado exato dos valores positivos é dependente do tipo de dado.
+       Para os tipos de dado escalares, <structfield>attstattarget</structfield>
+       é tanto o número de <quote>valores mais comuns</quote> a serem coletados,
+       quanto o número de barras do histograma a serem criadas
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>attlen</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>
+       Cópia de <literal>pg_type.typlen</literal> do tipo desta coluna
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>attnum</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>
+       Número da coluna. As colunas comuns são numeradas a partir de
+       um. As colunas do sistema, tal como <structfield>oid</structfield>,
+       possuem números negativos (arbitrários)
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>attndims</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       Número de dimensões, se a coluna for de um tipo matriz; senão zero
+       (Atualmente o número de dimensões de uma matriz não é imposto,
+       portanto qualquer valor diferente de zero significa de fato
+       <quote>isto é uma matriz</quote>)
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>attcacheoff</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       Sempre -1 no armazenamento, mas quando carregado na memória em um
+       descritor de linha pode ser atualizado para guardar o deslocamento
+       do atributo na linha.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>atttypmod</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       <structfield>atttypmod</structfield> registra dados específicos do tipo,
+       fornecidos na hora da criação da tabela (por exemplo, o comprimento máximo
+       de uma coluna <type>varchar</type>). É passado para as funções de entrada
+       específicas dos tipos, e para as funções de imposição de comprimento.
+       Geralmente o valor é -1 para os tipos que não necessitam de
+       <structfield>atttypmod</structfield>
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>attbyval</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Cópia de <literal>pg_type.typbyval</literal> do tipo desta coluna
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>attstorage</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+       Normalmente uma cópia de <literal>pg_type.typstorage</literal> do tipo
+       desta coluna. Para os tipos de dado fatiáveis (<literal>TOAST</literal>),
+       pode ser alterado após a criação da coluna para controlar
+       a política de armazenamento
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>attalign</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+       Cópia de <literal>pg_type.typalign</literal> do tipo desta coluna
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>attnotnull</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Representa uma restrição de não-nulo. É possível modificar
+       esta coluna para habilitar ou desabilitar a restrição
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>atthasdef</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Indica se esta coluna possui um valor padrão e, neste caso, existe uma
+       entrada correspondente no catálogo <structname>pg_attrdef</structname>
+       que realmente define o valor
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>attisdropped</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Indica se esta coluna foi removida e, portanto, não é mais válida. Uma
+       coluna removida continua presente na tabela, mas é
+       ignorada pelo analisador e, portanto, não pode ser acessada via SQL
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>attislocal</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Indica se a coluna é definida localmente na relação. Deve ser observado
+       que a coluna pode ser definida localmente e herdada simultaneamente.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>attinhcount</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       Número de ancestrais diretos que a coluna possui. Uma coluna com um
+       número de ancestrais diferente de zero não pode ser removida nem
+       renomeada.
+      </entry>
+     </row>
+
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   Na entrada em <structname>pg_attribute</structname> da coluna removida,
+   <structfield>atttypid</structfield> é redefinido como zero, mas
+   <structfield>attlen</structfield> e os outros campos copiados de
+   <structname>pg_type</> ainda são válidos.
+   Esta arrumação é necessária para lidar com a situação onde o tipo de dado
+   da coluna removida foi removido posteriormente, e portanto não existe mais
+   a linha em <structname>pg_type</>.
+   <structfield>attlen</structfield> e os outros campos podem ser utilizados
+   para interpretar o conteúdo da linha da tabela.
+  </para>
+ </sect1>
+
+
+ <sect1 id="catalog-pg-cast">
+  <title><structname>pg_cast</structname></title>
+
+  <indexterm zone="catalog-pg-cast">
+   <primary>pg_cast</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_cast</structname> armazena caminhos de conversão de
+   tipo de dados, tanto os caminhos nativos quanto os definidos através de
+   <command>CREATE CAST</command>.
+  </para>
+
+  <table>
+   <title>Colunas de <structfield>pg_cast</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>castsource</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>OID do tipo de dado de origem</entry>
+     </row>
+
+     <row>
+      <entry><structfield>casttarget</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>OID do tipo de dado de destino</entry>
+     </row>
+
+     <row>
+      <entry><structfield>castfunc</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>
+       OID da função a ser utilizada para realizar esta conversão. Zero se os
+       tipos de dado forem binariamente compatíveis (ou seja, não é necessária
+       nenhuma operação em tempo de execução para realizar a conversão).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>castcontext</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+       Indica em que contextos a conversão pode ser chamada. O valor
+       <literal>e</literal> significa somente como uma conversão explícita
+       (utilizando a sintaxe <literal>CAST</literal> ou <literal>::</literal>).
+       O valor <literal>a</literal> significa implicitamente na atribuição à
+       coluna de destino, bem como explicitamente.
+       O valor <literal>i</literal> significa implicitamente em expressões,
+       bem como nos demais casos.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   As funções de conversão listadas em <structname>pg_cast</structname> devem
+   sempre receber o tipo de dado de origem como seu primeiro argumento, e
+   retornar o tipo de destino da conversão como o tipo de seu resultado.
+   Uma função de conversão pode ter até três argumentos.
+   O segundo argumento, se estiver presente, deve ser do tipo <type>integer</>;
+   recebe o modificador de tipo associado ao tipo de destino, ou <literal>-1</>
+   caso este não exista.
+   O terceiro argumento, se estiver presente, deve ser do tipo <type>boolean</>;
+   recebe <literal>true</> se a conversão for uma conversão explícita,
+   <literal>false</> caso contrário.
+  </para>
+
+  <para>
+   É legítimo criar entradas em <structname>pg_cast</structname> onde os tipos
+   de origem e de destino sejam o mesmo, se estiver associada a uma função que
+   recebe mais de um argumento.
+   Estas entradas representam as <quote>funções de imposição de comprimento</>,
+   que fazem os valores do tipo respeitar um determinado valor modificador de
+   tipo.
+   Entretanto, deve ser observado que no momento não há suporte para associar
+   modificadores de tipo não-padrão a tipos de dado criados pelo usuário
+   e, portanto, esta funcionalidade é para uso de apenas um pequeno número de
+   tipos nativos que possuem uma sintaxe de modificador de tipo construída na
+   gramática.
+  </para>
+
+  <para>
+   Quando a entrada em <structname>pg_cast</structname> possui tipos de dado de
+   entrada e destino diferentes, e uma função que recebe mais de um argumento,
+   esta entrada representa a conversão de um tipo para o outro e a aplicação da
+   imposição do comprimento em um único passo.
+   Quando não existe uma entrada deste tipo, a imposição para um tipo que
+   utiliza um modificador de tipo envolve dois passos, um para converter entre os
+   tipos de dados, e um segundo passo para aplicar o modificador.
+  </para>
+ </sect1>
+
+ <sect1 id="catalog-pg-class">
+  <title><structname>pg_class</structname></title>
+
+  <indexterm zone="catalog-pg-class">
+   <primary>pg_class</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_class</structname> cataloga as tabelas e
+   tudo mais que possui colunas, ou é de alguma forma semelhante a uma tabela.
+   Isto inclui os índices (mas consulte também
+   <structname>pg_index</structname>), seqüências, visões, tipos compostos,
+   e alguns tipos de relação especiais; consulte <structfield>relkind</>.
+   Abaixo, para nos referirmos a todos estes tipos de
+   objetos falamos <quote>relações</quote>. Nem todas as
+   colunas possuem significado em todos os tipos de relação.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_class</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>relname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome da tabela, índice, visão, etc.</entry>
+     </row>
+
+     <row>
+      <entry><structfield>relnamespace</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.oid</literal></entry>
+      <entry>
+       OID do espaço de nomes que contém esta relação.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>reltype</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>
+       OID do tipo de dado que corresponde ao tipo linha desta tabela, caso haja
+       algum (zero para índices, que não possuem entrada em
+       <structname>pg_type</structname>).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>relowner</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usesysid</literal></entry>
+      <entry>Dono da relação</entry>
+     </row>
+
+     <row>
+      <entry><structfield>relam</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-am"><structname>pg_am</structname></link>.oid</literal></entry>
+      <entry>Se for um índice, o método de acesso usado (B-tree, hash, etc.)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>relfilenode</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry></entry>
+      <entry>Nome do arquivo em disco desta relação; 0 se não houver nenhum</entry>
+     </row>
+
+     <row>
+      <entry><structfield>reltablespace</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-tablespace"><structname>pg_tablespace</structname></link>.oid</literal></entry>
+      <entry>
+       O espaço de tabelas onde a relação está armazenada. Se for zero,
+       implica no espaço de tabelas padrão do banco de dados
+       (Sem significado se a relação não possuir arquivo em disco).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>relpages</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       Tamanho da representação em disco desta tabela em páginas (com tamanho
+       <symbol>BLCKSZ</symbol>).
+       Esta é apenas uma estimativa utilizada pelo planejador.
+       Atualizado pelos comandos <command>VACUUM</command>,
+       <command>ANALYZE</command> e uns poucos comandos de DLL como o
+       <command>CREATE INDEX</command>.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>reltuples</structfield></entry>
+      <entry><type>float4</type></entry>
+      <entry></entry>
+      <entry>
+       Número de linhas na tabela.
+       Esta é apenas uma estimativa utilizada pelo planejador.
+       Atualizado pelos comandos <command>VACUUM</command>,
+       <command>ANALYZE</command> e uns poucos comandos de DLL como o
+       <command>CREATE INDEX</command>.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>reltoastrelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>
+       OID da tabela <literal>TOAST</literal> associada a esta tabela, 0 se não
+       houver nenhuma. A tabela <literal>TOAST</literal> armazena atributos
+       grandes <quote>fora de linha</quote>, em uma tabela secundária.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>reltoastidxid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>
+       Para a tabela <literal>TOAST</literal>, o OID de seu índice.
+       0 se não for uma tabela <literal>TOAST</literal>.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>relhasindex</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Verdade se for uma tabela e possui (ou possuía recentemente) algum
+       índice. É definido por <command>CREATE INDEX</command>, mas
+       não é limpo imediatamente por <command>DROP INDEX</command>.
+       O comando <command>VACUUM</command> limpa
+       <structfield>relhasindex</structfield>
+       quando descobre que a tabela não possui índices.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>relisshared</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se esta tabela for compartilhada entre todos os bancos de
+      dados do agrupamento. Somente alguns catálogos do sistema, como
+      <structname>pg_database</structname>, são compartilhados</entry>
+     </row>
+
+     <row>
+      <entry><structfield>relkind</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+       <literal>r</literal> = tabela comum, <literal>i</literal> = índice,
+       <literal>S</literal> = seqüência, <literal>v</literal> = visão,
+       <literal>c</literal> = tipo composto, <literal>s</literal> = especial,
+       <literal>t</literal> = tabela TOAST
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>relnatts</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>
+       Número de colunas de usuário na relação (colunas do sistema não são
+       contadas). Deve haver uma quantidade de entradas correspondente em
+       <structname>pg_attribute</structname>. Consulte também
+       <literal>pg_attribute.attnum</literal>.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>relchecks</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>
+       Número de restrições de verificação na tabela; consulte
+       o catálogo <structname>pg_constraint</structname>.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>reltriggers</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>
+       Número de gatilhos na tabela; consulte o catálogo
+       <structname>pg_trigger</structname>.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>relukeys</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Não utilizado (<emphasis>Não</emphasis> é o número de chaves únicas)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>relfkeys</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Não utilizado (<emphasis>Não</emphasis> é o número de chaves estrangeiras na tabela)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>relrefs</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Não utilizado</entry>
+     </row>
+
+     <row>
+      <entry><structfield>relhasoids</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Verdade se for gerado um OID para cada linha da relação.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>relhaspkey</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Verdade se a tabela possui (ou já possuiu) uma chave primária.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>relhasrules</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se a tabela possui regras; consulte o catálogo
+       <structname>pg_rewrite</structname>.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>relhassubclass</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se a tabela possui (ou possuiu) uma tabela que herda desta.</entry>
+     </row>
+
+     <row>
+      <entry><structfield>relacl</structfield></entry>
+      <entry><type>aclitem[]</type></entry>
+      <entry></entry>
+      <entry>
+       Privilégios de acesso; consulte os comandos
+       <xref linkend="sql-grant" endterm="sql-grant-title"> e
+       <xref linkend="sql-revoke" endterm="sql-revoke-title">
+       para obter detalhes.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+ </sect1>
+
+ <sect1 id="catalog-pg-constraint">
+  <title><structname>pg_constraint</structname></title>
+
+  <indexterm zone="catalog-pg-constraint">
+   <primary>pg_constraint</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_constraint</structname> armazena restrições de
+   verificação, chave primária, unicidade e chave estrangeira em tabelas
+   (As restrições de coluna não são tratadas de forma especial, porque
+   toda restrição de coluna equivale a alguma restrição de tabela).
+   As restrições de não-nulo são representadas no catálogo
+   <structname>pg_attribute</structname>.
+  </para>
+
+  <para>
+   As restrições de verificação em domínios também são armazenadas neste
+   catálogo.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_constraint</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>conname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome da restrição (não necessariamente única!)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>connamespace</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.oid</literal></entry>
+      <entry>
+       OID do espaço de nomes que contém a restrição.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>contype</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+        <literal>c</literal> = restrição de verificação;
+        <literal>f</literal> = restrição de chave estrangeira;
+        <literal>p</literal> = restrição de chave primária;
+        <literal>u</literal> = restrição de unicidade.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>condeferrable</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>A restrição é postergável?</entry>
+     </row>
+
+     <row>
+      <entry><structfield>condeferred</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>A restrição é postergada por padrão?</entry>
+     </row>
+
+     <row>
+      <entry><structfield>conrelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>Tabela onde esta restrição se encontra; 0 zero se não for uma restrição de tabela</entry>
+     </row>
+
+     <row>
+      <entry><structfield>contypid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Domínio onde esta restrição se encontra; 0 se não for uma restrição de domínio</entry>
+     </row>
+
+     <row>
+      <entry><structfield>confrelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>Se for uma chave estrangeira, a tabela referenciada; senão 0</entry>
+     </row>
+
+     <row>
+      <entry><structfield>confupdtype</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>Código da ação de atualização da chave estrangeira</entry>
+     </row>
+
+     <row>
+      <entry><structfield>confdeltype</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>Código da ação de exclusão da chave estrangeira</entry>
+     </row>
+
+     <row>
+      <entry><structfield>confmatchtype</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>Tipo de correspondência da chave estrangeira</entry>
+     </row>
+
+     <row>
+      <entry><structfield>conkey</structfield></entry>
+      <entry><type>int2[]</type></entry>
+      <entry><literal><link linkend="catalog-pg-attribute"><structname>pg_attribute</structname></link>.attnum</></entry>
+      <entry>Se for uma restrição de tabela, a lista de colunas que a restrição abrange</entry>
+     </row>
+
+     <row>
+      <entry><structfield>confkey</structfield></entry>
+      <entry><type>int2[]</type></entry>
+      <entry><literal><link linkend="catalog-pg-attribute"><structname>pg_attribute</structname></link>.attnum</></entry>
+      <entry>Se for uma chave estrangeira, a lista de colunas referenciadas</entry>
+     </row>
+
+     <row>
+      <entry><structfield>conbin</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Se for uma restrição de verificação, a representação interna da expressão</entry>
+     </row>
+
+     <row>
+      <entry><structfield>consrc</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Se for uma restrição de verificação, a representação humanamente legível da expressão</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <note>
+   <para>
+    <structfield>consrc</structfield> não é atualizada quando os objetos
+    referenciados mudam; por exemplo, não acompanha a mudança dos nomes das
+    colunas. Em vez de confiar neste campo, é melhor utilizar
+    <function>pg_get_constraintdef()</function> para obter a definição da
+    restrição de verificação.
+   </para>
+  </note>
+
+  <note>
+   <para>
+    <literal>pg_class.relchecks</literal> deve condizer com o número
+    de entradas de restrição de verificação encontradas nesta tabela para
+    uma determinada relação.
+   </para>
+  </note>
+
+ </sect1>
+
+ <sect1 id="catalog-pg-conversion">
+  <title><structname>pg_conversion</structname></title>
+
+  <indexterm zone="catalog-pg-conversion">
+   <primary>pg_conversion</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_conversion</structname> descreve os procedimentos
+   de conversão de codificação disponíveis. Para obter informações adicionais
+   deve ser consultado o comando
+   <xref linkend="sql-createconversion" endterm="sql-createconversion-title">.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_conversion</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>conname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome da conversão (único no espaço de nomes)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>connamespace</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.oid</literal></entry>
+      <entry>
+       OID do espaço de nomes que contém esta conversão.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>conowner</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usesysid</literal></entry>
+      <entry>Dono da conversão</entry>
+     </row>
+
+     <row>
+      <entry><structfield>conforencoding</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>ID da codificação de origem</entry>
+     </row>
+
+     <row>
+      <entry><structfield>contoencoding</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>ID da codificação de destino</entry>
+     </row>
+
+     <row>
+      <entry><structfield>conproc</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Procedimento de conversão</entry>
+     </row>
+
+     <row>
+      <entry><structfield>condefault</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se for a conversão padrão</entry>
+     </row>
+
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+ <sect1 id="catalog-pg-database">
+  <title><structname>pg_database</structname></title>
+
+  <indexterm zone="catalog-pg-database">
+   <primary>pg_database</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_database</structname> armazena informações
+   sobre os bancos de dados disponíveis. Os bancos de dados são criados
+   pelo comando <command>CREATE DATABASE</command>. Consulte o
+   <xref linkend="managing-databases"> para obter detalhes sobre o
+   significado de alguns parâmetros.
+  </para>
+
+  <para>
+   Diferentemente da maioria dos catálogos do sistema,
+   <structname>pg_database</structname> é compartilhado por todos os bancos de
+   dados do agrupamento: só existe uma instância de
+   <structname>pg_database</structname> por agrupamento, e não uma por banco de
+   dados.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_database</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>datname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome do banco de dados</entry>
+     </row>
+
+     <row>
+      <entry><structfield>datdba</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usesysid</literal></entry>
+      <entry>Dono do banco de dados, geralmente o usuário que o criou</entry>
+     </row>
+
+     <row>
+      <entry><structfield>encoding</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>Codificação dos caracteres deste banco de dados</entry>
+     </row>
+
+     <row>
+      <entry><structfield>datistemplate</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Se for verdade, então este banco de dados pode ser utilizado na
+       cláusula <literal>TEMPLATE</literal> do comando <command>CREATE
+       DATABASE</command> para criar um banco de dados novo que seja
+       um clone deste.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>datallowconn</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Se for falso, então ninguém pode se conectar a este banco de dados.
+       É utilizado para proteger o banco de dados <literal>template0</literal>
+       contra alterações.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>datlastsysoid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry></entry>
+      <entry>
+       Último OID de sistema no banco de dados;
+       particularmente útil para <application>pg_dump</application>.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>datvacuumxid</structfield></entry>
+      <entry><type>xid</type></entry>
+      <entry></entry>
+      <entry>
+       Todas as linhas inseridas ou excluídas por IDs de transação anteriores a
+       este, foram marcadas como sabidamente efetivadas ou sabidamente
+       interrompidas, neste banco de dados. É utilizado para determinar quando
+       o espaço de <literal>log</literal> de efetivação pode ser reciclado.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>datfrozenxid</structfield></entry>
+      <entry><type>xid</type></entry>
+      <entry></entry>
+      <entry>
+       Todas as linhas inseridas por IDs de transação anteriores a este
+       receberam um ID de transação permanente neste banco de dados
+       (<quote>foram congeladas</quote>). Útil para verificar há necessidade
+       de executar em breve o comando <command>VACUUM</command> no banco de
+       dados para evitar o problema de reinício de ID de transação.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>dattablespace</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-tablespace"><structname>pg_tablespace</structname></link>.oid</literal></entry>
+      <entry>
+       O espaço de tabelas padrão para o banco de dados.
+       Neste banco de dados, todas as tabelas para as quais
+       <structname>pg_class</>.<structfield>reltablespace</> for zero serão
+       armazenadas neste espaço de tabelas; em particular, todos os catálogos
+       do sistema não compartilhados se encontram neste espaço de tabelas.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>datconfig</structfield></entry>
+      <entry><type>text[]</type></entry>
+      <entry></entry>
+      <entry>Padrões de sessão para as variáveis de configuração em tempo de execução</entry>
+     </row>
+
+     <row>
+      <entry><structfield>datacl</structfield></entry>
+      <entry><type>aclitem[]</type></entry>
+      <entry></entry>
+      <entry>
+       Privilégios de acesso; para obter detalhes devem ser consultados os
+       comandos <xref linkend="sql-grant" endterm="sql-grant-title"> e
+       <xref linkend="sql-revoke" endterm="sql-revoke-title">.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+ </sect1>
+
+
+ <sect1 id="catalog-pg-depend">
+  <title><structname>pg_depend</structname></title>
+
+  <indexterm zone="catalog-pg-depend">
+   <primary>pg_depend</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_depend</structname> registra os relacionamentos
+   de dependência entre os objetos do banco de dados. Esta informação permite ao
+   comando <command>DROP</command> descobrir quais outros objetos devem ser
+   removidos pelo <command>DROP CASCADE</command>, ou impedir a remoção no caso
+   de <command>DROP RESTRICT</command>.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_depend</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>classid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>OID do catálogo do sistema onde está o objeto dependente</entry>
+     </row>
+
+     <row>
+      <entry><structfield>objid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry>qualquer coluna OID</entry>
+      <entry>OID do objeto dependente</entry>
+     </row>
+
+     <row>
+      <entry><structfield>objsubid</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       Para uma coluna de tabela, o número da coluna (o
+       <structfield>objid</structfield> e o <structfield>classid</structfield>
+       se referem à própria tabela).
+       Para todos os outros tipos de objeto esta coluna é zero.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>refclassid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>OID do catálogo do sistema onde está o objeto referenciado</entry>
+     </row>
+
+     <row>
+      <entry><structfield>refobjid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry>qualquer coluna OID</entry>
+      <entry>OID do objeto referenciado</entry>
+     </row>
+
+     <row>
+      <entry><structfield>refobjsubid</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       Para uma coluna de tabela, o número da coluna (o
+       <structfield>refobjid</> e o <structfield>refclassid</>
+       se referem à própria tabela).
+       Para todos os outros tipos de objeto esta coluna é zero.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>deptype</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+       Código definindo as semânticas específicas deste relacionamento de
+       dependência; veja o texto.
+      </entry>
+     </row>
+
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   Em todos os casos, um entrada em <structname>pg_depend</structname> indica
+   que o objeto referenciado não pode ser removido sem que o objeto dependente
+   também seja removido. Entretanto, existem diversas subcategorias
+   identificadas por <structfield>deptype</structfield>:
+
+   <variablelist>
+    <varlistentry>
+     <term><symbol>DEPENDENCY_NORMAL</> (<literal>n</>)</term>
+     <listitem>
+      <para>
+       Relacionamento normal entre objetos criados separadamente. O objeto
+       dependente pode ser removido sem afetar o objeto referenciado. O objeto
+       referenciado só pode ser removido especificando
+       <literal>CASCADE</literal> e, neste caso, o objeto dependente também é
+       removido. Exemplo: uma coluna de tabela possui uma dependência normal de
+       seu tipo de dado.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><symbol>DEPENDENCY_AUTO</> (<literal>a</>)</term>
+     <listitem>
+      <para>
+       O objeto dependente pode ser removido separadamente do objeto
+       referenciado, e deve ser removido automaticamente (a despeito do modo
+       <literal>RESTRICT</literal> ou <literal>CASCADE</literal>) se o objeto
+       referenciado for removido. Exemplo: uma restrição com nome em uma tabela
+       é autodependente da tabela e, portanto, desaparece quando a tabela é
+       removida.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><symbol>DEPENDENCY_INTERNAL</> (<literal>i</>)</term>
+     <listitem>
+      <para>
+       O objeto dependente foi criado como parte da criação do objeto
+       referenciado sendo, na verdade, apenas uma parte de sua implementação
+       interna. O <command>DROP</command> do objeto dependente será desabilitado
+       imediatamente (será informado ao usuário para executar o
+       <command>DROP</command> do objeto referenciado, em vez deste objeto).
+       O <command>DROP</command> do objeto referenciado é propagado para
+       remover o objeto dependente, estando <command>CASCADE</command>
+       especificado ou não. Exemplo: um gatilho criado para garantir a
+       restrição de chave estrangeira é tornado internamente dependente da
+       entrada em <structname>pg_constraint</structname> da restrição.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><symbol>DEPENDENCY_PIN</> (<literal>p</>)</term>
+     <listitem>
+      <para>
+       Não existe nenhum objeto dependente; este tipo de entrada é um sinal
+       que o próprio sistema depende do objeto referenciado e, portanto,
+       o objeto não pode ser removido nunca. As entradas deste tipo são
+       criadas apenas pelo <command>initdb</command>. As colunas do
+       objeto dependente contêm zero.
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+
+   Outras modalidades de dependência poderão ser necessárias no futuro.
+  </para>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-description">
+  <title><structname>pg_description</structname></title>
+
+  <indexterm zone="catalog-pg-description">
+   <primary>pg_description</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_description</structname> armazena descrições
+   opcionais (comentários) para cada objeto do banco de dados. As descrições
+   podem ser manipuladas pelo comando <command>COMMENT</command>, e vistas pelos
+   comandos <literal>\d</literal> do <application>psql</application>.
+   As descrições de vários objetos nativos do sistema estão presentes no
+   conteúdo inicial de <structname>pg_description</structname>.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_description</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>objoid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry>qualquer coluna OID</entry>
+      <entry>OID do objeto que esta descrição pertence</entry>
+     </row>
+
+     <row>
+      <entry><structfield>classoid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>OID do catálogo do sistema onde este objeto se encontra</entry>
+     </row>
+
+     <row>
+      <entry><structfield>objsubid</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       Para um comentário sobre uma coluna de tabela, é o número da coluna (o
+       <structfield>objoid</structfield> e o <structfield>classoid</structfield>
+       se referem à própria tabela). Para todos os outros tipos de objeto esta
+       coluna é zero.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>description</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Texto arbitrário que serve como descrição do objeto</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-group">
+  <title><structname>pg_group</structname></title>
+
+  <indexterm zone="catalog-pg-group">
+   <primary>pg_group</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_group</structname> define os grupos e armazena
+   quais usuários pertencem a cada grupo. Os grupos são criados pelo comando
+   <command>CREATE GROUP</command>. Consulte o <xref linkend="user-manag">
+   para obter informações sobre o gerenciamento de privilégios.
+  </para>
+
+  <para>
+   Como as identidades dos usuários e dos grupos são para todo o agrupamento
+   de bancos de dados, o catálogo <structname>pg_group</structname>
+   é compartilhado por todos os bancos de dados do agrupamento: existe apenas
+   uma instância de <structname>pg_group</structname> por agrupamento, e não uma
+   por banco de dados.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_group</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>groname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome do grupo</entry>
+     </row>
+
+     <row>
+      <entry><structfield>grosysid</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>Número arbitrário para identificar o grupo</entry>
+     </row>
+
+     <row>
+      <entry><structfield>grolist</structfield></entry>
+      <entry><type>int4[]</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usesysid</literal></entry>
+      <entry>Matriz contendo os IDs dos usuários neste grupo</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-index">
+  <title><structname>pg_index</structname></title>
+
+  <indexterm zone="catalog-pg-index">
+   <primary>pg_index</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_index</structname> contém parte das informações
+   sobre índices. O restante se encontra, em sua maioria, em
+   <structname>pg_class</structname>.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_index</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>indexrelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>OID da entrada em <structname>pg_class</structname> para este índice</entry>
+     </row>
+
+     <row>
+      <entry><structfield>indrelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>OID da entrada em <structname>pg_class</structname> da tabela a que este índice se destina</entry>
+     </row>
+
+     <row>
+      <entry><structfield>indkey</structfield></entry>
+      <entry><type>int2vector</type></entry>
+      <entry><literal><link linkend="catalog-pg-attribute"><structname>pg_attribute</structname></link>.attnum</literal></entry>
+      <entry>
+       Matriz de valores <structfield>indnatts</structfield> (contendo até
+       <symbol>INDEX_MAX_KEYS</symbol>), indicando quais colunas da tabela este
+       índice indexa.
+       Por exemplo, o valor <literal>1 3</literal> significa que a primeira e a
+       terceira coluna da tabela compõem a chave do índice.
+       Um zero nesta matriz indica que o
+       atributo do índice correspondente é uma expressão contendo colunas da
+       tabela, em vez de uma simples referência à coluna.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>indclass</structfield></entry>
+      <entry><type>oidvector</type></entry>
+      <entry><literal><link linkend="catalog-pg-opclass"><structname>pg_opclass</structname></link>.oid</literal></entry>
+      <entry>
+       Contém o OID da classe de operadores a ser utilizada para cada coluna
+       presente na chave do índice.
+       Consulte <structname>pg_opclass</structname> para obter mais detalhes.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>indnatts</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Número de colunas no índice (duplica
+      <literal>pg_class.relnatts</literal>)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>indisunique</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Se for verdade, então o índice é único</entry>
+     </row>
+
+     <row>
+      <entry><structfield>indisprimary</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Se for verdade, este índice representa a chave primária da tabela
+      (A coluna <structfield>indisunique</structfield> deve ser sempre verdade
+      quando esta coluna for verdade)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>indisclustered</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Se for verdade, a tabela foi agrupada na última vez por este índice</entry>
+     </row>
+
+     <row>
+      <entry><structfield>indexprs</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Árvores de expressão (na representação <function>nodeToString()</>)
+      para os atributos do índice que não são simplesmente referências a colunas.
+      É uma lista com um elemento para cada entrada igual a zero em
+      <structfield>indkey</structfield>.
+      Nulo se todos os atributos do índice são simplesmente referências a
+      colunas.</entry>
+     </row>
+
+     <row>
+      <entry><structfield>indpred</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Árvore de expressão (na representação <function>nodeToString()</>)
+      para predicado de índice parcial. Nulo se não for um índice parcial</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-inherits">
+  <title><structname>pg_inherits</structname></title>
+
+  <indexterm zone="catalog-pg-inherits">
+   <primary>pg_inherits</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_inherits</structname> registra informações sobre
+   hierarquias de herança de tabelas.
+   Existe uma entrada para cada tabela diretamente descendente no banco de dados
+   (As descendências indiretas podem ser determinadas seguindo a cadeia de
+   entradas).
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_inherits</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>inhrelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>
+       OID da tabela descendente.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>inhparent</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>
+       OID da tabela ancestral.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>inhseqno</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       Se houver mais de um ancestral direto para a tabela descendente (herança
+       múltipla), este número informa a ordem pela qual as colunas herdadas
+       devem ser dispostas. O contador começa por 1.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-language">
+  <title><structname>pg_language</structname></title>
+
+  <indexterm zone="catalog-pg-language">
+   <primary>pg_language</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_language</structname> registra as linguagens em
+   que podem ser escritas as funções e procedimentos armazenados.
+   Para obter informações adicionais sobre tratadores de linguagem deve ser
+   consultado o comando
+   <xref linkend="sql-createlanguage" endterm="sql-createlanguage-title">
+   e o <xref linkend="xplang">.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_language</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>lanname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome da linguagem</entry>
+     </row>
+
+     <row>
+      <entry><structfield>lanispl</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Falso para linguagens internas (tal como <acronym>SQL</acronym>), e
+       verdade para as linguagens definidas pelo usuário.
+       Atualmente o <application>pg_dump</application> ainda utiliza esta
+       informação para determinar quais linguagens devem fazer parte da cópia de
+       segurança, mas este mecanismo pode ser substituído por outro diferente
+       alguma hora.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>lanpltrusted</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Verdade se for uma linguagem confiável (<literal>trusted</literal>).
+       Se for uma linguagem interna (<structfield>lanispl</structfield> for
+       falso), então esta coluna não tem sentido.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>lanplcallfoid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>
+       Para as linguagens não internas é a referência ao tratador da linguagem,
+       que é uma função especial responsável pela execução de todas as
+       funções escritas nesta linguagem.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>lanvalidator</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>
+       Faz referência à função validadora da linguagem, responsável pela
+       verificação da sintaxe e validação das novas funções quando estas
+       são criadas.
+       Zero se não for fornecida nenhuma função validadora.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>lanacl</structfield></entry>
+      <entry><type>aclitem[]</type></entry>
+      <entry></entry>
+      <entry>
+       Privilégios de acesso; para obter detalhes devem ser consultados os
+       comandos <xref linkend="sql-grant" endterm="sql-grant-title"> e
+       <xref linkend="sql-revoke" endterm="sql-revoke-title">.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-largeobject">
+  <title><structname>pg_largeobject</structname></title>
+
+  <indexterm zone="catalog-pg-largeobject">
+   <primary>pg_largeobject</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_largeobject</structname> armazena os dados que
+   constituem os <quote>objetos grandes</quote>.
+   O objeto grande é identificado por um OID atribuído ao mesmo quando de sua
+   criação.
+   Cada objeto grande é fracionado em segmentos, ou <quote>páginas</quote>,
+   pequenos o suficiente para serem convenientemente armazenados como linhas na
+   catálogo <structname>pg_largeobject</structname>.
+   A quantidade de dados por página é definida como sendo <literal>LOBLKSIZE</>
+   (que atualmente é <literal>BLCKSZ/4</literal> ou, tipicamente, 2 kB).
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_largeobject</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>loid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry></entry>
+      <entry>Identificador do objeto grande que inclui esta página</entry>
+     </row>
+
+     <row>
+      <entry><structfield>pageno</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>Número de página desta página dentro do objeto grande
+      (contado a partir de zero)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>data</structfield></entry>
+      <entry><type>bytea</type></entry>
+      <entry></entry>
+      <entry>
+       Dados realmente armazenados no objeto grande.
+       Nunca mais de <symbol>LOBLKSIZE</symbol> bytes, podendo ser menos.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   Cada linha de <structname>pg_largeobject</structname> armazenas dados de uma
+   página do objeto grande, começando pelo deslocamento de
+   (<literal>pageno * LOBLKSIZE</literal>) bytes dentro do objeto.
+   A implementação permite armazenamento esparso: podem estar faltando páginas,
+   e as páginas podem ter menos que <literal>LOBLKSIZE</literal> bytes, mesmo
+   que não seja a última página do objeto.
+   As regiões faltando dentro do objeto grande são lidas como zeros.
+  </para>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-listener">
+  <title><structname>pg_listener</structname></title>
+
+  <indexterm zone="catalog-pg-listener">
+   <primary>pg_listener</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_listener</structname> dá suporte aos comandos
+   <xref linkend="sql-listen" endterm="sql-listen-title"> e
+   <xref linkend="sql-notify" endterm="sql-notify-title">.
+   O ouvinte cria uma entrada em <structname>pg_listener</structname> para
+   cada nome de notificação que está ouvindo.
+   O notificador varre <structname>pg_listener</structname> e atualiza cada
+   entrada correspondente para mostrar que ocorreu uma notificação.
+   O notificador também envia um sinal (utilizando o PID registrado na tabela)
+   para acordar o ouvinte.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_listener</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>relname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome da condição de notificação (O nome não precisa corresponder a
+      nenhuma relação existente no banco de dados;
+      o nome <structfield>relname</structfield> é histórico).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>listenerpid</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>PID do processo servidor que criou esta entrada</entry>
+     </row>
+
+     <row>
+      <entry><structfield>notification</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       Zero se não houver nenhum evento pendente para este ouvinte. Havendo um
+       evento pendente, o PID do processo servidor que enviou a notificação.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-namespace">
+  <title><structname>pg_namespace</structname></title>
+
+  <indexterm zone="catalog-pg-namespace">
+   <primary>pg_namespace</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_namespace</structname> armazena espaços de nome.
+   O espaço de nomes é a estrutura subjacente aos esquemas SQL: cada espaço
+   de nomes pode ter uma coleção separada de relações, tipos, etc. sem
+   conflito de nomes.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_namespace</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>nspname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome do espaço de nomes</entry>
+     </row>
+
+     <row>
+      <entry><structfield>nspowner</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usesysid</literal></entry>
+      <entry>Dono do espaço de nomes</entry>
+     </row>
+
+     <row>
+      <entry><structfield>nspacl</structfield></entry>
+      <entry><type>aclitem[]</type></entry>
+      <entry></entry>
+      <entry>
+       Privilégios de acesso; para obter detalhes devem ser consultados os
+       comandos <xref linkend="sql-grant" endterm="sql-grant-title"> e
+       <xref linkend="sql-revoke" endterm="sql-revoke-title">.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-opclass">
+  <title><structname>pg_opclass</structname></title>
+
+  <indexterm zone="catalog-pg-opclass">
+   <primary>pg_opclass</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_opclass</structname> define as classes de
+   operadores de método de acesso de índice. Cada classe de operadores define a
+   semântica para as colunas do índice de um determinado tipo de dado e um
+   determinado método de acesso de índice. Deve ser observado que podem existir
+   várias classes de operadores para uma determinada combinação de tipo de
+   dado/método de acesso e, assim, dando suporte a vários comportamentos.
+  </para>
+
+  <para>
+   As classes de operadores estão descritas por completo na <xref linkend="xindex">.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_opclass</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+
+     <row>
+      <entry><structfield>opcamid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-am"><structname>pg_am</structname></link>.oid</literal></entry>
+      <entry>Classe de operadores de método de acesso de índice a que se destina</entry>
+     </row>
+
+     <row>
+      <entry><structfield>opcname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome desta classe de operadores</entry>
+     </row>
+
+     <row>
+      <entry><structfield>opcnamespace</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.oid</literal></entry>
+      <entry>Espaço de nomes desta classe de operadores</entry>
+     </row>
+
+     <row>
+      <entry><structfield>opcowner</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usesysid</literal></entry>
+      <entry>Dono da classe de operadores</entry>
+     </row>
+
+     <row>
+      <entry><structfield>opcintype</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Tipo de dado que a classe de operadores indexa</entry>
+     </row>
+
+     <row>
+      <entry><structfield>opcdefault</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se esta classe de operadores for a classe padrão para
+      <structfield>opcintype</structfield></entry>
+     </row>
+
+     <row>
+      <entry><structfield>opckeytype</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Tipo de dado armazenado do índice, ou zero se for o mesmo que
+      <structfield>opcintype</structfield></entry>
+     </row>
+
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   A maior parte das informações que definem a classe de operadores na verdade
+   não está na sua linha em <structname>pg_opclass</structname>, mas nas linhas
+   associadas em <structname>pg_amop</structname> e
+   <structname>pg_amproc</structname>. Estas linhas são consideradas como sendo
+   parte da definição da classe de operadores &mdash; não é diferente da maneira
+   como uma relação é definida por uma única linha em
+   <structname>pg_class</structname> mais as linhas associadas em
+   <structname>pg_attribute</structname> e outras tabelas.
+  </para>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-operator">
+  <title><structname>pg_operator</structname></title>
+
+  <indexterm zone="catalog-pg-operator">
+   <primary>pg_operator</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_operator</structname> armazena informações sobre
+   operadores. Para obter informações adicionais deve ser consultado o comando
+   <xref linkend="sql-createoperator" endterm="sql-createoperator-title">
+   e a <xref linkend="xoper">.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_operator</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>oprname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome do operador</entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprnamespace</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.oid</literal></entry>
+      <entry>
+       OID do espaço de nomes que contém este operador.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprowner</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usesysid</literal></entry>
+      <entry>Dono do operador</entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprkind</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+       <literal>b</literal> = infix (<quote>ambos</quote>),
+       <literal>l</literal> = prefix (<quote>esquerda</quote>),
+       <literal>r</literal> = postfix (<quote>direita</quote>)
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprcanhash</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Este operador suporta junções <literal>hash</literal></entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprleft</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Tipo do operando esquerdo</entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprright</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Tipo do operando direito</entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprresult</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Tipo do resultado</entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprcom</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-operator"><structname>pg_operator</structname></link>.oid</literal></entry>
+      <entry>Comutador deste operador, se houver algum</entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprnegate</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-operator"><structname>pg_operator</structname></link>.oid</literal></entry>
+      <entry>Negador deste operador, se houver algum</entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprlsortop</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-operator"><structname>pg_operator</structname></link>.oid</literal></entry>
+      <entry>
+       Se este operador suportar junções por mesclagem
+       (<literal>merge</literal>), o operador que classifica o tipo do operando
+       à esquerda (<literal>L&lt;L</literal>).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprrsortop</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-operator"><structname>pg_operator</structname></link>.oid</literal></entry>
+      <entry>
+       Se este operador suportar junções por mesclagem
+       (<literal>merge</literal>), o operador que classifica o tipo do operando
+       à direita (<literal>R&lt;R</literal>).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprltcmpop</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-operator"><structname>pg_operator</structname></link>.oid</literal></entry>
+      <entry>
+       Se este operador suportar junções por mesclagem, o operador
+       <quote>menor-que</quote> que compara os tipos dos operando à esquerda e à
+       direita (<literal>L&lt;R</literal>).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprgtcmpop</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-operator"><structname>pg_operator</structname></link>.oid</literal></entry>
+      <entry>
+       Se este operador suportar junções por mesclagem, o operador
+       <quote>maior-que</quote> que compara os tipos dos operando à esquerda e à
+       direita (<literal>L&gt;R</literal>).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprcode</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função que implementa este operador</entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprrest</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função estimadora de seletividade da restrição para este operador</entry>
+     </row>
+
+     <row>
+      <entry><structfield>oprjoin</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função estimadora de seletividade da junção para este operador</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   As colunas não utilizadas contêm zero, por exemplo
+   <structfield>oprleft</structfield> é zero para operadores de prefixo.
+  </para>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-proc">
+  <title><structname>pg_proc</structname></title>
+
+  <indexterm zone="catalog-pg-proc">
+   <primary>pg_proc</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_proc</structname> armazena informações sobre as
+   funções (ou procedimentos).
+   Para obter informações adicionais deve ser consultado o comando
+   <xref linkend="sql-createfunction" endterm="sql-createfunction-title">
+   e a <xref linkend="xfunc">.
+  </para>
+
+  <para>
+   A tabela contém dados para funções de agregação assim como para funções
+   simples. Se <structfield>proisagg</structfield> for verdade, deve existir uma
+   linha correspondente em <structfield>pg_aggregate</structfield>.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_proc</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>proname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome da função</entry>
+     </row>
+
+     <row>
+      <entry><structfield>pronamespace</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.oid</literal></entry>
+      <entry>
+       OID do espaço de nomes que contém esta função.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>proowner</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usesysid</literal></entry>
+      <entry>Dono da função</entry>
+     </row>
+
+     <row>
+      <entry><structfield>prolang</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-language"><structname>pg_language</structname></link>.oid</literal></entry>
+      <entry>Linguagem de implementação ou interface de chamada desta função</entry>
+     </row>
+
+     <row>
+      <entry><structfield>proisagg</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se a função for uma função de agregação</entry>
+     </row>
+
+     <row>
+      <entry><structfield>prosecdef</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se a função for uma função definidora de segurança
+      (ou seja, uma função <quote>setuid</quote>)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>proisstrict</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Verdade se a função retorna nulo quando algum argumento de chamada é
+       nulo. Neste caso, na verdade, a função nem vai ser chamada. As funções
+       que não são <quote>estritas</quote> devem estar preparadas para tratar
+       entradas nulas.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>proretset</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se a função retorna um conjunto (ou seja, vários valores
+      do tipo de dado especificado)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>provolatile</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+       <structfield>provolatile</structfield> informa se o resultado da função
+       depende apenas de seus argumentos de entrada, ou é afetada por
+       fatores externos.
+       Valor igual a <literal>i</literal> para as funções <quote>imutáveis</>,
+       que sempre retornam o mesmo resultado para as mesmas entradas.
+       Valor igual a <literal>s</literal> para as funções <quote>estáveis</>,
+       cujos resultados (para entradas fixas) não mudam dentro de uma mesma
+       varredura.
+       Valor igual a <literal>v</literal> para as funções <quote>voláteis</>,
+       cujos resultados podem mudar a qualquer instante (Também deve ser
+       utilizado <literal>v</literal> para as funções com efeitos colaterais,
+       para que as chamadas às mesmas não sejam otimizadas).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>pronargs</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Número de argumentos</entry>
+     </row>
+
+     <row>
+      <entry><structfield>prorettype</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Tipo de dado do valor retornado</entry>
+     </row>
+
+     <row>
+      <entry><structfield>proargtypes</structfield></entry>
+      <entry><type>oidvector</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>Matriz contendo os tipos de dado dos argumentos da função</entry>
+     </row>
+
+     <row>
+      <entry><structfield>proargnames</structfield></entry>
+      <entry><type>text[]</type></entry>
+      <entry></entry>
+      <entry>
+        Matriz contendo os nomes dos argumentos das funções.
+        Os argumentos sem nome são definidos na matriz como cadeias de
+        caracteres vazias.
+        Se nenhum dos argumentos tiver nome, este campo pode ser nulo.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>prosrc</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>
+       Informa ao tratador da função como chamar a função. Podendo
+       ser o código fonte da função para as linguagens interpretadas,
+       o símbolo de ligação, o nome do arquivo, ou qualquer outra coisa,
+       dependendo da linguagem de implementação/convenção de chamada.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>probin</structfield></entry>
+      <entry><type>bytea</type></entry>
+      <entry></entry>
+      <entry>Informações adicionais sobre como chamar a função.
+      Novamente, a interpretação é específica da linguagem.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>proacl</structfield></entry>
+      <entry><type>aclitem[]</type></entry>
+      <entry></entry>
+      <entry>
+       Privilégios de acesso; para obter detalhes devem ser consultados os
+       comandos <xref linkend="sql-grant" endterm="sql-grant-title"> e
+       <xref linkend="sql-revoke" endterm="sql-revoke-title">.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   Para as funções compiladas, tanto nativas quanto carregadas dinamicamente,
+   <structfield>prosrc</structfield> contém o nome da função na linguagem C
+   (símbolo de ligação). Para todos os outros tipos de linguagem conhecidos
+   no momento, <structfield>prosrc</structfield> contém o texto do código fonte
+   da função. <structfield>probin</structfield> não é utilizado, exceto para as
+   funções C carregadas dinamicamente, para as quais fornece o nome do
+   arquivo de biblioteca compartilhada contendo a função.
+  </para>
+
+ </sect1>
+
+ <sect1 id="catalog-pg-rewrite">
+  <title><structname>pg_rewrite</structname></title>
+
+  <indexterm zone="catalog-pg-rewrite">
+   <primary>pg_rewrite</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_rewrite</structname> armazena regras de reescrita
+   para tabelas e visões.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_rewrite</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>rulename</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome da regra</entry>
+     </row>
+
+     <row>
+      <entry><structfield>ev_class</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>Tabela para a qual esta regra se destina</entry>
+     </row>
+
+     <row>
+      <entry><structfield>ev_attr</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Coluna para a qual esta regra se destina (atualmente sempre zero
+      para indicar toda a tabela)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>ev_type</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+       Tipo de evento para o qual esta regra se destina:
+       1 = <command>SELECT</command>,
+       2 = <command>UPDATE</command>,
+       3 = <command>INSERT</command>,
+       4 = <command>DELETE</command>.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>is_instead</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se a regra for uma regra <literal>INSTEAD</literal></entry>
+     </row>
+
+     <row>
+      <entry><structfield>ev_qual</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>
+       Árvore de expressão (na forma de uma representação
+       <function>nodeToString()</function>) para a
+       condição de qualificação da regra.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>ev_action</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>
+       Árvore de comando (na forma de uma representação
+       <function>nodeToString()</function>) para a
+       ação da regra.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <note>
+   <para>
+    <literal>pg_class.relhasrules</literal>
+    deve ser verdade quando a tabela possui alguma regra neste catálogo.
+   </para>
+  </note>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-shadow">
+  <title><structname>pg_shadow</structname></title>
+
+  <indexterm zone="catalog-pg-shadow">
+   <primary>pg_shadow</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_shadow</structname> contém informações sobre os
+   usuários do banco de dados. Este nome vem do fato desta tabela não
+   poder ser lida por todos, uma vez que contém senhas.
+   <link linkend="view-pg-user"><structname>pg_user</structname></link>
+   é uma visão de <structname>pg_shadow</structname> que pode ser
+   lida por todos, uma vez que esconde o campo senha.
+  </para>
+
+  <para>
+   O <xref linkend="user-manag"> contém informações detalhadas sobre o
+   gerenciamento de usuários e de privilégios.
+  </para>
+
+  <para>
+   Uma vez que as identidades dos usuários valem para todo o agrupamento,
+   o catálogo <structname>pg_shadow</structname> é compartilhado por todos os
+   bancos de dados do agrupamento: existe apenas uma instância de
+   <structname>pg_shadow</structname> por agrupamento, e não uma por banco de
+   dados.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_shadow</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>usename</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome do usuário</entry>
+     </row>
+
+     <row>
+      <entry><structfield>usesysid</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>Id do usuário (número arbitrário utilizado para referenciar este usuário)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>usecreatedb</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Se for verdade o usuário pode criar bancos de dados</entry>
+     </row>
+
+     <row>
+      <entry><structfield>usesuper</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Se for verdade o usuário é um superusuário</entry>
+     </row>
+
+     <row>
+      <entry><structfield>usecatupd</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Se for verdade o usuário pode atualizar os catálogos do sistema (Mesmo os
+       superusuários não podem atualizar os catálogos do sistema a não ser que
+       esta coluna seja verdade).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>passwd</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Senha (possivelmente criptografada)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>valuntil</structfield></entry>
+      <entry><type>abstime</type></entry>
+      <entry></entry>
+      <entry>Momento de expiração da conta (usado apenas para autenticação por senha)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>useconfig</structfield></entry>
+      <entry><type>text[]</type></entry>
+      <entry></entry>
+      <entry>Padrões da sessão para as variáveis de configuração em tempo de execução</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-statistic">
+  <title><structname>pg_statistic</structname></title>
+
+  <indexterm zone="catalog-pg-statistic">
+   <primary>pg_statistic</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_statistic</structname> armazena dados estatísticos
+   sobre o conteúdo do banco de dados. As entradas são criadas pelo comando
+   <command>ANALYZE</command> e depois utilizadas pelo planejador de comandos.
+   Existe uma entrada para cada coluna de tabela que foi analisada.
+   Deve ser observado que todos os dados estatísticos são inerentemente
+   aproximados, mesmo assumindo que estejam atualizados.
+  </para>
+
+  <para>
+   O catálogo <structname>pg_statistic</structname> também armazena dados
+   estatísticos sobre os valores das expressões de índice, que são descritos
+   como se fossem colunas de dados reais; particularmente,
+   <structfield>starelid</structfield> referencia o índice.
+   Entretanto, não é criada nenhuma entrada para uma coluna de índice comum
+   que não é uma expressão, uma vez que seria redundante com a coluna da tabela
+   subjacente.
+  </para>
+
+  <para>
+   Uma vez que podem ser apropriados tipos de estatística diferentes para tipos
+   de dado diferentes, o catálogo <structname>pg_statistic</structname> foi
+   projetado para não assumir muita coisa sobre que tipo de estatística será
+   armazenado.
+   Somente estatísticas extremamente gerais (como nulidade) recebem colunas
+   dedicadas em <structname>pg_statistic</structname>.
+   Tudo mais é armazenado em <quote>encaixes</quote> (<literal>slots</literal>),
+   que são grupos de colunas associadas cujo conteúdo é identificado por um
+   código numérico em uma das colunas do encaixe.
+   Para obter informações adicionais deve ser consultado o arquivo
+   <filename>src/include/catalog/pg_statistic.h</filename>.
+  </para>
+
+  <para>
+   O catálogo <structname>pg_statistic</structname> não deve poder ser visto por
+   todos, uma vez que mesmo informações estatísticas sobre o conteúdo da tabela
+   podem ser consideradas confidenciais (Exemplo: os valores mínimo e máximo
+   da coluna salário podem ser bastante interessantes).
+   <link linkend="view-pg-stats"><structname>pg_stats</structname></link>
+   é uma visão de <structname>pg_statistic</structname> que pode ser lida por
+   todos, e mostra apenas informações sobre as tabelas que podem ser lidas pelo
+   usuário corrente.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_statistic</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>starelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>Tabela ou índice que a coluna descrita pertence</entry>
+     </row>
+
+     <row>
+      <entry><structfield>staattnum</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry><literal><link linkend="catalog-pg-attribute"><structname>pg_attribute</structname></link>.attnum</literal></entry>
+      <entry>Número da coluna descrita</entry>
+     </row>
+
+     <row>
+      <entry><structfield>stanullfrac</structfield></entry>
+      <entry><type>float4</type></entry>
+      <entry></entry>
+      <entry>Fração das entradas nulas na coluna</entry>
+     </row>
+
+     <row>
+      <entry><structfield>stawidth</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>Largura armazenada média, em bytes, das entradas não-nulas</entry>
+     </row>
+
+     <row>
+      <entry><structfield>stadistinct</structfield></entry>
+      <entry><type>float4</type></entry>
+      <entry></entry>
+      <entry>Número de valores de dado não-nulos distintos na coluna.
+      Um valor maior do que zero é o número real de valores distintos.
+      Um valor menor do que zero é o negativo da fração do número de linhas da
+      tabela (por exemplo, uma coluna em que cada valor aparece duas vezes, em
+      média, pode ser representada por <structfield>stadistinct</structfield> =
+      -0.5).
+      O valor zero significa que o número de valores distintos é desconhecido.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>stakind<replaceable>N</></structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>
+       Código numérico indicando o tipo de estatística armazenada no
+       <replaceable>N</replaceable>-ésimo <quote>encaixe</quote> da linha de
+       <structname>pg_statistic</structname>.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>staop<replaceable>N</></structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-operator"><structname>pg_operator</structname></link>.oid</literal></entry>
+      <entry>
+       Operador utilizado para derivar as estatísticas armazenadas no
+       <replaceable>N</replaceable>-ésimo <quote>encaixe</quote>. Por exemplo,
+       em um encaixe tipo histograma é mostrado o operador
+       <literal>&lt;</literal> que define a ordem de classificação dos dados.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>stanumbers<replaceable>N</></structfield></entry>
+      <entry><type>float4[]</type></entry>
+      <entry></entry>
+      <entry>
+       Estatísticas numéricas do tipo apropriado para o
+       <replaceable>N</replaceable>-ésimo <quote>encaixe</quote>, ou nulo se o
+       tipo do encaixe não envolve valores numéricos.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>stavalues<replaceable>N</></structfield></entry>
+      <entry><type>anyarray</type></entry>
+      <entry></entry>
+      <entry>
+       Valores dos dados da coluna, do tipo apropriado, para o
+       <replaceable>N</replaceable>-ésimo <quote>encaixe</quote>, ou nulo se o
+       tipo do encaixe não armazena nenhum valor de dado. Cada valor do elemento
+       da matriz é do tipo de dado específico da coluna, portanto não há
+       como definir o tipo de dado desta coluna de forma mais específica que
+       <type>anyarray</type>.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-tablespace">
+  <title><structname>pg_tablespace</structname></title>
+
+  <indexterm zone="catalog-pg-tablespace">
+   <primary>pg_tablespace</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_tablespace</structname> armazena informações sobre
+   os espaços de tabelas disponíveis. As tabelas podem ser colocadas em um
+   determinado espaço de tabelas para ajudar administrar a organização dos
+   discos.
+  </para>
+
+  <para>
+   Diferentemente da maioria dos catálogos do sistema, o catálogo
+   <structname>pg_tablespace</structname> é compartilhado por todos os bancos
+   de dados do agrupamento: existe apenas uma instância do catálogo
+   <structname>pg_tablespace</structname> por agrupamento, e não uma por banco
+   de dados.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_tablespace</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>spcname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Tablespace name</entry>
+     </row>
+
+     <row>
+      <entry><structfield>spcowner</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usesysid</literal></entry>
+      <entry>Dono do espaço de tabelas, geralmente o usuário que o criou</entry>
+     </row>
+
+     <row>
+      <entry><structfield>spclocation</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Local (caminho do diretório) do espaço de tabelas</entry>
+     </row>
+
+     <row>
+      <entry><structfield>spcacl</structfield></entry>
+      <entry><type>aclitem[]</type></entry>
+      <entry></entry>
+      <entry>
+       Privilégios de acesso; para obter detalhes devem ser consultados os
+       comandos <xref linkend="sql-grant" endterm="sql-grant-title"> e
+       <xref linkend="sql-revoke" endterm="sql-revoke-title">.
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+ </sect1>
+
+
+ <sect1 id="catalog-pg-trigger">
+  <title><structname>pg_trigger</structname></title>
+
+  <indexterm zone="catalog-pg-trigger">
+   <primary>pg_trigger</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_trigger</structname> armazena os gatilhos das
+   tabelas. Para obter informações adicionais deve ser consultado o comando
+   <xref linkend="sql-createtrigger" endterm="sql-createtrigger-title">.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_trigger</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>tgrelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>Tabela onde o gatilho se encontra</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tgname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome do gatilho (deve ser único entre os gatilhos da mesma tabela)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tgfoid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função a ser chamada</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tgtype</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Máscara de bits identificando as condições do gatilho</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tgenabled</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se o gatilho estiver habilitado (atualmente não é
+      verificado em todos os lugares onde deveria ser, portanto desabilitar o
+      gatilho definindo esta coluna como falso não funciona de forma
+      confiável)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tgisconstraint</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se o gatilho implementa uma restrição de integridade referencial</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tgconstrname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome da restrição de integridade referencial</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tgconstrrelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>Tabela referenciada pela restrição de integridade referencial</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tgdeferrable</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se for postergável</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tginitdeferred</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Verdade se for inicialmente postergado</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tgnargs</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>Número de cadeias de caracteres argumentos passadas para a função
+      de gatilho</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tgattr</structfield></entry>
+      <entry><type>int2vector</type></entry>
+      <entry></entry>
+      <entry>Atualmente não é utilizado</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tgargs</structfield></entry>
+      <entry><type>bytea</type></entry>
+      <entry></entry>
+      <entry>Cadeias de caracteres argumentos a serem passadas para o gatilho,
+      todas terminadas por nulo</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <note>
+   <para>
+    <literal>pg_class.reltriggers</literal> deve corresponder ao número de
+    gatilhos encontrados nesta tabela para uma determinada relação.
+   </para>
+  </note>
+
+ </sect1>
+
+
+ <sect1 id="catalog-pg-type">
+  <title><structname>pg_type</structname></title>
+
+  <indexterm zone="catalog-pg-type">
+   <primary>pg_type</primary>
+  </indexterm>
+
+  <para>
+   O catálogo <structname>pg_type</structname> armazena informações sobre tipos
+   de dado.  Os tipos base (tipos escalares) são criados pelo comando
+   <xref linkend="sql-createtype" endterm="sql-createtype-title">,
+   e os domínios pelo comando
+   <xref linkend="sql-createdomain" endterm="sql-createdomain-title">.
+   Para cada tabela do banco de dados é criado, automaticamente, um tipo
+   composto para representar a estrutura da linha da tabela.
+   Também é possível criar tipos compostos utilizando o comando
+   <command>CREATE TYPE AS</command>.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_type</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structfield>typname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome do tipo de dado</entry>
+     </row>
+
+     <row>
+      <entry><structfield>typnamespace</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.oid</literal></entry>
+      <entry>
+       OID do espaço de nomes que contém este tipo.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typowner</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usesysid</literal></entry>
+      <entry>Dono do tipo</entry>
+     </row>
+
+     <row>
+      <entry><structfield>typlen</structfield></entry>
+      <entry><type>int2</type></entry>
+      <entry></entry>
+      <entry>
+       Para um tipo de tamanho fixo, <structfield>typlen</structfield> é o
+       número de bytes na representação interna do tipo. Para um tipo de
+       tamanho variável, <structfield>typlen</structfield> é negativo.
+       -1 indica um tipo <quote>varlena</quote> (aquele que tem a palavra
+       comprimento), -2 indica uma cadeia de caracteres C terminada por nulo.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typbyval</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       <structfield>typbyval</structfield> determina se as rotinas internas
+       passam o valor deste tipo por valor ou por referência.
+       É melhor <structfield>typbyval</structfield> ser falso se
+       <structfield>typlen</structfield> não for igual a 1, 2 ou 4
+       (ou 8 nas máquinas com Datum igual a 8 bytes).
+       Os tipos de comprimento variável são sempre passados por referência.
+       Deve ser observado que <structfield>typbyval</structfield> pode ser falso
+       mesmo quando o comprimento permite passar por valor; atualmente isto é
+       verdade para o tipo <type>float4</type>, por exemplo.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typtype</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+       <structfield>typtype</structfield> é igual a <literal>b</literal> para um
+       tipo base, igual a <literal>c</literal> para um tipo composto (ou seja, o
+       tipo de uma linha de tabela), igual a <literal>d</literal> para um
+       domínio, ou igual a <literal>p</literal> para um pseudotipo. Consulte
+       também <structfield>typrelid</structfield> e
+       <structfield>typbasetype</structfield>.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typisdefined</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Verdade se o tipo está definido, falso se for apenas um espaço reservado
+       para um tipo que ainda não está definido.
+       Quando  <structfield>typisdefined</structfield> é falso, não se pode
+       confiar em nada além do nome do tipo, espaço de nomes e OID.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typdelim</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>Caractere que separa dois valores deste tipo ao analisar entrada na
+      forma de matriz. Deve ser observado que o delimitador está associado ao
+      tipo de dado do elemento, e não ao tipo de dado da matriz</entry>
+     </row>
+
+     <row>
+      <entry><structfield>typrelid</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>
+       Se for um tipo composto (consulte <structfield>typtype</>), então
+       esta coluna aponta para a entrada em <structname>pg_class</structname>
+       que define a tabela correspondente (Para um tipo composto independente, a
+       entrada em <structname>pg_class</structname> não representa realmente
+       uma tabela, mas de todo jeito é necessária para as entradas em
+       <structname>pg_attribute</structname> do tipo fazerem ligação).
+       Zero para os tipos não-compostos.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typelem</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>
+       Se <structfield>typelem</structfield> não for 0, então
+       identifica outra linha em <structname>pg_type</structname>.
+       O tipo corrente pode ser acessado como qualquer matriz produzindo valores
+       do tipo <structfield>typelem</structfield>. Um tipo matriz
+       <quote>de verdade</quote> é de comprimento variável
+       (<structfield>typlen</structfield> = -1),
+       mas alguns tipos de comprimento fixo (<structfield>typlen</structfield>
+       &gt; 0) também possuem <structfield>typelem</structfield> diferente de
+       zero como, por exemplo, <type>name</type> e <type>oidvector</type>.
+       Se um tipo de comprimento fixo possui <structfield>typelem</structfield>,
+       então sua representação interna deve ser alguma quantidade de valores do
+       tipo de dado <structfield>typelem</structfield> com nenhum outro dado.
+       Os tipos matriz de comprimento variável possuem um cabeçalho definido
+       pelas subrotinas da matriz.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typinput</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função de conversão da entrada (formato texto)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>typoutput</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função de conversão da saída (formato texto)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>typreceive</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função de conversão da entrada (formato binário), ou 0 se nenhuma</entry>
+     </row>
+
+     <row>
+      <entry><structfield>typsend</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função de conversão da saída (formato binário), ou 0 se nenhuma</entry>
+     </row>
+
+     <row>
+      <entry><structfield>typanalyze</structfield></entry>
+      <entry><type>regproc</type></entry>
+      <entry><literal><link linkend="catalog-pg-proc"><structname>pg_proc</structname></link>.oid</literal></entry>
+      <entry>Função ANALYZE personalizada, ou 0 para utilizar a função padrão</entry>
+     </row>
+
+     <row>
+      <entry><structfield>typalign</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+       <para>
+        <structfield>typalign</structfield> é o alinhamento requerido para
+        armazenar um valor deste tipo. Se aplica ao armazenamento em disco,
+        assim como a maioria das representações do valor dentro do
+        <productname>PostgreSQL</productname>.
+        Quando vários valores são armazenados consecutivamente, tal como
+        na representação de uma linha completa no disco, é inserido um
+        preenchimento antes do dado deste tipo para que comece na
+        fronteira especificada. A referência de alinhamento é o início do
+        primeiro dado na seqüência.
+       </para>
+       <para>
+        Os valores possíveis são:
+        <itemizedlist>
+         <listitem>
+          <para><literal>c</literal> = alinhamento <type>char</type>, ou seja,
+          nenhum alinhamento é necessário.</para>
+         </listitem>
+         <listitem>
+          <para>
+           <literal>s</literal> = alinhamento <type>short</type>
+           (2 bytes na maioria das máquinas).
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           <literal>i</literal> = alinhamento <type>int</type>
+           (4 bytes na maioria das máquinas).
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           <literal>d</literal> = alinhamento <type>double</type>
+          (8 bytes na maioria das máquinas, mas de forma alguma em todas).
+          </para>
+         </listitem>
+        </itemizedlist>
+       </para>
+       <note>
+        <para>
+         Para os tipos utilizados nas tabelas do sistema, é crítico que o tamanho
+         e o alinhamento definidos em <structname>pg_type</structname>
+         estejam de acordo com a forma como o compilador organiza a coluna na
+         estrutura que representa a linha da tabela.
+        </para>
+       </note>
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typstorage</structfield></entry>
+      <entry><type>char</type></entry>
+      <entry></entry>
+      <entry>
+       <para>
+        <structfield>typstorage</structfield> informa para os tipos varlena
+        (aqueles com <structfield>typlen</structfield> = -1) se
+        o tipo está preparado para o fatiamento (<literal>toasting</literal>),
+        e qual deve ser a estratégia padrão para os atributos deste tipo.
+        Os valores possíveis são:
+        <itemizedlist>
+         <listitem>
+          <para>
+           <literal>p</literal>: O valor deve ser sempre armazenado diretamente.
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           <literal>e</literal>: O valor pode ser armazenado em uma relação
+           <quote>secundária</quote> (se a relação possuir uma, consulte
+           <literal>pg_class.reltoastrelid</literal>).
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           <literal>m</literal>: O valor pode ser armazenado em-linha comprimido.
+          </para>
+         </listitem>
+         <listitem>
+          <para>
+           <literal>x</literal>: O valor pode ser armazenado em-linha comprimido,
+           ou posto no armazenamento <quote>secundário</quote>.
+          </para>
+         </listitem>
+        </itemizedlist>
+        Deve ser observado que as colunas do tipo <literal>m</literal> também
+        podem ser movidas para o armazenamento secundário, mas somente como
+        último recurso (Primeiro são movidas as colunas do tipo
+        <literal>e</literal> e do tipo <literal>x</literal>).
+       </para>
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typnotnull</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       <para>
+        <structfield>typnotnull</structfield> representa uma
+        restrição de não-nulo no tipo. Utilizado apenas em domínios.
+       </para>
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typbasetype</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-type"><structname>pg_type</structname></link>.oid</literal></entry>
+      <entry>
+       <para>
+        Se for um domínio (consulte <structfield>typtype</structfield>),
+        então <structfield>typbasetype</structfield> identifica
+        o tipo em que é baseado. Zero se não for um domínio.
+       </para>
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typtypmod</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       <para>
+        Os domínios utilizam <structfield>typtypmod</structfield> para registrar
+        o <literal>typmod</literal> a ser aplicado ao seu tipo base (-1 se o
+        tipo base não utilizar um <literal>typmod</literal>). -1 se este tipo
+        não for um domínio.
+       </para>
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typndims</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>
+       <para>
+        <structfield>typndims</structfield> é o número de dimensões da matriz
+        para o domínio que é uma matriz (ou seja,
+        <structfield>typbasetype</structfield> é um tipo matriz;
+        o <structfield>typelem</structfield> do domínio corresponde ao tipo base
+        de <structfield>typelem</structfield>).
+        Zero para os tipos que não forem domínios matriz.
+       </para>
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typdefaultbin</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>
+       <para>
+        Se <structfield>typdefaultbin</structfield> não for nulo, é a
+        representação <function>nodeToString()</function> da expressão padrão
+        para o tipo. Utilizado apenas para domínios.
+       </para>
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>typdefault</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>
+       <para>
+        <structfield>typdefault</structfield> é nulo se o tipo não tiver valor
+        padrão associado. Se <structfield>typdefaultbin</structfield> não for
+        nulo, <structfield>typdefault</structfield> deve conter uma versão
+        humanamente legível da expressão padrão representada por
+        <structfield>typdefaultbin</structfield>.
+        Se <structfield>typdefaultbin</structfield> for nulo e
+        <structfield>typdefault</structfield> não for, então
+        <structfield>typdefault</structfield> é a representação externa do
+        valor padrão do tipo, o qual pode ser introduzido no conversor de
+        entrada do tipo para produzir uma constante.
+       </para>
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+ </sect1>
+
+ <sect1 id="views-overview">
+  <title>Visões do sistema</title>
+
+  <para>
+   Além dos catálogos do sistema, o <productname>PostgreSQL</productname>
+   disponibiliza várias visões nativas. Algumas visões do sistema fornecem um
+   acesso conveniente a algumas consultas aos catálogos do sistema utilizadas
+   com freqüência. Outras visões também fornecem acesso ao estado interno do
+   servidor.
+  </para>
+
+  <para>
+   O esquema de informações (<xref linkend="information-schema">) provê
+   um conjunto alternativo de visões, que se sobrepõem às funcionalidades
+   das visões do sistema. Uma vez que o esquema de informações faz parte do
+   padrão SQL, enquanto as visões aqui descritas são específicas do
+   <productname>PostgreSQL</productname>, geralmente é melhor utilizar o
+   esquema de informações quando este fornece todas as informações necessárias.
+  </para>
+
+  <para>
+   A <xref linkend="view-table"> lista as visões do sistema descritas neste
+   capítulo. A documentação mais detalhadas de cada visão vem a seguir.
+   Existem algumas visões adicionais que fornecem acesso aos resultados do
+   coletor de estatísticas; estão descritas na
+   <xref linkend="monitoring-stats-views-table">.
+  </para>
+
+  <para>
+   Exceto quando indicado, todas as visões descritas aqui são somente para leitura.
+  </para>
+
+  <table id="view-table">
+   <title>Visões do sistema</title>
+
+   <tgroup cols="2">
+    <thead>
+     <row>
+      <entry>Nome da visão</entry>
+      <entry>Finalidade</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><link linkend="view-pg-indexes"><structname>pg_indexes</structname></link></entry>
+      <entry>índices</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="view-pg-locks"><structname>pg_locks</structname></link></entry>
+      <entry>bloqueios mantidos no momento</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="view-pg-rules"><structname>pg_rules</structname></link></entry>
+      <entry>regras</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="view-pg-settings"><structname>pg_settings</structname></link></entry>
+      <entry>configurações dos parâmetros</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="view-pg-stats"><structname>pg_stats</structname></link></entry>
+      <entry>estatísticas do planejador</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="view-pg-tables"><structname>pg_tables</structname></link></entry>
+      <entry>tabelas</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="view-pg-user"><structname>pg_user</structname></link></entry>
+      <entry>usuários do banco de dados</entry>
+     </row>
+
+     <row>
+      <entry><link linkend="view-pg-views"><structname>pg_views</structname></link></entry>
+      <entry>visões</entry>
+     </row>
+
+    </tbody>
+   </tgroup>
+  </table>
+ </sect1>
+
+ <sect1 id="view-pg-indexes">
+  <title><structname>pg_indexes</structname></title>
+
+  <indexterm zone="view-pg-indexes">
+   <primary>pg_indexes</primary>
+  </indexterm>
+
+  <para>
+   A visão <structname>pg_indexes</structname> fornece acesso a
+   informações úteis sobre cada índice do banco de dados.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_indexes</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+     <row>
+      <entry><structfield>schemaname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.nspname</literal></entry>
+      <entry>Nome do esquema que contém a tabela e o índice</entry>
+     </row>
+     <row>
+      <entry><structfield>tablename</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.relname</literal></entry>
+      <entry>Nome da tabela para a qual o índice se destina</entry>
+     </row>
+     <row>
+      <entry><structfield>indexname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.relname</literal></entry>
+      <entry>Nome do índice</entry>
+     </row>
+     <row>
+      <entry><structfield>tablespace</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-tablespace"><structname>pg_tablespace</structname></link>.spcname</literal></entry>
+      <entry>Nome do espaço de tabelas contendo o índice (NULL se for o padrão para o banco de dados).</entry>
+     </row>
+     <row>
+      <entry><structfield>indexdef</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Definição do índice (o comando de criação reconstruído)</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+ <sect1 id="view-pg-locks">
+  <title><structname>pg_locks</structname></title>
+
+  <indexterm zone="view-pg-locks">
+   <primary>pg_locks</primary>
+  </indexterm>
+
+  <para>
+   A visão <structname>pg_locks</structname> fornece acesso a
+   informações sobre bloqueios dentro do servidor de banco de dados
+   mantidos por transações em aberto. Veja no <xref linkend="mvcc">
+   mais explicações sobre bloqueio.
+  </para>
+
+  <para>
+   <structname>pg_locks</structname> contém uma linha por objeto bloqueável
+   ativo, modo de bloqueio requisitado e transação relevante. Assim, o mesmo
+   objeto bloqueável pode aparecer várias vezes, se várias transações estiverem
+   mantendo ou aguardando por bloqueios no mesmo. Entretanto, um objeto que
+   atualmente não possui nenhum bloqueio atuando sobre o mesmo não aparece.
+   Um objeto bloqueável é uma relação (por exemplo, uma tabela), ou um ID de
+   transação.
+  </para>
+
+  <para>
+   Deve ser observado que esta visão inclui apenas bloqueios no nível de tabela,
+   e não no nível de linha.
+   Se a transação estiver aguardando por um bloqueio no nível de linha,
+   é mostrada na visão como aguardando pelo ID da transação
+   que está atualmente mantendo o bloqueio na linha.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_locks</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+     <row>
+      <entry><structfield>relation</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.oid</literal></entry>
+      <entry>
+       OID da relação bloqueada, ou NULL se o objeto bloqueável
+       for um ID de transação.
+      </entry>
+     </row>
+     <row>
+      <entry><structfield>database</structfield></entry>
+      <entry><type>oid</type></entry>
+      <entry><literal><link linkend="catalog-pg-database"><structname>pg_database</structname></link>.oid</literal></entry>
+      <entry>
+       OID do banco de dados em que a relação bloqueada se encontra, ou
+       zero se a relação bloqueada for uma tabela compartilhada globalmente, ou
+       NULL se o objeto bloqueável for um ID de transação.
+      </entry>
+     </row>
+     <row>
+      <entry><structfield>transaction</structfield></entry>
+      <entry><type>xid</type></entry>
+      <entry></entry>
+      <entry>
+       ID da transação, ou NULL se o objeto bloqueável for uma relação.
+      </entry>
+     </row>
+     <row>
+      <entry><structfield>pid</structfield></entry>
+      <entry><type>integer</type></entry>
+      <entry></entry>
+      <entry>ID de processo do processo servidor mantendo ou aguardando pelo
+      bloqueio</entry>
+     </row>
+     <row>
+      <entry><structfield>mode</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Nome do modo de bloqueio mantido ou desejado por este processo
+      (consulte a <xref linkend="locking-tables">)</entry>
+     </row>
+     <row>
+      <entry><structfield>granted</structfield></entry>
+      <entry><type>boolean</type></entry>
+      <entry></entry>
+      <entry>Verdade se o bloqueio está sendo mantido,
+      falso se o bloqueio está sendo aguardado</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   <structfield>granted</structfield> é verdade em uma linha representando um
+   bloqueio mantido pela sessão indicada.
+   Falso indica que esta sessão está atualmente aguardando para obter o
+   bloqueio, o que implica que alguma outra sessão está mantendo um modo de
+   bloqueio conflitante no mesmo objeto bloqueável.
+   A sessão aguardando dorme até que o bloqueio seja liberado( ou até que uma
+   situação de impasse seja detectada). Uma única sessão pode estar aguardando
+   para obter no máximo um único bloqueio por vez.
+  </para>
+
+  <para>
+   Cada transação mantém um bloqueio exclusivo em seu ID de transação por toda a
+   sua duração. Se uma transação descobrir que é necessário aguardar
+   especificamente por outra transação, ela fará isto tentando obter um bloqueio
+   compartilhado no ID da outra transação. Somente será bem-sucedido quando a
+   outra transação terminar e liberar seus bloqueios.
+  </para>
+
+  <para>
+   Quando a visão <structname>pg_locks</structname> é acessada, as estruturas de
+   dado internas do gerenciador de bloqueios são momentaneamente bloqueadas, e
+   é feita uma cópia para ser mostrada pela visão. Isto garante que a visão
+   produz um conjunto de resultados consistente, enquanto que não bloqueia as
+   operações normais do gerenciador de bloqueios por mais tempo que o
+   necessário. Apesar disso, pode haver algum impacto no desempenho do banco de
+   dados se esta visão for consultada freqüentemente.
+  </para>
+
+  <para>
+   <structname>pg_locks</structname> provê uma visão global de todos os
+   bloqueios no agrupamento de bancos de dados, e não apenas aqueles relevantes
+   para o banco de dados corrente. Embora possa ser feita uma junção de sua
+   coluna <structfield>relation</structfield> com
+   <structname>pg_class</structname>.<structfield>oid</structfield> para
+   identificar as relações bloqueadas, isto só funciona de forma correta para
+   as relações no banco de dados corrente (aqueles em que a coluna
+   <structfield>database</structfield> é o OID do banco de dados corrente ou
+   zero).
+  </para>
+
+  <para>
+   Se o coletor de estatísticas estiver habilitado, pode ser
+   feita a junção  da coluna <structfield>pid</structfield> com a coluna
+   <structfield>procpid</structfield> da visão
+   <structname>pg_stat_activity</structname> para obter mais
+   informações sobre a sessão mantendo ou aguardando para obter o bloqueio.
+  </para>
+
+ </sect1>
+
+ <sect1 id="view-pg-rules">
+  <title><structname>pg_rules</structname></title>
+
+  <indexterm zone="view-pg-rules">
+   <primary>pg_rules</primary>
+  </indexterm>
+
+  <para>
+   A visão <structname>pg_rules</structname> fornece acesso a
+   informações úteis sobre as regras de reescrita de comandos.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_rules</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+     <row>
+      <entry><structfield>schemaname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.nspname</literal></entry>
+      <entry>Nome do esquema que contém a tabela</entry>
+     </row>
+     <row>
+      <entry><structfield>tablename</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.relname</literal></entry>
+      <entry>Nome da tabela para a qual esta regra se destina</entry>
+     </row>
+     <row>
+      <entry><structfield>rulename</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-rewrite"><structname>pg_rewrite</structname></link>.rulename</literal></entry>
+      <entry>Nome da regra</entry>
+     </row>
+     <row>
+      <entry><structfield>definition</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Definição da regra (o comando de criação reconstruído)</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   A visão <structname>pg_rules</structname> exclui as regras ON SELECT da
+   visão; estas podem ser vistas em <structname>pg_views</structname>.
+  </para>
+
+ </sect1>
+
+ <sect1 id="view-pg-settings">
+  <title><structname>pg_settings</structname></title>
+
+  <indexterm zone="view-pg-settings">
+   <primary>pg_settings</primary>
+  </indexterm>
+
+  <para>
+   A visão <structname>pg_settings</structname> fornece acesso a
+   parâmetros em tempo de execução do servidor. Essencialmente é uma interface
+   alternativa aos comandos <command>SHOW</command> e <command>SET</command>.
+   Também fornece acesso a alguns fatos sobre cada parâmetro não disponíveis
+   diretamente no <command>SHOW</command>, como os valores mínimo e máximo.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_settings</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+     <row>
+      <entry><structfield>name</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Nome do parâmetro de configuração em tempo de execução</entry>
+     </row>
+     <row>
+      <entry><structfield>setting</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Valor corrente do parâmetro</entry>
+     </row>
+     <row>
+      <entry><structfield>category</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Grupo lógico do parâmetro.</entry>
+     </row>
+     <row>
+      <entry><structfield>short_desc</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Breve descrição do parâmetro.</entry>
+     </row>
+     <row>
+      <entry><structfield>extra_desc</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Informação adicional, mais detalhada, sobre o parâmetro.</entry>
+     </row>
+     <row>
+      <entry><structfield>context</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Contexto requerido para definir o valor do parâmetro.</entry>
+     </row>
+     <row>
+      <entry><structfield>vartype</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>
+       Tipo do parâmetro (<literal>bool</literal>, <literal>integer</literal>,
+       <literal>real</literal> ou <literal>string</literal>).
+      </entry>
+     </row>
+     <row>
+      <entry><structfield>source</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Origem do valor corrente do parâmetro</entry>
+     </row>
+     <row>
+      <entry><structfield>min_val</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Valor mínimo permitido para o parâmetro (NULL para valores
+      não numéricos)</entry>
+     </row>
+     <row>
+      <entry><structfield>max_val</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Valor máximo permitido para o parâmetro (NULL para valores
+      não numéricos)</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   A visão <structname>pg_settings</structname> não aceita inserções ou
+   exclusões, mas aceita atualizações. Um comando <command>UPDATE</command>
+   aplicado a uma linha de <structname>pg_settings</structname> equivale a
+   executar o comando <xref linkend="SQL-SET" endterm="SQL-SET-title"> no
+   parâmetro com este nome. A mudança somente afeta o valor utilizado pela
+   sessão corrente. Se o comando <command>UPDATE</command> for executado dentro
+   de uma transação interrompida posteriormente, o efeito deste comando
+   desaparece quando a transação é desfeita. Se a transação onde o comando
+   se encontra for efetivada, os efeitos do comando persistem até o fim da
+   sessão, a não ser que seja substituído por outro comando
+   <command>UPDATE</command> ou <command>SET</command>.
+  </para>
+
+ </sect1>
+
+ <sect1 id="view-pg-stats">
+  <title><structname>pg_stats</structname></title>
+
+  <indexterm zone="view-pg-stats">
+   <primary>pg_stats</primary>
+  </indexterm>
+
+  <para>
+   A visão <structname>pg_stats</structname> fornece acesso a
+   informações armazenadas no catálogo <link
+   linkend="catalog-pg-statistic"><structname>pg_statistic</structname></link>.
+   Esta visão permite acessar somente as linhas de
+   <structname>pg_statistic</structname> que correspondem às tabelas que
+   o usuário tem permissão para ler e, portanto, é seguro permitir acesso
+   público de leitura a esta visão.
+  </para>
+
+  <para>
+   A visão <structname>pg_stats</structname> também foi projetada para mostrar
+   as informações em uma forma mais facilmente lida do que o catálogo subjacente
+   &mdash; ao custo de seu esquema ter que ser estendido toda vez que novos
+   tipos de encaixe forem definidos em <structname>pg_statistic</structname>.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_stats</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+     <row>
+      <entry><structfield>schemaname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.nspname</literal></entry>
+      <entry>Nome do esquema que contém a tabela</entry>
+     </row>
+
+     <row>
+      <entry><structfield>tablename</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.relname</literal></entry>
+      <entry>Nome da tabela</entry>
+     </row>
+
+     <row>
+      <entry><structfield>attname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-attribute"><structname>pg_attribute</structname></link>.attname</literal></entry>
+      <entry>Nome da coluna descrita por esta linha</entry>
+     </row>
+
+     <row>
+      <entry><structfield>null_frac</structfield></entry>
+      <entry><type>real</type></entry>
+      <entry></entry>
+      <entry>Fração das entradas nulas na coluna</entry>
+     </row>
+
+     <row>
+      <entry><structfield>avg_width</structfield></entry>
+      <entry><type>integer</type></entry>
+      <entry></entry>
+      <entry>Largura média em bytes das entradas da coluna</entry>
+     </row>
+
+     <row>
+      <entry><structfield>n_distinct</structfield></entry>
+      <entry><type>real</type></entry>
+      <entry></entry>
+      <entry>Se for maior que zero, o número estimado de valores distintos
+      na coluna. Se for menor que zero, o negativo do número de
+      valores distintos divididos pelo número de linhas (A forma negativa
+      é utilizada quando o <command>ANALYZE</command> acredita que o número
+      de valores distintos deverá aumentar quando a tabela crescer;
+      a forma positiva é utilizada quando a coluna parece ter
+      um número fixo de valores possíveis).
+      Por exemplo, -1 indica uma coluna com restrição de unicidade,
+      onde o número de valores distintos é igual ao número de linhas.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>most_common_vals</structfield></entry>
+      <entry><type>anyarray</type></entry>
+      <entry></entry>
+      <entry>Lista dos valores mais comuns da coluna (NULL se
+      nenhum valor parecer ser mais comum que os outros)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>most_common_freqs</structfield></entry>
+      <entry><type>real[]</type></entry>
+      <entry></entry>
+      <entry>Lista das freqüências dos valores mais comuns, ou seja, o número
+      de ocorrências de cada um deles dividido pelo número total de linhas.
+      (NULL quando <structfield>most_common_vals</structfield> também é nulo).
+     </entry>
+     </row>
+
+     <row>
+      <entry><structfield>histogram_bounds</structfield></entry>
+      <entry><type>anyarray</type></entry>
+      <entry></entry>
+      <entry>Lista dos valores que dividem os valores das colunas em grupos
+      com populações aproximadamente iguais. Os valores em
+      <structfield>most_common_vals</structfield>, se estiverem presentes, são
+      omitidos no cálculo deste histograma (Esta coluna é NULL se o tipo de dado
+      da coluna não possuir o operador <literal>&lt;</literal>, ou se a lista de
+      <structfield>most_common_vals</structfield> englobar toda as linhas
+      da tabela).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>correlation</structfield></entry>
+      <entry><type>real</type></entry>
+      <entry></entry>
+      <entry>Correlação estatística entre a ordenação física das linhas
+      e a ordenação lógica dos valores da coluna. Varia de -1 a +1.
+      Quando o valor estiver próximo de -1 ou de +1, uma varredura de índice na
+      coluna será estimada como mais barata do que quando estiver próximo de
+      zero, por causa da redução de acesso randômico ao disco (O valor desta
+      coluna é NULL quando o tipo de dado da coluna não possui um operador
+      <literal>&lt;</literal>)
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   O número máximo de entradas nas matrizes
+   <structfield>most_common_vals</structfield> e
+   <structfield>histogram_bounds</structfield> podem ser definidos coluna por
+   coluna utilizando o comando <command>ALTER TABLE SET STATISTICS</command>,
+   ou globalmente definindo o parâmetro em tempo de execução
+   <xref linkend="guc-default-statistics-target">.
+  </para>
+
+ </sect1>
+
+ <sect1 id="view-pg-tables">
+  <title><structname>pg_tables</structname></title>
+
+  <indexterm zone="view-pg-tables">
+   <primary>pg_tables</primary>
+  </indexterm>
+
+  <para>
+   A visão <structname>pg_tables</structname> fornece acesso a
+   informações úteis sobre todas as tabelas do banco de dados.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_tables</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+     <row>
+      <entry><structfield>schemaname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.nspname</literal></entry>
+      <entry>Nome do esquema que contém a tabela</entry>
+     </row>
+     <row>
+      <entry><structfield>tablename</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.relname</literal></entry>
+      <entry>Nome da tabela</entry>
+     </row>
+     <row>
+      <entry><structfield>tableowner</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usename</literal></entry>
+      <entry>Nome do dono da tabela</entry>
+     </row>
+     <row>
+      <entry><structfield>tablespace</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-tablespace"><structname>pg_tablespace</structname></link>.spcname</literal></entry>
+      <entry>Nome do espaço de tabelas que contém a tabela (NULL se for o padrão para o banco de dados)</entry>
+     </row>
+     <row>
+      <entry><structfield>hasindexes</structfield></entry>
+      <entry><type>boolean</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.relhasindex</literal></entry>
+      <entry>Verdade se a tabela possui (ou possuía recentemente) algum índice</entry>
+     </row>
+     <row>
+      <entry><structfield>hasrules</structfield></entry>
+      <entry><type>boolean</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.relhasrules</literal></entry>
+      <entry>Verdade se a tabela possui regras</entry>
+     </row>
+     <row>
+      <entry><structfield>hastriggers</structfield></entry>
+      <entry><type>boolean</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.reltriggers</literal></entry>
+      <entry>Verdade se a tabela possui gatilhos</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+ <sect1 id="view-pg-user">
+  <title><structname>pg_user</structname></title>
+
+  <indexterm zone="view-pg-user">
+   <primary>pg_user</primary>
+  </indexterm>
+
+  <para>
+   A visão <structname>pg_user</structname> fornece acesso a informações sobre
+   usuários do banco de dados. É simplesmente uma visão de
+   <link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>
+   que pode ser lida por todos porque esconde o campo senha.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_user</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+     <row>
+      <entry><structfield>usename</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry></entry>
+      <entry>Nome do usuário</entry>
+     </row>
+
+     <row>
+      <entry><structfield>usesysid</structfield></entry>
+      <entry><type>int4</type></entry>
+      <entry></entry>
+      <entry>Id do usuário (número arbitrário utilizado para fazer referência a este usuário)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>usecreatedb</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Se for verdade o usuário pode criar bancos de dados</entry>
+     </row>
+
+     <row>
+      <entry><structfield>usesuper</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>Se for verdade o usuário é um superusuário</entry>
+     </row>
+
+     <row>
+      <entry><structfield>usecatupd</structfield></entry>
+      <entry><type>bool</type></entry>
+      <entry></entry>
+      <entry>
+       Se for verdade o usuário pode atualizar os catálogos do sistema
+       (Mesmo os superusuários não podem atualizar os catálogos do sistema
+       a menos que o valor desta coluna seja verdade).
+      </entry>
+     </row>
+
+     <row>
+      <entry><structfield>passwd</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Não é a senha (sempre mostrado como <literal>********</literal>)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>valuntil</structfield></entry>
+      <entry><type>abstime</type></entry>
+      <entry></entry>
+      <entry>Momento de expiração da conta (utilizado apenas para autenticação da senha)</entry>
+     </row>
+
+     <row>
+      <entry><structfield>useconfig</structfield></entry>
+      <entry><type>text[]</type></entry>
+      <entry></entry>
+      <entry>Padrões da sessão para as variáveis de configuração em tempo de execução</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+ <sect1 id="view-pg-views">
+  <title><structname>pg_views</structname></title>
+
+  <indexterm zone="view-pg-views">
+   <primary>pg_views</primary>
+  </indexterm>
+
+  <para>
+   A visão <structname>pg_views</structname> fornece acesso a
+   informações úteis sobre todas as visões do banco de dados.
+  </para>
+
+  <table>
+   <title>Colunas de <structname>pg_views</></title>
+
+   <tgroup cols=4>
+    <thead>
+     <row>
+      <entry>Nome</entry>
+      <entry>Tipo</entry>
+      <entry>Referencia</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+    <tbody>
+     <row>
+      <entry><structfield>schemaname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-namespace"><structname>pg_namespace</structname></link>.nspname</literal></entry>
+      <entry>Nome do esquema que contém a visão</entry>
+     </row>
+     <row>
+      <entry><structfield>viewname</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-class"><structname>pg_class</structname></link>.relname</literal></entry>
+      <entry>Nome da visão</entry>
+     </row>
+     <row>
+      <entry><structfield>viewowner</structfield></entry>
+      <entry><type>name</type></entry>
+      <entry><literal><link linkend="catalog-pg-shadow"><structname>pg_shadow</structname></link>.usename</literal></entry>
+      <entry>Nome do dono da visão</entry>
+     </row>
+     <row>
+      <entry><structfield>definition</structfield></entry>
+      <entry><type>text</type></entry>
+      <entry></entry>
+      <entry>Definição da visão (o comando SELECT reconstruído)</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+ </sect1>
+
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-tabs-mode:nil
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/share/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

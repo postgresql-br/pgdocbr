@@ -1,0 +1,108 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/alter_schema.sgml,v 1.7 2004/06/25 21:55:50 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-ALTERSCHEMA">
+ <refmeta>
+  <refentrytitle id="SQL-ALTERSCHEMA-title">ALTER SCHEMA</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>ALTER SCHEMA</refname>
+  <refpurpose>altera a definição de um esquema</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-alterschema">
+  <primary>ALTER SCHEMA</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+ALTER SCHEMA <replaceable>nome</replaceable> RENAME TO <replaceable>novo_nome</replaceable>
+ALTER SCHEMA <replaceable>nome</replaceable> OWNER TO <replaceable>novo_dono</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>ALTER SCHEMA</command> altera a definição de um esquema.
+   Para mudar o nome do esquema é necessário ser o dono do esquema e possuir o
+   privilégio <literal>CREATE</literal> para o banco de dados.
+   Para mudar o dono do esquema é necessário ser um superusuário.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable>nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome de um esquema existente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable>novo_nome</replaceable></term>
+    <listitem>
+     <para>
+      O novo nome do esquema. O novo nome não pode começar por
+      <literal>pg_</literal>, porque estes nomes são reservados para
+      os esquemas do sistema.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">novo_dono</replaceable></term>
+    <listitem>
+     <para>
+      O novo dono do esquema.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Não existe o comando <command>ALTER SCHEMA</command> no padrão SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createschema" endterm="sql-createschema-title"></member>
+   <member><xref linkend="sql-dropschema" endterm="sql-dropschema-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

@@ -1,0 +1,49 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/notation.sgml,v 1.26 2003/11/29 19:51:37 pgsql Exp $
+-->
+
+<sect1 id="notation">
+ <title>Convenções</title>
+
+ <para>
+  Este livro utiliza as seguintes convenções tipográficas para marcar certas
+  partes do texto: novos termos, frases estrangeiras e outras passagens
+  importantes são enfatizadas como em <emphasis>realçado</emphasis>. Tudo que
+  representa entrada ou saída do computador, em particular os comandos, código
+  de programa e tela de saída, é mostrado em fonte monoespaçada
+  (<literal>exemplo</literal>). Dentro destas passagens, itálico
+  (<replaceable>exemplo</replaceable>) indica um posicionador;
+  deve ser inserido o valor verdadeiro em seu
+  lugar. Em certas ocasiões, partes do código do programa são enfatizadas em
+  negrito (<emphasis role="bold"><literal>exemplo</literal></emphasis>),
+  se foram adicionadas ou modificadas com relação ao exemplo anterior.
+ </para>
+
+ <para>
+  São utilizadas as seguintes convenções na sinopse dos comandos: os colchetes
+  (<literal>[</literal> e <literal>]</literal>) indicam partes opcionais
+  (Na sinopse dos comandos Tcl, são utilizados pontos de interrogação
+  (<literal>?</literal>) em vez dos colchetes, como é usual no Tcl). As chaves
+  (<literal>{</literal> e <literal>}</literal>), e as barras verticais
+  (<literal>|</literal>), indicam que deve ser escolhida uma das alternativas.
+  Os pontos (<literal>...</literal>) significam que o elemento anterior pode
+  ser repetido.
+ </para>
+
+ <para>
+  Quando fica mais claro, os comandos SQL são precedidos pelo
+  <literal>prompt</literal> <prompt>=&gt;</prompt>, e os comandos para o
+  interpretador de comandos são precedidos pelo <literal>prompt</literal>
+  <prompt>$</prompt>. Entretanto, normalmente os <literal>prompts</literal>
+  não são exibidos.
+ </para>
+
+ <para>
+  <firstterm>Administrador</firstterm> geralmente é a pessoa responsável pela
+  instalação e funcionamento do servidor. <firstterm>Usuário</firstterm>
+  pode ser qualquer um usando, ou querendo usar, qualquer parte do sistema
+  <productname>PostgreSQL</productname>. Estes termos não devem ser
+  interpretados ao pé da letra; este livro não estabelece
+  premissas com relação aos procedimentos do administrador do sistema.
+ </para>
+</sect1>

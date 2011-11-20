@@ -1,0 +1,2162 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/rules.sgml,v 1.37 2004/12/30 03:13:56 tgl Exp $ -->
+
+<Chapter Id="rules">
+<Title>O sistema de regras</Title>
+
+ <indexterm zone="rules">
+  <primary>regra</primary>
+ </indexterm>
+
+<Para>
+     Este capítulo discute o sistema de regras do
+     <productname>PostgreSQL</productname>.
+     Os sistemas de regras de produção são conceitualmente simples, mas existem
+     vários pontos delicados envolvidos na utilização destes sistemas.
+</Para>
+
+<Para>
+     Alguns outros sistemas de banco de dados definem regras de banco de dados
+     ativas, que geralmente são procedimentos armazenados e gatilhos.
+     No <productname>PostgreSQL</productname> estas regras podem ser
+     implementadas utilizando funções e gatilhos também.
+</Para>
+
+<Para>
+     O sistema de regras (falando mais precisamente, o sistema de regras de
+     reescrita de comandos) é totalmente diferente de procedimentos armazenados
+     e gatilhos.
+     O sistema de regras modifica o comando para levar as regras em
+     consideração, e depois passa o comando modificado para o planejador de
+     comandos para planejamento e execução.
+     É muito poderoso, e pode ser utilizado para muitas finalidades
+     como procedimentos de linguagem de comando, visões e versões.
+     Os fundamentos teóricos e o poder deste sistema de regras estão
+     discutidos também em <xref linkend="STON90b"> e <xref linkend="ONG90">.
+</para>
+
+<Sect1 id="querytree">
+<Title>A árvore de comando</Title>
+
+<indexterm zone="querytree">
+ <primary>arvore de comando</primary>
+</indexterm>
+
+<Para>
+    Para entender como o sistema de regras funciona, é necessário saber
+    quando é chamado e quais são suas entradas e resultados.
+</Para>
+
+<Para>
+    O sistema de regras fica localizado entre o analisador e o planejador.
+    Recebe a saída do analisador, uma árvore de comando, e as regras de
+    reescrita definidas pelo usuário, que também são árvores de comando com
+    algumas informações adicionais, e cria zero ou mais árvores de comando como
+    resultado. Portanto, sua entrada e saída são sempre alguma coisa que poderia
+    ter sido produzida pelo próprio analisador e, portanto, qualquer coisa que o
+    sistema de regras enxerga é basicamente representável como uma instrução
+    <Acronym>SQL</Acronym>.
+</Para>
+
+<Para>
+    Agora, o que é uma árvore de comando? É a representação interna da instrução
+    <Acronym>SQL</Acronym>, onde as partes elementares com as quais a instrução
+    é construída são armazenadas separadamente.
+    As árvores de comando podem ser mostradas no <literal>log</literal> do
+    servidor, se forem definidos os parâmetros de configuração
+    <varname>debug_print_parse</varname>,
+    <varname>debug_print_rewritten</varname> ou
+    <varname>debug_print_plan</varname>.
+    As ações da regra também são armazenadas como árvores de comando no
+    catálogo do sistema <structname>pg_rewrite</structname>.
+    Não são formatadas como a saída do <literal>log</literal>, mas contêm
+    exatamente a mesma informação.
+</Para>
+
+<Para>
+    Ler a árvore de comando diretamente requer alguma experiência. Mas uma vez
+    que as representações <Acronym>SQL</Acronym> das árvores do comando são
+    suficientes para compreender o sistema de regras, este capítulo não ensina
+    como ler estas árvores.
+</Para>
+
+<Para>
+    Para ler as representações <Acronym>SQL</Acronym> das árvores de comando
+    presentes neste capitulo, é necessário ser capaz de identificar as partes
+    em que a instrução fica dividida quando está na estrutura da árvore de
+    comando. As partes da árvore de comando são:
+
+<VariableList>
+    <VarListEntry>
+    <Term>
+        o tipo do comando
+    </Term>
+    <ListItem>
+    <Para>
+        Este é um valor simples, informando qual comando
+        (<command>SELECT</command>, <command>INSERT</command>,
+        <command>UPDATE</command>, <command>DELETE</command>) produziu
+        a árvore de comando.
+    </Para>
+    </ListItem>
+    </VarListEntry>
+
+    <VarListEntry>
+    <Term>
+        a tabela de abrangência
+    </Term>
+      <indexterm><primary>tabela de abrangência</></>
+    <ListItem>
+    <Para>
+        A tabela de abrangência é a lista de relações utilizadas no comando.
+        Em uma instrução <command>SELECT</command> são as relações presentes
+        após a palavra chave <literal>FROM</literal>.
+    </Para>
+
+    <Para>
+        Toda entrada na tabela de abrangência identifica uma tabela ou visão, e
+        informa por qual nome esta é chamada nas outras partes do comando.
+        Na árvore de comando as entradas na tabela de abrangência são
+        referenciadas por número em vez de por nome, portanto não importa se há
+        nomes duplicados, como seria o caso em uma instrução
+        <Acronym>SQL</Acronym>.
+        Isto pode acontecer após as tabelas de abrangência das regras serem
+        mescladas.
+        Nos exemplos deste capítulo esta situação não ocorre.
+    </Para>
+    </ListItem>
+    </VarListEntry>
+
+    <VarListEntry>
+    <Term>
+        a relação do resultado
+    </Term>
+    <ListItem>
+    <Para>
+        Este valor é um índice para a tabela de abrangência que identifica a
+        relação para onde os resultados do comando vão.
+    </Para>
+
+    <Para>
+        Os comandos <command>SELECT</command> normalmente não possuem uma
+        relação do resultado. O caso especial do <command>SELECT INTO</command>
+        é praticamente idêntico ao comando <command>CREATE TABLE</command>
+        seguido pelo comando <literal>INSERT ... SELECT</literal>, não
+        sendo discutido separadamente aqui.
+    </Para>
+
+    <Para>
+        Para os comandos <command>INSERT</command>, <command>UPDATE</command> e
+        <command>DELETE</command>, a relação do resultado é a tabela (ou visão!)
+        onde as alterações vão ocorrer.
+    </Para>
+    </ListItem>
+    </VarListEntry>
+
+    <VarListEntry>
+    <Term>
+        a lista de destino
+    </Term>
+    <indexterm><primary>lista de destino</></>
+    <ListItem>
+    <Para>
+        a lista de destino é uma lista de expressões que definem o resultado
+        do comando. No caso do <command>SELECT</command>, estas expressões
+        são aquelas que constroem a saída final da consulta. Correspondem às
+        expressões entre as palavras chave <command>SELECT</command>
+        e <command>FROM</command> (<literal>*</literal> é apenas uma abreviatura
+        de todos os nomes de coluna da relação. É expandido pelo analisador em
+        colunas individuais e, portanto, o sistema de regras nunca o vê).
+    </Para>
+
+    <Para>
+        Os comandos <command>DELETE</command> não necessitam de uma lista de
+        destino, porque não produzem nenhum resultado. Na verdade, o planejador
+        adiciona a entrada especial <acronym>CTID</> à lista de destino vazia,
+        mas isto é após o sistema de regras e será discutido posteriormente;
+        para o sistema de regras, a lista de destino é vazia.
+    </Para>
+
+    <Para>
+        Para os comandos <command>INSERT</command>, a lista de destino descreve
+        as novas linhas que devem ir para a relação do resultado. Consiste das
+        expressões na cláusula <literal>VALUES</>, ou das que vêm da cláusula
+        <command>SELECT</command> em <literal>INSERT ... SELECT</literal>.
+        O primeiro passo do processo de reescrita adiciona entradas na
+        lista de destino para todas as colunas que não receberam atribuições
+        pelo comando original, mas têm valor padrão.
+        Todas as colunas restantes (sem valor atribuído nem valor padrão)
+        são preenchidas pelo planejador com uma expressão nula constante.
+    </Para>
+
+    <Para>
+        Para os comandos <command>UPDATE</command>, a lista de destino descreve
+        as novas linhas que substituirão as antigas.
+        No sistema de regras, contém apenas as expressões da parte
+        <literal>SET coluna = expressão</literal> do comando.
+        O planejador trata as colunas que faltam inserindo expressões que
+        copiam os valores da linha antiga para a linha nova.
+        Também adiciona a entrada especial <acronym>CTID</>, da mesma maneira
+        que para o <command>DELETE</command>.
+    </Para>
+
+    <Para>
+        Toda entrada na lista de destino contém uma expressão que pode ser um
+        valor constante, uma variável apontando para uma coluna de uma das
+        relações da tabela de abrangência, um parâmetro ou uma árvore de
+        expressão feita de chamadas a função, constantes, variáveis, operadores,
+        etc.
+    </Para>
+    </ListItem>
+    </VarListEntry>
+
+    <VarListEntry>
+    <Term>
+        a qualificação
+    </Term>
+    <ListItem>
+    <Para>
+        A qualificação do comando é uma expressão muito parecida com as
+        contidas nas entradas da lista de destino. O valor do resultado desta
+        expressão é um valor booleano que informa se a operação
+        (<command>INSERT</command>, <command>UPDATE</command>,
+        <command>DELETE</command> ou <command>SELECT</command>) para a linha do
+        resultado final deve ser executada ou não. Corresponde a cláusula
+        <literal>WHERE</> de uma instrução <Acronym>SQL</Acronym>.
+    </Para>
+    </ListItem>
+    </VarListEntry>
+
+    <VarListEntry>
+    <Term>
+        a árvore de junção
+    </Term>
+    <ListItem>
+    <Para>
+        A árvore de junção do comando mostra a estrutura da cláusula
+        <literal>FROM</>. Para uma consulta simples, como
+        <literal>SELECT ... FROM a, b, c</literal>, a árvore de junção
+        é apenas uma lista de itens do <literal>FROM</>, porque é permitido
+        fazer a junção em qualquer ordem, mas quando são utilizadas expressões
+        <literal>JOIN</>, em particular as junções externas, é necessário
+        fazer a junção na ordem mostrada pelas expressões <literal>JOIN</>.
+        Neste caso, a árvore de junção mostra a estrutura das expressões
+        <literal>JOIN</>.
+        As restrições associadas a uma determinadas cláusula
+        <literal>JOIN</> (das expressões <literal>ON</> ou <literal>USING</>)
+        são armazenadas como expressões de qualificação anexadas a estes nodos
+        de árvore de junção.
+        Também torna-se conveniente armazenar a expressão <literal>WHERE</> de
+        nível mais alto como uma qualificação anexada ao item de nível mais alto
+        da árvore de junção.
+        Portanto, na realidade a árvore de junção representa as cláusulas
+        <literal>FROM</> e <literal>WHERE</> do <command>SELECT</command>.
+    </Para>
+    </ListItem>
+    </VarListEntry>
+
+    <VarListEntry>
+    <Term>
+        as outras
+    </Term>
+    <ListItem>
+    <Para>
+        As outras partes da árvore de comando, como a cláusula
+        <literal>ORDER BY</>, não são de interesse aqui.
+        O sistema de regras substitui algumas entradas nestas partes ao aplicar
+        as regras, mas isto não tem muito a ver com os fundamentos do sistema
+        de regras.
+    </Para>
+    </ListItem>
+    </VarListEntry>
+
+</VariableList>
+</para>
+</Sect1>
+
+<Sect1 id="rules-views">
+<Title>As visões e o sistema de regras</Title>
+
+<indexterm zone="rules-views">
+ <primary>regra</primary>
+ <secondary>e visão</secondary>
+</indexterm>
+
+<indexterm zone="rules-views">
+ <primary>visão</primary>
+ <secondary>implementação através de regras</>
+</indexterm>
+
+<Para>
+    No <ProductName>PostgreSQL</ProductName> as visões são implementadas
+    através do sistema de regras. De fato, essencialmente não há diferença entre
+
+<ProgramListing>
+CREATE VIEW minha_visão AS SELECT * FROM minha_tabela;
+</ProgramListing>
+
+    quando se compara com os dois comandos
+
+<ProgramListing>
+CREATE TABLE minha_visão (<Replaceable>mesma lista de colunas de minha_tabela</Replaceable>);
+CREATE RULE "_RETURN" AS ON SELECT TO minha_visão DO INSTEAD
+    SELECT * FROM minha_tabela;
+</ProgramListing>
+
+    porque é exatamente isto o que o comando <command>CREATE VIEW</command>
+    faz internamente. Causa alguns efeitos colaterais. Um deles é que nos
+    catálogos do sistema do <ProductName>PostgreSQL</ProductName> as informações
+    sobre visão são exatamente as mesmas que para tabela. Portanto, para o
+    analisador não existe absolutamente nenhuma diferença entre uma tabela e uma
+    visão, são a mesma coisa: relações.
+</Para>
+
+<Sect2 id="rules-select">
+<Title>Como as regras do SELECT funcionam</Title>
+
+<indexterm zone="rules-select">
+ <primary>regra</primary>
+ <secondary sortas="SELECT">para o SELECT</secondary>
+</indexterm>
+
+<Para>
+    As regras <literal>ON SELECT</> são aplicadas a todos os comandos como o
+    último passo, mesmo que o comando seja um <command>INSERT</command>,
+    <command>UPDATE</command> ou <command>DELETE</command>, e possuem semântica
+    diferente das regras para os outros tipos de comando, porque modificam a
+    árvore de comando diretamente em vez de criar uma nova. Portanto as regras
+    do <command>SELECT</command> são descritas primeiro.
+</Para>
+
+<Para>
+    Atualmente só pode haver uma ação em uma regra <literal>ON SELECT</>, e deve
+    ser uma ação <command>SELECT</> incondicional que seja <literal>INSTEAD</>.
+    Esta restrição é necessária para tornar as regras seguras o suficiente
+    para serem abertas aos usuários comuns, restringindo as regras
+    <literal>ON SELECT</> a agirem como visões.
+</Para>
+
+<Para>
+    Os exemplos deste capítulo são duas visões com junção que realizam alguns
+    cálculos, e mais algumas visões que utilizam estas visões.
+    Uma das duas primeiras visões é personalizada posteriormente adicionando
+    regras para as operações <command>INSERT</command>,
+    <command>UPDATE</command> e <command>DELETE</command>, para que o resultado
+    final seja uma visão que se comporte como uma tabela real com alguma
+    funcionalidade mágica.
+    Não é um exemplo simples para se começar, torna o assunto mais difícil
+    de ser entendido, mas é melhor ter um exemplo que cobre todos os pontos
+    discutido passo a passo, do que ter muitos exemplos diferentes o
+    que pode acabar confundindo a mente.
+</Para>
+
+<Para>
+Para o exemplo é necessária uma pequena função, <literal>min</literal>, que
+retorna o menor entre dois valores inteiros. É criada como:
+
+<ProgramListing>
+CREATE FUNCTION min(integer, integer) RETURNS integer AS $$
+    SELECT CASE WHEN $1 &lt; $2 THEN $1 ELSE $2 END
+$$ LANGUAGE SQL STRICT;
+</ProgramListing>
+</Para>
+
+<Para>
+    As tabelas reais necessárias nas duas primeiras descrições do sistemas de
+    regras são estas:
+
+<ProgramListing>
+CREATE TABLE tbl_sapato (
+    sap_nome              text,     -- nome do sapato - chave primária
+    sap_num_par_disp      integer,  -- número de pares disponíveis
+    sap_cor_cad_pref      text,     -- cor preferida do cadarço do sapato
+    sap_comp_cad_min      real,     -- comprimento mínimo do cadarço do sapato
+    sap_comp_cad_max      real,     -- comprimento máximo do cadarço do sapato
+    sap_comp_cad_unid     text      -- unidade de comprimento
+);
+
+CREATE TABLE tbl_cadarço (
+    cad_sap_nome          text,     -- nome do cadarço do sapato - chave primária
+    cad_sap_num_par_disp  integer,  -- número de pares disponíveis
+    cad_sap_cor           text,     -- cor do cadarço
+    cad_sap_comp          real,     -- comprimento do cadarço
+    cad_sap_unid          text      -- unidade de comprimento
+);
+
+CREATE TABLE tbl_unidade (
+    uni_nome              text,     -- nome da unidade - chave primária
+    uni_fator             real      -- fator para transformar em cm
+);
+</ProgramListing>
+
+    Como pode ser visto, representa os dados de uma loja de sapatos.
+</Para>
+
+<Para>
+    As visões são criadas como
+
+<ProgramListing>
+CREATE VIEW vis_sapato AS
+    SELECT sap.sap_nome,
+           sap.sap_num_par_disp,
+           sap.sap_cor_cad_pref,
+           sap.sap_comp_cad_min,
+           sap.sap_comp_cad_min * u.uni_fator AS sap_comp_cad_min_cm,
+           sap.sap_comp_cad_max,
+           sap.sap_comp_cad_max * u.uni_fator AS sap_comp_cad_max_cm,
+           sap.sap_comp_cad_unid
+      FROM tbl_sapato sap, tbl_unidade u
+     WHERE sap.sap_comp_cad_unid = u.uni_nome;
+
+CREATE VIEW vis_cadarço AS
+    SELECT cad.cad_sap_nome,
+           cad.cad_sap_num_par_disp,
+           cad.cad_sap_cor,
+           cad.cad_sap_comp,
+           cad.cad_sap_unid,
+           cad.cad_sap_comp * uni.uni_fator AS cad_sap_comp_cm
+      FROM tbl_cadarço cad, tbl_unidade uni
+     WHERE cad.cad_sap_unid = uni.uni_nome;
+
+CREATE VIEW vis_sapato_pronto AS
+    SELECT vsap.sap_nome,
+           vsap.sap_num_par_disp,
+           vcad.cad_sap_nome,
+           vcad.cad_sap_num_par_disp,
+           min(vsap.sap_num_par_disp, vcad.cad_sap_num_par_disp) AS total_disp
+      FROM vis_sapato vsap, vis_cadarço vcad
+     WHERE vcad.cad_sap_cor = vsap.sap_cor_cad_pref
+       AND vcad.cad_sap_comp_cm &gt;= vsap.sap_comp_cad_min_cm
+       AND vcad.cad_sap_comp_cm &lt;= vsap.sap_comp_cad_max_cm;
+</ProgramListing>
+
+    O comando <command>CREATE VIEW</command> para a visão
+    <literal>vis_cadarço</literal> (que é a mais simples que temos) cria a
+    relação <literal>vis_cadarço</>, e uma entrada em
+    <structname>pg_rewrite</structname> informando que existe uma regra de
+    reescrita que deve ser aplicada sempre que a relação <literal>vis_cadarço</>
+    for referenciada na tabela de abrangência do comando.
+    A regra não possui nenhuma qualificação de regra (discutido mais tarde,
+    nas regras não-<command>SELECT</>, uma vez que atualmente as regras
+    <command>SELECT</> não podem tê-las), e é do tipo <literal>INSTEAD</>.
+    Deve ser observado que qualificação de regra não é o mesmo que
+    qualificação de comando.
+    A ação da nossa regra possui uma qualificação de comando.
+    A ação da regra é uma árvore de comando que é a cópia da instrução
+    <command>SELECT</command> do comando de criação da visão.
+</Para>
+
+    <Note>
+    <Para>
+    As duas entradas adicionais na tabela de abrangência para
+    <literal>NEW</> e <literal>OLD</> (chamadas na árvore de comando impressa de
+    <literal>*NEW*</> e <literal>*OLD*</> por motivos históricos) que podem ser
+    vistas em <structname>pg_rewrite</structname> não são de interesse para as
+    regras de <command>SELECT</command>.
+    </Para>
+    </Note>
+
+<Para>
+    Agora são inseridas linhas nas tabelas <literal>tbl_unidade</literal>,
+    <literal>tbl_sapato</literal> e <literal>tbl_cadarço</literal>, e executada
+    uma consulta simples na visão:
+
+<ProgramListing>
+INSERT INTO tbl_unidade VALUES ('cm', 1.0);
+INSERT INTO tbl_unidade VALUES ('m', 100.0);
+INSERT INTO tbl_unidade VALUES ('inch', 2.54);
+
+INSERT INTO tbl_sapato VALUES ('sap1', 2, 'preto', 70.0, 90.0, 'cm');
+INSERT INTO tbl_sapato VALUES ('sap2', 0, 'preto', 30.0, 40.0, 'inch');
+INSERT INTO tbl_sapato VALUES ('sap3', 4, 'marrom', 50.0, 65.0, 'cm');
+INSERT INTO tbl_sapato VALUES ('sap4', 3, 'marrom', 40.0, 50.0, 'inch');
+
+INSERT INTO tbl_cadarço VALUES ('cad1', 5, 'preto', 80.0, 'cm');
+INSERT INTO tbl_cadarço VALUES ('cad2', 6, 'preto', 100.0, 'cm');
+INSERT INTO tbl_cadarço VALUES ('cad3', 0, 'preto', 35.0 , 'inch');
+INSERT INTO tbl_cadarço VALUES ('cad4', 8, 'preto', 40.0 , 'inch');
+INSERT INTO tbl_cadarço VALUES ('cad5', 4, 'marrom', 1.0 , 'm');
+INSERT INTO tbl_cadarço VALUES ('cad6', 0, 'marrom', 0.9 , 'm');
+INSERT INTO tbl_cadarço VALUES ('cad7', 7, 'marrom', 60 , 'cm');
+INSERT INTO tbl_cadarço VALUES ('cad8', 1, 'marrom', 40 , 'inch');
+
+SELECT * FROM vis_cadarço;
+
+<computeroutput>
+ cad_sap_nome | cad_sap_num_par_disp | cad_sap_cor | cad_sap_comp | cad_sap_unid | cad_sap_comp_cm
+--------------+----------------------+-------------+--------------+--------------+-----------------
+ cad1         |                    5 | preto       |           80 | cm           |              80
+ cad2         |                    6 | preto       |          100 | cm           |             100
+ cad7         |                    7 | marrom      |           60 | cm           |              60
+ cad3         |                    0 | preto       |           35 | inch         |            88.9
+ cad4         |                    8 | preto       |           40 | inch         |           101.6
+ cad8         |                    1 | marrom      |           40 | inch         |           101.6
+ cad5         |                    4 | marrom      |            1 | m            |             100
+ cad6         |                    0 | marrom      |          0.9 | m            |              90
+(8 linhas)
+</computeroutput>
+</ProgramListing>
+   </para>
+
+   <para>
+    Este é o <command>SELECT</command> mais simples que pode ser feito nestas
+    visões, portanto é utilizada esta oportunidade para explicar os princípios
+    básicos das regras de visão.
+    A instrução <literal>SELECT * FROM vis_cadarço</literal> após ser
+    interpretada pelo analisador produz a árvore de comando
+
+<ProgramListing>
+SELECT vis_cadarço.cad_sap_nome, vis_cadarço.cad_sap_num_par_disp,
+       vis_cadarço.cad_sap_cor, vis_cadarço.cad_sap_comp,
+       vis_cadarço.cad_sap_unid, vis_cadarço.cad_sap_comp_cm
+  FROM vis_cadarço vis_cadarço;
+</ProgramListing>
+
+    entregue ao sistema de regras. O sistema de regras percorre a tabela de
+    abrangência e verifica se há regras para alguma relação.
+    Ao processar a entrada para <literal>vis_cadarço</literal> (a única até
+    agora) na tabela de abrangência encontra a regra
+    <literal>_RETURN</literal> com a árvore de comando
+
+<ProgramListing>
+SELECT cad.cad_sap_nome, cad.cad_sap_num_par_disp,
+       cad.cad_sap_cor, cad.cad_sap_comp, cad.cad_sap_unid,
+       cad.cad_sap_comp * uni.uni_fator AS cad_sap_comp_cm
+  FROM vis_cadarço *OLD*, vis_cadarço *NEW*,
+       tbl_cadarço cad, tbl_unidade uni
+ WHERE cad.cad_sap_unid = uni.uni_nome;
+</ProgramListing>
+</Para>
+
+<Para>
+    Para expandir a visão o reescritor simplesmente cria uma entrada na tabela
+    de abrangência do subcomando, contendo a árvore de comando da ação da
+    regra, e substitui esta entrada da tabela de abrangência pela original que
+    fazia referência à visão.
+    A árvore de comando reescrita resultante é praticamente a mesma que seria
+    se tivesse sido digitado
+
+<ProgramListing>
+SELECT vis_cadarço.cad_sap_nome, vis_cadarço.cad_sap_num_par_disp,
+       vis_cadarço.cad_sap_cor, vis_cadarço.cad_sap_comp,
+       vis_cadarço.cad_sap_unid, vis_cadarço.cad_sap_comp_cm
+  FROM (SELECT cad.cad_sap_nome,
+               cad.cad_sap_num_par_disp,
+               cad.cad_sap_cor,
+               cad.cad_sap_comp,
+               cad.cad_sap_unid,
+               cad.cad_sap_comp * uni.uni_fator AS cad_sap_comp_cm
+          FROM tbl_cadarço cad, tbl_unidade uni
+         WHERE cad.cad_sap_unid = uni.uni_nome) vis_cadarço;
+</ProgramListing>
+
+     Entretanto, há uma diferença: a tabela de abrangência do subcomando possui
+     duas entradas adicionais, <literal>vis_cadarço *OLD*</> e
+     <literal>vis_cadarço *NEW*</>.
+     Estas entradas não participam diretamente no comando, uma vez que não são
+     referenciadas pela árvore de junção ou pela lista de destino do subcomando.
+     O reescritor utiliza as mesmas para armazenar informações de verificação de
+     privilégio de acesso presentes originalmente na entrada da tabela de
+     abrangência que fazia referência à visão.
+     Desta maneira, o executor ainda vai verificar se o usuário possui os
+     privilégios apropriados para acessar a visão, muito embora não exista
+     uso direto da visão no comando reescrito.
+</Para>
+
+<Para>
+    Esta foi a aplicação da primeira regra. O sistema de regras continua
+    verificando as entradas remanescentes na tabela de abrangência do
+    comando no topo (neste exemplo não há mais nenhuma), e verifica
+    recursivamente as entradas nas tabelas de abrangência dos subcomandos
+    adicionados para verificar se alguma destes faz referência a visão
+    (Mas não expande <literal>*OLD*</> ou <literal>*NEW*</> &mdash;
+    senão haveria uma recursão infinita!)
+    Neste exemplo não existem regras de reescrita para <literal>tbl_cadarço</>
+    ou <literal>tbl_unidade</>. Portanto a reescrita está completa e a
+    instrução acima é o resultado final entregue ao planejador.
+</Para>
+
+<Para>
+    Agora desejamos escrever uma consulta para descobrir para quais sapatos na
+    loja existem cadarços correspondentes (cor e comprimento), e com número
+    total de pares com correspondência exata maior ou igual a dois.
+
+<ProgramListing>
+SELECT * FROM vis_sapato_pronto WHERE total_disp &gt;= 2;
+
+<computeroutput>
+ sap_nome | sap_num_par_disp | cad_sap_nome | cad_sap_num_par_disp | total_disp
+----------+------------------+--------------+----------------------+------------
+ sap1     |                2 | cad1         |                    5 |          2
+ sap3     |                4 | cad7         |                    7 |          4
+(2 linhas)
+</computeroutput>
+</ProgramListing>
+</Para>
+
+<Para>
+    Desta vez a saída do analisador é a árvore de comando
+
+<ProgramListing>
+SELECT vis_sapato_pronto.sap_nome, vis_sapato_pronto.sap_num_par_disp,
+       vis_sapato_pronto.cad_sap_nome, vis_sapato_pronto.cad_sap_num_par_disp,
+       vis_sapato_pronto.total_disp
+  FROM vis_sapato_pronto vis_sapato_pronto
+ WHERE vis_sapato_pronto.total_disp &gt;= 2;
+</ProgramListing>
+
+    A primeira regra aplicada será a da visão
+    <literal>vis_sapato_pronto</literal>, resultando na árvore de comando
+
+<ProgramListing>
+SELECT vis_sapato_pronto.sap_nome, vis_sapato_pronto.sap_num_par_disp,
+       vis_sapato_pronto.cad_sap_nome, vis_sapato_pronto.cad_sap_num_par_disp,
+       vis_sapato_pronto.total_disp
+  FROM (SELECT vsap.sap_nome,
+               vsap.sap_num_par_disp,
+               vcad.cad_sap_nome,
+               vcad.cad_sap_num_par_disp,
+               min(vsap.sap_num_par_disp, vcad.cad_sap_num_par_disp) AS total_disp
+          FROM vis_sapato vsap, vis_cadarço vcad
+         WHERE vcad.cad_sap_cor = vsap.sap_cor_cad_pref
+           AND vcad.cad_sap_comp_cm &gt;= vsap.sap_comp_cad_min_cm
+           AND vcad.cad_sap_comp_cm &lt;= vsap.sap_comp_cad_max_cm) vis_sapato_pronto
+ WHERE vis_sapato_pronto.total_disp &gt;= 2;
+</ProgramListing>
+
+    De maneira semelhante, as regras para <literal>vis_sapato</literal> e
+    <literal>vis_cadarço</literal> são substituídas na tabela de abrangência
+    do subcomando, conduzindo a uma árvore de comando final com três níveis:
+
+<ProgramListing>
+SELECT vis_sapato_pronto.sap_nome, vis_sapato_pronto.sap_num_par_disp,
+       vis_sapato_pronto.cad_sap_nome, vis_sapato_pronto.cad_sap_num_par_disp,
+       vis_sapato_pronto.total_disp
+  FROM (SELECT vsap.sap_nome,
+               vsap.sap_num_par_disp,
+               vcad.cad_sap_nome,
+               vcad.cad_sap_num_par_disp,
+               min(vsap.sap_num_par_disp, vcad.cad_sap_num_par_disp) AS total_disp
+          FROM (SELECT sap.sap_nome,
+                       sap.sap_num_par_disp,
+                       sap.sap_cor_cad_pref,
+                       sap.sap_comp_cad_min,
+                       sap.sap_comp_cad_min * u.uni_fator AS sap_comp_cad_min_cm,
+                       sap.sap_comp_cad_max,
+                       sap.sap_comp_cad_max * u.uni_fator AS sap_comp_cad_max_cm,
+                       sap.sap_comp_cad_unid
+                  FROM tbl_sapato sap, tbl_unidade u
+                 WHERE sap.sap_comp_cad_unid = u.uni_nome) vsap,
+               (SELECT cad.cad_sap_nome,
+                       cad.cad_sap_num_par_disp,
+                       cad.cad_sap_cor,
+                       cad.cad_sap_comp,
+                       cad.cad_sap_unid,
+                       cad.cad_sap_comp * uni.uni_fator AS cad_sap_comp_cm
+                  FROM tbl_cadarço cad, tbl_unidade uni
+                 WHERE cad.cad_sap_unid = uni.uni_nome) vcad
+         WHERE vcad.cad_sap_cor = vsap.sap_cor_cad_pref
+           AND vcad.cad_sap_comp_cm &gt;= vsap.sap_comp_cad_min_cm
+           AND vcad.cad_sap_comp_cm &lt;= vsap.sap_comp_cad_max_cm) vis_sapato_pronto
+ WHERE vis_sapato_pronto.total_disp &gt;= 2;
+</ProgramListing>
+   </para>
+
+   <para>
+    Acontece que o planejador colapsa esta árvore em uma árvore de comando de
+    dois níveis: os comandos <command>SELECT</command> na parte inferior são
+    <quote>puxados</quote> para o <command>SELECT</command> do meio, uma vez
+    que não é necessário processá-los separadamente.
+    Porém, o <command>SELECT</command> do meio permanece separado do de cima,
+    porque contém funções de agregação.
+    Se fosse puxado para cima mudaria do comportamento do
+    <command>SELECT</command> do topo, o que não se deseja.
+    Entretanto, colapsar a árvore de comando é uma otimização que o sistema de
+    reescrita não tem que se preocupar a mesma.
+   </para>
+
+   <Note>
+    <Para>
+    Atualmente não existe no sistema de regras mecanismo para interromper a
+    recursão das regras de visão (somente para os outros tipos de regra).
+    Isto não é um problema sério, porque a única maneira de provocar um laço
+    sem fim (inchando o processo servidor até que este chegue ao limite de
+    memória), é criar as tabelas e depois definir as regras de visão manualmente
+    utilizando <command>CREATE RULE</command>, de uma maneira que a primeira
+    tabela selecione da segunda e a segunda selecione da primeira. Esta situação
+    não pode acontecer quando se utiliza <command>CREATE VIEW</command>,
+    porque no primeiro <command>CREATE VIEW</command> a segunda relação não
+    existe e, portanto, a primeira relação não pode selecionar da segunda.
+    </Para>
+   </Note>
+</Sect2>
+
+<Sect2>
+<Title>Regras de visão em instruções não-SELECT</Title>
+
+<Para>
+    Dois detalhes da árvore de comando não foram tocados na descrição das regras
+    de visão acima. São estes o tipo do comando e a relação do resultado.
+    De fato, as regras de visão não precisam desta informação.
+</Para>
+
+<Para>
+    Existem poucas diferenças entre uma árvore de comando para o
+    <command>SELECT</command> e para qualquer outro comando.
+    Obviamente possuem tipos de comando diferentes e, fora o
+    o <command>SELECT</command>, a relação do resultado aponta para uma entrada
+    na tabela de abrangência para onde o resultado deve ir.
+    Tudo mais é exatamente o mesmo. Portanto, se existirem as tabelas
+    <literal>t1</> e <literal>t2</> com as colunas <literal>a</> e
+    <literal>b</>, as árvores de comando para as instruções
+
+<ProgramListing>
+SELECT t2.b FROM t1, t2 WHERE t1.a = t2.a;
+
+UPDATE t1 SET b = t2.b WHERE t1.a = t2.a;
+</ProgramListing>
+
+    são praticamente idênticas. Em particular:
+
+    <ItemizedList>
+        <ListItem>
+        <Para>
+            As tabelas de abrangência possuem entradas para as tabelas
+            <literal>t1</> e <literal>t2</>.
+        </Para>
+        </ListItem>
+
+        <ListItem>
+        <Para>
+            As listas de destino contêm uma variável que aponta para a coluna
+            <literal>b</> da entrada na tabela de abrangência para a tabela
+            <literal>t2</>.
+        </Para>
+        </ListItem>
+
+        <ListItem>
+        <Para>
+            As expressões de qualificação comparam as colunas <literal>a</>
+            das duas entradas na tabela de abrangência com relação a igualdade.
+        </Para>
+        </ListItem>
+
+        <ListItem>
+        <Para>
+            As árvores de junção mostram uma junção simples entre
+            <literal>t1</> e <literal>t2</>.
+        </Para>
+        </ListItem>
+    </ItemizedList>
+   </para>
+
+   <para>
+    A conseqüência é que as duas árvores de comando resultam em planos de
+    execução semelhantes: ambos são junções de duas tabelas. Para o
+    <command>UPDATE</command> as colunas de <literal>t1</> que faltam são
+    adicionadas à lista de destino pelo planejador, e a árvore de comando final
+    fica sendo:
+
+<ProgramListing>
+UPDATE t1 SET a = t1.a, b = t2.b WHERE t1.a = t2.a;
+</ProgramListing>
+
+    Portanto, o processamento do executor sobre a junção produz exatamente o
+    mesmo conjunto de resultados que
+
+<ProgramListing>
+SELECT t1.a, t2.b FROM t1, t2 WHERE t1.a = t2.a;
+</ProgramListing>
+
+    produz, mas existe um pequeno problema no <command>UPDATE</command>:
+    para o executor não interessa para que serve o resultado da junção sendo
+    feita. Apenas produz um conjunto de linhas de resultado.
+    A diferença que um comando é <command>SELECT</command> e que o outro é
+    <command>UPDATE</command> é tratado por quem chama o executor.
+    Quem chama ainda sabe (olhando na árvore de comando) que este comando é um
+    <command>UPDATE</command>, e sabe que este resultado deve ir para a tabela
+    <literal>t1</>. Mas qual das linhas presentes deve ser substituída pela
+    nova linha?
+</Para>
+
+<Para>
+    Para resolver este problema é adicionada uma outra entrada na lista de
+    destino da instrução <command>UPDATE</command> (e também da instrução
+    <command>DELETE</command>): o identificador da tupla corrente
+    (<acronym>CTID</>).
+    <indexterm><primary>CTID</></>
+    Esta é uma coluna do sistema contendo o número de bloco do arquivo, e a
+    posição da linha no bloco. Sabendo a tabela, o <acronym>CTID</> pode ser
+    utilizado para trazer a linha original de <literal>t1</> a ser
+    atualizada. Após adicionar <acronym>CTID</> à lista de destino, o comando
+    se parece com:
+
+<ProgramListing>
+SELECT t1.a, t2.b, t1.ctid FROM t1, t2 WHERE t1.a = t2.a;
+</ProgramListing>
+
+    Agora entra em cena um outro detalhe do <ProductName>PostgreSQL</>.
+    As linhas antigas da tabela não são sobrescritas, e por causa disto
+    o <command>ROLLBACK</command> é rápido.
+    Em uma instrução <command>UPDATE</command> a nova linha de resultado é
+    inserida na tabela (após eliminar o <acronym>CTID</>), e no
+    cabeçalho de linha da linha antiga, para o qual <acronym>CTID</> apontava,
+    as entradas <literal>cmax</> e <literal>xmax</> são definidas como o
+    contador de comando corrente e identificador de transação corrente.
+    Portanto a linha antiga fica escondida, e após a efetivação da transação
+    o comando <command>VACUUM</command> pode remover a linha.
+</Para>
+
+<Para>
+    Sabendo disso tudo, pode-se simplesmente aplicar as regras de visão
+    exatamente da mesma maneira para qualquer comando.
+    Não existe diferença.
+</Para>
+</Sect2>
+
+<Sect2>
+<Title>O poder das visões no PostgreSQL</Title>
+
+<Para>
+    O que foi visto acima demonstra como o sistema de regras incorpora as
+    definições de visão na árvore de comando original.
+    No segundo exemplo um simples <command>SELECT</command> de uma visão criou
+    uma árvore de comando final que é a junção de quatro tabelas
+    (<literal>tbl_unidade</> foi utilizada duas vezes com nomes diferentes).
+</Para>
+
+<Para>
+    O benefício de implementar as visões pelo sistema de regras é que o
+    planejador possui todas as informações sobre quais tabelas devem ser
+    varridas, mais o relacionamento entre estas tabelas, mais as qualificações
+    restritivas das visões, mais as qualificações do comando original, em uma
+    única árvore de comando.
+    Esta permanece sendo a situação quando o comando original já é uma junção de
+    visões.
+    O planejador tem que decidir qual o melhor caminho para executar o comando,
+    e quanto mais informações o planejador tiver melhor poderá ser a decisão.
+    A forma de implementação do sistema de regras no
+    <ProductName>PostgreSQL</ProductName> garante que esta é toda a informação
+    disponível sobre o comando até este ponto.
+</Para>
+</Sect2>
+
+<Sect2 id="rules-views-update">
+<Title>Atualização de visão</Title>
+
+<Para>
+    O que acontece se uma visão for nomeada como a relação de destino de uma
+    instrução <command>INSERT</command>, <command>UPDATE</command> ou
+    <command>DELETE</command>?  Após serem feitas as substituições descritas
+    acima, será obtida uma árvore de comando na qual a relação do resultado
+    aponta para uma entrada na tabela de abrangência do subcomando.
+    Isto não funciona e, portanto, o reescritor lança um erro quando vê que
+    produziu algo deste tipo.
+</Para>
+
+<Para>
+    Para se mudar esta situação, podem ser definidas regras que modificam o
+    comportamento destes tipos de comando. Este é o assunto da próxima seção.
+</Para>
+</Sect2>
+
+</Sect1>
+
+<Sect1 id="rules-update">
+<Title>Regras para INSERT, UPDATE e DELETE</Title>
+
+<indexterm zone="rules-update">
+ <primary>regra</primary>
+ <secondary sortas="INSERT">para INSERT</secondary>
+</indexterm>
+
+<indexterm zone="rules-update">
+ <primary>regra</primary>
+ <secondary sortas="UPDATE">para UPDATE</secondary>
+</indexterm>
+
+<indexterm zone="rules-update">
+ <primary>regra</primary>
+ <secondary sortas="DELETE">para DELETE</secondary>
+</indexterm>
+
+<Para>
+    As regras definidas para <command>INSERT</>, <command>UPDATE</> e
+    <command>DELETE</> são significativamente diferentes das regras de visão
+    descritas na seção anterior. Em primeiro lugar, porque os comandos
+    <command>CREATE RULE</command> destas regras permitem mais opções:
+
+    <ItemizedList>
+        <ListItem>
+        <Para>
+            É permitido que não tenham nenhuma ação.
+        </Para>
+        </ListItem>
+
+        <ListItem>
+        <Para>
+            É permitido que tenham várias ações.
+        </Para>
+        </ListItem>
+
+        <ListItem>
+        <Para>
+            Podem ser <literal>INSTEAD</> (em vez de) ou <literal>ALSO</>
+            (também) (padrão).
+        </Para>
+        </ListItem>
+
+        <ListItem>
+        <Para>
+            As pseudorelações <literal>NEW</> e <literal>OLD</> se tornam úteis.
+        </Para>
+        </ListItem>
+
+        <ListItem>
+        <Para>
+            Podem ter qualificação de regras.
+        </Para>
+        </ListItem>
+    </ItemizedList>
+
+    Em segundo lugar, não modificam a árvore de comando diretamente.
+    Em vez disso, criam zero ou mais árvores de comando novas, e podem abandonar
+    a árvore original.
+</Para>
+
+<Sect2>
+<Title>Como as regras de atualização funcionam</Title>
+
+<Para>
+    Tenha em mente a sintaxe
+
+<ProgramListing>
+CREATE RULE <replaceable>nome_da_regra</> AS ON <replaceable>evento</>
+    TO <replaceable>objeto</> [WHERE <replaceable>qualificação_da_regra</>]
+    DO [ALSO|INSTEAD] [<replaceable>ação</> | (<replaceable>ações</>) | NOTHING];
+</ProgramListing>
+
+    No que vem a seguir, <firstterm>regras de atualização</> significa regras
+    definidas para <command>INSERT</>, <command>UPDATE</> ou <command>DELETE</>.
+</Para>
+
+<Para>
+    As regras de atualização são aplicadas pelo sistema de regras quando a
+    relação do resultado e o tipo de comando da árvore de comando são iguais
+    ao objeto e evento especificados no comando <command>CREATE RULE</command>.
+    Para as regras de atualização o sistema cria uma lista de árvores do comando.
+    Inicialmente a lista de árvores de comando está vazia.
+    Podem haver zero (palavra chave <literal>NOTHING</>), uma, ou várias ações.
+    Para simplificar, será vista uma regra com uma ação.
+    Esta regra pode ter uma qualificação, ou não, e pode ser
+    <literal>INSTEAD</> ou <literal>ALSO</> (padrão).
+</Para>
+
+<Para>
+    O que é uma qualificação de regra? É uma restrição que informa quando as
+    ações da regra devem ser realizadas e quando não devem. Esta qualificação
+    somente pode fazer referência às pseudorelações <literal>NEW</> e/ou
+    <literal>OLD</>, que representam basicamente a relação fornecida como
+    objeto (mas com um significado especial).
+</Para>
+
+   <para>
+    Portanto tem-se quatro casos que produzem as seguintes árvores de comando
+    para uma regra de uma ação.
+
+    <variablelist>
+     <varlistentry>
+      <term>Sem qualificação e <literal>ALSO</></term>
+      <listitem>
+       <para>
+        a árvore de comando da ação da regra com a qualificação da
+        árvore de comando original adicionada
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Sem qualificação mas <literal>INSTEAD</></term>
+      <listitem>
+       <para>
+        a árvore de comando da ação da regra com a qualificação da
+        árvore de comando original adicionada
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Qualificação fornecida e <literal>ALSO</></term>
+      <listitem>
+       <para>
+        a árvore de comando da ação da regra com a qualificação da regra e
+        a qualificação da árvore de comando original adicionada
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Qualificação fornecida e <literal>INSTEAD</></term>
+      <listitem>
+       <para>
+        a árvore de comando da ação da regra com a qualificação da regra e
+        a qualificação da árvore de comando original;
+        e a árvore de comando original com a qualificação da regra negada
+        adicionada.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+
+    Por fim, se a regra for <literal>ALSO</>, a árvore de comando original não
+    modificada é adicionada à lista.
+    Uma vez que somente as regras <literal>INSTEAD</> qualificadas
+    adicionam a árvore de comando original, acaba-se com uma ou duas
+    árvores de comando de saída em uma regra com uma ação.
+</Para>
+
+<Para>
+    Para as regras <literal>ON INSERT</>, o comando original (se não for
+    suprimido pelo <literal>INSTEAD</>) é executado antes de qualquer ação
+    adicionada pelas regras.
+    Isto permite as ações enxergarem as linhas inseridas.
+    Porém, para as regras <literal>ON UPDATE</> e <literal>ON  DELETE</> o
+    comando original é executado após as ações adicionadas pelas regras.
+    Isto garante que as ações podem enxergar as linhas a serem atualizadas ou
+    excluídas; caso contrário, as ações não podem fazer nada porque não
+    encontram linhas correspondendo às suas qualificações.
+</Para>
+
+<Para>
+    As árvores de comando geradas a partir das ações das regras são lançadas
+    no sistema de reescrita novamente, e talvez sejam aplicadas mais regras
+    resultando em um número maior, ou menor, de árvores de comando.
+    Portanto, as árvores de comando nas ações das regras devem ter um tipo de
+    comando diferente ou uma relação do resultado diferente, senão este
+    processo recursivo se torna um laço.
+    Atualmente existe um limite de recursão estabelecido em 100 interações.
+    Se após 100 interações ainda existirem regras de atualização a serem
+    aplicadas, o sistema de regras assume que está ocorrendo um laço sobre
+    várias definições de regra e relata um erro.
+</Para>
+
+<Para>
+    As árvores de comando encontradas nas ações do catálogo do sistema
+    <structname>pg_rewrite</structname> são somente modelos
+    (<literal>templates</literal>).
+    Uma vez que podem fazer referência às entradas <literal>NEW</> e
+    <literal>OLD</> da tabela de abrangência, devem ser feitas algumas
+    substituições antes que possa ser utilizadas.
+    Para toda referência a <literal>NEW</>, é procurado na lista de destino do
+    comando original uma entrada correspondente.
+    Se for encontrada, a expressão desta entrada substitui a referência.
+    Senão, <literal>NEW</> significa o mesmo que <literal>OLD</>
+    (para o <command>UPDATE</command>), ou é substituído por um valor nulo
+    (para o <command>INSERT</command>).
+    Toda referência a <literal>OLD</> é substituída por uma referência a uma
+    entrada na tabela de abrangência que é a relação do resultado.
+</Para>
+
+<Para>
+    Após o sistema terminar de aplicar as regras de atualização, aplica as
+    regras de visão às árvores de comando produzidas.
+    As visões não podem inserir novas ações de atualização, portanto não
+    é necessário aplicar regras de atualização à saída da
+    reescrita da regra.
+</Para>
+
+<Sect3>
+<Title>Uma primeira regra passo-a-passo</Title>
+
+<Para>
+    Digamos que se deseja acompanhar as alterações na coluna
+    <literal>cad_sap_num_par_disp</> da relação <literal>tbl_cadarço</literal>.
+    Para essa finalidade é criada uma tabela de acompanhamento, e uma regra que
+    escreve sob condição uma entrada de acompanhamento quando é executada uma
+    atualização na tabela <literal>tbl_cadarço</literal>.
+
+<ProgramListing>
+CREATE TABLE tbl_cadarço_log (
+    cad_sap_nome          text,     -- nome do cadarço do sapato
+    cad_sap_num_par_disp  integer,  -- novo valor disponível
+    log_quem              text,     -- quem fez isto
+    log_quando            timestamp -- quando
+);
+
+CREATE RULE reg_cadarço_upd AS ON UPDATE TO tbl_cadarço
+    WHERE NEW.cad_sap_num_par_disp &lt;&gt; OLD.cad_sap_num_par_disp
+    DO INSERT INTO tbl_cadarço_log VALUES (
+                                    NEW.cad_sap_nome,
+                                    NEW.cad_sap_num_par_disp,
+                                    current_user,
+                                    current_timestamp
+                                );
+</ProgramListing>
+</Para>
+
+<Para>
+    Depois disso, se for executado
+
+<ProgramListing>
+UPDATE tbl_cadarço SET cad_sap_num_par_disp = 6 WHERE cad_sap_nome = 'cad7';
+</ProgramListing>
+
+    e olhada a tabela de acompanhamento, será encontrado:
+
+<ProgramListing>
+SELECT * FROM tbl_cadarço_log;
+
+<computeroutput>
+ cad_sap_nome | cad_sap_num_par_disp | log_quem |         log_quando
+--------------+----------------------+----------+----------------------------
+ cad7         |                    6 | teste    | 2005-12-03 07:45:28.500131
+(1 linha)
+</computeroutput>
+</ProgramListing>
+   </para>
+
+   <para>
+    Que é o esperado. O que aconteceu em segundo plano foi o seguinte:
+    O analisador criou a árvore de comando
+
+<ProgramListing>
+UPDATE tbl_cadarço SET cad_sap_num_par_disp = 6
+  FROM tbl_cadarço tbl_cadarço
+ WHERE tbl_cadarço.cad_sap_nome = 'cad7';
+</ProgramListing>
+
+    e existe a regra <literal>reg_cadarço_upd</literal>, que é do tipo
+    <literal>ON UPDATE</>, contendo a expressão de qualificação de regra
+
+<ProgramListing>
+NEW.cad_sap_num_par_disp &lt;&gt; OLD.cad_sap_num_par_disp
+</ProgramListing>
+
+    e a ação
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_log VALUES (
+       *NEW*.cad_sap_nome, *NEW*.cad_sap_num_par_disp,
+       current_user, current_timestamp )
+  FROM tbl_cadarço *NEW*, tbl_cadarço *OLD*;
+</ProgramListing>
+
+    (Isto parece um pouco estranho, uma vez que normalmente não se pode escrever
+    <literal>INSERT ... VALUES ... FROM</>.
+    Neste caso, a cláusula <literal>FROM</> serve apenas para indicar que
+    existem entradas na tabela de abrangência da árvore de comando para
+    <literal>*NEW*</>  <literal>*OLD*</>.
+    São necessárias para que possam ser referenciadas pelas variáveis na árvore
+    de comando do <command>INSERT</command>)
+</Para>
+
+<Para>
+    A regra é uma regra <literal>ALSO</> qualificada, portanto o sistema de
+    regras precisa retornar duas árvores de comando: a ação da regra modificada
+    e a árvore de comando original. No passo 1, a tabela de abrangência do
+    comando original é incorporada à árvore de comando da ação da regra,
+    resultando em:
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_log VALUES (
+       *NEW*.cad_sap_nome, *NEW*.cad_sap_num_par_disp,
+       current_user, current_timestamp )
+  FROM tbl_cadarço *NEW*, tbl_cadarço *OLD*,
+       <emphasis>tbl_cadarço tbl_cadarço</emphasis>;
+</ProgramListing>
+
+    No passo 2, a qualificação da regra é adicionada, ficando o conjunto
+    de resultados restrito às linhas onde <literal>cad_sap_num_par_disp</>
+    muda de valor:
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_log VALUES (
+       *NEW*.cad_sap_nome, *NEW*.cad_sap_num_par_disp,
+       current_user, current_timestamp )
+  FROM tbl_cadarço *NEW*, tbl_cadarço *OLD*,
+       tbl_cadarço tbl_cadarço
+ <emphasis>WHERE *NEW*.cad_sap_num_par_disp &lt;&gt; *OLD*.cad_sap_num_par_disp</emphasis>;
+</ProgramListing>
+
+    (Isto parece ainda mais estranho, uma vez que
+    <literal>INSERT ... VALUES</> também não tem uma cláusula
+    a <literal>WHERE</>, mas o planejador e o executor não têm dificuldade para
+    lidar com esta situação. De qualquer forma precisam dar suporte a esta
+    mesma funcionalidade para <literal>INSERT ... SELECT</>.)
+   </para>
+
+   <para>
+    No passo 3 é adicionada a qualificação da árvore de comando original,
+    restringindo o conjunto de resultados ainda mais, para somente as linhas
+    afetadas pelo comando original:
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_log VALUES (
+       *NEW*.cad_sap_nome, *NEW*.cad_sap_num_par_disp,
+       current_user, current_timestamp )
+  FROM tbl_cadarço *NEW*, tbl_cadarço *OLD*,
+       tbl_cadarço tbl_cadarço
+ WHERE *NEW*.cad_sap_num_par_disp &lt;&gt; *OLD*.cad_sap_num_par_disp
+   <emphasis>AND tbl_cadarço.cad_sap_nome = 'cad7'</emphasis>;
+</ProgramListing>
+   </para>
+
+   <para>
+    O passo 4 substitui as referências a <literal>NEW</> pelas entradas na
+    lista de destino da árvore de comando original, ou pelas referências à
+    variável correspondente da relação do resultado:
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_log VALUES (
+       <emphasis>tbl_cadarço.cad_sap_nome</emphasis>, <emphasis>6</emphasis>,
+       current_user, current_timestamp )
+  FROM tbl_cadarço *NEW*, tbl_cadarço *OLD*,
+       tbl_cadarço tbl_cadarço
+ WHERE <emphasis>6</emphasis> &lt;&gt; *OLD*.cad_sap_num_par_disp
+   AND tbl_cadarço.cad_sap_nome = 'cad7';
+</ProgramListing>
+
+   </para>
+
+   <para>
+    O passo 5 troca as referências a <literal>OLD</> por referências a
+    relação do resultado:
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_log VALUES (
+       tbl_cadarço.cad_sap_nome, 6,
+       current_user, current_timestamp )
+  FROM tbl_cadarço *NEW*, tbl_cadarço *OLD*,
+       tbl_cadarço tbl_cadarço
+ WHERE 6 &lt;&gt; <emphasis>tbl_cadarço.cad_sap_num_par_disp</emphasis>
+   AND tbl_cadarço.cad_sap_nome = 'cad7';
+</ProgramListing>
+   </para>
+
+   <para>
+    Está pronto. Uma vez que a regra é <literal>ALSO</>, a árvore de comando
+    original também é enviada para a saída.
+    Em resumo, a saída do sistema de regras é uma lista com duas árvores de
+    comando que correspondem a estas instruções:
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_log VALUES (
+       tbl_cadarço.cad_sap_nome, 6,
+       current_user, current_timestamp )
+  FROM tbl_cadarço
+ WHERE 6 &lt;&gt; tbl_cadarço.cad_sap_num_par_disp
+   AND tbl_cadarço.cad_sap_nome = 'cad7';
+
+UPDATE tbl_cadarço SET cad_sap_num_par_disp = 6
+ WHERE cad_sap_nome = 'cad7';
+</ProgramListing>
+
+    São executadas nesta ordem, e é exatamente isto o que a regra deveria fazer.
+   </para>
+
+   <para>
+    As substituições e as qualificações adicionadas garantem que
+    se o comando original fosse, digamos,
+
+<ProgramListing>
+UPDATE tbl_cadarço SET cad_sap_cor = 'verde'
+ WHERE cad_sap_nome = 'cad7';
+</ProgramListing>
+
+    não seria escrito nenhuma entrada de acompanhamento.
+    Neste caso, a árvore de comando original não contém a entrada na lista de
+    destino para <literal>cad_sap_num_par_disp</>, portanto
+    <literal>NEW.cad_sap_num_par_disp</> é substituído por
+    <literal>tbl_cadarço.cad_sap_num_par_disp</>.
+    Portanto, o comando extra gerado por esta regra é
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_log VALUES (
+       tbl_cadarço.cad_sap_nome, <emphasis>tbl_cadarço.cad_sap_num_par_disp</emphasis>,
+       current_user, current_timestamp )
+  FROM tbl_cadarço
+ WHERE <emphasis>tbl_cadarço.cad_sap_num_par_disp</emphasis> &lt;&gt; tbl_cadarço.cad_sap_num_par_disp
+   AND tbl_cadarço.cad_sap_nome = 'cad7';
+</ProgramListing>
+
+    e a qualificação nunca será verdade.
+   </para>
+
+   <para>
+    A regra também funciona quando o comando original modifica várias linhas.
+    Portanto, se for executado o comando
+
+<ProgramListing>
+UPDATE tbl_cadarço SET cad_sap_num_par_disp = 0
+ WHERE cad_sap_cor = 'preto';
+</ProgramListing>
+
+    de fato serão atualizadas quatro linhas (<literal>cad1</>, <literal>cad2</>,
+    <literal>cad3</> e <literal>cad4</>), mas <literal>cad3</> já tem
+    <literal>cad_sap_num_par_disp = 0</>.
+    Neste caso, a qualificação original das árvores de comando é diferente,
+    e isto resulta na geração da árvore de comando adicional
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_log
+SELECT tbl_cadarço.cad_sap_nome, 0,
+       current_user, current_timestamp
+  FROM tbl_cadarço
+ WHERE 0 &lt;&gt; tbl_cadarço.cad_sap_num_par_disp
+   AND <emphasis>tbl_cadarço.cad_sap_cor = 'preto'</emphasis>;
+</ProgramListing>
+
+    pela regra. Esta árvore de comando com certeza insere três
+    novas entradas de acompanhamento. E isto está inteiramente correto.
+</Para>
+
+<Para>
+    Aqui pode ser visto porque é importante a árvore de comando original ser
+    executada por último. Se o <command>UPDATE</command> tivesse sido executado
+    primeiro, todos os valores das linhas já teriam sido definidos como zero e,
+    portanto, o acompanhamento do <command>INSERT</command> não encontraria uma
+    linha onde <literal>0 &lt;&gt; tbl_cadarço.cad_sap_num_par_disp</literal>.
+</Para>
+</Sect3>
+
+</Sect2>
+
+<Sect2 id="rules-update-views">
+<Title>Cooperação com visões</Title>
+
+<indexterm zone="rules-update-views"><primary>visão</primary><secondary>atualização</secondary></>
+
+<Para>
+    Uma forma simples de proteger as relações das visões contra a possibilidade
+    mencionada de alguém tentar executar os comandos <command>INSERT</command>,
+    <command>UPDATE</command> ou <command>DELETE</command> nas mesmas, é
+    deixando estas árvores de comando serem jogadas fora. Para isso são criadas
+    as regras
+
+<ProgramListing>
+CREATE RULE vis_sapato_ins_protege AS ON INSERT TO vis_sapato
+    DO INSTEAD NOTHING;
+CREATE RULE vis_sapato_upd_protege AS ON UPDATE TO vis_sapato
+    DO INSTEAD NOTHING;
+CREATE RULE vis_sapato_del_protege AS ON DELETE TO vis_sapato
+    DO INSTEAD NOTHING;
+</ProgramListing>
+
+    Depois disso, se alguém tentar fazer uma destas operações na relação da
+    visão <literal>vis_sapato</>, o sistema de regras aplica estas regras.
+    Uma vez que as regras não possuem ação e são <literal>INSTEAD</>,
+    a lista de árvores de comando resultante estará vazia, e todo o comando
+    se transforma em nada, porque não há nada deixado para ser otimizado ou
+    executado após o sistema de regras terminar de executar.
+</Para>
+
+<Para>
+    Uma utilização mais sofisticadas do sistema de regras, é para criar regras
+    que reescrevem uma árvore de comando em outra que realiza a operação
+    correta nas tabelas de verdade. Para se fazer isto na visão
+    <literal>vis_cadarço</literal>, são criadas as seguintes regras:
+
+<ProgramListing>
+CREATE RULE vis_cadarço_ins AS ON INSERT TO vis_cadarço
+    DO INSTEAD
+    INSERT INTO tbl_cadarço VALUES (
+           NEW.cad_sap_nome,
+           NEW.cad_sap_num_par_disp,
+           NEW.cad_sap_cor,
+           NEW.cad_sap_comp,
+           NEW.cad_sap_unid
+    );
+
+CREATE RULE vis_cadarço_upd AS ON UPDATE TO vis_cadarço
+    DO INSTEAD
+    UPDATE tbl_cadarço
+       SET cad_sap_nome = NEW.cad_sap_nome,
+           cad_sap_num_par_disp = NEW.cad_sap_num_par_disp,
+           cad_sap_cor = NEW.cad_sap_cor,
+           cad_sap_comp = NEW.cad_sap_comp,
+           cad_sap_unid = NEW.cad_sap_unid
+     WHERE cad_sap_nome = OLD.cad_sap_nome;
+
+CREATE RULE vis_cadarço_del AS ON DELETE TO vis_cadarço
+    DO INSTEAD
+    DELETE FROM tbl_cadarço
+     WHERE cad_sap_nome = OLD.cad_sap_nome;
+</ProgramListing>
+   </para>
+
+   <para>
+    Agora é assumido que, de vez em quando, chega na loja um pacote de cadarços
+    e uma longa lista de partes junto com este, mas que não se deseja
+    atualizar manualmente a visão <literal>vis_cadarço</literal> toda vez
+    que chega um destes pacotes.
+    Para isso são criadas duas pequenas tabelas: uma é onde são inseridos
+    os itens da lista de partes, e outra com um truque especial. Os comandos
+    de criação destas tabelas são:
+
+<ProgramListing>
+CREATE TABLE tbl_cadarço_chegada (
+    cheg_nome    text,
+    cheg_quant   integer
+);
+
+CREATE TABLE tbl_cadarço_ok (
+    ok_nome     text,
+    ok_quant    integer
+);
+
+CREATE RULE tbl_cadarço_ok_ins AS ON INSERT TO tbl_cadarço_ok
+    DO INSTEAD
+    UPDATE vis_cadarço
+       SET cad_sap_num_par_disp = cad_sap_num_par_disp + NEW.ok_quant
+     WHERE cad_sap_nome = NEW.ok_nome;
+</ProgramListing>
+
+    Agora a tabela <literal>tbl_cadarço_chegada</literal> pode ser preenchida
+    com os dados da lista de partes:
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_chegada VALUES('cad3',10);
+INSERT INTO tbl_cadarço_chegada VALUES('cad6',20);
+INSERT INTO tbl_cadarço_chegada VALUES('cad8',20);
+
+SELECT * FROM tbl_cadarço_chegada;
+
+<computeroutput>
+ cheg_nome | cheg_quant
+-----------+------------
+ sap3      |         10
+ sap6      |         20
+ sap8      |         20
+(3 linhas)
+</computeroutput>
+</ProgramListing>
+
+    Dando uma olhada rápida nos dados atuais encontramos:
+
+<ProgramListing>
+SELECT * FROM vis_cadarço;
+
+<computeroutput>
+ cad_sap_nome | cad_sap_num_par_disp | cad_sap_cor | cad_sap_comp | cad_sap_unid | cad_sap_comp_cm
+--------------+----------------------+-------------+--------------+--------------+-----------------
+ cad1         |                    5 | preto       |           80 | cm           |              80
+ cad2         |                    6 | preto       |          100 | cm           |             100
+ cad7         |                    6 | marrom      |           60 | cm           |              60
+ cad3         |                    0 | preto       |           35 | inch         |            88.9
+ cad4         |                    8 | preto       |           40 | inch         |           101.6
+ cad8         |                    1 | marrom      |           40 | inch         |           101.6
+ cad5         |                    4 | marrom      |            1 | m            |             100
+ cad6         |                    0 | marrom      |          0.9 | m            |              90
+(8 linhas)
+</computeroutput>
+</ProgramListing>
+
+    Agora os cadarços que chegaram são movidos com:
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_ok SELECT * FROM tbl_cadarço_chegada;
+</ProgramListing>
+
+    e verificado os resultados:
+
+<ProgramListing>
+SELECT * FROM vis_cadarço ORDER BY cad_sap_nome;
+
+<computeroutput>
+ cad_sap_nome | cad_sap_num_par_disp | cad_sap_cor | cad_sap_comp | cad_sap_unid | cad_sap_comp_cm
+--------------+----------------------+-------------+--------------+--------------+-----------------
+ cad1         |                    5 | preto       |           80 | cm           |              80
+ cad2         |                    6 | preto       |          100 | cm           |             100
+ cad3         |                   10 | preto       |           35 | inch         |            88.9
+ cad4         |                    8 | preto       |           40 | inch         |           101.6
+ cad5         |                    4 | marrom      |            1 | m            |             100
+ cad6         |                   20 | marrom      |          0.9 | m            |              90
+ cad7         |                    6 | marrom      |           60 | cm           |              60
+ cad8         |                   21 | marrom      |           40 | inch         |           101.6
+(8 linhas)
+</computeroutput>
+
+SELECT * FROM tbl_cadarço_log;
+
+<computeroutput>
+ cad_sap_nome | cad_sap_num_par_disp | log_quem |         log_quando
+--------------+----------------------+----------+----------------------------
+ cad7         |                    6 | teste    | 2005-12-03 08:31:22.822485
+ cad3         |                   10 | teste    | 2005-12-03 08:37:15.497084
+ cad6         |                   20 | teste    | 2005-12-03 08:37:15.497084
+ cad8         |                   21 | teste    | 2005-12-03 08:37:15.497084
+(4 linhas)
+</computeroutput>
+</ProgramListing>
+   </para>
+
+   <para>
+    É um longo caminho de <literal>INSERT ... SELECT</literal> até estes
+    resultados, e a descrição da transformação da árvore de comando será a
+    última neste capítulo. Primeiro existe a saída do analisador:
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_ok
+SELECT tbl_cadarço_chegada.cheg_nome, tbl_cadarço_chegada.cheg_quant
+  FROM tbl_cadarço_chegada tbl_cadarço_chegada, tbl_cadarço_ok tbl_cadarço_ok;
+</ProgramListing>
+
+    Depois é aplicada a primeira regra a <literal>tbl_cadarço_ok_ins</literal>
+    resultando em
+
+<ProgramListing>
+UPDATE vis_cadarço
+   SET cad_sap_num_par_disp = vis_cadarço.cad_sap_num_par_disp + tbl_cadarço_chegada.cheg_quant
+  FROM tbl_cadarço_chegada tbl_cadarço_chegada, tbl_cadarço_ok tbl_cadarço_ok,
+       tbl_cadarço_ok *OLD*, tbl_cadarço_ok *NEW*,
+       vis_cadarço vis_cadarço
+ WHERE vis_cadarço.cad_sap_nome = tbl_cadarço_chegada.cheg_nome;
+</ProgramListing>
+
+    e jogado fora o <command>INSERT</command> original em
+    <literal>tbl_cadarço_ok</literal>. Este comando reescrito é passado para o
+    sistema de regras novamente, e a aplicação segunda regra a
+    <literal>vis_cadarço_upd</literal> produz
+
+<ProgramListing>
+UPDATE tbl_cadarço
+   SET cad_sap_nome = vis_cadarço.cad_sap_nome,
+       cad_sap_num_par_disp = vis_cadarço.cad_sap_num_par_disp + tbl_cadarço_chegada.cheg_quant,
+       cad_sap_cor = vis_cadarço.cad_sap_cor,
+       cad_sap_comp = vis_cadarço.cad_sap_comp,
+       cad_sap_unid = vis_cadarço.cad_sap_unid
+  FROM tbl_cadarço_chegada tbl_cadarço_chegada, tbl_cadarço_ok tbl_cadarço_ok,
+       tbl_cadarço_ok *OLD*, tbl_cadarço_ok *NEW*,
+       vis_cadarço vis_cadarço, vis_cadarço *OLD*,
+       vis_cadarço *NEW*, tbl_cadarço tbl_cadarço
+ WHERE vis_cadarço.cad_sap_nome = tbl_cadarço_chegada.cheg_nome
+   AND tbl_cadarço.cad_sap_nome = vis_cadarço.cad_sap_nome;
+</ProgramListing>
+
+    Novamente esta regra é do tipo <literal>INSTEAD</> e a árvore de comando
+    anterior é jogada fora.
+    Deve ser observado que este comando ainda utiliza a visão
+    <literal>vis_cadarço</literal>, mas o sistema de regras não termina neste
+    passo, e portanto continua e aplica a regra <literal>_RETURN</literal>
+    produzindo
+
+<ProgramListing>
+UPDATE tbl_cadarço
+   SET cad_sap_nome = s.cad_sap_nome,
+       cad_sap_num_par_disp = s.cad_sap_num_par_disp + tbl_cadarço_chegada.cheg_quant,
+       cad_sap_cor = s.cad_sap_cor,
+       cad_sap_comp = s.cad_sap_comp,
+       cad_sap_unid = s.cad_sap_unid
+  FROM tbl_cadarço_chegada tbl_cadarço_chegada, tbl_cadarço_ok tbl_cadarço_ok,
+       tbl_cadarço_ok *OLD*, tbl_cadarço_ok *NEW*,
+       vis_cadarço vis_cadarço, vis_cadarço *OLD*,
+       vis_cadarço *NEW*, tbl_cadarço tbl_cadarço,
+       vis_cadarço *OLD*, vis_cadarço *NEW*,
+       tbl_cadarço s, tbl_unidade u
+ WHERE s.cad_sap_nome = tbl_cadarço_chegada.cheg_nome
+   AND tbl_cadarço.cad_sap_nome = s.cad_sap_nome;
+</ProgramListing>
+
+    Por fim a regra <literal>reg_cadarço_upd</literal> é aplicada produzindo
+    a árvore de comando adicional
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_log
+SELECT s.cad_sap_nome,
+       s.cad_sap_num_par_disp + tbl_cadarço_chegada.cheg_quant,
+       current_user,
+       current_timestamp
+  FROM tbl_cadarço_chegada tbl_cadarço_chegada, tbl_cadarço_ok tbl_cadarço_ok,
+       tbl_cadarço_ok *OLD*, tbl_cadarço_ok *NEW*,
+       vis_cadarço vis_cadarço, vis_cadarço *OLD*,
+       vis_cadarço *NEW*, tbl_cadarço tbl_cadarço,
+       vis_cadarço *OLD*, vis_cadarço *NEW*,
+       tbl_cadarço s, tbl_unidade u,
+       tbl_cadarço *OLD*, tbl_cadarço *NEW*
+       tbl_cadarço_log tbl_cadarço_log
+ WHERE s.cad_sap_nome = tbl_cadarço_chegada.cheg_nome
+   AND tbl_cadarço.cad_sap_nome = s.cad_sap_nome
+   AND (s.cad_sap_num_par_disp + tbl_cadarço_chegada.cheg_quant) &lt;&gt; s.cad_sap_num_par_disp;
+</ProgramListing>
+
+    Após isto o sistema de regras esgota as regras, e retorna as árvores de
+    comando geradas.
+   </para>
+
+   <para>
+    Desta maneira se termina com duas árvores de comando finais equivalentes
+    às instruções <Acronym>SQL</Acronym>
+
+<ProgramListing>
+INSERT INTO tbl_cadarço_log
+SELECT s.cad_sap_nome,
+       s.cad_sap_num_par_disp + tbl_cadarço_chegada.cheg_quant,
+       current_user,
+       current_timestamp
+  FROM tbl_cadarço_chegada tbl_cadarço_chegada, tbl_cadarço tbl_cadarço,
+       tbl_cadarço s
+ WHERE s.cad_sap_nome = tbl_cadarço_chegada.cheg_nome
+   AND tbl_cadarço.cad_sap_nome = s.cad_sap_nome
+   AND s.cad_sap_num_par_disp + tbl_cadarço_chegada.cheg_quant &lt;&gt; s.cad_sap_num_par_disp;
+
+UPDATE tbl_cadarço
+   SET cad_sap_num_par_disp = tbl_cadarço.cad_sap_num_par_disp + tbl_cadarço_chegada.cheg_quant
+  FROM tbl_cadarço_chegada tbl_cadarço_chegada,
+       tbl_cadarço tbl_cadarço,
+       tbl_cadarço s
+ WHERE s.cad_sap_nome = tbl_cadarço_chegada.cad_sap_nome
+   AND tbl_cadarço.cad_sap_nome = s.cad_sap_nome;
+</ProgramListing>
+
+    O resultado é que a inserção dos dados de uma relação em outra,
+    mudados para atualizações em uma terceira, e mudados para
+    atualizações em uma quarta mais o acompanhamento da atualização final em uma
+    quinta, acaba reduzida a dois comandos.
+</Para>
+
+<Para>
+    Existe um pequeno detalhe um pouco feio. Olhando os dois comandos
+    vê-se que a relação <literal>tbl_cadarço</literal> aparece duas vezes na
+    tabela de abrangência, quando poderia com certeza ser reduzida para uma vez.
+    O planejador não trata isto e, portanto, o plano de execução para a saída do
+    sistema de regras do <command>INSERT</command> será
+
+<literallayout class="monospaced">
+Nested Loop
+  ->  Merge Join
+        ->  Seq Scan
+              ->  Sort
+                    ->  Seq Scan on s
+        ->  Seq Scan
+              ->  Sort
+                    ->  Seq Scan on tbl_cadarço_chegada
+  ->  Seq Scan on tbl_cadarço
+</literallayout>
+
+    enquanto se fosse omitida a entrada adicional na tabela de abrangência seria
+
+<literallayout class="monospaced">
+Merge Join
+  ->  Seq Scan
+        ->  Sort
+              ->  Seq Scan on s
+  ->  Seq Scan
+        ->  Sort
+              ->  Seq Scan on tbl_cadarço_chegada
+</literallayout>
+
+    que produz exatamente as mesmas entradas na tabela de acompanhamento.
+    Portanto, o sistema de regras causa uma varredura adicional não necessária
+    na tabela <literal>tbl_cadarço</literal>, e a mesma varredura
+    redundante é feita uma vez mais no <command>UPDATE</command>, mas foi
+    realmente um trabalho duro tornar isto tudo possível.
+</Para>
+
+<Para>
+    Agora é feita uma demonstração final do sistema de regras do
+    <ProductName>PostgreSQL</ProductName> e de seu poder.
+    Digamos que se deseja adicionar alguns cadarços com cores extraordinárias
+    ao banco de dados:
+
+<ProgramListing>
+INSERT INTO vis_cadarço VALUES ('cad9', 0, 'ciano', 35.0, 'inch', 0.0);
+INSERT INTO vis_cadarço VALUES ('cad10', 1000, 'magenta', 40.0, 'inch', 0.0);
+</ProgramListing>
+
+    Deseja-se construir uma visão para verificar quais entradas em
+    <literal>vis_cadarço</literal> não correspondem a nenhuma cor de sapato.
+    A visão para esta finalidade é
+
+<ProgramListing>
+CREATE VIEW vis_cadarço_não_combina AS
+    SELECT * FROM vis_cadarço WHERE NOT EXISTS
+        (SELECT sap_nome FROM vis_sapato WHERE sap_cor_cad_pref = cad_sap_cor);
+</ProgramListing>
+
+    e sua saída é
+
+<ProgramListing>
+SELECT * FROM vis_cadarço_não_combina;
+
+<computeroutput>
+ cad_sap_nome | cad_sap_num_par_disp | cad_sap_cor | cad_sap_comp | cad_sap_unid | cad_sap_comp_cm
+--------------+----------------------+-------------+--------------+--------------+-----------------
+ cad10        |                 1000 | magenta     |           40 | inch         |           101.6
+ cad9         |                    0 | ciano       |           35 | inch         |            88.9
+(2 linhas)
+</computeroutput>
+</ProgramListing>
+   </para>
+
+   <para>
+    Agora desejamos fazer com que os cadarços cuja cor não corresponde a
+    nenhuma cor de sapato, e que não estão no estoque, sejam eliminados do
+    banco de dados.
+    Para tornar as coisas um pouco mais difícil para o
+    <ProductName>PostgreSQL</ProductName>, a exclusão não é feita diretamente.
+    Em vez disso, é criada mais uma visão
+
+<ProgramListing>
+CREATE VIEW vis_cadarço_pode_excluir AS
+    SELECT * FROM vis_cadarço_não_combina WHERE cad_sap_num_par_disp = 0;
+</ProgramListing>
+
+    e feito desta maneira:
+
+<ProgramListing>
+DELETE FROM vis_cadarço WHERE EXISTS
+    (SELECT * FROM vis_cadarço_pode_excluir
+             WHERE cad_sap_nome = vis_cadarço.cad_sap_nome);
+</ProgramListing>
+
+    <foreignphrase>Voilà</foreignphrase>:
+
+<ProgramListing>
+SELECT * FROM vis_cadarço;
+
+<computeroutput>
+ cad_sap_nome | cad_sap_num_par_disp | cad_sap_cor | cad_sap_comp | cad_sap_unid | cad_sap_comp_cm
+--------------+----------------------+-------------+--------------+--------------+-----------------
+ cad1         |                    5 | preto       |           80 | cm           |              80
+ cad2         |                    6 | preto       |          100 | cm           |             100
+ cad7         |                    6 | marrom      |           60 | cm           |              60
+ cad4         |                    8 | preto       |           40 | inch         |           101.6
+ cad3         |                   10 | preto       |           35 | inch         |            88.9
+ cad8         |                   21 | marrom      |           40 | inch         |           101.6
+ cad10        |                 1000 | magenta     |           40 | inch         |           101.6
+ cad5         |                    4 | marrom      |            1 | m            |             100
+ cad6         |                   20 | marrom      |          0.9 | m            |              90
+(9 linhas)
+</computeroutput>
+</ProgramListing>
+   </para>
+
+   <para>
+    Um comando <command>DELETE</command> em uma visão, com uma qualificação de
+    de subcomando que no total utiliza 4 visões aninhadas/juntadas,
+    onde uma delas possui uma qualificação de subcomando contendo uma visão
+    e onde são utilizadas colunas da visão calculadas, acaba reescrita
+    em uma única árvore de comando que exclui os dados requisitados da
+    tabela real.
+</Para>
+
+<Para>
+    Provavelmente existem poucas situações no mundo real onde uma construção
+    deste tipo é necessária, mas faz bem saber que funciona.
+</Para>
+</Sect2>
+
+</Sect1>
+
+<Sect1 id="rules-privileges">
+<Title>Regras e privilégios</Title>
+
+<indexterm zone="rules-privileges">
+ <primary>privilégio</primary>
+ <secondary sortas="Regeln">com regras</secondary>
+</indexterm>
+
+<indexterm zone="rules-privileges">
+ <primary>privilégio</primary>
+ <secondary sortas="Sichten">com visões</secondary>
+</indexterm>
+
+<Para>
+    Devido à reescrita dos comandos pelo sistema de regras do
+    <ProductName>PostgreSQL</ProductName>, são acessadas outras tabelas e visões
+    além daquelas utilizadas no comando original.
+    Quando são utilizadas regras de atualização, pode incluir o acesso de
+    escrita na tabela.
+</Para>
+
+<Para>
+    As regras de reescrita não possuem um dono em separado.
+    O dono da relação (tabela ou visão) é automaticamente o dono das regras de
+    reescrita definidas para a relação.
+    O sistema de regras do <ProductName>PostgreSQL</ProductName> altera o
+    comportamento do sistema de controle de acesso padrão.
+    As relações utilizadas devido às regras são verificadas com relação aos
+    privilégios do dono da regra, e não do usuário chamando a regra.
+    Isto significa que o usuário só precisa ter os privilégios requeridos
+    pelas tabelas e visões explicitamente nomeadas em seus comandos.
+</Para>
+
+<Para>
+    Por exemplo: Um usuário possuindo uma lista de números de telefone onde
+    alguns são privados e outros são de interesse da secretária do escritório,
+    pode definir o seguinte:
+
+<ProgramListing>
+CREATE TABLE tbl_telefone (pessoa text, telefone text, privado boolean);
+CREATE VIEW vis_telefone AS
+    SELECT pessoa, telefone FROM tbl_telefone WHERE NOT privado;
+GRANT SELECT ON vis_telefone TO secretaria;
+</ProgramListing>
+
+    Assim, ninguém exceto ele próprio (e os superusuários do banco de dados)
+    pode acessar a tabela <literal>tbl_telefone</>, mas por causa do
+    <command>GRANT</> a secretária pode executar o <command>SELECT</command>
+    na visão <literal>vis_telefone</>.
+    O sistema de regras reescreve o <command>SELECT</command> da visão
+    <literal>vis_telefone</> em um <command>SELECT</command> da tabela
+    <literal>tbl_telefone</>, e adiciona a qualificação que são desejadas
+    apenas as linhas onde <literal>privado</> é falso.
+    Uma vez que o usuário é o dono da visão <literal>vis_telefone</> e,
+    portanto, o dono da regra, o acesso de leitura para a tabela
+    <literal>tbl_telefone</> agora é verificado com relação aos privilégios
+    do usuário, e o comando é permitido.
+    A verificação do privilégio para acessar a visão <literal>vis_telefone</>
+    também é feita, mas com relação ao usuário que acessa a visão e,
+    portanto, ninguém além do próprio usuário e a secretária pode utilizá-la.
+</Para>
+
+<Para>
+    Os privilégios são verificados regra por regra. Portanto, agora só a
+    secretária pode ver os números de telefone públicos.
+    Mas a secretária pode definir uma outra visão, e permitir o acesso público a
+    mesma.
+    Assim, todo mundo vai poder ver os dados de <literal>vis_telefone</> através
+    da visão da secretária.
+    O que a secretária não pode fazer é criar uma visão com acesso direto à
+    tabela <literal>tbl_telefone</> (Na verdade pode, mas não funciona porque
+    todos os acessos serão negados durante a verificação de permissão).
+    Tão logo o usuário perceba que a secretária abriu sua visão
+    <literal>vis_telefone</> ele pode revogar o acesso.
+    Imediatamente todos os acessos à visão da secretária vão falhar.
+</Para>
+
+<Para>
+    Pode-se pensar que esta verificação regra por regra é um furo de segurança,
+    mas na verdade não é. Se não funcionasse desta maneira a secretária poderia
+    definir uma tabela com as mesmas colunas de <literal>vis_telefone</>,
+    e copiar os dados para esta tabela uma vez por dia.
+    Então seriam seus próprios dados, e a secretária poderia conceder acesso a
+    todos que desejasse.
+    Um comando <command>GRANT</command> significa
+    <quote>Eu confio em você</quote>.
+    Se alguém em que você confia faz uma coisa desta, é hora de repensar e
+    utilizar o comando <command>REVOKE</command>.
+</Para>
+
+<Para>
+    Este mecanismo também funciona para as regras de atualização.
+    Nos exemplos da seção anterior, o dono das tabelas no banco de dados de
+    exemplo poderia conceder para outro usuário os privilégios
+    <literal>SELECT</>, <literal>INSERT</>, <literal>UPDATE</> e
+    <literal>DELETE</> na visão <literal>vis_cadarço</>, e somente o privilégio
+    <literal>SELECT</> na tabela <literal>tbl_cadarço_log</>.
+    A ação da regra para escrever registros de acompanhamento ainda será
+    executada com sucesso, e o outro usuário vai poder ver os registros de
+    acompanhamento, mas se alguém criar registros falsos este não vai poder
+    manipular nem remover estes registros falsos.
+</Para>
+</Sect1>
+
+<Sect1 id="rules-status">
+<Title>Regras e status dos comandos</Title>
+
+<Para>
+    O servidor <ProductName>PostgreSQL</ProductName> retorna uma cadeia de
+    caracteres contendo o status do comando, como <literal>INSERT 149592 1</>,
+    para cada comando recebido. Isto é bem simples quando não há regras
+    envolvidas, mas o que acontece quando o comando é reescrito pelas regras?
+</Para>
+
+<Para>
+    As regras afetam o status do comando da seguinte maneira:
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       Se não houver uma regra <literal>INSTEAD</> incondicional, então o
+       comando original fornecido é executado, e o status deste comando é
+       retornado da forma usual (mas deve ser observado que havendo regras
+       <literal>INSTEAD</> condicionais, teria sido adicionado ao comando
+       original a negação de suas qualificações. Isto pode reduzir o número de
+       linhas processadas e, se acontecer, o status relatado é afetado).
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Se existir alguma regra <literal>INSTEAD</> incondicional, então o
+       comando original não será executado. Neste caso, o servidor retorna
+       o status do último comando inserido por uma regra
+       <literal>INSTEAD</> (condicional ou incondicional), que é do mesmo tipo
+       (<command>INSERT</command>, <command>UPDATE</command> ou
+       <command>DELETE</command>) do comando original. Se não for adicionado
+       um comando com estas características por alguma regra, então o status
+       retornado mostra o tipo do comando original, e zero para os
+       campos contador de linhas e OID.
+      </para>
+     </listitem>
+    </itemizedlist>
+
+    (Este sistema foi estabelecido no <productname>PostgreSQL</> 7.3.
+    Nas versões anteriores a esta o status do comando pode mostrar resultados
+    diferentes quando existe uma regra.)
+</Para>
+
+<Para>
+    No segundo caso, o programador pode garantir que uma determinada regra
+    <literal>INSTEAD</> desejada será a que vai definir o status do comando,
+    dando a esta regra o último nome de regra na ordem alfabética entre as
+    regras ativas, para que seja  aplicada por último.
+</Para>
+</Sect1>
+
+<Sect1 id="rules-triggers">
+<Title>Regras versus gatilhos</Title>
+
+<indexterm zone="rules-triggers">
+ <primary>regra</primary>
+ <secondary sortas="Trigger">comparada com gatilho</secondary>
+</indexterm>
+
+<indexterm zone="rules-triggers">
+ <primary>gatilho</primary>
+ <secondary sortas="Regeln">comparado com regra</secondary>
+</indexterm>
+
+<Para>
+    Várias coisas que podem ser feitas utilizando gatilho também podem ser
+    implementadas utilizando o sistema de regras do
+    <ProductName>PostgreSQL</ProductName>.
+    Entre o que não pode ser implementado pelas regras estão alguns
+    tipos de restrição, especialmente as chaves estrangeiras.
+    É possível definir uma regra qualificada para reescrever o comando como
+    <literal>NOTHING</> se o valor da coluna não constar da outra tabela,
+    mas neste caso os dados são desprezados em silêncio, e esta não é uma
+    boa idéia.
+    Se a verificação dos valores válidos for requerida, e for necessária
+    uma mensagem de erro no caso de um valor inválido, deve ser definido através
+    de um gatilho.
+</Para>
+
+<Para>
+    Por outro lado, um gatilho disparado pelo <command>INSERT</command> em
+    uma visão pode fazer o mesmo que uma regra faz: colocar os dados em algum
+    outro lugar, e suprimir a inserção na visão.
+    Porém, para <command>UPDATE</> e <command>DELETE</command> o gatilho não
+    pode fazer o mesmo que a regra faz, porque não existem dados reais na
+    relação da visão para serem varridos e, portanto, o gatilho nunca vai ser
+    chamado. Nestes casos só a regra funciona.
+</Para>
+
+<Para>
+    Entre o que pode ser implementado por ambos, qual é melhor depende da
+    utilização do banco de dados.
+    O gatilho é disparado uma vez para cada linha afetada.
+    A regra manipula o comando, ou gera um comando adicional.
+    Portanto, se uma instrução afetar muitas linhas é provável que
+    a regra emitindo um comando adicional seja mais rápida que o gatilho chamado
+    para todas as linhas, ocasionando a execução de suas operações muitas vezes.
+    Entretanto, a abordagem do gatilho é conceitualmente bem mais simples que
+    a abordagem da regra, sendo mais fácil para os usuários inexperientes
+    definir um gatilho corretamente.
+</Para>
+
+<Para>
+    Abaixo está mostrado um exemplo de como a escolha entre regra e gatilho
+    se apresenta em uma situação. Existem duas tabelas:
+
+<ProgramListing>
+CREATE TABLE computador (
+    hospedeiro    text,    -- indexado
+    fabricante    text     -- indexado
+);
+
+CREATE TABLE programa (
+    programa      text,    -- indexado
+    hospedeiro    text     -- indexado
+);
+</ProgramListing>
+
+    As duas tabelas possuem milhares de linhas, e os índices para
+    <structfield>hospedeiro</> são únicos. A regra e o gatilho devem implementar
+    uma restrição para excluir as linhas de <literal>programa</> que fazem
+    referência a um computador excluído. O gatilho utiliza este comando:
+
+<ProgramListing>
+DELETE FROM programa WHERE hospedeiro = $1;
+</ProgramListing>
+
+    Uma vez que o gatilho é chamado para cada linha excluída da tabela
+    <literal>computador</>, pode preparar e salvar o plano para este comando
+    e passar o valor do <structfield>hospedeiro</> para o parâmetro.
+    A regra é escrita como:
+
+<ProgramListing>
+CREATE RULE computador_del AS ON DELETE TO computador
+    DO DELETE FROM programa WHERE hospedeiro = OLD.hospedeiro;
+</ProgramListing>
+   </para>
+
+   <para>
+    A seguir são analisados tipos diferentes de exclusão. No caso de
+
+<ProgramListing>
+DELETE FROM computador WHERE hospedeiro = 'meupc.local.net';
+</ProgramListing>
+
+    a tabela <literal>computador</> é varrida pelo índice (rápido), e o comando
+    emitido pelo gatilho também utiliza uma varredura de índice (também rápido).
+    O comando adicionado pela regra é:
+
+<ProgramListing>
+DELETE FROM programa WHERE computador.hospedeiro = 'meupc.local.net'
+                       AND programa.hospedeiro = computador.hospedeiro;
+</ProgramListing>
+
+    Uma vez que existem índices apropriados definidos, o planejador cria o
+    plano
+
+<literallayout class="monospaced">
+Nestloop
+  ->  Index Scan using comp_hospidx on computador
+  ->  Index Scan using prog_hospidx on programa
+</literallayout>
+
+    Portanto, não há muita diferença de velocidade entre a implementação
+    do gatilho e da regra.
+   </para>
+
+   <para>
+    Na próxima exclusão serão eliminados 2000 computadores onde
+    <structfield>hospedeiro</> começa por <literal>old</>.
+    Existem dois comandos possíveis de serem utilizados. Um é
+
+<ProgramListing>
+DELETE FROM computador WHERE hospedeiro &gt;= 'old'
+                       AND   hospedeiro &lt;  'ole'
+</ProgramListing>
+
+    O comando adicionado pela regra é
+
+<ProgramListing>
+DELETE FROM programa WHERE computador.hospedeiro &gt;= 'old' AND computador.hospedeiro &lt; 'ole'
+                       AND programa.hospedeiro = computador.hospedeiro;
+</ProgramListing>
+
+    com o plano
+
+<literallayout class="monospaced">
+Hash Join
+  ->  Seq Scan on programa
+  ->  Hash
+    ->  Index Scan using comp_hospidx on computador
+</literallayout>
+
+    O outro comando possível é
+
+<ProgramListing>
+DELETE FROM computador WHERE hospedeiro ~ '^old';
+</ProgramListing>
+
+    que resulta no seguinte plano de execução para o comando adicionado
+    pela regra:
+
+<literallayout class="monospaced">
+Nestloop
+  ->  Index Scan using comp_hospidx on computador
+  ->  Index Scan using prog_hospidx on programa
+</literallayout>
+
+    Isto mostra que o planejador não percebe que a qualificação para
+    <structfield>hospedeiro</> em <literal>computador</> também pode ser
+    utilizada para uma varredura de índice em <literal>programa</> quando há
+    expressões de qualificação combinadas por <literal>AND</>, que é
+    o que o planejador faz na versão do comando com expressão regular.
+    O gatilho é chamado uma vez para cada um dos 2000 computadores antigos
+    a serem excluídos, e isto resulta em uma varredura de índice para
+    <literal>computador</> e 2000 varreduras de índice para
+    <literal>programa</>.
+    A implementação da regra faz isto com dois comandos que utilizam índices.
+    Se a regra é mais rápida que a situação da varredura seqüencial, depende do
+    tamanho total da tabela <literal>programa</>.
+    A execução de 2000 comandos pelo gatilho através do gerenciador da SPI
+    toma algum tempo, mesmo que todos os blocos do índice fiquem rapidamente no
+    <literal>cache</literal>.
+</Para>
+
+<Para>
+    O último comando a ser visto é
+
+<ProgramListing>
+DELETE FROM computador WHERE fabricante = 'bim';
+</ProgramListing>
+
+    Novamente poderia resultar em muitas linhas sendo excluídas de
+    <literal>computador</>. Portanto, o gatilho novamente executa muitos
+    comandos através do executor. O comando gerado pela regra é
+
+<ProgramListing>
+DELETE FROM programa WHERE computador.fabricante = 'bim'
+                       AND programa.hospedeiro = computador.hospedeiro;
+</ProgramListing>
+
+    O plano para este comando novamente é um laço aninhado sobre duas
+    varreduras de índice, apenas usando um índice diferente para
+    <literal>computador</>:
+
+<ProgramListing>
+Nestloop
+  ->  Index Scan using comp_fabridx on computador
+  ->  Index Scan using prog_hospidx on programa
+</ProgramListing>
+
+    Em qualquer um destes casos, os comandos adicionais do sistema de regras
+    são mais ou menos independentes do número de linhas afetadas pelo comando.
+</Para>
+
+<![IGNORE[
+<!-- What's happening with this?  If it doesn't come back, remove this section. -->
+<Para>
+    Another situation is cases on <command>UPDATE</command> where it depends on the
+    change of an attribute if an action should be performed or
+    not. In <ProductName>PostgreSQL</ProductName> version 6.4, the
+    attribute specification for rule events is disabled (it will have
+    its comeback latest in 6.5, maybe earlier
+    - stay tuned). So for now the only way to
+    create a rule as in the tbl_cadarço_log example is to do it with
+    a rule qualification. That results in an extra query that is
+    performed always, even if the attribute of interest cannot
+    change at all because it does not appear in the target list
+    of the initial query. When this is enabled again, it will be
+    one more advantage of rules over triggers. Optimization of
+    a trigger must fail by definition in this case, because the
+    fact that its actions will only be done when a specific attribute
+    is updated is hidden in its functionality. The definition of
+    a trigger only allows to specify it on row level, so whenever a
+    row is touched, the trigger must be called to make its
+    decision. The rule system will know it by looking up the
+    target list and will suppress the additional query completely
+    if the attribute isn't touched. So the rule, qualified or not,
+    will only do its scans if there ever could be something to do.
+</Para>
+]]>
+
+<Para>
+    Em resumo, as regras somente são significativamente mais lentas que os
+    gatilhos quando suas ações resultam em junções grandes e mal qualificadas,
+    uma situação onde o planejador falha.
+</Para>
+</Sect1>
+
+</Chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

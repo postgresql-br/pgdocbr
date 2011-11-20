@@ -1,0 +1,874 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/array.sgml,v 1.42 2004/12/23 05:37:39 tgl Exp $ -->
+
+<sect1 id="arrays">
+ <title>Matrizes</title>
+
+ <indexterm>
+  <primary>matriz</primary>
+ </indexterm>
+
+ <para>
+  O <productname>PostgreSQL</productname> permite que colunas de uma tabela
+  sejam definidas como matrizes (<literal>arrays</literal>) multidimensionais
+  de comprimento variável. Podem ser criadas matrizes de qualquer tipo de dado,
+  nativo ou definido pelo usuário (Entretanto, ainda não são suportadas
+  matrizes de tipos compostos ou domínios).
+ </para>
+
+ <sect2>
+  <title>Declaração do tipo matriz</title>
+
+ <para>
+  Para ilustrar a utilização do tipo matriz, é criada a tabela abaixo:
+<programlisting>
+CREATE TABLE sal_emp (
+    nome               text,
+    pagamento_semanal  integer[],
+    agenda             text[][]
+);
+</programlisting>
+  Conforme visto, o tipo de dado matriz é nomeado anexando colchetes
+  (<literal>[]</literal>) ao nome do tipo de dado dos elementos da matriz.
+  O comando acima cria uma tabela chamada <structname>sal_emp</structname>,
+  contendo uma coluna do tipo
+  <type>text</type> (<structfield>nome</structfield>),
+  uma matriz unidimensional do tipo <type>integer</type>
+  (<structfield>pagamento_semanal</structfield>), que representa o
+  salário semanal do empregado, e uma matriz bidimensional do tipo
+  <type>text</type> (<structfield>agenda</structfield>), que
+  representa a agenda semanal do empregado.
+ </para>
+
+ <para>
+  A sintaxe de <command>CREATE TABLE</command> permite especificar o
+  tamanho exato da matriz como, por exemplo:
+
+<programlisting>
+CREATE TABLE jogo_da_velha (
+    casa     integer[3][3]
+);
+</programlisting>
+
+  Entretanto, a implementação atual não obriga que os limites de tamanho da
+  matriz sejam respeitados &mdash; o comportamento é o mesmo das matrizes com
+  comprimento não especificado.
+ </para>
+
+ <para>
+  Na verdade, a implementação atual também não obriga que o número de dimensões
+  declarado seja respeitado. As matrizes de um determinado tipo de elemento
+  são todas consideradas como sendo do mesmo tipo, não importando o tamanho
+  ou o número de dimensões. Portanto, a declaração do número de dimensões ou
+  tamanhos no comando <command>CREATE TABLE</command> é simplesmente uma
+  documentação, que não afeta o comportamento em tempo de execução.
+ </para>
+
+ <para>
+  Pode ser utilizada uma sintaxe alternativa para matrizes unidimensionais,
+  em conformidade com o padrão SQL:1999. A coluna
+  <structfield>pagamento_semanal</structfield> pode ser definida como:
+<programlisting>
+    pagamento_semanal  integer ARRAY[4],
+</programlisting>
+  Esta sintaxe requer uma constante inteira para designar o tamanho da matriz.
+  Entretanto, como anteriormente, o <productname>PostgreSQL</productname> não
+  obriga que os limites de tamanho da matriz sejam respeitados.
+ </para>
+ </sect2>
+
+ <sect2>
+  <title>Entrada de valor matriz</title>
+
+  <indexterm>
+   <primary>matriz</primary>
+   <secondary>constante</secondary>
+  </indexterm>
+
+  <para>
+   Para escrever um valor matriz como uma constante literal, os valores dos
+   elementos devem ser envoltos por chaves (<literal>{}</literal>) e separados
+   por vírgulas (Quem conhece C pode ver que não é diferente da sintaxe da
+   linguagem C para inicializar estruturas). Podem ser colocadas aspas
+   (<literal>"</literal>) em torno de qualquer valor de elemento, sendo
+   obrigatório caso o elemento contenha vírgulas ou chaves (abaixo são mostrados
+   mais detalhes). Portanto, o formato geral de uma constante matriz é o seguinte:
+<synopsis>
+'{ <replaceable>val1</replaceable> <replaceable>delim</replaceable> <replaceable>val2</replaceable> <replaceable>delim</replaceable> ... }'
+</synopsis>
+   onde <replaceable>delim</replaceable> é o caractere delimitador
+   para o tipo, conforme registrado na sua entrada em <literal>pg_type</literal>
+   Entre todos os tipos de dado padrão fornecidos na distribuição do
+   <productname>PostgreSQL</productname>, o tipo <literal>box</> usa o
+   ponto-e-vírgula (<literal>;</>) mas todos os demais usam a vírgula
+   (<literal>,</>). Cada <replaceable>val</replaceable> é uma constante do tipo
+   do elemento da matriz, ou uma submatriz. Um exemplo de uma constante matriz é
+<programlisting>
+'{{1,2,3},{4,5,6},{7,8,9}}'
+</programlisting>
+   Esta constante é uma matriz bidimensional, 3 por 3, formada por
+   três submatrizes de inteiros.
+  </para>
+
+  <para>
+   (Estes tipos de constante matriz são, na verdade, apenas um caso especial do
+   tipo genérico de constantes mostrado na
+   <xref linkend="sql-syntax-constants-generic">. A constante é inicialmente
+   tratada como uma cadeia de caracteres e passada para a rotina de conversão de
+   entrada de matriz. Pode ser necessária uma especificação explícita do tipo).
+  </para>
+
+  <para>
+   Agora podemos ver alguns comandos <command>INSERT</command>.
+
+<programlisting>
+INSERT INTO sal_emp
+    VALUES ('Bill',
+    '{10000, 10000, 10000, 10000}',
+    '{{"reunião", "almoço"}, {"reunião"}}');
+ERRO:  matrizes multidimensionais devem ter expressões de matriz com dimensões correspondentes
+</programlisting>
+
+  Deve ser observado que as matrizes multidimensionais devem possuir
+  tamanhos correspondentes para cada dimensão. Uma combinação errada
+  causa uma mensagem de erro.
+
+<programlisting>
+INSERT INTO sal_emp
+    VALUES ('Bill',
+    '{10000, 10000, 10000, 10000}',
+    '{{"reunião", "almoço"}, {"treinamento", "apresentação"}}');
+
+INSERT INTO sal_emp
+    VALUES ('Carol',
+    '{20000, 25000, 25000, 25000}',
+    '{{"café da manhã", "consultoria"}, {"reunião", "almoço"}}');
+</programlisting>
+  </para>
+
+  <para>
+   Uma limitação da implementação atual de matriz, é que os elementos
+   individuais da matriz não podem ser valores nulos SQL. Toda a matriz
+   pode ser definida como nula, mas não pode existir uma matriz com
+   alguns elementos nulos e outros não.
+  </para>
+
+ <para>
+  O resultado das duas inserções anteriores se parece com:
+<screen>
+<userinput>SELECT * FROM sal_emp;</userinput>
+
+<computeroutput>
+ nome  |     pagamento_semanal     |                      agenda
+-------+---------------------------+--------------------------------------------------
+ Bill  | {10000,10000,10000,10000} | {{reunião,almoço},{treinamento,apresentação}}
+ Carol | {20000,25000,25000,25000} | {{"café da manhã",consultoria},{reunião,almoço}}
+(2 linhas)
+</computeroutput>
+</screen>
+ </para>
+
+ <para>
+  Também pode ser utilizada a sintaxe de construtor de <literal>ARRAY</>:
+<programlisting>
+INSERT INTO sal_emp
+    VALUES ('Bill',
+    ARRAY[10000, 10000, 10000, 10000],
+    ARRAY[['reunião', 'almoço'], ['treinamento', 'apresentação']]);
+
+INSERT INTO sal_emp
+    VALUES ('Carol',
+    ARRAY[20000, 25000, 25000, 25000],
+    ARRAY[['café da manhã', 'consultoria'], ['reunião', 'almoço']]);
+</programlisting>
+  Deve ser observado que os elementos da matriz são constantes comuns ou
+  expressões SQL; por exemplo, os literais cadeia de caracteres ficam entre
+  apóstrofos, em vez de aspas como no caso de um literal matriz. A sintaxe do
+  construtor de <literal>ARRAY</> é mostrada com mais detalhes na
+  <xref linkend="sql-syntax-array-constructors">.
+ </para>
+ </sect2>
+
+ <sect2>
+  <title>Acesso às matrizes</title>
+
+ <para>
+  Agora podemos efetuar algumas consultas na tabela.
+  Primeiro, será mostrado como acessar um único elemento da matriz de cada vez.
+  Esta consulta mostra os nomes dos empregados cujo pagamento mudou na
+  segunda semana:
+
+<screen>
+<userinput>SELECT nome FROM sal_emp WHERE pagamento_semanal[1] &lt;&gt; pagamento_semanal[2];</userinput>
+
+<computeroutput>
+ nome
+-------
+ Carol
+(1 linha)
+</computeroutput>
+</screen>
+
+  Os números dos índices da matriz são escritos entre colchetes.
+  Por padrão, o <productname>PostgreSQL</productname> utiliza a convenção de
+  numeração baseada em um, ou seja, uma matriz de <replaceable>n</replaceable>
+  elementos começa por <literal>array[1]</literal> e termina por
+  <literal>array[<replaceable>n</replaceable>]</literal>.
+ </para>
+
+ <para>
+  Esta consulta mostra o pagamento da terceira semana de todos os empregados:
+
+<screen>
+<userinput>SELECT pagamento_semanal[3] FROM sal_emp;</userinput>
+
+<computeroutput>
+ pagamento_semanal
+-------------------
+             10000
+             25000
+(2 linhas)
+</computeroutput>
+</screen>
+ </para>
+
+ <para>
+  Também é possível acessar faixas retangulares arbitrárias da matriz, ou
+  submatrizes. Uma faixa da matriz é especificada escrevendo
+  <literal><replaceable>limite-inferior</replaceable>:<replaceable>limite-superior</replaceable></literal>
+  para uma ou mais dimensões da matriz. Por exemplo, esta consulta mostra o
+  primeiro item na agenda do Bill para os primeiros dois dias da semana:
+
+<screen>
+<userinput>SELECT agenda[1:2][1:1] FROM sal_emp WHERE nome = 'Bill';</userinput>
+
+<computeroutput>
+          agenda
+---------------------------
+ {{reunião},{treinamento}}
+(1 linha)
+</computeroutput>
+</screen>
+
+  Também pode ser escrito
+
+<programlisting>
+SELECT agenda[1:2][1] FROM sal_emp WHERE nome = 'Bill';
+</programlisting>
+
+  para obter o mesmo resultado. Uma operação com índices em matriz é sempre
+  considerada como representando uma faixa da matriz, quando qualquer um dos
+  índices estiver escrito na forma
+  <literal><replaceable>inferior</replaceable>:<replaceable>superior</replaceable></literal>.
+  O limite inferior igual a 1 é assumido para qualquer índice quando for
+  especificado apenas um valor, como neste exemplo:
+<screen>
+<userinput>SELECT agenda[1:2][2] FROM sal_emp WHERE nome = 'Bill';</userinput>
+
+<computeroutput>
+                    agenda
+-----------------------------------------------
+ {{reunião,almoço},{treinamento,apresentação}}
+(1 linha)
+</computeroutput>
+</screen>
+ </para>
+
+ <para>
+  Podem ser obtidas as dimensões correntes de qualquer valor matriz através da
+  função <function>array_dims</function>:
+
+<screen>
+<userinput>SELECT array_dims(agenda) FROM sal_emp WHERE nome = 'Carol';</userinput>
+
+<computeroutput>
+ array_dims
+------------
+ [1:2][1:2]
+(1 linha)
+</computeroutput>
+</screen>
+
+  A função <function>array_dims</function> produz um resultado do tipo
+  <type>text</type>, conveniente para as pessoas lerem mas, talvez, nem tão
+  conveniente para os programas. As dimensões também podem ser obtidas através
+  das funções <function>array_upper</function> e
+  <function>array_lower</function>, que retornam os limites superior e inferior
+  da dimensão especificada da matriz, respectivamente.
+
+<screen>
+<userinput>SELECT array_upper(agenda, 1) FROM sal_emp WHERE nome = 'Carol';</userinput>
+
+<computeroutput>
+ array_upper
+-------------
+           2
+(1 linha)
+</computeroutput>
+</screen>
+ </para>
+ </sect2>
+
+ <sect2>
+  <title>Modificação de matrizes</title>
+
+ <para>
+  Um valor matriz pode ser inteiramente substituído utilizando:
+
+<programlisting>
+UPDATE sal_emp SET pagamento_semanal = '{25000,25000,27000,27000}'
+    WHERE nome = 'Carol';
+</programlisting>
+
+  ou utilizando a sintaxe com a expressão <literal>ARRAY</literal>:
+
+<programlisting>
+UPDATE sal_emp SET pagamento_semanal = ARRAY[25000,25000,27000,27000]
+    WHERE nome = 'Carol';
+</programlisting>
+
+  Também pode ser atualizado um único elemento da matriz:
+
+<programlisting>
+UPDATE sal_emp SET pagamento_semanal[4] = 15000
+    WHERE nome = 'Bill';
+</programListing>
+
+  ou pode ser atualizada uma faixa da matriz:
+
+<programlisting>
+UPDATE sal_emp SET pagamento_semanal[1:2] = '{27000,27000}'
+    WHERE nome = 'Carol';
+</programlisting>
+
+ </para>
+
+ <para>
+  Um valor matriz armazenado pode ser ampliado fazendo atribuição a um elemento
+  adjacente aos já presentes, ou fazendo atribuição a uma faixa que é adjacente
+  ou se sobrepõe aos dados já presentes. Por exemplo, se a matriz
+  <literal>minha_matriz</literal> possui atualmente quatro elementos, esta
+  matriz terá cinco elementos após uma atualização que faça uma atribuição a
+  <literal>minha_matriz[5]</literal>. Atualmente, as ampliações desta maneira
+  somente são permitidas para matrizes unidimensionais, não sendo permitidas
+  em matrizes multidimensionais.
+ </para>
+
+ <para>
+  A atribuição de faixa de matriz permite a criação de matrizes que não utilizam
+  índices baseados em um. Por exemplo, pode ser feita a atribuição
+  <literal>minha_matriz[-2:7]</literal> para criar uma matriz onde os valores
+  dos índices variam de -2 a 7.
+ </para>
+
+ <para>
+  Também podem ser construídos novos valores matriz utilizando o operador de
+  concatenação <literal>||</literal>.
+<screen>
+<userinput>SELECT ARRAY[1,2] || ARRAY[3,4];</userinput>
+
+<computeroutput>
+ ?column?
+-----------
+ {1,2,3,4}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT ARRAY[5,6] || ARRAY[[1,2],[3,4]];</userinput>
+
+<computeroutput>
+      ?column?
+---------------------
+ {{5,6},{1,2},{3,4}}
+(1 linha)
+</computeroutput>
+</screen>
+ </para>
+
+ <para>
+  O operador de concatenação permite colocar um único elemento no
+  início ou no fim de uma matriz unidimensional. Aceita, também, duas matrizes
+  <replaceable>N</replaceable>-dimensionais, ou uma matriz
+  <replaceable>N</replaceable>-dimensional e outra
+  <replaceable>N+1</replaceable>-dimensional.
+ </para>
+
+ <para>
+  Quando é colocado um único elemento no início de uma matriz unidimensional,
+  o resultado é uma matriz com o limite inferior do índice igual ao
+  limite inferior do índice do operando à direita, menos um. Quando um único
+  elemento é colocado no final de uma matriz unidimensional, o resultado é uma
+  matriz mantendo o limite inferior do operando à esquerda. Por exemplo:
+<screen>
+<userinput>SELECT ARRAY[2,3];</userinput>
+
+<computeroutput>
+ array
+-------
+ {2,3}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_dims(ARRAY[2,3]);</userinput>
+
+<computeroutput>
+ array_dims
+------------
+ [1:2]
+(1 linha)
+</computeroutput>
+
+-- Adicionar no início da matriz
+
+<userinput>SELECT 1 || ARRAY[2,3];</userinput>
+
+<computeroutput>
+ ?column?
+----------
+ {1,2,3}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_dims(1 || ARRAY[2,3]);</userinput>
+
+<computeroutput>
+ array_dims
+------------
+ [0:2]
+(1 linha)
+</computeroutput>
+
+-- Adicionar no final da matriz
+
+<userinput>SELECT ARRAY[1,2] || 3;</userinput>
+
+<computeroutput>
+ ?column?
+----------
+ {1,2,3}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_dims(ARRAY[1,2] || 3);</userinput>
+
+<computeroutput>
+ array_dims
+------------
+ [1:3]
+(1 linha)
+</computeroutput>
+</screen>
+ </para>
+
+ <para>
+  Quando duas matrizes com o mesmo número de dimensões são concatenadas, o
+  resultado mantém o limite inferior do índice da dimensão externa do operando
+  à esquerda. O resultado é uma matriz contendo todos os elementos do operando
+  à esquerda seguido por todos os elementos do operando à direita. Por exemplo:
+<screen>
+-- Concatenação de matrizes unidimensionais
+
+<userinput>SELECT ARRAY[1,2] || ARRAY[3,4,5];</userinput>
+
+<computeroutput>
+  ?column?
+-------------
+ {1,2,3,4,5}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_dims(ARRAY[1,2] || ARRAY[3,4,5]);</userinput>
+
+<computeroutput>
+ array_dims
+------------
+ [1:5]
+(1 linha)
+</computeroutput>
+
+-- Concatenação de matrizes bidimensionais
+
+<userinput>SELECT ARRAY[[1,2],[3,4]] || ARRAY[[5,6],[7,8],[9,0]];</userinput>
+
+<computeroutput>
+            ?column?
+---------------------------------
+ {{1,2},{3,4},{5,6},{7,8},{9,0}}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_dims(ARRAY[[1,2],[3,4]] || ARRAY[[5,6],[7,8],[9,0]]);</userinput>
+
+<computeroutput>
+ array_dims
+------------
+ [1:5][1:2]
+(1 linha)
+</computeroutput>
+</screen>
+ </para>
+
+ <para>
+  Quando uma matriz <replaceable>N</replaceable>-dimensional é colocada no
+  início ou no final de uma matriz <replaceable>N+1</replaceable>-dimensional,
+  o resultado é análogo ao caso da matriz elemento acima. Cada submatriz
+  <replaceable>N</replaceable>-dimensional se torna essencialmente um elemento
+  da dimensão externa da matriz <replaceable>N+1</replaceable>-dimensional.
+  Por exemplo:
+<screen>
+-- Exemplo de matriz unidimensional concatenada com matriz bidimensional
+
+<userinput>SELECT ARRAY[1,2] || ARRAY[[3,4],[5,6]];</userinput>
+
+<computeroutput>
+      ?column?
+---------------------
+ {{1,2},{3,4},{5,6}}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_dims(ARRAY[1,2] || ARRAY[[3,4],[5,6]]);</userinput>
+
+<computeroutput>
+ array_dims
+------------
+ [0:2][1:2]
+(1 linha)
+</computeroutput>
+
+-- Exemplo de matriz bidimensional concatenada com matriz tridimensional (N. do T.)
+
+<userinput>SELECT ARRAY[[-1,-2],[-3,-4]];</userinput>
+
+<computeroutput>
+       array
+-------------------
+ {{-1,-2},{-3,-4}}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_dims(ARRAY[[-1,-2],[-3,-4]]);</userinput>
+
+<computeroutput>
+ array_dims
+------------
+ [1:2][1:2]
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT ARRAY[[[5,6],[7,8]],[[9,10],[11,12]],[[13,14],[15,16]]];</userinput>
+
+<computeroutput>
+                       array
+----------------------------------------------------
+ {{{5,6},{7,8}},{{9,10},{11,12}},{{13,14},{15,16}}}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_dims(ARRAY[[[5,6],[7,8]],[[9,10],[11,12]],[[13,14],[15,16]]]);</userinput>
+
+<computeroutput>
+   array_dims
+-----------------
+ [1:3][1:2][1:2]
+(1 linha)
+</computeroutput>
+
+<userinput>
+SELECT ARRAY[[-1,-2],[-3,-4]] ||
+       ARRAY[[[5,6],[7,8]],[[9,10],[11,12]],[[13,14],[15,16]]];
+</userinput>
+
+<computeroutput>
+                               ?column?
+----------------------------------------------------------------------
+ {{{-1,-2},{-3,-4}},{{5,6},{7,8}},{{9,10},{11,12}},{{13,14},{15,16}}}
+(1 linha)
+</computeroutput>
+
+<userinput>
+SELECT array_dims(ARRAY[[-1,-2],[-3,-4]] ||
+                  ARRAY[[[5,6],[7,8]],[[9,10],[11,12]],[[13,14],[15,16]]]);
+</userinput>
+
+<computeroutput>
+   array_dims
+-----------------
+ [0:3][1:2][1:2]
+(1 linha)
+</computeroutput>
+
+<userinput>
+SELECT ARRAY[[[5,6],[7,8]],[[9,10],[11,12]],[[13,14],[15,16]]] ||
+       ARRAY[[-1,-2],[-3,-4]];
+</userinput>
+
+<computeroutput>
+                               ?column?
+----------------------------------------------------------------------
+ {{{5,6},{7,8}},{{9,10},{11,12}},{{13,14},{15,16}},{{-1,-2},{-3,-4}}}
+(1 linha)
+</computeroutput>
+
+<userinput>
+SELECT array_dims(ARRAY[[[5,6],[7,8]],[[9,10],[11,12]],[[13,14],[15,16]]] ||
+                  ARRAY[[-1,-2],[-3,-4]]);
+</userinput>
+
+<computeroutput>
+   array_dims
+-----------------
+ [1:4][1:2][1:2]
+(1 linha)
+</computeroutput>
+</screen>
+ </para>
+
+ <para>
+  Uma matriz também pode ser construída utilizando as funções
+  <function>array_prepend</function>, <function>array_append</function> e
+  <function>array_cat</function>. As duas primeiras suportam apenas matrizes
+  unidimensionais, mas <function>array_cat</function> suporta matrizes
+  multidimensionais.
+
+  Deve ser observado que é preferível utilizar o operador de concatenação
+  mostrado acima, em vez de usar diretamente estas funções. Na verdade, estas
+  funções têm seu uso principal na implementação do operador de concatenação.
+  Entretanto, podem ser úteis na criação de agregações definidas pelo usuário.
+  Alguns exemplos:
+
+<screen>
+<userinput>SELECT array_prepend(1, ARRAY[2,3]);</userinput>
+
+<computeroutput>
+ array_prepend
+---------------
+ {1,2,3}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_append(ARRAY[1,2], 3);</userinput>
+
+<computeroutput>
+ array_append
+--------------
+ {1,2,3}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_cat(ARRAY[1,2], ARRAY[3,4]);</userinput>
+
+<computeroutput>
+ array_cat
+-----------
+ {1,2,3,4}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_cat(ARRAY[[1,2],[3,4]], ARRAY[5,6]);</userinput>
+
+<computeroutput>
+      array_cat
+---------------------
+ {{1,2},{3,4},{5,6}}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT array_cat(ARRAY[5,6], ARRAY[[1,2],[3,4]]);</userinput>
+
+<computeroutput>
+      array_cat
+---------------------
+ {{5,6},{1,2},{3,4}}
+</computeroutput>
+</screen>
+ </para>
+ </sect2>
+
+ <sect2>
+  <title>Procura em matrizes</title>
+
+ <para>
+  Para procurar um valor em uma matriz deve ser verificado cada valor da
+  matriz. Pode ser feito à mão, se for conhecido o tamanho da matriz:
+  Por exemplo:
+
+<programlisting>
+SELECT * FROM sal_emp WHERE pagamento_semanal[1] = 10000 OR
+                            pagamento_semanal[2] = 10000 OR
+                            pagamento_semanal[3] = 10000 OR
+                            pagamento_semanal[4] = 10000;
+</programlisting>
+
+  Entretanto, em pouco tempo se torna entediante para matrizes grandes, e não
+  servirá se a matriz for de tamanho desconhecido. Um método alternativo está
+  descrito na <xref linkend="functions-comparisons">. A consulta acima pode
+  ser substituída por:
+
+<programlisting>
+SELECT * FROM sal_emp WHERE 10000 = ANY (pagamento_semanal);
+</programlisting>
+
+  Além disso, podem ser encontradas as linhas onde a matriz possui todos os
+  valores iguais a 10000 com:
+
+<programlisting>
+SELECT * FROM sal_emp WHERE 10000 = ALL (pagamento_semanal);
+</programlisting>
+
+ </para>
+
+ <tip>
+  <para>
+   Matrizes não são conjuntos; a procura por determinados elementos da matriz
+   pode ser um sinal de um banco de dados mal projetado. Considere
+   a utilização de uma outra tabela, com uma linha para cada item que seria
+   um elemento da matriz. Assim é mais fácil procurar e, provavelmente, vai
+   se comportar melhor com um número grande de elementos.
+  </para>
+ </tip>
+ </sect2>
+
+ <sect2>
+  <title>Sintaxe de entrada e de saída das matrizes</title>
+
+  <para>
+   A representação textual externa de um valor matriz é formada por itens que
+   são interpretados de acordo com as regras de conversão de I/O para o tipo do
+   elemento da matriz, mais os adornos que indicam a estrutura da matriz. Estes
+   adornos consistem em chaves (<literal>{</literal> e <literal>}</literal>)
+   em torno do valor matriz, mais os caracteres delimitadores entre os itens
+   adjacentes. O caractere delimitador geralmente é a vírgula
+   (<literal>,</literal>), mas pode ser outro: é determinado pela definição de
+   <literal>typdelim</literal> para o tipo do elemento da matriz (Entre os tipos
+   de dado padrão fornecidos na distribuição do
+   <productname>PostgreSQL</productname> o tipo <literal>box</literal> utiliza o
+   ponto-e-vírgula (<literal>;</literal>), mas todos os outros utilizam a
+   vírgula). Em uma matriz multidimensional cada dimensão (linha, plano,
+   cubo, etc.) recebe seu nível próprio de chaves, e os delimitadores devem
+   ser escritos entre entidades de chaves adjacentes do mesmo nível.
+  </para>
+
+  <para>
+   A rotina de saída de matriz coloca aspas em torno dos valores dos elementos
+   caso estes sejam cadeias de caracteres vazias, ou se contenham chaves,
+   caracteres delimitadores, aspas, contrabarras, ou espaços em branco.
+   Aspas e contrabarras incorporadas aos valores dos elementos recebem o escape
+   de contrabarra.
+   No caso dos tipos de dado numéricos é seguro assumir que as aspas nunca vão
+   estar presentes, mas para tipos de dado textuais deve-se estar preparado para
+   lidar tanto com a presença quanto com a ausências das aspas (Esta é uma
+   mudança de comportamento com relação às versões do
+   <productname>PostgreSQL</productname> anteriores a 7.2).
+  </para>
+
+  <para>
+   Por padrão, o limite inferior do valor do índice de cada dimensão da matriz é
+   definido como um. Se alguma das dimensões da matriz tiver um limite inferior
+   diferente de um, um adorno adicional indicando as verdadeiras dimensões da
+   matriz precede o adorno da estrutura da matriz.
+   Este adorno é composto por colchetes (<literal>[]</>) em torno de cada
+   limite inferior e superior da dimensão da matriz, com o caractere
+   delimitador dois-pontos (<literal>:</>) entre estes. O adorno de dimensão
+   da matriz é seguido pelo sinal de igual (<literal>=</>).
+   Por exemplo:
+<screen>
+<userinput>SELECT 1 || ARRAY[2,3] AS array;</userinput>
+
+<computeroutput>
+     array
+---------------
+ [0:2]={1,2,3}
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT ARRAY[1,2] || ARRAY[[3,4]] AS array;</userinput>
+
+<computeroutput>
+          array
+--------------------------
+ [0:1][1:2]={{1,2},{3,4}}
+(1 linha)
+</computeroutput>
+</screen>
+  </para>
+
+  <para>
+   Esta sintaxe também pode ser utilizada para especificar índices de matriz
+   não padrão em um literal matriz. Por exemplo:
+<screen>
+<userinput>
+SELECT f1[1][-2][3] AS e1, f1[1][-1][5] AS e2
+ FROM (SELECT '[1:1][-2:-1][3:5]={{{1,2,3},{4,5,6}}}'::int[] AS f1) AS ss;
+</userinput>
+
+<computeroutput>
+ e1 | e2
+----+----
+  1 |  6
+(1 linha)
+</computeroutput>
+</screen>
+  </para>
+
+  <para>
+   Conforme mostrado anteriormente, ao escrever um valor matriz pode-se
+   colocar aspas em torno de qualquer elemento individual da matriz.
+   Isto <emphasis>deve</emphasis> ser feito se o valor do elemento puder, de
+   alguma forma, confundir o analisador de valor matriz.
+   Por exemplo, os elementos contendo chaves, vírgulas (ou qualquer que seja o
+   caractere delimitador), aspas, contrabarras ou espaços em branco na
+   frente ou atrás devem estar entre aspas.
+   Para colocar aspas ou contrabarras no valor entre aspas do elemento da
+   matriz, estes devem ser precedidos por uma contrabarra.
+   Como alternativa, pode ser utilizado o escape de contrabarra para proteger
+   qualquer caractere de dado que seria de outra forma considerado como sintaxe
+   da matriz.
+  </para>
+
+  <para>
+   Podem ser escritos espaços em branco antes do abre chaves ou após o fecha
+   chaves. Também podem ser escritos espaços em branco antes ou depois de
+   qualquer item individual cadeia de caracteres. Em todos estes casos os
+   espaços em branco são ignorado. Entretanto, espaços em branco dentro de
+   elementos entre aspas, ou envoltos nos dois lados por caracteres de um
+   elemento que não são espaços em branco, não são ignorados.
+  </para>
+
+ <note>
+  <para>
+   Lembre-se que o que se escreve em um comando SQL é interpretado primeiro como
+   um literal cadeia de caracteres e, depois, como uma matriz. Isto duplica o
+   número de contrabarras necessárias. Por exemplo, para inserir um valor matriz
+   do tipo <type>text</type> contendo uma contrabarra e uma aspa, deve ser escrito
+<programlisting>
+INSERT ... VALUES ('{"\\\\","\\""}');
+</programlisting>
+   O processador de literais cadeias de caracteres remove um nível de
+   contrabarras, portanto o que chega para o analisador de valor matriz se parece
+   com <literal>{"\\","\""}</literal>. Por sua vez, as cadeias de caracteres
+   introduzidas na rotina de entrada do tipo de dado <type>text</type> se tornam
+   <literal>\</literal> e <literal>"</literal>, respectivamente (Se estivéssemos
+   trabalhando com um tipo de dado cuja rotina de entrada também tratasse as
+   contrabarras de forma especial como, por exemplo, <type>bytea</type>, seriam
+   necessárias oito contrabarras no comando para obter uma contrabarra
+   armazenada no elemento da matriz).
+   Pode ser utilizada a delimitação por cifrão
+   (<literal>dollar quoting</literal>) (consulte a
+   <xref linkend="sql-syntax-dollar-quoting">) para evitar a necessidade
+   de duplicar as contrabarras.
+  </para>
+ </note>
+
+ <tip>
+  <para>
+   Ao se escrever valores matrizes nos comandos SQL, geralmente é mais fácil
+   trabalhar com a sintaxe do construtor de <literal>ARRAY</literal> (consulte a
+   <xref linkend="sql-syntax-array-constructors">) do que com
+   a sintaxe do literal cadeia de caracteres. Em <literal>ARRAY</literal>, os
+   valores dos elementos individuais são escritos da mesma maneira como seriam
+   escritos caso não fossem membros de uma matriz.
+  </para>
+ </tip>
+ </sect2>
+
+</sect1>

@@ -1,0 +1,122 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/drop_language.sgml,v 1.21 2003/11/29 19:51:38 pgsql Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-DROPLANGUAGE">
+ <refmeta>
+  <refentrytitle id="SQL-DROPLANGUAGE-TITLE">DROP LANGUAGE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>DROP LANGUAGE</refname>
+  <refpurpose>remove uma linguagem procedural</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-droplanguage">
+  <primary>DROP LANGUAGE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+DROP [ PROCEDURAL ] LANGUAGE <replaceable class="parameter">nome</replaceable> [ CASCADE | RESTRICT ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>DROP LANGUAGE</command> remove a definição
+   da linguagem procedural previamente registrada chamada
+   <replaceable class="parameter">nome</replaceable>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome de uma linguagem procedural existente. Para manter a compatibilidade
+      com as versões anteriores, o nome pode estar entre apóstrofos
+      (<literal>'</literal>).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>CASCADE</literal></term>
+    <listitem>
+     <para>
+      Remove automaticamente os objetos que dependem da linguagem
+      (como as funções escritas nesta linguagem).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>RESTRICT</literal></term>
+    <listitem>
+     <para>
+      Não permite remover a linguagem caso existam objetos que dependam
+      da mesma. Este é o padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   O comando mostrado abaixo remove a linguagem procedural
+   <literal>plsample</literal>:
+
+<programlisting>
+DROP LANGUAGE plsample;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Não existe o comando <command>DROP LANGUAGE</command> no padrão SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-alterlanguage" endterm="sql-alterlanguage-title"></member>
+   <member><xref linkend="sql-createlanguage" endterm="sql-createlanguage-title"></member>
+   <member><xref linkend="app-droplang"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

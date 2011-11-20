@@ -1,0 +1,226 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/cluster.sgml,v 1.35 2005/01/04 00:39:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CLUSTER">
+ <refmeta>
+  <refentrytitle id="sql-cluster-title">CLUSTER</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CLUSTER</refname>
+  <refpurpose>agrupa a tabela de acordo com um índice</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-cluster">
+  <primary>CLUSTER</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CLUSTER <replaceable class="parameter">nome_do_índice</replaceable> ON <replaceable class="parameter">nome_da_tabela</replaceable>
+CLUSTER <replaceable class="parameter">nome_da_tabela</replaceable>
+CLUSTER
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CLUSTER</command> instrui o
+   <productname>PostgreSQL</productname> para agrupar a tabela especificada por
+   <replaceable class="parameter">nome_da_tabela</replaceable>,
+   com base no índice especificado por
+   <replaceable class="parameter">nome_do_índice</replaceable>.
+   O índice deve ter sido definido anteriormente na tabela
+   <replaceable class="parameter">nome_da_tabela</replaceable>.
+  </para>
+
+  <para>
+   Ao ser agrupada, a tabela é fisicamente reordenada
+   com base na informação do índice. O agrupamento é feito uma única vez:
+   ao ser posteriormente atualizada, as modificações feitas na tabela
+   não são agrupadas, ou seja, nenhuma tentativa é feita para manter as
+   tuplas novas ou atualizadas na ordem do índice. Se for desejado, a tabela
+   pode ser reagrupada periodicamente executando este comando novamente.
+  </para>
+
+  <para>
+   Quando a tabela é agrupada, o <productname>PostgreSQL</productname>
+   registra qual foi o índice utilizado para agrupar. A forma
+   <command>CLUSTER
+   <replaceable class="parameter">nome_da_tabela</replaceable></command>
+   reagrupa a tabela utilizando o mesmo índice utilizado anteriormente.
+  </para>
+
+  <para>
+   O comando <command>CLUSTER</command> sem nenhum parâmetro reagrupa todas as
+   tabelas do banco de dados corrente pertencentes ao usuário que está
+   executando o comando, ou todas as tabelas se for executado por um
+   superusuário; as tabelas que nunca foram agrupadas não são incluídas.
+   Esta forma do comando <command>CLUSTER</command> não pode ser chamada
+   dentro de uma transação ou de uma função.
+  </para>
+
+  <para>
+   Durante o agrupamento da tabela é obtido o bloqueio
+   <literal>ACCESS EXCLUSIVE</literal>, que não permite realizar qualquer outra
+   operação de banco de dados na tabela, tanto de leitura quanto de escrita,
+   até o comando <command>CLUSTER</command> terminar.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome_do_índice</replaceable></term>
+    <listitem>
+     <para>
+      O nome do índice.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">nome_da_tabela</replaceable></term>
+    <listitem>
+     <para>
+      O nome da tabela (opcionalmente qualificado pelo esquema).
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+   <para>
+    No caso do acesso aleatório a uma única linha  da tabela, a ordem física dos
+    dados na tabela não é importante. Entretanto, havendo tendência para acessar
+    alguns dados mais que outros, e havendo um índice agrupando estes dados, a
+    utilização do comando <command>CLUSTER</command> trará benefícios. Se for
+    acessada uma faixa de valores indexados de uma tabela, ou um único valor
+    indexado possuindo vária linhas correspondendo a este valor, o comando
+    <command>CLUSTER</command> ajuda, porque quando o índice identifica a página
+    da primeira linha, provavelmente todas as outras linhas estarão nesta mesma
+    página, reduzindo o acesso ao disco e acelerando a consulta.
+   </para>
+
+   <para>
+    Durante a operação de agrupamento, uma cópia temporária da tabela é criada
+    contendo os dados da tabela na ordem do índice. Também são criadas cópias
+    temporárias de cada índice da tabela. Portanto, é necessário um espaço livre
+    em disco pelo menos igual à soma do tamanho da tabela com os tamanhos de
+    seus índices.
+   </para>
+
+   <para>
+    Como o comando <command>CLUSTER</command> guarda a informação de agrupamento,
+    é possível agrupar as tabelas desejadas manualmente na primeira vez e,
+    depois, configurar um evento periódico, como no <command>VACUUM</command>,
+    para que as tabelas sejam periodicamente reagrupadas.
+   </para>
+
+   <para>
+    Como o planejador registra estatísticas sobre a ordem das
+    linhas nas tabelas, é aconselhável executar o comando
+    <xref linkend="sql-analyze" endterm="sql-analyze-title">
+    na tabela recém agrupada,
+    senão o otimizador poderá fazer escolhas ruins no planejamento dos comandos.
+   </para>
+
+   <para>
+    Existe outra forma de agrupar os dados. O comando <command>CLUSTER</command>
+    reordena a tabela original usando a ordem do índice especificado. Este
+    procedimento pode ser lento para tabelas grandes, porque as linhas são lidas
+    no disco na ordem do índice e, se a tabela não estiver ordenada, as linhas
+    estarão em páginas aleatórias, fazendo uma página do disco ser lida para
+    cada linha movida; o <productname>PostgreSQL</productname> possui um
+    <literal>cache</literal>, mas a maioria das tabelas grandes não cabem no
+    <literal>cache</literal>. A outra forma de agrupar a tabela é usar
+
+<programlisting>
+CREATE TABLE <replaceable class="parameter">nova_tabela</replaceable> AS
+    SELECT <replaceable class="parameter">lista_de_colunas</replaceable> FROM <replaceable class="parameter">tabela</replaceable> ORDER BY <replaceable class="parameter">lista_de_colunas</replaceable>;
+</programlisting>
+
+    que utiliza o código de ordenação da cláusula <literal>ORDER BY</literal>
+    do <productname>PostgreSQL</productname> para criar a ordem desejada;
+    geralmente é muito mais rápido que a varredura do índice para dados não
+    ordenados. Em seguida, a tabela original deve ser removida, o comando
+    <command>ALTER TABLE...RENAME</command> deve ser utilizado para mudar o nome
+    da <replaceable class="parameter">nova_tabela</replaceable> para o nome da
+    tabela original, e recriados os índices da tabela. Entretanto, esta
+    abordagem não preserva os OIDs, restrições, relacionamentos de chaves
+    estrangeiras, privilégios concedidos e outras propriedades da tabela &mdash;
+    todos estes itens deverão ser recriados manualmente.
+   </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Agrupar a tabela <literal>empregados</literal> baseado no seu índice
+   <literal>idx_emp</literal>:
+<programlisting>
+CLUSTER idx_emp ON empregados;
+</programlisting>
+  </para>
+
+  <para>
+   Agrupar a tabela <literal>empregados</literal> utilizando o
+   mesmo índice especificado anteriormente:
+<programlisting>
+CLUSTER empregados;
+</programlisting>
+  </para>
+
+  <para>
+   Agrupar todas as tabelas de um banco de dados que foram agrupadas anteriormente:
+<programlisting>
+CLUSTER;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Não existe o comando <command>CLUSTER</command> no padrão SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="app-clusterdb" endterm="app-clusterdb-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->
+

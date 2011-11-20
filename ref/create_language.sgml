@@ -1,0 +1,256 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_language.sgml,v 1.39 2005/01/04 00:39:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATELANGUAGE">
+ <refmeta>
+  <refentrytitle id="sql-createlanguage-title">CREATE LANGUAGE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE LANGUAGE</refname>
+  <refpurpose>cria uma linguagem procedural</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createlanguage">
+  <primary>CREATE LANGUAGE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE [ TRUSTED ] [ PROCEDURAL ] LANGUAGE <replaceable class="parameter">nome</replaceable>
+    HANDLER <replaceable class="parameter">tratador_de_chamadas</replaceable> [ VALIDATOR <replaceable>função_de_validação</replaceable> ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="sql-createlanguage-description">
+  <title>Descrição</title>
+
+  <para>
+   Utilizando o comando <command>CREATE LANGUAGE</command>, um usuário do
+   <productname>PostgreSQL</productname> pode registrar uma nova linguagem
+   procedural em um banco de dados do <productname>PostgreSQL</productname>.
+   Depois, podem ser definidas funções e procedimentos de gatilhos
+   nesta nova linguagem. O usuário deve possuir o privilégio de superusuário do
+   <productname>PostgreSQL</productname>
+   para poder registrar uma nova linguagem.
+  </para>
+
+  <para>
+   O comando <command>CREATE LANGUAGE</command> associa o nome da linguagem
+   ao tratador de chamadas (<literal>call handler</literal>) responsável pela
+   execução das funções escritas nesta linguagem. Consulte a <xref linkend="xfunc">
+   para obter informações adicionais sobre tratadores de chamada de linguagens.
+  </para>
+
+  <para>
+   Deve ser observado que as linguagens procedurais são locais a cada banco de
+   dados. Para tornar, por padrão, uma linguagem disponível para todos os bancos
+   de dados, esta deve ser instalada no banco de dados
+   <literal>template1</literal>.
+  </para>
+ </refsect1>
+
+ <refsect1 id="sql-createlanguage-parameters">
+  <title>Parâmetros</title>
+
+   <variablelist>
+    <varlistentry>
+     <term><literal>TRUSTED</literal></term>
+
+     <listitem>
+      <para>
+       <literal>TRUSTED</literal> especifica que o tratador de chamadas para
+       a linguagem é seguro, ou seja, não oferece a um usuário
+       sem privilégios qualquer funcionalidade para transpor as restrições
+       de acesso. Se esta palavra chave for omitida ao registrar a linguagem,
+       somente os usuários do <productname>PostgreSQL</productname> com
+       privilégio de superusuário vão poder usar esta linguagem para criar
+       novas funções.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>PROCEDURAL</literal></term>
+
+     <listitem>
+      <para>
+       Apenas informativo.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable class="parameter">nome</replaceable></term>
+
+     <listitem>
+      <para>
+       O nome da nova linguagem procedural. Não existe distinção entre letras
+       minúsculas e maiúsculas no nome da linguagem. O nome deve ser único entre
+       todas as linguagens do banco de dados.
+      </para>
+
+      <para>
+       Por compatibilidade com as versões anteriores, o nome pode
+       ser escrito entre apóstrofos (<literal>'</literal>).
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>HANDLER</literal> <replaceable class="parameter">tratador_de_chamadas</replaceable></term>
+
+     <listitem>
+      <para>
+       O <replaceable class="parameter">tratador_de_chamadas</replaceable> é
+       o nome de uma função, previamente registrada, que será chamada para
+       executar as funções escritas nesta linguagem procedural. O tratador de
+       chamadas para a linguagem procedural deve ser escrito em uma linguagem
+       compilada como a linguagem C, com a convenção de chamadas versão 1,
+       registrada no <productname>PostgreSQL</productname> como uma
+       função que não recebe nenhum argumento e retorna o tipo
+       <type>language_handler</type>, que é um tipo usado apenas
+       para identificar a função como tratadora de chamadas.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>VALIDATOR</literal> <replaceable class="parameter">função_de_validação</replaceable></term>
+
+     <listitem>
+      <para>
+       A <replaceable class="parameter">função_de_validação</replaceable>
+       é nome de uma função, registrada previamente, que será chamada
+       quando for criada uma nova função nesta linguagem para validar
+       esta nova função. Se nenhuma função validadora for especificada, então a
+       nova função não será verificada ao ser criada.
+       A função validadora deve receber um argumento do tipo
+       <type>oid</type>, que é o OID (identificador do objeto) da
+       função a ser criada, e normalmente retorna <type>void</type>.
+      </para>
+
+      <para>
+       Tipicamente a função validadora inspeciona o corpo da função para
+       verificar se a sintaxe está correta, mas também pode verificar outras
+       propriedades da função como, por exemplo, a linguagem não poder tratar
+       argumentos de determinados tipos. Para sinalizar erro a função validadora
+       deve usar a função <function>ereport()</function>. O valor retornado pela
+       função é ignorado.
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+ </refsect1>
+
+ <refsect1 id="sql-createlanguage-notes">
+  <title>Observações</title>
+
+  <para>
+   Normalmente, este comando não deve ser executado diretamente pelos usuários.
+   Para as linguagens procedurais fornecidas na distribuição do
+   <productname>PostgreSQL</productname> deve ser utilizado o aplicativo
+   <xref linkend="app-createlang">, porque este aplicativo
+   também instala o tratador de chamadas correto; o aplicativo
+   <command>createlang</command> chama o comando
+   <command>CREATE LANGUAGE</command> internamente.
+  </para>
+
+  <para>
+   Nas versões do <productname>PostgreSQL</productname> anteriores a 7.3, era
+   necessário declarar as funções tratadoras como retornando o tipo
+   <type>opaque</type>, em vez de <type>language_handler</type>.
+   Para permitir a carga de cópias de segurança antigas,
+   o comando <command>CREATE LANGUAGE</command> aceita as funções declaradas
+   como retornando <type>opaque</type>, mas mostra uma mensagem e muda para
+   <type>language_handler</type> o tipo retornado declarado pela função.
+  </para>
+
+  <para>
+   Use o comando
+   <xref linkend="sql-createfunction" endterm="sql-createfunction-title">
+   para criar uma função.
+  </para>
+
+  <para>
+   Use o comando
+   <xref linkend="sql-droplanguage" endterm="sql-droplanguage-title">, ou melhor
+   ainda, o aplicativo <xref linkend="app-droplang">, para excluir linguagens
+   procedurais.
+  </para>
+
+  <para>
+   O catálogo do sistema <classname>pg_language</classname> (consulte a <xref
+   linkend="catalog-pg-language">) registra informações sobre as
+   linguagens instaladas correntemente.
+   O aplicativo <command>createlang</command> possui uma opção para listar as
+   linguagens instaladas.
+  </para>
+
+  <para>
+   Para poder utilizar uma linguagem procedural, deve ser concedido o
+   privilégio <literal>USAGE</literal> para o usuário. O aplicativo
+   <command>createlang</command> concede, automaticamente, permissão
+   para todos se a linguagem for sabidamente <literal>trusted</literal>.
+  </para>
+ </refsect1>
+
+ <refsect1 id="sql-createlanguage-examples">
+  <title>Exemplos</title>
+
+  <para>
+   Os dois comandos mostrados abaixo, executados em seqüência, registram uma
+   nova linguagem procedural e o tratador de chamadas associado:
+<programlisting>
+CREATE FUNCTION plsample_call_handler() RETURNS language_handler
+    AS '$libdir/plsample'
+    LANGUAGE C;
+CREATE LANGUAGE plsample
+    HANDLER plsample_call_handler;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1 id="sql-createlanguage-compat">
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>CREATE LANGUAGE</command>
+   é uma extensão do <productname>PostgreSQL</productname>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-alterlanguage" endterm="sql-alterlanguage-title"></member>
+   <member><xref linkend="sql-createfunction" endterm="sql-createfunction-title"></member>
+   <member><xref linkend="sql-droplanguage" endterm="sql-droplanguage-title"></member>
+   <member><xref linkend="sql-grant" endterm="sql-grant-title"></member>
+   <member><xref linkend="sql-revoke" endterm="sql-revoke-title"></member>
+   <member><xref linkend="app-createlang" endterm="app-createlang-title"></member>
+   <member><xref linkend="app-droplang" endterm="app-droplang-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

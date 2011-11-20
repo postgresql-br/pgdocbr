@@ -1,0 +1,2572 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ecpg.sgml,v 1.62 2005/01/08 22:13:25 tgl Exp $
+-->
+
+<chapter id="ecpg">
+ <title>ECPG - SQL incorporado à linguagem C</title>
+
+ <indexterm zone="ecpg"><primary>SQL incorporado</primary><secondary>linguagem C</secondary></indexterm>
+ <indexterm zone="ecpg"><primary>C</primary></indexterm>
+ <indexterm zone="ecpg"><primary>ECPG</primary></indexterm>
+
+ <para>
+  Este capítulo descreve o pacote de <acronym>SQL</acronym> incorporado para o
+  <productname>PostgreSQL</productname>.
+  Foi escrito por Linus Tolke (<email>linus@epact.se</email>) e
+  Michael Meskes (<email>meskes@postgresql.org</email>).
+  Originalmente escrito para trabalhar com a linguagem <acronym>C</acronym>,
+  também trabalha com a linguagem <acronym>C++</acronym>, mas ainda não
+  reconhece todas as construções de <acronym>C++</acronym>.
+ </para>
+
+ <para>
+  Esta documentação é bastante incompleta, mas uma vez que a interface é
+  padronizada, podem ser encontradas informações adicionais em várias fontes
+  sobre <acronym>SQL</acronym>.
+ </para>
+
+ <sect1 id="ecpg-concept">
+  <title>O conceito</title>
+
+  <para>
+   Um programa com <acronym>SQL</acronym> incorporado consiste de código escrito
+   em uma linguagem de programação comum, neste caso a linguagem <acronym>C</>,
+   misturado com comandos <acronym>SQL</acronym> em seções com marcas especiais.
+   Para construir o programa, primeiro o código fonte é passado através de um
+   pré-processador de <acronym>SQL</acronym> incorporado, que converte este
+   código em um programa <acronym>C</acronym> comum. Após isto ser feito, o
+   código pode ser processado pelo compilador <acronym>C</acronym>.
+  </para>
+
+  <para>
+   O <acronym>SQL</acronym> incorporado possui vantagens sobre outros métodos
+   que tratam comandos <acronym>SQL</acronym> a partir do código <acronym>C</>:
+   Em primeiro lugar, toma conta da entediante passagem de informação de e para
+   as variáveis do programa escrito em <acronym>C</acronym>;
+   Em segundo lugar, o código <acronym>SQL</acronym> incorporado ao programa é
+   verificado quanto à correção sintática em tempo de construção;
+   Em terceiro lugar, o <acronym>SQL</acronym> incorporado à linguagem
+   <acronym>C</acronym> é especificado pelo padrão <acronym>SQL</acronym>, e
+   suportado por muitos outros sistemas gerenciadores de banco de dados
+   <acronym>SQL</acronym>.
+  </para>
+
+  <para>
+   A implementação do <productname>PostgreSQL</> foi projetada para corresponder
+   ao padrão tanto quanto o possível. Geralmente é possível portar para o
+   <productname>PostgreSQL</>, com relativa facilidade, programas com
+   <acronym>SQL</acronym> incorporado escritos para outros gerenciadores de
+   banco de dados <acronym>SQL</acronym>.
+  </para>
+
+  <para>
+   Como já foi dito, os programas escritos para a interface de <acronym>SQL</>
+   incorporado são programas <acronym>C</acronym> normais, com código especial
+   inserido para realizar ações relacionadas com o banco de dados. Este código
+   especial sempre possui a forma:
+<programlisting>
+EXEC SQL ...;
+</programlisting>
+   Sintaticamente estas declarações tomam o lugar da declaração <acronym>C</>.
+   Dependendo da declaração em particular, pode aparecer no nível global ou
+   dentro de uma função.
+   As declarações <acronym>SQL</acronym> incorporadas seguem as regras de
+   tratamento de letras maiúsculas e minúsculas  do código <acronym>SQL</>
+   normal, e não as regras da linguagem <acronym>C</acronym>.
+  </para>
+
+  <para>
+   As seções que se seguem explicam todas as declarações <acronym>SQL</acronym>
+   incorporadas.
+  </para>
+ </sect1>
+
+ <sect1 id="ecpg-connect">
+  <title>Conexão com o servidor de banco de dados</title>
+
+  <para>
+   A conexão com o servidor de banco de dados é feita utilizando a seguinte
+   declaração:
+<programlisting>
+EXEC SQL CONNECT TO <replaceable>destino</replaceable> <optional>AS <replaceable>nome_da_conexão</replaceable></optional> <optional>USER <replaceable>nome_do_usuário</replaceable></optional>;
+</programlisting>
+   O <replaceable>destino</replaceable> pode ser especificado das seguintes
+   formas:
+
+   <itemizedlist>
+    <listitem>
+     <simpara>
+      <literal><replaceable>nome_do_banco_de_dados</replaceable><optional>@<replaceable>nome_do_hospedeiro</replaceable></optional><optional>:<replaceable>porta</replaceable></optional></literal>
+     </simpara>
+    </listitem>
+
+    <listitem>
+     <simpara>
+      <literal>tcp:postgresql://<replaceable>nome_do_hospedeiro</replaceable><optional>:<replaceable>porta</replaceable></optional><optional>/<replaceable>nome_do_banco_de_dados</replaceable></optional><optional>?<replaceable>opções</replaceable></optional></literal>
+     </simpara>
+    </listitem>
+
+    <listitem>
+     <simpara>
+      <literal>unix:postgresql://<replaceable>nome_do_hospedeiro</replaceable><optional>:<replaceable>porta</replaceable></optional><optional>/<replaceable>nome_do_banco_de_dados</replaceable></optional><optional>?<replaceable>opções</replaceable></optional></literal>
+     </simpara>
+    </listitem>
+
+    <listitem>
+     <simpara>
+      literal cadeia de caracteres <acronym>SQL</acronym> contendo uma das
+      formas acima
+     </simpara>
+    </listitem>
+
+    <listitem>
+     <simpara>
+      referência a uma variável do tipo caractere contendo uma das formas acima
+      (veja os exemplos)
+     </simpara>
+    </listitem>
+
+    <listitem>
+     <simpara>
+      <literal>DEFAULT</literal>
+     </simpara>
+    </listitem>
+   </itemizedlist>
+
+   Se o destino da conexão for especificado literalmente (ou seja, não for
+   especificado através de referência a uma variável), e o valor não estiver
+   entre aspas, então são aplicadas as regras normais do <acronym>SQL</acronym>
+   para tratamento de letras maiúsculas e minúsculas.
+   Neste caso, os parâmetros podem ser colocados individualmente entre aspas
+   conforme seja necessário.
+   Na prática, provavelmente há menos chance de errar quando se usa literais
+   cadeia de caracteres (entre apóstrofos), ou referência a uma variável.
+   O destino de conexão <literal>DEFAULT</literal> inicia uma conexão com o
+   banco de dados padrão sob o nome de usuário padrão.
+   Neste caso, não é necessário especificar o nome do usuário ou da
+   conexão em separado.
+  </para>
+
+  <para>
+   Também existem maneiras diferentes de especificar o nome do usuário:
+
+   <itemizedlist>
+    <listitem>
+     <simpara>
+      <literal><replaceable>nome_do_usuário</replaceable></literal>
+     </simpara>
+    </listitem>
+
+    <listitem>
+     <simpara>
+      <literal><replaceable>nome_do_usuário</replaceable>/<replaceable>senha</replaceable></literal>
+     </simpara>
+    </listitem>
+
+    <listitem>
+     <simpara>
+      <literal><replaceable>nome_do_usuário</replaceable> IDENTIFIED BY <replaceable>senha</replaceable></literal>
+     </simpara>
+    </listitem>
+
+    <listitem>
+     <simpara>
+      <literal><replaceable>nome_do_usuário</replaceable> USING <replaceable>senha</replaceable></literal>
+     </simpara>
+    </listitem>
+   </itemizedlist>
+
+   Como acima, os parâmetros <replaceable>nome_do_usuário</replaceable> e
+   <replaceable>senha</replaceable> podem ser um identificador <acronym>SQL</>,
+   um literal cadeia de caracteres <acronym>SQL</acronym>, ou referência a
+   uma variável do tipo caractere.
+  </para>
+
+  <para>
+   O <replaceable>nome_da_conexão</replaceable> é utilizado para tratar várias
+   conexões em um mesmo programa. Pode ser omitido se o programa utilizar apenas
+   uma conexão. A conexão aberta mais recentemente se torna a conexão corrente,
+   que é utilizada por padrão quando uma declaração <acronym>SQL</acronym> é
+   executada (veja mais adiante neste capítulo).
+  </para>
+
+  <para>
+   Abaixo estão mostrados alguns exemplos de declaração <command>CONNECT</>:
+<programlisting>
+EXEC SQL CONNECT TO meubanco@sql.meudominio.com;
+
+EXEC SQL CONNECT TO 'unix:postgresql://sql.meudominio.com/meubanco' AS minhaconexao USER joao;
+
+EXEC SQL BEGIN DECLARE SECTION;
+const char *destino = "meubanco@sql.meudominio.com";
+const char *usuario = "joao";
+EXEC SQL END DECLARE SECTION;
+ ...
+EXEC SQL CONNECT TO :destino USER :usuario;
+</programlisting>
+   A última forma faz uso da variante que foi referida acima como referência a
+   uma variável do tipo caractere. Na <xref linkend="ecpg-variables"> é mostrado
+   como as variáveis da linguagem <acronym>C</> podem ser utilizadas nas
+   declarações <acronym>SQL</acronym> quando são prefixadas por dois-pontos
+   (<literal>:</literal>).
+  </para>
+
+  <para>
+   Como o formato do destino da conexão não é especificado pelo padrão
+   <acronym>SQL</acronym>, se for desejado desenvolver aplicativos portáveis
+   deve-se dar preferência à utilização de algo baseado no último exemplo acima,
+   para encapsular a cadeia de caracteres de destino da conexão fora da
+   declaração.
+  </para>
+ </sect1>
+
+ <sect1 id="ecpg-disconnect">
+  <title>Fechamento de conexão</title>
+
+  <para>
+   Para fechar a conexão deve ser utilizada a seguinte declaração:
+<programlisting>
+EXEC SQL DISCONNECT <optional><replaceable>conexão</replaceable></optional>;
+</programlisting>
+   Onde <replaceable>conexão</replaceable> pode ser especificada das seguintes
+   maneiras:
+
+   <itemizedlist>
+    <listitem>
+     <simpara>
+      <literal><replaceable>nome_da_conexão</replaceable></literal>
+     </simpara>
+    </listitem>
+
+    <listitem>
+     <simpara>
+      <literal>DEFAULT</literal>
+     </simpara>
+    </listitem>
+
+    <listitem>
+     <simpara>
+      <literal>CURRENT</literal>
+     </simpara>
+    </listitem>
+
+    <listitem>
+     <simpara>
+      <literal>ALL</literal>
+     </simpara>
+    </listitem>
+   </itemizedlist>
+
+   Se não for especificado o nome da conexão, a conexão corrente é fechada.
+  </para>
+
+  <para>
+   É bom estilo o aplicativo sempre fechar todas as conexões abertas.
+  </para>
+ </sect1>
+
+ <sect1 id="ecpg-commands">
+  <title>Execução de comandos SQL</title>
+
+  <para>
+   Pode ser executado qualquer comando <acronym>SQL</acronym> de dentro de um
+   aplicativo com <acronym>SQL</acronym> incorporado. Abaixo estão mostrados
+   alguns exemplos de como se faz isto.
+  </para>
+
+  <para>
+   Criação de tabela:
+<programlisting>
+EXEC SQL CREATE TABLE foo (numero integer, ascii char(16));
+EXEC SQL CREATE UNIQUE INDEX num1 ON foo(numero);
+EXEC SQL COMMIT;
+</programlisting>
+  </para>
+
+  <para>
+   Inserção de linhas:
+<programlisting>
+EXEC SQL INSERT INTO foo (numero, ascii) VALUES (9999, 'doodad');
+EXEC SQL COMMIT;
+</programlisting>
+  </para>
+
+  <para>
+   Exclusão de linhas:
+<programlisting>
+EXEC SQL DELETE FROM foo WHERE numero = 9999;
+EXEC SQL COMMIT;
+</programlisting>
+  </para>
+
+  <para>
+   Seleção de uma única linha:
+<programlisting>
+EXEC SQL SELECT numero INTO :numero FROM foo WHERE ascii = 'doodad';
+</programlisting>
+  </para>
+
+  <para>
+   Seleção usando cursores:
+<programlisting>
+EXEC SQL DECLARE foo_bar CURSOR FOR
+    SELECT numero, ascii FROM foo
+    ORDER BY ascii;
+EXEC SQL OPEN foo_bar;
+EXEC SQL FETCH foo_bar INTO :numero, :ascii;
+...
+EXEC SQL CLOSE foo_bar;
+EXEC SQL COMMIT;
+</programlisting>
+  </para>
+
+  <para>
+   Atualizações:
+<programlisting>
+EXEC SQL UPDATE foo
+    SET ascii = 'foobar'
+    WHERE numero = 9999;
+EXEC SQL COMMIT;
+</programlisting>
+  </para>
+
+  <para>
+   Os termos (<literal>tokens</literal>) com a forma
+   <literal>:<replaceable>alguma_coisa</replaceable></literal>
+   são <firstterm>variáveis hospedeiras</firstterm>, ou seja, se referem a
+   variáveis do programa <acronym>C</acronym>, e são explicadas na
+   <xref linkend="ecpg-variables">.
+  </para>
+
+  <para>
+   No modo padrão, as declarações são efetivadas apenas quando é executado
+   <command>EXEC SQL COMMIT</command>. A interface de <acronym>SQL</acronym>
+   incorporado também suporta a auto-efetivação das transações (semelhante ao
+   comportamento da biblioteca <application>libpq</>), através da opção de linha
+   de comando <option>-t</option> do <command>ecpg</command> (veja abaixo),
+   ou através da declaração <literal>EXEC SQL SET AUTOCOMMIT TO ON</literal>.
+   No modo de auto-efetivação todo comando é efetivado automaticamente, a menos
+   que esteja dentro de um bloco de transação explícito. Este modo pode ser
+   desabilitado explicitamente através da declaração
+   <literal>EXEC SQL SET AUTOCOMMIT TO OFF</literal>.
+  </para>
+ </sect1>
+
+ <sect1 id="ecpg-set-connection">
+  <title>Escolha da conexão</title>
+
+  <para>
+   As declarações <acronym>SQL</acronym> mostradas na seção anterior são
+   executadas na conexão corrente, ou seja, a conexão aberta mais recentemente.
+   Se o aplicativo precisar gerenciar várias conexões, então existem duas
+   maneiras de tratar este problema.
+  </para>
+
+  <para>
+   A primeira opção é escolher explicitamente a conexão para cada declaração
+   <acronym>SQL</acronym> como, por exemplo:
+<programlisting>
+EXEC SQL AT <replaceable>nome_da_conexão</replaceable> SELECT ...;
+</programlisting>
+   Esta opção é particularmente apropriada quando o aplicativo necessita
+   utilizar várias conexões sem uma ordem definida.
+      </para>
+
+      <para>
+       Se o aplicativo utilizar vários fluxos de execução (<literal>threads</>),
+       estes não podem compartilhar simultaneamente uma conexão.
+       Deve ser controlado explicitamente o acesso às conexões (utilizando
+       mutexes), ou utilizada uma conexão para cada fluxo de execução.
+       Se cada fluxo de execução utilizar sua própria conexão, será necessário
+       usar a cláusula <literal>AT</literal> para especificar a conexão que o
+       fluxo de execução vai utilizar.
+  </para>
+
+  <para>
+   A segunda opção é executar uma declaração para alternar a conexão corrente.
+   A declaração é:
+<programlisting>
+EXEC SQL SET CONNECTION <replaceable>nome_da_conexão</replaceable>;
+</programlisting>
+   Esta opção é particularmente apropriada quando são executadas muitas
+   declarações utilizando a mesma conexão, mas não considera os fluxos de
+   execução.
+  </para>
+ </sect1>
+
+ <sect1 id="ecpg-variables">
+  <title>Utilização de variáveis hospedeiras</title>
+
+  <para>
+   Na <xref linkend="ecpg-commands"> foi visto como executar declarações
+   <acronym>SQL</acronym> a partir de um programa com <acronym>SQL</acronym>
+   incorporado. Algumas destas declarações utilizam apenas valores fixos,
+   não possuindo uma maneira de inserir valores fornecidos pelo usuário na
+   declaração, nem os programas processam os valores retornados pelas
+   consultas. Este tipo de declaração, na verdade, não é útil em aplicativos
+   reais. Esta seção explica em detalhe como passar dados entre o programa
+   <acronym>C</acronym> e os comandos <acronym>SQL</acronym> incorporados,
+   utilizando um mecanismo simples chamado
+   <firstterm>variáveis hospedeiras</firstterm>.
+  </para>
+
+  <sect2>
+   <title>Visão geral</title>
+
+   <para>
+    A passagem de dados entre o programa <acronym>C</acronym> e as declarações
+    <acronym>SQL</acronym> é particularmente simples no <acronym>SQL</acronym>
+    incorporado. Em vez do programa colar os dados na declaração, que envolve
+    várias dificuldades, como colocar o valor entre apóstrofos de forma
+    apropriada, pode-se simplesmente escrever o nome da variável
+    <acronym>C</acronym>, prefixada por dois-pontos, na declaração
+    <acronym>SQL</acronym>. Por exemplo:
+<programlisting>
+EXEC SQL INSERT INTO alguma_tabela VALUES (:v1, 'foo', :v2);
+</programlisting>
+    Esta declaração faz referência a duas variáveis <acronym>C</acronym>,
+    chamadas <varname>v1</varname> e <varname>v2</varname>, e também usa um
+    literal cadeia de caracteres <acronym>SQL</acronym> regular, para mostrar
+    que não fica restrito ao uso de um tipo de dado ou outro.
+   </para>
+
+   <para>
+    Esta forma de inserir variáveis <acronym>C</acronym> em declarações
+    <acronym>SQL</acronym> funciona em qualquer lugar onde é esperada uma
+    expressão de valor na declaração <acronym>SQL</acronym>. No ambiente
+    <acronym>SQL</acronym>, as variáveis <acronym>C</acronym> referenciadas
+    são chamadas de <firstterm>variáveis hospedeiras</firstterm>.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Seções de declaração</title>
+
+   <para>
+    Para passar os dados do programa para o banco de dados, por exemplo como
+    parâmetros de uma consulta, ou para passar os dados do banco de dados
+    de volta para o programa <acronym>C</acronym>, as variáveis
+    <acronym>C</acronym> utilizadas para armazenar estes dados precisam ser
+    declaradas em seções marcadas de forma especial, para que o pré-processador
+    de <acronym>SQL</acronym> incorporado tenha conhecimento destas variáveis.
+   </para>
+
+   <para>
+    Estas seções começam por
+<programlisting>
+EXEC SQL BEGIN DECLARE SECTION;
+</programlisting>
+    e terminam por
+<programlisting>
+EXEC SQL END DECLARE SECTION;
+</programlisting>
+    Entre estas duas linhas devem haver declarações normais de variáveis
+    <acronym>C</acronym>, como:
+<programlisting>
+int   x;
+char  foo[16], bar[16];
+</programlisting>
+    Podem existir tantas seções de declaração no programas quantas forem
+    desejadas.
+   </para>
+
+   <para>
+    As declarações também são reproduzidas no arquivo de saída como variáveis
+    <acronym>C</acronym> normais, para que não seja necessário declará-las
+    novamente. As variáveis que não são utilizadas nos comandos
+    <acronym>SQL</acronym> podem ser declaradas normalmente fora destas seções
+    especiais.
+   </para>
+
+   <para>
+    A definição das estruturas e das uniões também devem ser colocadas dentro
+    da seção <literal>DECLARE</>, senão o pré-processador não pode tratar
+    estes tipos, uma vez que não conhece as definições.
+   </para>
+
+   <para>
+    O tipo especial <type>VARCHAR</type> é convertido em uma
+    <type>struct</> com nome para todas as variáveis. Uma declaração como
+<programlisting>
+VARCHAR var[180];
+</programlisting>
+    é convertida em
+<programlisting>
+struct varchar_var { int len; char arr[180]; } var;
+</programlisting>
+    Esta estrutura é adequada para servir de interface para os dados do tipo
+    <type>varchar</type> do <acronym>SQL</acronym>.
+    <footnote>
+     <para>
+      <productname>DB2</productname> &mdash;
+      declaração válida da variável hospedeira <varname>vstring</varname>:
+      <literal>struct VARCHAR { short len; char s[10] } vstring;</literal>
+      <ulink url="http://publib.boulder.ibm.com/iseries/v5r2/ic2924/index.htm?info/rzajp/rzajpmst02.htm">
+      Declaring host variables in C and C++ applications that use SQL</ulink>
+      (N. do T.)
+     </para>
+    </footnote>
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Declarações SELECT INTO e FETCH INTO</title>
+
+   <para>
+    Agora já se sabe como passar dados gerados pelo programa para o comando
+    <acronym>SQL</acronym>, mas como fazer para trazer os resultados da
+    consulta? Para esta finalidade o <acronym>SQL</acronym> incorporado
+    disponibiliza duas variantes dos comandos usuais <command>SELECT</command>
+    e <command>FETCH</command>. Estes comandos possuem uma cláusula especial
+    <literal>INTO</literal>, que especifica em quais variáveis hospedeiras
+    os valores trazidos são armazenados.
+   </para>
+
+   <para>
+    Abaixo segue um exemplo:
+<programlisting>
+/*
+ * assumindo a existência desta tabela:
+ * CREATE TABLE test1 (a int, b varchar(50));
+ */
+
+EXEC SQL BEGIN DECLARE SECTION;
+int v1;
+VARCHAR v2;
+EXEC SQL END DECLARE SECTION;
+
+ ...
+
+EXEC SQL SELECT a, b INTO :v1, :v2 FROM test1;
+</programlisting>
+    Portanto, a cláusula <literal>INTO</> aparece entre a lista de seleção
+    e a cláusula <literal>FROM</literal>. O número de elementos da lista de
+    seleção e da lista após a cláusula <literal>INTO</literal>, também chamada
+    de lista de destino, devem ser iguais.
+   </para>
+
+   <para>
+    Abaixo segue um exemplo mostrando o comando <command>FETCH</command>:
+<programlisting>
+EXEC SQL BEGIN DECLARE SECTION;
+int v1;
+VARCHAR v2;
+EXEC SQL END DECLARE SECTION;
+
+ ...
+
+EXEC SQL DECLARE foo CURSOR FOR SELECT a, b FROM test1;
+
+ ...
+
+do {
+    ...
+    EXEC SQL FETCH NEXT FROM foo INTO :v1, :v2;
+    ...
+} while (...);
+</programlisting>
+    Aqui a cláusula <literal>INTO</literal> aparece após todas as cláusulas
+    normais.
+   </para>
+
+   <para>
+    Este dois métodos só permitem trazer uma linha de cada vez. Se for
+    necessário processar conjunto de resultados contendo potencialmente mais
+    de uma linha, é necessário utilizar um cursor, conforme mostrado no segundo
+    exemplo.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Indicadores</title>
+
+   <para>
+    Os exemplos acima não tratam valores nulos. Na verdade, os exemplos de
+    recuperação vão lançar um erro se trouxerem um valor nulo do banco de dados.
+    Para ser possível passar valores nulos para o banco de dados, ou trazer
+    valores nulos do banco de dados, é necessário anexar uma segunda variável
+    hospedeira na especificação de cada variável hospedeira que contém dado.
+    Esta segunda variável é chamada de <firstterm>indicador</firstterm>, e
+    contém um sinalizador para informar se o dado é nulo. Neste caso o valor da
+    variável hospedeira real é ignorado. Abaixo está mostrado um exemplo que
+    trata a recuperação de valores nulos de forma correta:
+<programlisting>
+EXEC SQL BEGIN DECLARE SECTION;
+int v1, ind1, ind2;
+VARCHAR v2;
+EXEC SQL END DECLARE SECTION;
+
+ ...
+
+EXEC SQL SELECT a, b INTO :v1 :ind1, :v2 :ind2 FROM test1;
+</programlisting>
+    A variável indicadora (<varname>ind1</varname> ou <varname>ind2</varname>)
+    será igual a zero quando o valor da coluna não for nulo, ou será negativa
+    quando o valor da coluna for nulo. Deve ser observado que não há vírgula
+    separando a variável hospedeira da variável indicadora. Não há necessidade
+    de espaço entre a variável hospedeira e a variável indicadora.
+   </para>
+
+   <para>
+    O indicador possui outra função: se o valor do indicador for positivo,
+    significa que o valor não é nulo, mas que foi truncado ao ser armazenado na
+    variável hospedeira.
+    <footnote>
+     <para>
+      <productname>DB2</productname> &mdash;
+      se o valor da coluna de resultado for nulo, o <acronym>SQL</acronym>
+      coloca -1 na variável indicadora; se não for utilizada uma variável
+      indicadora, e a coluna de resultado tiver um valor nulo, retorna um
+      SQLCODE negativo. Se o valor da coluna de resultado causar um erro de
+      mapeamento, o <acronym>SQL</acronym> define a variável indicadora como -2.
+      A variável indicadora também pode ser utilizada para verificar se o valor
+      da cadeia de caracteres foi truncado. Quando há truncamento, a variável
+      indicadora contém um inteiro positivo que especifica o comprimento
+      original da cadeia de caracteres. (N. do T.)
+     </para>
+    </footnote>
+    <footnote>
+     <para>
+      <productname>DB2</productname> &mdash;
+      A variável indicadora vem imediatamente após a variável hospedeira.
+      (N. do T.)
+     </para>
+    </footnote>
+   </para>
+  </sect2>
+ </sect1>
+
+ <sect1 id="ecpg-dynamic">
+  <title>SQL dinâmico</title>
+
+  <para>
+   Em muitos casos, a declaração <acronym>SQL</acronym> a ser utilizada pelo
+   aplicativo já é conhecida na hora em que o aplicativo é escrito. Em alguns
+   casos, entretanto, as declarações <acronym>SQL</acronym> são formadas em
+   tempo de execução, ou fornecidas por uma fonte externa. Nestes casos, a
+   declaração <acronym>SQL</acronym> não pode ser incorporada diretamente ao
+   código fonte <acronym>C</acronym>, mas existe um mecanismo que permite
+   executar declarações <acronym>SQL</acronym> arbitrárias especificadas através
+   de variáveis do tipo cadeia de caractere.
+  </para>
+
+  <para>
+   A forma mais simples de executar uma declaração <acronym>SQL</acronym>
+   arbitrária é utilizando o comando <command>EXECUTE IMMEDIATE</command>.
+   Por exemplo:
+<programlisting>
+EXEC SQL BEGIN DECLARE SECTION;
+const char *declaracao = "CREATE TABLE test1 (...);";
+EXEC SQL END DECLARE SECTION;
+
+EXEC SQL EXECUTE IMMEDIATE :declaracao;
+</programlisting>
+   As declarações que trazem dados (por exemplo, <command>SELECT</command>),
+   não podem ser executadas desta forma.
+  </para>
+
+  <para>
+   Uma forma mais poderosa de executar declarações <acronym>SQL</acronym>
+   arbitrárias é preparar uma vez, e executar a declaração preparada tantas
+   vezes quanto se desejar. Também é possível preparar uma versão generalizada
+   da declaração, e executar versões específicas desta fazendo a substituição
+   de parâmetros. Ao preparar a declaração são colocados pontos de interrogação
+   nos locais a serem substituídos posteriormente por parâmetros. Por exemplo:
+<programlisting>
+EXEC SQL BEGIN DECLARE SECTION;
+const char *declaracao = "INSERT INTO test1 VALUES(?, ?);";
+EXEC SQL END DECLARE SECTION;
+
+EXEC SQL PREPARE minha_declaracao FROM :declaracao;
+ ...
+EXEC SQL EXECUTE minha_declaracao USING 42, 'foobar';
+</programlisting>
+   Quando a declaração utilizada retorna valores é adicionada a cláusula
+   <literal>INTO</literal>:
+<programlisting>
+EXEC SQL BEGIN DECLARE SECTION;
+const char *declaracao = "SELECT a, b, c FROM test1 WHERE a > ?";
+int v1, v2;
+VARCHAR v3;
+EXEC SQL END DECLARE SECTION;
+
+EXEC SQL PREPARE minha_declaracao FROM :declaracao;
+ ...
+EXEC SQL EXECUTE minha_declaracao INTO v1, v2, v3 USING 37;
+</programlisting>
+   O comando <command>EXECUTE</command> pode possuir uma cláusula
+   <literal>INTO</literal>, uma cláusula <literal>USING</literal>,
+   as duas, ou nenhuma delas.
+  </para>
+
+  <para>
+   Quando a declaração preparada não é mais necessária deve-se liberá-la:
+<programlisting>
+EXEC SQL DEALLOCATE PREPARE <replaceable>nome</replaceable>;
+</programlisting>
+  </para>
+ </sect1>
+
+ <sect1 id="ecpg-descriptors">
+  <title>Utilização das áreas descritoras de SQL</title>
+
+  <para>
+   A área descritora de <acronym>SQL</acronym> é um método mais sofisticado
+   para processar os resultados das declarações <command>SELECT</command> e
+   <command>FETCH</command>. A área descritora de <acronym>SQL</acronym> agrupa
+   os dados de uma linha de dados junto com os itens de metadado, em uma
+   estrutura de dados. Os metadados são particularmente úteis ao executar
+   declarações <acronym>SQL</acronym> dinâmicas, quando a natureza das colunas
+   do resultado não podem ser conhecidas a priori.
+  </para>
+
+  <para>
+   Uma área descritora de <acronym>SQL</acronym> consiste em um cabeçalho, que
+   contém informações a respeito de todo o descritor, e uma ou mais áreas
+   descritoras de item, onde cada área basicamente descreve uma coluna da linha
+   de resultado.
+  </para>
+
+  <para>
+   É necessário alocar a área descritora de <acronym>SQL</acronym> para que
+   possa ser utilizada:
+<programlisting>
+EXEC SQL ALLOCATE DESCRIPTOR <replaceable>identificador</replaceable>;
+</programlisting>
+   O identificador serve como o <quote>nome de variável</quote> da área
+   descritora. <remark>The scope of the allocated descriptor is WHAT?.</remark>
+   Quando não há mais necessidade do descritor, este deve ser liberado:
+<programlisting>
+EXEC SQL DEALLOCATE DESCRIPTOR <replaceable>identificador</replaceable>;
+</programlisting>
+  </para>
+
+  <para>
+   Para usar a área descritora deve-se especificá-la como destino do
+   armazenamento na cláusula <literal>INTO</literal>, em vez de especificar as
+   variáveis hospedeiras:
+<programlisting>
+EXEC SQL FETCH NEXT FROM meu_cursor INTO DESCRIPTOR meu_descritor;
+</programlisting>
+  </para>
+
+  <para>
+   Como fazer para extrair os dados da área descritora? Pode-se pensar na área
+   descritora como sendo uma estrutura com campos nomeados. Para extrair o valor
+   de um campo do cabeçalho e armazená-lo em uma variável hospedeira deve ser
+   utilizada a seguinte declaração:
+<programlisting>
+EXEC SQL GET DESCRIPTOR <replaceable>nome</replaceable> :<replaceable>variável_hospedeira</replaceable> = <replaceable>campo</replaceable>;
+</programlisting>
+   Atualmente existe apenas um campo de cabeçalho definido, chamado
+   <replaceable>COUNT</replaceable>, que informa quantas áreas descritoras de
+   item existem (ou seja, quantas colunas o resultado contém). A variável
+   hospedeira precisa ser do tipo inteiro. Para extrair um campo da área
+   descritora de item deve ser utilizada a seguinte declaração:
+<programlisting>
+EXEC SQL GET DESCRIPTOR <replaceable>nome</replaceable> VALUE <replaceable>num</replaceable> :<replaceable>variável_hospedeira</replaceable> = <replaceable>campo</replaceable>;
+</programlisting>
+   onde <replaceable>num</replaceable> pode ser um literal inteiro, ou uma
+   variável hospedeira contendo um inteiro. Os campos possíveis são:
+
+   <variablelist>
+    <varlistentry>
+     <term><literal>CARDINALITY</literal> (integer)</term>
+     <listitem>
+      <para>
+       número de linhas no conjunto de resultados
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>DATA</literal></term>
+     <listitem>
+      <para>
+       item de dado verdadeiro (portanto, o tipo de dado deste campo depende da
+       consulta)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>DATETIME_INTERVAL_CODE</literal> (integer)</term>
+     <listitem>
+      <para>
+       ?
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>DATETIME_INTERVAL_PRECISION</literal> (integer)</term>
+     <listitem>
+      <para>
+       não implementado
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>INDICATOR</literal> (integer)</term>
+     <listitem>
+      <para>
+       o indicador (indica um valor nulo ou o truncamento do valor)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>KEY_MEMBER</literal> (integer)</term>
+     <listitem>
+      <para>
+       não implementado
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>LENGTH</literal> (integer)</term>
+     <listitem>
+      <para>
+       comprimento do dado em caracteres
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>NAME</literal> (string)</term>
+     <listitem>
+      <para>
+       nome da coluna
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>NULLABLE</literal> (integer)</term>
+     <listitem>
+      <para>
+       não implementado
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>OCTET_LENGTH</literal> (integer)</term>
+     <listitem>
+      <para>
+       comprimento da representação do caractere do dado em bytes
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>PRECISION</literal> (integer)</term>
+     <listitem>
+      <para>
+       precisão (para o tipo <type>numeric</type>)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>RETURNED_LENGTH</literal> (integer)</term>
+     <listitem>
+      <para>
+       comprimento do dado em caracteres
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>RETURNED_OCTET_LENGTH</literal> (integer)</term>
+     <listitem>
+      <para>
+       comprimento da representação do caractere do dado em bytes
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>SCALE</literal> (integer)</term>
+     <listitem>
+      <para>
+       escala (para o tipo <type>numeric</type>)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>TYPE</literal> (integer)</term>
+     <listitem>
+      <para>
+       código numérico do tipo de dado da coluna
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+  </para>
+ </sect1>
+
+ <sect1 id="ecpg-errors">
+  <title>Tratamento de erro</title>
+
+  <para>
+   Esta seção descreve como tratar condições excepcionais e advertências em
+   programas com <acronym>SQL</acronym> incorporado. Existem várias maneiras
+   não exclusivas para isto.
+  </para>
+
+  <sect2>
+   <title>Definição de chamada</title>
+
+   <para>
+    Um método simples para capturar os erros e advertências é definir uma ação
+    específica a ser executada sempre que uma determinada condição ocorrer.
+    Em geral:
+<programlisting>
+EXEC SQL WHENEVER <replaceable>condição</replaceable> <replaceable>ação</replaceable>;
+</programlisting>
+   </para>
+
+   <para>
+    a <replaceable>condição</replaceable> pode ser uma das seguintes:
+
+    <variablelist>
+     <varlistentry>
+      <term><literal>SQLERROR</literal></term>
+      <listitem>
+       <para>
+        A ação especificada é chamada sempre que ocorre um erro durante a
+        execução da declaração <acronym>SQL</acronym>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>SQLWARNING</literal></term>
+      <listitem>
+       <para>
+        A ação especificada é chamada sempre que ocorre uma advertência durante
+        a execução da declaração <acronym>SQL</acronym>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>NOT FOUND</literal></term>
+      <listitem>
+       <para>
+        A ação especificada é chamada sempre que a declaração <acronym>SQL</>
+        traz ou afeta zero linhas (Esta condição não é um erro, mas pode-se
+        estar interessado em tratá-la de forma especial).
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+
+   <para>
+    a <replaceable>ação</replaceable> pode ser uma das seguintes:
+
+    <variablelist>
+     <varlistentry>
+      <term><literal>CONTINUE</literal></term>
+      <listitem>
+       <para>
+        Significa efetivamente que a condição é ignorada. É o padrão.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>GOTO <replaceable>rótulo</replaceable></literal></term>
+      <term><literal>GO TO <replaceable>rótulo</replaceable></literal></term>
+      <listitem>
+       <para>
+        Desvia para o rótulo especificado (utilizando a declaração
+        <literal>goto</literal> da linguagem <acronym>C</acronym>).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>SQLPRINT</literal></term>
+      <listitem>
+       <para>
+        Envia uma mensagem para a saída de erro padrão. É útil em programas
+        simples ou durante a prototipação. Não é possível configurar os detalhes
+        da mensagem.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>STOP</literal></term>
+      <listitem>
+       <para>
+        Chama <literal>exit(1)</literal>, que termina o programa.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>BREAK</literal></term>
+      <listitem>
+       <para>
+        Executa a declaração <literal>break</literal> da linguagem
+        <acronym>C</acronym>. Deve ser utilizada apenas em laços ou nas
+        declarações <literal>switch</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>CALL <replaceable>nome</replaceable> (<replaceable>args</replaceable>)</literal></term>
+      <term><literal>DO <replaceable>nome</replaceable> (<replaceable>args</replaceable>)</literal></term>
+      <listitem>
+       <para>
+        Chama a função <acronym>C</acronym> com os argumentos especificados.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+
+    O padrão <acronym>SQL</acronym> especifica apenas as ações
+    <literal>CONTINUE</literal> e <literal>GOTO</literal> (e
+    <literal>GO TO</literal>).
+   </para>
+
+   <para>
+    Abaixo está mostrado um exemplo do que pode-se desejar utilizar em um
+    programa simples. Estas declarações fazem com que seja impressa uma
+    mensagem quando ocorre uma advertência, e interrompe o programa quando
+    acontece um erro.
+<programlisting>
+EXEC SQL WHENEVER SQLWARNING SQLPRINT;
+EXEC SQL WHENEVER SQLERROR STOP;
+</programlisting>
+   </para>
+
+   <para>
+    A declaração <literal>EXEC SQL WHENEVER</literal> é uma diretiva para o
+    pré-processador de <acronym>SQL</acronym>, e não uma declaração
+    <acronym>C</acronym>. As ações de erro ou de advertência definidas são
+    aplicadas a todas as declarações <acronym>SQL</acronym> incorporadas que
+    aparecem abaixo do ponto onde o tratador é definido, a menos que seja
+    definida uma ação diferente para a mesma condição entre a primeira
+    declaração <literal>EXEC SQL WHENEVER</literal> e a declaração
+    <acronym>SQL</acronym> causadora da condição, a despeito do fluxo de
+    controle no programa <acronym>C</acronym>. Portanto, nenhum dos trechos
+    de programa <acronym>C</acronym> abaixo produz o efeito desejado.
+<programlisting>
+/*
+ * ERRADO
+ */
+int main(int argc, char *argv[])
+{
+    ...
+    if (verbose) {
+        EXEC SQL WHENEVER SQLWARNING SQLPRINT;
+    }
+    ...
+    EXEC SQL SELECT ...;
+    ...
+}
+</programlisting>
+
+<programlisting>
+/*
+ * ERRADO
+ */
+int main(int argc, char *argv[])
+{
+    ...
+    set_error_handler();
+    ...
+    EXEC SQL SELECT ...;
+    ...
+}
+
+static void set_error_handler(void)
+{
+    EXEC SQL WHENEVER SQLERROR STOP;
+}
+</programlisting>
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>sqlca</title>
+
+   <para>
+    Para permitir um tratamento de erro mais poderoso, a interface de
+    <acronym>SQL</acronym> incorporado disponibiliza uma variável global com o
+    nome de <varname>sqlca</varname> que possui a seguinte estrutura:
+<programlisting>
+struct
+{
+    char sqlcaid[8];
+    long sqlabc;
+    long sqlcode;
+    struct
+    {
+        int sqlerrml;
+        char sqlerrmc[70];
+    } sqlerrm;
+    char sqlerrp[8];
+    long sqlerrd[6];
+    char sqlwarn[8];
+    char sqlstate[5];
+} sqlca;
+</programlisting>
+    Em programas com vários fluxos de execução (<literal>multithreaded</>),
+    cada fluxo de execução obtém automaticamente sua própria cópia da variável
+    <varname>sqlca</varname>. Funciona de forma semelhante à variável
+    <acronym>C</acronym> global <varname>errno</varname>.
+   </para>
+
+   <para>
+    A variável <varname>sqlca</varname> cobre tanto advertências quanto erros.
+    Se ocorrerem vários erros ou advertências durante a execução de uma
+    declaração, então a <varname>sqlca</varname> somente vai conter informações
+    sobre a última ocorrência.
+   </para>
+
+   <para>
+    Se não ocorrer nenhum erro na última declaração <acronym>SQL</acronym>
+    executada, então <literal>sqlca.sqlcode</literal> será 0 e
+    <literal>sqlca.sqlstate</literal> será <literal>"00000"</literal>.
+    Se ocorrer um erro ou advertência, então <literal>sqlca.sqlcode</literal>
+    terá um valor negativo e <literal>sqlca.sqlstate</literal> será diferente de
+    <literal>"00000"</literal>. Um valor positivo em
+    <literal>sqlca.sqlcode</literal> indica uma condição inofensiva, como a
+    última consulta ter retornado zero linhas.
+    <literal>sqlcode</literal> e <literal>sqlstate</literal> possuem dois
+    esquemas de código de erro diferentes; os detalhes são mostrados abaixo.
+   </para>
+
+   <para>
+    Se a última declaração <acronym>SQL</acronym> for bem sucedida, então
+    <literal>sqlca.sqlerrd[1]</literal> conterá o OID da linha processada,
+    quando aplicável, e <literal>sqlca.sqlerrd[2]</literal> conterá o número de
+    linhas processadas ou retornadas, se aplicável ao comando.
+   </para>
+
+   <para>
+    Em caso de erro ou de advertência, <literal>sqlca.sqlerrm.sqlerrmc</literal>
+    contém uma cadeia de caracteres que descreve o erro. O campo
+    <literal>sqlca.sqlerrm.sqlerrml</literal> contém o comprimento da mensagem
+    de erro armazenada em <literal>sqlca.sqlerrm.sqlerrmc</literal>
+    (o resultado de <function>strlen()</function>, sem interesse real para um
+    programador <acronym>C</acronym>). Deve ser observado que algumas mensagens
+    são muito longas para caber em uma matriz <literal>sqlerrmc</literal> de
+    tamanho fixo, sendo truncadas.
+   </para>
+
+   <para>
+    Em caso de advertência <literal>sqlca.sqlwarn[2]</literal> é definida como
+    <literal>W</literal> (Em todos os outros casos é definida com um valor
+    diferente de <literal>W</literal>). Se <literal>sqlca.sqlwarn[1]</literal>
+    for definida como <literal>W</literal>, então o valor foi truncado quando
+    foi armazenado na variável hospedeira. <literal>sqlca.sqlwarn[0]</literal>
+    é definida como <literal>W</literal> quando algum dos outros elementos é
+    definido para indicar uma advertência.
+   </para>
+
+   <para>
+    Atualmente os campos <structfield>sqlcaid</structfield>,
+    <structfield>sqlcabc</structfield>,
+    <structfield>sqlerrp</structfield>, e o restante dos elementos de
+    <structfield>sqlerrd</structfield> e de
+    <structfield>sqlwarn</structfield>, não contêm informações úteis.
+   </para>
+
+   <para>
+    A estrutura <varname>sqlca</varname> não é definida no padrão
+    <acronym>SQL</acronym>, mas é implementada em vários outros sistemas
+    gerenciadores de banco de dados <acronym>SQL</acronym>. As definições são
+    semelhantes no núcleo, mas se for desejado escrever aplicativos portáveis
+    então deve-se investigar as diferentes implementações cuidadosamente.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>SQLSTATE versus SQLCODE</title>
+
+   <para>
+    Os campos <literal>sqlca.sqlstate</literal> e <literal>sqlca.sqlcode</> são
+    dois esquemas diferentes de código de erro. Ambos são especificados pelo
+    padrão <acronym>SQL</acronym>, mas <literal>SQLCODE</literal> foi marcado em
+    obsolescência (<literal>deprecated</literal>) na edição do padrão de 1992,
+    e removido na edição de 1999. Portanto, encoraja-se fortemente que os novos
+    aplicativos utilizem <literal>SQLSTATE</literal>.
+   </para>
+
+   <para>
+    <literal>SQLSTATE</literal> é uma matriz de cinco caracteres. Os cinco
+    caracteres contêm dígitos ou letras maiúsculas que representam códigos de
+    vários erros e de condições de advertência.
+    <literal>SQLSTATE</literal> possui um esquema hierárquico: os dois primeiros
+    caracteres indicam a classe geral da condição, e os três últimos caracteres
+    indicam a subclasse da condição geral. O status de bem-sucedido é indicado
+    pelo código <literal>00000</literal>. A maior parte dos códigos de
+    <literal>SQLSTATE</literal> são definidos pelo padrão <acronym>SQL</>.
+    O servidor <productname>PostgreSQL</productname> suporta nativamente os
+    códigos de erro <literal>SQLSTATE</literal>; portanto, pode ser obtido um
+    alto grau de consistência utilizando este esquema de código de erro através
+    de todos os aplicativos. Para obter informações adicionais deve ser
+    consultado o <xref linkend="errcodes-appendix">.
+   </para>
+
+   <para>
+    O esquema de código de erro obsoleto <literal>SQLCODE</literal> é um
+    inteiro simples. O valor 0 indica bem-sucedido, um valor positivo indica
+    bem-sucedido com informação adicional, e um valor negativo indica um erro.
+    O padrão <acronym>SQL</acronym> define apenas o valor positivo +100,
+    indicando que o último comando retornou ou afetou zero linhas, e não
+    especifica nenhum valor negativo. Portanto, este esquema pode obter apenas
+    uma portabilidade pobre, e não possui uma atribuição de código hierárquica.
+    Historicamente, o pré-processador de <acronym>SQL</acronym> incorporado do
+    <productname>PostgreSQL</productname> tem atribuído alguns valores
+    específicos de <literal>SQLCODE</literal> para seu uso, os quais estão
+    listados abaixo junto com seus valores numéricos e nomes simbólicos.
+    Deve ser lembrado que estes valores não são portáveis para outras
+    implementações do padrão <acronym>SQL</acronym>.
+    Para simplificar a migração dos aplicativos para o esquema
+    <literal>SQLSTATE</literal>, também é mostrado o <literal>SQLSTATE</literal>
+    correspondente.
+    Entretanto, não existe nenhum mapeamento um-para-um ou um-para-muitos entre
+    estes dois esquemas (na verdade, é muitos-para-muitos), portanto deve ser
+    consultada a lista de <literal>SQLSTATE</literal> global no
+    <xref linkend="errcodes-appendix"> para cada caso.
+   </para>
+
+   <para>
+    Abaixo estão mostrados os valores de <literal>SQLCODE</literal> atribuídos:
+
+    <variablelist>
+     <varlistentry>
+      <term>-12 (<symbol>ECPG_OUT_OF_MEMORY</symbol>)</term>
+      <listitem>
+       <para>
+        Indica que a memória virtual encontra-se exaurida. (SQLSTATE
+        YE001)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-200 (<symbol>ECPG_UNSUPPORTED</symbol>)</term>
+     <listitem>
+      <para>
+       Indica que o pré-processador gerou algo que a biblioteca não tem
+       conhecimento. Talvez esteja sendo usada uma versão do
+       pré-processador incompatível com a da biblioteca. (SQLSTATE YE002)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-201 (<symbol>ECPG_TOO_MANY_ARGUMENTS</symbol>)</term>
+     <listitem>
+      <para>
+       Significa que o comando especificou mais variáveis hospedeiras do que
+       o comando espera. (SQLSTATE 07001 ou 07002)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-202 (<symbol>ECPG_TOO_FEW_ARGUMENTS</symbol>)</term>
+     <listitem>
+      <para>
+       Significa que o comando especificou menos variáveis hospedeiras do que
+       o comando espera. (SQLSTATE 07001 ou 07002)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-203 (<symbol>ECPG_TOO_MANY_MATCHES</symbol>)</term>
+     <listitem>
+      <para>
+       Significa que a consulta retornou várias linhas, mas a declaração
+       somente está preparada para armazenar uma linha de resultado
+       (por exemplo, porque as variáveis especificadas não são matrizes).
+       (SQLSTATE 21000)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-204 (<symbol>ECPG_INT_FORMAT</symbol>)</term>
+     <listitem>
+      <para>
+       A variável hospedeira é do tipo <type>int</type>, e o dado no banco de
+       dados é de um tipo diferente e contém um valor que não pode ser
+       interpretado como um <type>int</type>. A biblioteca utiliza
+       <function>strtol()</function> para esta conversão. (SQLSTATE 42804)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-205 (<symbol>ECPG_UINT_FORMAT</symbol>)</term>
+     <listitem>
+      <para>
+       A variável hospedeira é do tipo <type>unsigned int</type> e o dado no
+       banco de dados é de um tipo diferente e contém um valor que não pode ser
+       interpretado como um <type>unsigned int</type>. A biblioteca utiliza
+       <function>strtoul()</function> para esta conversão. (SQLSTATE 42804)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-206 (<symbol>ECPG_FLOAT_FORMAT</symbol>)</term>
+     <listitem>
+      <para>
+       A variável hospedeira é do tipo <type>float</type> e o dado no banco de
+       dados é de um tipo diferente e contém um valor que não pode ser
+       interpretado como um <type>float</type>. A biblioteca utiliza
+       <function>strtod()</function> para esta conversão. (SQLSTATE 42804)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-207 (<symbol>ECPG_CONVERT_BOOL</symbol>)</term>
+     <listitem>
+      <para>
+       Significa que a variável hospedeira é do tipo <type>bool</type> e o
+       dado no banco de dados não é nem <literal>'t'</> nem <literal>'f'</>.
+       (SQLSTATE 42804)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-208 (<symbol>ECPG_EMPTY</symbol>)</term>
+     <listitem>
+      <para>
+       A declaração enviada para o servidor <productname>PostgreSQL</> estava
+       vazia (Normalmente isto não pode acontecer em um programa com
+       <acronym>SQL</acronym> incorporado, portanto pode indicar um erro
+       interno). (SQLSTATE YE002)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-209 (<symbol>ECPG_MISSING_INDICATOR</symbol>)</term>
+     <listitem>
+      <para>
+       Foi retornado um valor nulo e não foi especificada uma variável
+       indicadora. (SQLSTATE 22002)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-210 (<symbol>ECPG_NO_ARRAY</symbol>)</term>
+     <listitem>
+      <para>
+       Foi utilizada uma variável comum em um local que requer uma matriz.
+       (SQLSTATE 42804)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-211 (<symbol>ECPG_DATA_NOT_ARRAY</symbol>)</term>
+     <listitem>
+      <para>
+       O banco de dados retornou uma variável comum em um local que requer
+       um valor matricial. (SQLSTATE 42804)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-220 (<symbol>ECPG_NO_CONN</symbol>)</term>
+     <listitem>
+      <para>
+       O programa tentou acessar uma conexão que não existe.
+       (SQLSTATE 08003)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-221 (<symbol>ECPG_NOT_CONN</symbol>)</term>
+     <listitem>
+      <para>
+       O programa tentou acessar uma conexão que existe, mas que não está
+       aberta (Isto é um erro interno).  (SQLSTATE YE002)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-230 (<symbol>ECPG_INVALID_STMT</symbol>)</term>
+     <listitem>
+      <para>
+       A declaração que está se tentando utilizar não foi preparada.
+       (SQLSTATE 26000)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-240 (<symbol>ECPG_UNKNOWN_DESCRIPTOR</symbol>)</term>
+     <listitem>
+      <para>
+       Não foi encontrado o descritor especificado. A declaração que está se
+       tentando utilizar não foi preparada. (SQLSTATE 33000)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-241 (<symbol>ECPG_INVALID_DESCRIPTOR_INDEX</symbol>)</term>
+     <listitem>
+      <para>
+       O índice descritor especificado está fora do intervalo. (SQLSTATE 07009)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-242 (<symbol>ECPG_UNKNOWN_DESCRIPTOR_ITEM</symbol>)</term>
+     <listitem>
+      <para>
+       Foi requisitado um item descritor inválido (Este é um erro interno).
+       (SQLSTATE YE002)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-243 (<symbol>ECPG_VAR_NOT_NUMERIC</symbol>)</term>
+     <listitem>
+      <para>
+       Durante a execução da declaração dinâmica o banco de dados retornou
+       um valor numérico e a variável hospedeira não é numérica.
+       (SQLSTATE 07006)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-244 (<symbol>ECPG_VAR_NOT_CHAR</symbol>)</term>
+     <listitem>
+      <para>
+       Durante a execução da declaração dinâmica o banco de dados retornou
+       um valor não numérico e a variável hospedeira é numérica.
+       (SQLSTATE 07006)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-400 (<symbol>ECPG_PGSQL</symbol>)</term>
+     <listitem>
+      <para>
+       Algum erro causado pelo servidor <productname>PostgreSQL</productname>.
+       A mensagem contém a mensagem de erro do servidor
+       <productname>PostgreSQL</productname>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-401 (<symbol>ECPG_TRANS</symbol>)</term>
+     <listitem>
+      <para>
+       O servidor <productname>PostgreSQL</productname> sinalizou que não pode
+       iniciar, efetivar ou desfazer a transação. (SQLSTATE 08007)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>-402 (<symbol>ECPG_CONNECT</symbol>)</term>
+     <listitem>
+      <para>
+       A tentativa de conexão com o banco de dados não foi bem-sucedida.
+       (SQLSTATE 08001)
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>100 (<symbol>ECPG_NOT_FOUND</symbol>)</term>
+     <listitem>
+      <para>
+       É uma condição inofensiva, indicando que o último comando trouxe ou
+       processou zero linhas, ou que se chegou ao fim do cursor.
+       (SQLSTATE 02000)
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+  </para>
+  </sect2>
+ </sect1>
+
+ <sect1 id="ecpg-include">
+  <title>Inclusão de arquivos</title>
+
+  <para>
+   Para inclui u arquivo externo no programa com <acronym>SQL</acronym>
+   incorporado deve ser utilizada a declaração:
+<programlisting>
+EXEC SQL INCLUDE <replaceable>nome_do_arquivo</replaceable>;
+</programlisting>
+   O pré-processador de <acronym>SQL</acronym> incorporado procura pelo arquivo
+   chamado <literal><replaceable>nome_do_arquivo</replaceable>.h</literal>,
+   pré-processa este arquivo, e o inclui na saída <acronym>C</acronym>
+   produzida. Portanto, as declarações <acronym>SQL</acronym> presentes no
+   arquivo incluído são tratadas de forma correta.
+  </para>
+
+  <para>
+   Deve ser observado que isto <emphasis>não</emphasis> é o mesmo que
+<programlisting>
+#include &lt;<replaceable>nome_do_arquivo</replaceable>.h&gt;
+</programlisting>
+   porque este arquivo não estará sujeito ao pré-processamento de comandos
+   <acronym>SQL</acronym>. Como é natural, pode-se continuar utilizando a
+   diretiva <literal>#include</literal> da linguagem <acronym>C</acronym> para
+   incluir outros arquivos de cabeçalho.
+  </para>
+
+  <note>
+   <para>
+    É feita diferenciação entre letras maiúsculas e minúsculas no nome do
+    arquivo, embora o restante do comando <literal>EXEC SQL INCLUDE</literal>
+    obedeça as regras de maiúsculas e minúsculas do <acronym>SQL</acronym>.
+   </para>
+  </note>
+ </sect1>
+
+ <sect1 id="ecpg-process">
+  <title>Processamento dos programas com SQL incorporado</title>
+
+  <para>
+   Agora que já se tem uma idéia de como se escreve programas <acronym>C</>
+   com <acronym>SQL</acronym> incorporado, deseja-se saber como fazer para
+   compilar estes programas. Antes de ser compilado, o programa é submetido ao
+   pré-processador <acronym>C</acronym> de <acronym>SQL</acronym> incorporado,
+   que converte as declarações <acronym>SQL</acronym> utilizadas em chamadas a
+   funções especiais. Após a compilação, deve ser feita a ligação com uma
+   biblioteca especial que contém as funções necessárias. Estas funções pegam
+   informações dos argumentos, executam o comando <acronym>SQL</acronym>
+   utilizando a interface <application>libpq</application>, e colocam o
+   resultado nos argumentos especificados para saída.
+  </para>
+
+  <para>
+   O programa pré-processador chama-se <filename>ecpg</filename>, estando
+   incluído na instalação normal do <productname>PostgreSQL</productname>.
+   Os programas com <acronym>SQL</acronym> incorporado recebem tipicamente a
+   extensão <filename>.pgc</filename>. Se houver um arquivo de programa chamado
+   <filename>prog1.pgc</filename> este pode ser pré-processado chamando
+   simplesmente:
+<programlisting>
+ecpg prog1.pgc
+</programlisting>
+   Este comando cria um arquivo chamado <filename>prog1.c</filename>.
+   Se os arquivos de entrada não seguirem o padrão de nomes sugerido, o nome
+   do arquivo de saída pode ser especificado explicitamente utilizando a opção
+   <option>-o</option>.
+  </para>
+
+  <para>
+   O arquivo pré-processado pode ser compilado normalmente. Por exemplo:
+<programlisting>
+cc -c prog1.c
+</programlisting>
+   Os arquivos fontes <acronym>C</acronym> incluem arquivos de cabeçalho da
+   instalação do <productname>PostgreSQL</>. Portanto, se o
+   <productname>PostgreSQL</> estiver instalado em um local que não é procurado
+   por padrão, é necessário adicionar opções como
+   <literal>-I/usr/local/pgsql/include</literal> à linha de comando de
+   compilação.
+  </para>
+
+  <para>
+   Para ligar o programa com <acronym>SQL</acronym> incorporado é necessário
+   incluir a biblioteca <filename>libecpg</filename>, como:
+<programlisting>
+cc -o myprog prog1.o prog2.o ... -lecpg
+</programlisting>
+   Novamente, pode ser necessário adicionar uma opção do tipo
+   <literal>-L/usr/local/pgsql/lib</literal> à linha de comando.
+  </para>
+
+  <para>
+   Se o processo de construção de um projeto grande for gerenciado pelo
+   <application>make</application>, pode ser conveniente incluir as seguintes
+   regras implícitas nos arquivos de construção:
+<programlisting>
+ECPG = ecpg
+
+%.c: %.pgc
+        $(ECPG) $<
+</programlisting>
+  </para>
+
+  <para>
+   A sintaxe completa do comando <command>ecpg</command> está descrita na
+   <xref linkend="app-ecpg">.
+  </para>
+
+  <para>
+   A biblioteca <application>ecpg</application> é segura quanto a
+   <literal>thread</literal> se for construída utilizando a opção de linha de
+   comando <option>--enable-thread-safety</> no <filename>configure</filename>
+   (Pode ser necessário utilizar outras opções de linha de comando para
+   <literal>thread</literal> para compilar o código cliente).
+  </para>
+ </sect1>
+
+ <sect1 id="ecpg-library">
+  <title>Funções da biblioteca</title>
+
+  <para>
+   A biblioteca <filename>libecpg</filename> contém principalmente funções
+   <quote>escondidas</quote>, utilizadas para implementar as funcionalidades
+   expressas pelos comandos <acronym>SQL</acronym> incorporados. Mas existem
+   algumas funções úteis que podem ser chamadas diretamente. Deve ser observado
+   que isto torna o código não portável.
+  </para>
+
+  <itemizedlist>
+   <listitem>
+    <para>
+     <function>ECPGdebug(int <replaceable>on</replaceable>, FILE
+     *<replaceable>stream</replaceable>)</function> ativa o registro de
+     depuração se for chamada com o primeiro argumento diferente de zero.
+     O registro de depuração é feito em <replaceable>stream</replaceable>.
+     O registro contém todas as declarações SQL junto com todas as variáveis
+     de entrada inseridas, e o resultado do servidor <productname>PostgreSQL</>.
+     Pode ser muito útil ao se procurar por erros nas declarações
+     <acronym>SQL</acronym>.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     <function>ECPGstatus(int <replaceable>número_da_linha</replaceable>,
+     const char* <replaceable>nome_da_conexão</replaceable>)</function>
+     retorna verdade se estiver conectado ao banco de dados e falso se não
+     estiver. O <replaceable>nome_da_conexão</replaceable> pode ser igual a
+     <literal>NULL</> se estiver sendo utilizada uma única conexão.
+    </para>
+   </listitem>
+  </itemizedlist>
+ </sect1>
+
+ <sect1 id="ecpg-develop">
+  <title>Internamente</title>
+
+  <para>
+   Esta seção explica como o <application>ECPG</application> trabalha
+   internamente. Às vezes estas informações podem ser úteis para ajudar
+   os usuários a entender como se usa o <application>ECPG</application>.
+  </para>
+
+   <para>
+    As quatro primeiras linhas escritas pelo <command>ecpg</command> na saída
+    são linhas fixas. Duas delas são comentários e duas são linhas de inclusão
+    necessárias para interface com a biblioteca. Depois o pré-processador lê o
+    arquivo e escreve a saída. Normalmente, simplesmente reproduz o que foi lido
+    na saída.
+   </para>
+
+   <para>
+    Quando encontra uma declaração <command>EXEC SQL</command> faz uma
+    intervenção e muda a declaração. O comando começa por <command>EXEC
+    SQL</command> e termina por <command>;</command>. Tudo entre estas duas
+    partes é tratado como sendo uma declaração <acronym>SQL</acronym>, e
+    analisada para substituição de variável.
+   </para>
+
+   <para>
+    A substituição de variável ocorre quando o símbolo começa por dois-pontos
+    (<literal>:</literal>). A variável com este nome é procurada entre as
+    variáveis que foram previamente declaradas na seção
+    <literal>EXEC SQL DECLARE</>.
+   </para>
+
+   <para>
+    A função mais importante da biblioteca é <function>ECPGdo</function>, que
+    toma conta da execução da maioria dos comandos. Recebe um número variável
+    de argumentos. Pode chegar facilmente a 50 argumentos, e se espera que isto
+    não seja um problema em nenhuma plataforma.
+   </para>
+
+   <para>
+    Os argumentos são:
+
+    <variablelist>
+     <varlistentry>
+      <term>Um número de linha</term>
+      <listitem>
+       <para>
+        Este é o número de linha da linha original; utilizada apenas nas
+        mensagens de erro.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Uma cadeia de caracteres</term>
+      <listitem>
+       <para>
+        Este é o comando <acronym>SQL</acronym> a ser executado.
+        É modificado pelas variáveis de entrada, ou seja, as variáveis que não
+        eram conhecidas na hora da compilação, mas que devem ser introduzidas no
+        comando. As posições onde as variáveis devem ser colocadas contêm
+        <literal>?</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Variáveis de entrada</term>
+      <listitem>
+       <para>
+        Cada variável de entrada causa a criação de 10 argumentos (veja abaixo).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><parameter>ECPGt_EOIT</></term>
+      <listitem>
+       <para>
+        Um <type>enum</> informando que não há mais variáveis de entrada.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Variáveis de saída</term>
+      <listitem>
+       <para>
+        Cada variável de saída causa a criação de 10 argumento (veja abaixo).
+        Estas variáveis são preenchidas pela função.
+       </para>
+      </listitem>
+     </varlistentry>
+
+      <varlistentry>
+       <term><parameter>ECPGt_EORT</></term>
+       <listitem>
+       <para>
+        Um <type>enum</> informando que não há mais variáveis.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+
+   <para>
+    Para cada variável que faz parte do comando <acronym>SQL</acronym>
+    a função recebe 10 argumentos:
+
+    <orderedlist>
+     <listitem>
+      <para>
+       O tipo, como um símbolo especial.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Um ponteiro para o valor, ou um ponteiro para um ponteiro.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       O tamanho da variável, se for do tipo <type>char</type> ou
+       <type>varchar</type>.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       O número de elementos da matriz (para trazer matrizes).
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       O deslocamento do próximo elemento da matriz (para trazer matrizes).
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       O tipo da variável indicadora, como um símbolo especial.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Um ponteiro para a variável indicadora.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       0
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       O número de elementos na matriz de indicadores (para trazer matrizes).
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       O deslocamento do próximo elemento na matriz de indicadores
+       (para trazer matrizes).
+      </para>
+     </listitem>
+    </orderedlist>
+   </para>
+
+   <para>
+    Deve ser observado que nem todos os comandos <acronym>SQL</acronym> são
+    tratados desta maneira. Por exemplo, uma declaração de abrir cursor como
+<programlisting>
+EXEC SQL OPEN <replaceable>cursor</replaceable>;
+</programlisting>
+    não é copiada para a saída. Em vez disso, o comando <command>DECLARE</>
+    do cursor é utilizado na posição do comando <command>OPEN</>, porque este
+    realmente abre o cursor.
+   </para>
+
+   <para>
+    Abaixo está mostrado um exemplo completo que descreve a saída do
+    pré-processador para o arquivo <filename>foo.pgc</filename> (podem haver
+    detalhes diferentes entre versões diferentes do pré-processador):
+<programlisting>
+EXEC SQL BEGIN DECLARE SECTION;
+int index;
+int result;
+EXEC SQL END DECLARE SECTION;
+...
+EXEC SQL SELECT res INTO :result FROM mytable WHERE index = :index;
+</programlisting>
+    é traduzido em:
+<programlisting>
+/* Processed by ecpg (2.6.0) */
+/* These two include files are added by the preprocessor */
+#include &lt;ecpgtype.h&gt;;
+#include &lt;ecpglib.h&gt;;
+
+/* exec sql begin declare section */
+
+#line 1 "foo.pgc"
+
+ int index;
+ int result;
+/* exec sql end declare section */
+...
+ECPGdo(__LINE__, NULL, "SELECT res FROM mytable WHERE index = ?     ",
+        ECPGt_int,&amp;(index),1L,1L,sizeof(int),
+        ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, ECPGt_EOIT,
+        ECPGt_int,&amp;(result),1L,1L,sizeof(int),
+        ECPGt_NO_INDICATOR, NULL , 0L, 0L, 0L, ECPGt_EORT);
+#line 147 "foo.pgc"
+</programlisting>
+    (Neste caso foram adicionados recuos para ficar mais fácil de ler,
+    mas não é algo que o pré-processador faça)
+   </para>
+ </sect1>
+
+ <sect1 id="ecpg-examples">
+
+  <sect1info>
+   <author>
+    <firstname>Halley</firstname>
+    <surname>Pacheco de Oliveira</surname>
+    <affiliation>
+     <orgname>Câmara Municipal do Rio de Janeiro</orgname>
+     <orgdiv>Assessoria de Informática</orgdiv>
+     <address>
+      <city>Rio de Janeiro</city>
+      <country>Brasil</country>
+     </address>
+    </affiliation>
+   </author>
+   <date>2005-08-21</date>
+  </sect1info>
+
+  <title>Exemplos</title>
+
+  <note>
+   <para>
+    Seção escrita pelo tradutor, não fazendo parte do manual original.
+   </para>
+  </note>
+
+  <para>
+   Esta seção contém exemplos de programas com <acronym>SQL</acronym>
+   incorporado à linguagem <acronym>C</acronym>.
+   Para ser possível pré-compilar, compilar, gerar o executável e executar estes
+   programas, foi feita a construção da árvore de fontes sob o diretório raiz do
+   usuário (<filename>~</filename>), conforme mostrado abaixo.
+   O arquivo de fontes <filename>postgresql-8.0.0.tar.gz</filename> foi baixado
+   no diretório <filename>/download</filename>.
+   Deve ser notado que não foi feita a instalação, somente foi feita a
+   construção.
+  </para>
+
+<programlisting>
+cd ~
+tar xzvf /download/postgresql-8.0.0.tar.gz
+cd postgresql-8.0.0/
+./configure
+make
+<computeroutput>
+All of PostgreSQL successfully made. Ready to install.
+</computeroutput>
+</programlisting>
+
+  <example id="ecpg-example-pessoal">
+   <title>Ler e mostrar o conteúdo de uma tabela</title>
+
+   <para>
+    Este exemplo mostra a utilização de comandos SQL incorporados ao fonte do
+    programa C. O programa estabelece uma conexão com o servidor de banco de
+    dados por meio de soquete do domínio Unix, acessa o banco de dados
+    <quote>teste</quote> através do usuário cujo nome é <quote>teste</quote> e
+    cuja senha também é <quote>teste</quote>. Depois lista as linhas da tabela
+    criada pelo script mostrado abaixo:
+   </para>
+
+<programlisting>
+CREATE TABLE pessoal (id SERIAL PRIMARY KEY, nome VARCHAR(50));
+INSERT INTO pessoal (nome) VALUES ('Maria');
+INSERT INTO pessoal (nome) VALUES ('Manuel');
+INSERT INTO pessoal (nome) VALUES ('Francisco');
+</programlisting>
+
+   <para>
+    Abaixo está mostrado o código fonte do programa <filename>pessoal.pgc</>.
+   </para>
+
+<programlisting>
+/*
+ * Programa para mostrar a utilização do SQL estático incorporado.
+ * Baseado em:
+ *     The art of metaprogramming, Part 1: Introduction to metaprogramming
+ *     http://www-128.ibm.com/developerworks/linux/library/l-metaprog1.html
+ */
+
+#include &lt;stdio.h&gt;
+
+/*
+ * Rotina para tratamento de erro
+ */
+
+static void erro() {
+   printf(&quot;#%ld:%s\n&quot;,sqlca.sqlcode,sqlca.sqlerrm.sqlerrmc);
+   exit(1);
+}
+
+/*
+ * Rotina para tratamento de advertência
+ */
+
+static void advertencia() {
+   printf(&quot;#%ld:%s\n&quot;,sqlca.sqlcode,sqlca.sqlerrm.sqlerrmc);
+}
+
+int main()
+{
+
+   /*
+    * Tratar os erros e advertências de forma apropriada
+    */
+
+   EXEC SQL WHENEVER SQLWARNING DO advertencia();   /* sqlca.sqlwarn[0] == 'W' */
+   EXEC SQL WHENEVER SQLERROR DO erro();            /* sqlca.sqlcode &lt; 0 */
+
+   /*
+    * Estabelecer a conexão com o servidor de banco de dados.
+    * Usar o nome, senha e banco de dados apropriados.
+    */
+
+   EXEC SQL CONNECT TO unix:postgresql://localhost/teste USER teste/teste;
+
+   /*
+    * Variáveis utilizadas para armazenamento
+    * temporário dos campos do banco de dados
+    */
+
+   EXEC SQL BEGIN DECLARE SECTION;
+   int id;
+   VARCHAR nome[200];
+   EXEC SQL END DECLARE SECTION;
+
+   /*
+    * Declaração a ser executada
+    */
+
+   EXEC SQL DECLARE cursor_pessoal CURSOR FOR
+      SELECT id, nome FROM pessoal ORDER BY nome;
+
+   /*
+    * Executar a declaração
+    */
+
+   EXEC SQL OPEN cursor_pessoal;
+
+   EXEC SQL WHENEVER NOT FOUND GOTO fechar_cursor;
+   while(1) /* a saída do laço é tratada pela declaração precedente */
+   {
+      /* Ler o próximo valor */
+      EXEC SQL FETCH cursor_pessoal INTO :id, :nome;
+      printf(&quot;Lido: ID = %d; Nome = %s\n&quot;, id, nome.arr);
+   }
+
+   /* Limpeza */
+   fechar_cursor:
+   EXEC SQL CLOSE cursor_pessoal;
+   EXEC SQL DISCONNECT;
+
+   return 0;
+}
+</programlisting>
+
+   <para>
+    Abaixo está mostrado o script utilizado para a pré-compilação, compilação,
+    criação do executável e execução do programa. Como a árvore de fontes não
+    foi instalada (<literal>make install</literal>), foi apenas construída
+    (<literal>make</literal>), é necessário informar os diretórios dos
+    cabeçalhos, bibliotecas e programas.
+   </para>
+
+<programlisting>
+#!/bin/sh
+# Script para pré-compilar, compilar e executar o programa 'pessoal.pgc'
+ecpg pessoal.pgc
+gcc pessoal.c -o pessoal \
+-I ~/postgresql-8.0.0/src/interfaces/ecpg/include/ \
+-I ~/postgresql-8.0.0/src/interfaces/libpq/ \
+-I ~/postgresql-8.0.0/src/include/ \
+-L ~/postgresql-8.0.0/src/interfaces/ecpg/ecpglib/ \
+-l ecpg
+./pessoal
+</programlisting>
+
+   <para>
+    Por fim está mostrado o resultado da execução do programa.
+   </para>
+
+<screen>
+<computeroutput>
+Lido: ID = 3; Nome = Francisco
+Lido: ID = 2; Nome = Manuel
+Lido: ID = 1; Nome = Maria
+</computeroutput>
+</screen>
+   </example>
+
+  <example id="ecpg-example-sta-sql">
+   <title>Linguagem SQL estática incorporada</title>
+
+   <para>
+    Este exemplo mostra a utilização de comandos SQL incorporados ao fonte do
+    programa C. O programa estabelece uma conexão com o servidor de banco de
+    dados por meio do TCP/IP, acessa o banco de dados <quote>teste</quote>
+    através do usuário cujo nome é <quote>teste</quote> e cuja senha também é
+    <quote>teste</quote>. Depois cria a tabela temporária
+    <classname>filmes</classname>, carrega a tabela com os dados contidos na
+    matriz <structname>filmes</structname>, e lista as linhas da tabela.
+   </para>
+
+   <para>
+    Abaixo está mostrado o código fonte do programa <filename>sta-select.pgc</>.
+   </para>
+
+<programlisting>
+/*
+ * Programa para mostrar a utilização do SQL estático incorporado.
+ * Baseado em:
+ *     Universidade de Toronto - DB2 -  Embedded SQL Examples
+ *     http://www.cs.toronto.edu/db/courses/db2/
+ */
+
+#include &lt;stdio.h&gt;
+
+/*
+ * Declarar as variáveis do programa
+ */
+
+int i;
+
+/*
+ * Declarar as variáveis hospedeiras
+ */
+
+EXEC SQL BEGIN DECLARE SECTION;
+    /* Propriedades do filme */
+    int   filme_id;
+    char  filme_titulo[20];
+    char  filme_diretor[20];
+    /* Propriedades da conexão com o servidor de banco de dados */
+    char *conexao=&quot;tcp:postgresql://127.0.0.1:5432/teste&quot;;
+    char *usuario=&quot;teste&quot;;
+    char *senha=&quot;teste&quot;;
+    /* Filmes */
+    struct filme {
+        int   filme_id;
+        char  filme_titulo[20];
+        char  filme_diretor[20];
+    };
+    struct filme filmes[] = {
+        {100,&quot;Água Negra&quot;,&quot;Walter Salles&quot;},
+        {200,&quot;Aprendendo a Mentir&quot;,&quot;Hendrik Handloegten&quot;},
+        {300,&quot;Guerra dos Mundos&quot;,&quot;Steven Spielberg&quot;},
+        {400,&quot;Quarteto Fantástico&quot;,&quot;Tim Story&quot;}
+    };
+EXEC SQL END DECLARE SECTION;
+
+/*
+ * As linhas abaixo são redundantes, porque a ação padrão é continuar.
+ * Estas linhas apenas mostram as situações que podem ocorrer,
+ * e uma forma de controlá-las.
+ */
+
+                                        /* sqlca.sqlcode == 0 (sem erro)   */
+EXEC SQL WHENEVER SQLWARNING CONTINUE;  /* sqlca.sqlwarn[0] == 'W'         */
+EXEC SQL WHENEVER NOT FOUND CONTINUE;   /* sqlca.sqlcode == ECPG_NOT_FOUND */
+
+/*
+ * Quando houver um erro executar a rotina de tratamento de erro.
+ */
+
+EXEC SQL WHENEVER SQLERROR DO erro();   /* sqlca.sqlcode &lt; 0 */
+
+/*
+ * Rotina para tratamento de erro
+ */
+
+static void erro()
+{  printf(&quot;#%ld:%s\n&quot;,sqlca.sqlcode,sqlca.sqlerrm.sqlerrmc);
+   exit(1);
+}
+
+/*
+ * Programa principal
+ */
+
+int main() {
+
+/*
+ * Conectar com o banco de dados
+ */
+
+EXEC SQL CONNECT TO :conexao USER :usuario IDENTIFIED BY :senha;
+
+if (sqlca.sqlcode != 0) {
+        printf(&quot;Falha na conexão!&quot;);
+        erro();
+}
+
+/*
+ * Criar a tabela filmes
+ */
+
+EXEC SQL CREATE TEMPORARY TABLE filmes (
+    filme_id      INT NOT NULL PRIMARY KEY,
+    filme_titulo  VARCHAR(20),
+    filme_diretor VARCHAR(20)
+);
+
+/*
+ * Inserir as linhas na tabela
+ */
+
+for (i=0; i&lt;(sizeof(filmes)/sizeof(filmes[0])); i++) {
+    EXEC SQL INSERT INTO filmes VALUES(
+        :filmes[i].filme_id,:filmes[i].filme_titulo,:filmes[i].filme_diretor
+    );
+}
+
+/*
+ * Imprimir o cabeçalho da tabela
+ */
+
+ printf(&quot;+----------------------+----------------------+\n&quot;);
+ printf(&quot;| Nome do filme        | Diretor              |\n&quot;);
+ printf(&quot;+----------------------+----------------------+\n&quot;);
+
+/*
+ * Declarar um cursor para acessar as linhas da tabela
+ */
+
+EXEC SQL DECLARE c1 CURSOR FOR
+    SELECT filme_titulo, filme_diretor
+    FROM filmes;
+
+/*
+ * Abrir o cursor para ler as linhas da tabela
+ */
+
+EXEC SQL OPEN c1;
+
+do {
+
+  /*
+   * Ler as linhas da tabela.
+   * Executa a declaração implementada pelo cursor e retorna os resultados.
+   */
+
+  EXEC SQL FETCH c1 INTO :filme_titulo, :filme_diretor;
+  if (SQLCODE != 0) break;	/* SQLCODE se refere a sqlca.sqlcode */
+
+  /*
+   * As variáveis hospedeiras devem ser prefixadas por ':'
+   * quando são utilizadas nos comandos SQL
+   */
+
+  printf(&quot;| %-20s | %-20s |\n&quot;,filme_titulo,filme_diretor);
+
+} while (1);
+
+/*
+ * Fechar a tabela
+ */
+ printf(&quot;+----------------------+----------------------+\n&quot;);
+
+/*
+ * Fechar o cursor e a conexão
+ */
+
+EXEC SQL CLOSE c1;
+EXEC SQL DISCONNECT;
+}
+</programlisting>
+
+   <para>
+    Abaixo está mostrado o script utilizado para a pré-compilação, compilação,
+    criação do executável e execução do programa. Como a árvore de fontes não
+    foi instalada (<literal>make install</literal>), foi apenas construída
+    (<literal>make</literal>), é necessário informar os diretórios dos
+    cabeçalhos, bibliotecas e programas.
+   </para>
+
+<programlisting>
+#!/bin/sh
+# Script para pré-compilar, compilar e executar o programa 'sta-select.pgc'
+~/postgresql-8.0.0/src/interfaces/ecpg/preproc/ecpg sta-select.pgc
+gcc sta-select.c -o sta-select \
+-I ~/postgresql-8.0.0/src/interfaces/ecpg/include/ \
+-I ~/postgresql-8.0.0/src/interfaces/libpq/ \
+-I ~/postgresql-8.0.0/src/include/ \
+-L ~/postgresql-8.0.0/src/interfaces/ecpg/ecpglib/ \
+-lecpg
+./sta-select
+</programlisting>
+
+   <para>
+    Por fim está mostrado o resultado da execução do programa.
+   </para>
+
+<screen>
+<computeroutput>
++----------------------+----------------------+
+| Nome do filme        | Diretor              |
++----------------------+----------------------+
+| Água Negra           | Walter Salles        |
+| Aprendendo a Mentir  | Hendrik Handloegten  |
+| Guerra dos Mundos    | Steven Spielberg     |
+| Quarteto Fantástico  | Tim Story            |
++----------------------+----------------------+
+</computeroutput>
+</screen>
+   </example>
+
+  <example id="ecpg-example-dyn-sql">
+   <title>Linguagem SQL dinâmica incorporada</title>
+
+   <para>
+    Este exemplo mostra a utilização de comandos SQL incorporados ao fonte do
+    programa C. O programa estabelece uma conexão com o servidor de banco de
+    dados por meio de soquete do domínio Unix, acessa o banco de dados
+    <quote>teste</quote> através do usuário cujo nome é <quote>teste</quote> e
+    cuja senha também é <quote>teste</quote>. Depois cria a tabela temporária
+    <classname>filmes</>, carrega a tabela com os dados contidos na matriz
+    <structname>filmes</>, e lista as linhas da tabela. Se o nome do filme ou o
+    nome do diretor for uma cadeia de caracteres vazia, os indicadores sinalizam
+    um valor nulo.
+   </para>
+
+   <para>
+    Abaixo está mostrado o código fonte do programa <filename>dyn-select.pgc</>.
+   </para>
+
+<programlisting>
+/*
+ * Programa para mostrar a utilização do SQL dinâmico incorporado.
+ * Baseado em:
+ *     Universidade de Toronto - DB2 -  Embedded SQL Examples
+ *     http://www.cs.toronto.edu/db/courses/db2/
+ */
+
+#include &lt;stdio.h&gt;
+
+/*
+ * Declarar as variáveis do programa
+ */
+
+int i;
+
+/*
+ * Declarar as variáveis hospedeiras
+ */
+
+EXEC SQL BEGIN DECLARE SECTION;
+    /* Propriedades do filme */
+    int   filme_id;
+    char  filme_titulo[20];
+    char  filme_diretor[20];
+    /* Propriedades da conexão com o servidor de banco de dados */
+    char *conexao=&quot;unix:postgresql://localhost/teste&quot;;
+    char *usuario=&quot;teste&quot;;
+    char *senha=&quot;teste&quot;;
+    /* Filmes */
+    struct filme {
+        int   filme_id;
+        char  filme_titulo[20];
+        char  filme_diretor[20];
+    };
+    struct filme filmes[] = {
+        {100,&quot;Água Negra&quot;,&quot;Walter Salles&quot;},
+        {200,&quot;Aprendendo a Mentir&quot;,&quot;Hendrik Handloegten&quot;},
+        {300,&quot;Guerra dos Mundos&quot;,&quot;Steven Spielberg&quot;},
+        {400,&quot;Quarteto Fantástico&quot;,&quot;Tim Story&quot;},
+        {500,&quot;Horror em Amityville&quot;,&quot;&quot;}
+    };
+    /* Indicadores */
+    int ind1, ind2, ind3;
+    /* Declaração de inserção de filme */
+    char *insere_filme = &quot;INSERT INTO filmes VALUES(?, ?, ?);&quot;;
+EXEC SQL END DECLARE SECTION;
+
+/*
+ * As linhas abaixo são redundantes, porque a ação padrão é continuar.
+ * Estas linhas apenas mostram as situações que podem ocorrer,
+ * e uma forma de controlá-las.
+ */
+
+                                        /* sqlca.sqlcode == 0 (sem erro)   */
+EXEC SQL WHENEVER SQLWARNING CONTINUE;  /* sqlca.sqlwarn[0] == 'W'         */
+EXEC SQL WHENEVER NOT FOUND CONTINUE;   /* sqlca.sqlcode == ECPG_NOT_FOUND */
+
+/*
+ * Quando houver um erro executar a rotina de tratamento de erro.
+ */
+
+EXEC SQL WHENEVER SQLERROR DO erro();   /* sqlca.sqlcode &lt; 0 */
+
+/*
+ * Rotina para tratamento de erro
+ */
+
+static void erro()
+{  printf(&quot;#%ld:%s\n&quot;,sqlca.sqlcode,sqlca.sqlerrm.sqlerrmc);
+   exit(1);
+}
+
+/*
+ * Programa principal
+ */
+
+int main() {
+
+/*
+ * Conectar com o banco de dados
+ */
+
+EXEC SQL CONNECT TO :conexao USER :usuario IDENTIFIED BY :senha;
+
+if (sqlca.sqlcode != 0) {
+        printf(&quot;Falha na conexão!&quot;);
+        erro();
+}
+
+/*
+ * Criar a tabela filmes
+ */
+
+EXEC SQL CREATE TEMPORARY TABLE filmes (
+    filme_id      INT NOT NULL PRIMARY KEY,
+    filme_titulo  VARCHAR(20),
+    filme_diretor VARCHAR(20)
+);
+
+/*
+ * Inserir as linhas na tabela
+ */
+
+EXEC SQL PREPARE insere_filme FROM :insere_filme;
+
+for (i=0; i&lt;(sizeof(filmes)/sizeof(filmes[0])); i++) {
+    ind1 = ind2 = ind3 = 0;
+    if (strlen(filmes[i].filme_titulo) == 0) ind2=-1;
+    if (strlen(filmes[i].filme_diretor) == 0) ind3=-1;
+    EXEC SQL EXECUTE insere_filme USING
+        :filmes[i].filme_id:ind1,
+        :filmes[i].filme_titulo:ind2,
+        :filmes[i].filme_diretor:ind3;
+}
+
+/*
+ * Imprimir o cabeçalho da tabela
+ */
+
+ printf(&quot;+----------------------+----------------------+\n&quot;);
+ printf(&quot;| Nome do filme        | Diretor              |\n&quot;);
+ printf(&quot;+----------------------+----------------------+\n&quot;);
+
+/*
+ * Declarar um cursor para acessar as linhas da tabela
+ */
+
+EXEC SQL DECLARE c1 CURSOR FOR
+    SELECT filme_titulo, filme_diretor
+    FROM filmes;
+
+/*
+ * Abrir o cursor para ler as linhas da tabela
+ */
+
+EXEC SQL OPEN c1;
+
+do {
+
+  /*
+   * Ler as linhas da tabela.
+   * Executa a declaração implementada pelo cursor e retorna os resultados.
+   */
+
+  EXEC SQL FETCH c1 INTO :filme_titulo:ind1, :filme_diretor:ind2;
+  if (SQLCODE != 0) break;  /* SQLCODE se refere a sqlca.sqlcode */
+  /* Verificar valores nulos */
+  if (ind1 == -1) {
+     strcpy(filme_titulo,&quot;-&quot;);
+  }
+  if (ind2 == -1) {
+     strcpy(filme_diretor,&quot;-&quot;);
+  }
+
+  /*
+   * As variáveis hospedeiras devem ser prefixadas por ':'
+   * quando são utilizadas nos comandos SQL
+   */
+
+  printf(&quot;| %-20s | %-20s |\n&quot;,filme_titulo,filme_diretor);
+
+} while (1);
+
+/*
+ * Fechar a tabela
+ */
+ printf(&quot;+----------------------+----------------------+\n&quot;);
+
+/*
+ * Fechar o cursor e a conexão
+ */
+
+EXEC SQL CLOSE c1;
+EXEC SQL DISCONNECT;
+}
+</programlisting>
+
+   <para>
+    Abaixo está mostrado o script utilizado para a pré-compilação, compilação,
+    criação do executável e execução do programa. Como a árvore de fontes não
+    foi instalada (<literal>make install</literal>), foi apenas construída
+    (<literal>make</literal>), é necessário informar os diretórios dos
+    cabeçalhos, bibliotecas e programas.
+   </para>
+
+<programlisting>
+#!/bin/sh
+# Script para pré-compilar, compilar e executar o programa 'dyn-select.pgc'
+~/postgresql-8.0.0/src/interfaces/ecpg/preproc/ecpg dyn-select.pgc
+gcc dyn-select.c -o dyn-select \
+-I ~/postgresql-8.0.0/src/interfaces/ecpg/include/ \
+-I ~/postgresql-8.0.0/src/interfaces/libpq/ \
+-I ~/postgresql-8.0.0/src/include/ \
+-L ~/postgresql-8.0.0/src/interfaces/ecpg/ecpglib/ \
+-lecpg
+./dyn-select
+</programlisting>
+
+   <para>
+    Abaixo estão mostradas as linhas inseridas no começo do arquivo fonte
+    <acronym>C</acronym> pelo pré-compilador.
+<programlisting>
+/* Processed by ecpg (3.2.0) */
+/* These include files are added by the preprocessor */
+#include &lt;ecpgtype.h&gt;
+#include &lt;ecpglib.h&gt;
+#include &lt;ecpgerrno.h&gt;
+#include &lt;sqlca.h&gt;
+/* End of automatic include section */
+#line 1 &quot;dyn-select.pgc&quot;
+</programlisting>
+   </para>
+
+   <para>
+    Por fim está mostrado o resultado da execução do programa.
+   </para>
+
+<screen>
+<computeroutput>
++----------------------+----------------------+
+| Nome do filme        | Diretor              |
++----------------------+----------------------+
+| Água Negra           | Walter Salles        |
+| Aprendendo a Mentir  | Hendrik Handloegten  |
+| Guerra dos Mundos    | Steven Spielberg     |
+| Quarteto Fantástico  | Tim Story            |
+| Horror em Amityville | -                    |
++----------------------+----------------------+
+</computeroutput>
+</screen>
+   </example>
+ </sect1>
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

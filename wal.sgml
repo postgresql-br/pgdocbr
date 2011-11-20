@@ -1,0 +1,358 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/wal.sgml,v 1.31 2004/11/15 06:32:14 neilc Exp $ -->
+
+<chapter id="wal">
+ <title>Registro prévio da escrita (WAL)</title>
+
+ <indexterm zone="wal">
+  <primary>WAL</primary>
+ </indexterm>
+
+ <indexterm>
+  <primary>registro de escrita prévia</primary>
+  <see>WAL</see>
+ </indexterm>
+
+  <para>
+   O <firstterm>registro prévio da escrita</firstterm>
+   (<acronym>WAL</acronym> = <firstterm>write ahead logging</firstterm>)
+   é uma abordagem padrão para registrar transações. A descrição detalhada pode
+   ser encontrada na maioria (se não em todos) os livros sobre processamento de
+   transação. Em poucas palavras, o conceito central do <acronym>WAL</acronym>
+   é que as alterações nos arquivos de dados (onde as tabelas e os índices
+   residem) devem ser escritas somente após estas alterações terem sido
+   registradas, ou seja, quando os registros que descrevem as alterações tiverem
+   sido descarregados em um meio de armazenamento permanente. Se este
+   procedimento for seguido, não será necessário descarregar as páginas de dados
+   no disco a cada efetivação de transação, porque se sabe que no evento de uma
+   queda será possível recuperar o banco de dados utilizando o registro: todas
+   as alterações que não foram aplicadas às páginas de dados são refeitas a
+   partir dos registros (isto é a recuperação de rolar para a frente,
+   <literal>roll-forward</literal>, também conhecida como REDO),
+  </para>
+
+  <sect1 id="wal-benefits">
+   <title>Benefícios do WAL</title>
+
+   <indexterm zone="wal-benefits">
+    <primary>fsync</primary>
+   </indexterm>
+
+   <para>
+    O primeiro grande benefício da utilização do <acronym>WAL</acronym> é a
+    redução significativa do número de escritas em disco, uma vez que na hora
+    em que a transação é efetivada somente precisa ser descarregado em disco o
+    arquivo de registro, em vez de todos os arquivos de dados modificados pela
+    transação. Em ambiente multiusuário, a efetivação de várias transações pode
+    ser feita através de um único <function>fsync()</function> do arquivo de
+    registro. Além disso, o arquivo de registro é escrito seqüencialmente e,
+    portanto, o custo de sincronizar o registro é muito menor do que o custo de
+    descarregar as páginas de dados. Isto é especialmente verdade em servidores
+    tratando muitas transações pequenas afetando partes diferentes do
+    armazenamento de dados.
+   </para>
+
+   <para>
+    O benefício seguinte é a consistência das páginas de dados.
+    A verdade é que antes do <acronym>WAL</acronym> o
+    <productname>PostgreSQL</productname> nunca foi capaz de garantir
+    a consistência no caso de uma queda. Antes do <acronym>WAL</acronym>,
+    qualquer queda durante a escrita poderia resultar em:
+
+    <orderedlist>
+     <listitem>
+      <simpara>linhas de índice apontando para linhas inexistentes da tabela</simpara>
+     </listitem>
+
+     <listitem>
+      <simpara>perda de linhas de índice nas operações de quebra de página
+      (<literal>split</literal>)</simpara>
+     </listitem>
+
+     <listitem>
+      <simpara>conteúdo da página da tabela ou do índice totalmente corrompido,
+      por causa das páginas de dados parcialmente escritas</simpara>
+     </listitem>
+    </orderedlist>
+
+    Os problemas com os índices (problemas 1 e 2) possivelmente poderiam ter
+    sido resolvidos através de chamadas adicionais à função
+    <function>fsync()</function>, mas não é óbvio como tratar o último caso sem
+    o <acronym>WAL</acronym>; se for necessário, o <acronym>WAL</acronym> salva
+    todo o conteúdo da página de dados no registro, para garantir a consistência
+    da página na recuperação após a queda.
+   </para>
+
+   <para>
+    Por fim, o <acronym>WAL</acronym> permite que seja feita cópia de segurança
+    em linha e recuperação para um ponto no tempo, conforme descrito na
+    <xref linkend="backup-online">. Fazendo cópia dos arquivos de segmento do
+    <acronym>WAL</acronym> pode-se retornar para qualquer instante no tempo
+    coberto pelos registros do <acronym>WAL</acronym>: simplesmente se instala
+    uma versão anterior da cópia de segurança física do banco de dados, e se
+    refaz o <acronym>WAL</acronym> até o ponto desejado no tempo.
+    Além disso, a cópia de segurança física não precisa ser um instantâneo do
+    estado do banco de dados &mdash; se a cópia for realizada durante um período
+    de tempo, quando o <acronym>WAL</acronym> for refeito para este período de
+    tempo da cópia serão corrigidas todas as inconsistências internas.
+   </para>
+  </sect1>
+
+ <sect1 id="wal-configuration">
+  <title>Configuração do WAL</title>
+
+  <para>
+   Existem diversos parâmetros de configuração relacionados com o
+   <acronym>WAL</acronym> que afetam o desempenho do banco de dados. Esta seção
+   explica como defini-los. Para obter detalhes gerais sobre como definir
+   parâmetros de configuração para o servidor deve ser consultada a
+   <xref linkend="runtime-config"> .
+  </para>
+
+  <para>
+   Os <firstterm>pontos de controle</firstterm>
+   <indexterm><primary>ponto de controle</primary></indexterm>
+   (<literal>checkpoints</literal>)
+   <indexterm><primary>checkpoints</primary></indexterm>
+   são pontos na seqüência de transações onde se garante que os arquivos de
+   dados foram atualizados com todas as informações registradas antes deste
+   ponto. No momento do ponto de controle, todas as páginas de dados sujas
+   (<literal>dirty</literal>) são descarregadas no disco, e é escrito um
+   registro especial de ponto de controle no arquivo de segmento do
+   <acronym>WAL</acronym>. Como resultado, no caso de uma queda o procedimento
+   de recuperação sabe a partir de qual ponto do <acronym>WAL</acronym> (chamado
+   de registro de refazer (<literal>REDO</literal>)) deve começar a operação de
+   refazer, uma vez que todas as mudanças feitas nos arquivos de dados
+   anteriores a este ponto já se encontram gravadas em disco.
+   Após ter sido feito o ponto de controle, nenhum dos arquivos de segmento do
+   <acronym>WAL</acronym>, escritos antes do registro de refazer, continua sendo
+   necessário, podendo ser reciclados ou removidos (Quando está sendo feita
+   cópia dos arquivos de segmento do <acronym>WAL</acronym>, os arquivos de
+   segmento devem ser copiados antes de serem reciclados ou removidos).
+  </para>
+
+  <para>
+   O processo de escrita em segundo plano do servidor realiza, automaticamente,
+   um ponto de controle de tempo em tempo. Um ponto de controle é realizado a
+   cada <xref linkend="guc-checkpoint-segments"> do <acronym>WAL</acronym>, ou a
+   cada <xref linkend="guc-checkpoint-timeout"> segundos, o que ocorrer
+   primeiro. As definições padrão são 3 segmentos e 300 segundos,
+   respectivamente. Também é possível obrigar a realização de um ponto de
+   controle utilizando o comando SQL <xref linkend="sql-checkpoint">.
+  </para>
+
+  <para>
+   Reduzir <varname>checkpoint_segments</varname> e/ou
+   <varname>checkpoint_timeout</varname> faz os pontos de controle serem feitos
+   com maior freqüência, permitindo uma recuperação mais rápida após a queda
+   (uma vez que haverá menos trabalho para ser refeito). Entretanto, deve haver
+   um balanço entre isto e o aumento de custo causado pela descarga das páginas
+   sujas com maior freqüência. Além disso, após cada ponto de controle, para
+   garantir a consistência das páginas de dados, a primeira modificação feita
+   em uma página de dados ocasiona o registro de todo o conteúdo desta página.
+   Por isso, um intervalo de ponto de controle menor aumenta o volume de saída
+   para o <acronym>WAL</acronym>, negando parcialmente o objetivo de utilizar um
+   intervalo menor e, em qualquer caso, causando mais E/S em disco.
+  </para>
+
+  <para>
+   Os pontos de controle são muito dispendiosos, primeiro porque requerem
+   a escrita de todos os <literal>buffers</literal> sujos correntes, e depois
+   porque resultam em um tráfego adicional subseqüente para o WAL, conforme
+   visto acima. Portanto, é aconselhável definir os parâmetros do ponto de
+   controle altos o suficiente para que não ocorram com muita freqüência.
+   Como uma verificação de sanidade simples para os parâmetros de ponto de
+   controle, pode ser definido o parâmetro
+   <xref linkend="guc-checkpoint-warning">. Se os pontos de controle ocorrerem
+   antes de <varname>checkpoint_warning</> segundos, será gerada uma mensagem
+   para o <literal>log</literal> do servidor recomendando o aumento de
+   <varname>checkpoint_segments</varname>. Uma aparição ocasional desta mensagem
+   não é motivo de alarme, mas se aparecer com freqüência então os parâmetros
+   de controle de ponto de verificação devem ser aumentados.
+  </para>
+
+  <para>
+   Há pelo menos um arquivo de segmento e, normalmente, não mais de 2 *
+   <varname>checkpoint_segments</varname> + 1 arquivos de segmento do WAL.
+   Normalmente cada arquivo de segmento possui o tamanho de 16 MB (embora este
+   tamanho possa ser alterado na construção do servidor). Isto pode ser
+   utilizado para estimar a necessidade de espaço do <acronym>WAL</acronym>.
+   Normalmente, quando os arquivos de segmento do <acronym>WAL</acronym> antigos
+   não são mais necessários, estes são reciclados (os nome são mudados para se
+   tornarem os próximos segmentos da seqüência numerada). Se, por causa de um
+   pico de pouca duração da taxa de saída para o <acronym>WAL</acronym>,
+   existirem mais de 2 * <varname>checkpoint_segments</varname> + 1 arquivos de
+   segmento, os arquivos de segmento desnecessários serão removidos em vez de
+   reciclados até o sistema voltar a ficar abaixo deste limite.
+  </para>
+
+  <para>
+   Existem duas funções do <acronym>WAL</acronym> utilizadas com freqüência:
+   <function>LogInsert</function> e <function>LogFlush</function>. A função
+   <function>LogInsert</function> é utilizada para colocar um novo registro nos
+   <literal>buffers</literal> do <acronym>WAL</> na memória compartilhada.
+   Se não houver espaço para o novo registro, <function>LogInsert</function>
+   terá que escrever (mover para o <literal>cache</> do núcleo) uns poucos
+   <literal>buffers</literal> do <acronym>WAL</acronym> cheios. Isto não é
+   desejado, porque <function>LogInsert</function> é utilizada em todas as
+   modificações de baixo nível do banco de dados (por exemplo, inserção de
+   linha), quando um bloqueio exclusivo é mantido nas páginas de dados afetadas,
+   portanto esta operação precisa ser tão rápida quanto for possível.
+   O que é pior, escrever os <literal>buffers</literal> do <acronym>WAL</>
+   também pode obrigar a criação de um novo arquivo de segmento, que toma mais
+   tempo ainda. Normalmente, os <literal>buffers</literal> do
+   <acronym>WAL</acronym> devem ser escritos e descarregados pela chamada
+   <function>LogFlush</function> que é feita, na maioria das vezes, na hora da
+   efetivação da transação para garantir que os registros da transação sejam
+   descarregados no armazenamento permanente. Nos sistemas com saída para o
+   <acronym>WAL</acronym> alta, as chamadas à <function>LogFlush</function>
+   podem não ocorrer com uma freqüência suficiente para evitar que
+   <function>LogInsert</function> tenha que realizar escritas. Nestes sistemas,
+   deve ser aumentado o número de <literal>buffers</literal> do <acronym>WAL</>
+   pela modificação do parâmetro <xref linkend="guc-wal-buffers">. O número
+   padrão de <literal>buffers</literal> do <acronym>WAL</acronym> é 8. O aumento
+   deste valor aumenta de forma correspondente a utilização de memória
+   compartilhada (Deve ser observado que no momento existe pouca evidência
+   sugerindo que aumentar <varname>wal_buffers</> acima do padrão valha a pena).
+  </para>
+
+  <para>
+   O parâmetro <xref linkend="guc-commit-delay"> define a quantidade de
+   microssegundos que o processo servidor vai aguardar após escrever um registro
+   de efetivação no WAL com <function>LogInsert</function>, antes de
+   realizar o <function>LogFlush</function>. Este retardo permite que outros
+   processos servidor adicionem seus registros de efetivação ao WAL para que
+   todos sejam descarregados em uma única sincronização do WAL.
+   Não ocorre nenhum retardo quando <xref linkend="guc-fsync"> não está
+   habilitado, nem se menos de outras <xref linkend="guc-commit-siblings">
+   sessões estiverem com transações ativas no momento; isto evita o retardo
+   quando é pouco provável que outras seções efetivem em breve. Deve ser
+   observado que na maioria das plataformas a resolução de uma solicitação de
+   retardo é de dez milissegundos, portanto qualquer definição de
+   <varname>commit_delay</varname> diferente de zero e entre 1 e 10000
+   microssegundos produz o mesmo efeito. Ainda não está claro quais são os
+   melhores valores para estes parâmetros; incentiva-se que sejam feitas
+   experiências.
+  </para>
+
+  <para>
+   O parâmetro <xref linkend="guc-wal-sync-method"> determina como o
+   <productname>PostgreSQL</productname> vai fazer a solicitação ao núcleo
+   para forçar o envio das atualizações do WAL para o disco.
+   Todas as opções devem ser idênticas em termos de confiabilidade,
+   mas é bem específico da plataforma qual delas é a mais rápida.
+   Deve ser observado que este parâmetro é irrelevante se
+   <varname>fsync</varname> estiver desabilitado.
+  </para>
+
+  <para>
+   Habilitar o parâmetro de configuração <xref linkend="guc-wal-debug">
+   (desde que o <productname>PostgreSQL</productname> tenha sido compilado com
+   suporte ao mesmo) resulta em que cada chamada às funções
+   <function>LogInsert</function> e <function>LogFlush</function>
+   feita pelo <acronym>WAL</acronym> seja registrada no <literal>log</literal>
+   do servidor. Esta opção poderá ser substituída por um mecanismo mais
+   genérico no futuro.
+  </para>
+ </sect1>
+
+ <sect1 id="wal-internals">
+  <title>Internamente</title>
+
+  <para>
+   O <acronym>WAL</acronym> é habilitado automaticamente; não  é requerida
+   nenhuma ação por parte do administrador, exceto garantir que o espaço em
+   disco adicional necessário para o <acronym>WAL</acronym> seja atendido,
+   e que seja feito qualquer ajuste necessário (consulte a
+   <xref linkend="wal-configuration">).
+  </para>
+
+  <para>
+   O <acronym>WAL</acronym> é armazenado no diretório
+   <filename class="directory">pg_xlog</filename>, sob o diretório de dados,
+   como um conjunto de arquivos de segmento, normalmente com o tamanho de 16 MB
+   cada. Cada segmento é dividido em páginas, normalmente de 8 kB cada.
+   Os cabeçalhos dos registro estão descritos em
+   <filename>access/xlog.h</filename>; o conteúdo do registro depende
+   do tipo de evento que está sendo registrado. São atribuídos para nomes dos
+   arquivos de segmento números que sempre aumentam, começando por
+   <filename>000000010000000000000000</filename>.
+   Atualmente os números não recomeçam, mas deve demorar muito tempo até que
+   seja exaurido o estoque de números disponíveis.
+  </para>
+
+  <para>
+   Os <literal>buffers</literal> do <acronym>WAL</acronym> e estruturas de
+   controle ficam na memória compartilhada e são tratados pelos processos
+   servidor filhos; são protegidos por bloqueios de peso leve. A demanda por
+   memória compartilhada é dependente do número de <literal>buffers</literal>.
+   O tamanho padrão dos <literal>buffers</literal> do <acronym>WAL</acronym> é
+   8 <literal>buffers</literal> de 8 kB cada um, ou um total de 64 kB.
+  </para>
+
+  <para>
+   É vantajoso o <acronym>WAL</acronym> ficar localizado em um disco diferente
+   do que ficam os arquivos de banco de dados principais. Isto pode ser obtido
+   movendo o diretório <filename class="directory">pg_xlog</filename> para outro
+   local (enquanto o servidor estiver parado, é óbvio), e criando um vínculo
+   simbólico do local original no diretório de dados principal para o novo local.
+  </para>
+
+  <para>
+   A finalidade do <acronym>WAL</acronym>, garantir que a alteração seja
+   registrada antes que as linhas do banco de dados sejam alteradas, pode ser
+   subvertida pelos controladores de disco (<literal>drives</literal>)
+   <indexterm><primary>disk drive</primary><see>controlador de disco</see></indexterm>
+   <indexterm><primary>controlador de disco</primary></indexterm>
+   que informam ao núcleo uma escrita bem-sucedida falsa, e na verdade
+   apenas colocam os dados no <literal>cache</literal> sem armazenar no disco.
+   Numa situação como esta a queda de energia pode conduzir a uma corrupção
+   dos dados não recuperável. Os administradores devem tentar garantir que os
+   discos que armazenam os arquivos de segmento do <acronym>WAL</acronym> do
+   <productname>PostgreSQL</productname> não fazem estes falsos relatos.
+  </para>
+
+  <para>
+   Após um ponto de controle ter sido feito e o registro descarregado, a posição
+   do ponto de controle é salva no arquivo <filename>pg_control</filename>.
+   Portanto, quando uma recuperação vai ser feita o servidor lê primeiro
+   <filename>pg_control</filename>, e depois o registro de ponto de controle;
+   em seguida realiza a operação de REDO varrendo para frente a partir da
+   posição indicada pelo registro de ponto de controle. Como, após o ponto de
+   controle, na primeira modificação feita em uma página de dados é salvo todo
+   o conteúdo desta página, todas as páginas modificadas desde o último ponto
+   de controle serão restauradas para um estado consistente.
+  </para>
+
+  <para>
+   Para tratar o caso em que o arquivo <filename>pg_control</filename> foi
+   corrompido, é necessário haver suporte para a possibilidade de varrer os
+   arquivos de segmento do <acronym>WAL</acronym> em sentido contrário &mdash;
+   mais novo para o mais antigo &mdash; para encontrar o último ponto de
+   controle. Isto ainda não foi implementado.
+   O arquivo <filename>pg_control</filename> é pequeno o suficiente (menos que
+   uma página de disco) para não estar sujeito a problemas de escrita parcial,
+   e até o momento em que esta documentação foi escrita não haviam relatos de
+   falhas do banco de dados devido unicamente a incapacidade de ler o arquivo
+   <filename>pg_control</filename>. Portanto, embora este seja teoricamente um
+   ponto fraco, na prática o arquivo <filename>pg_control</filename> não parece
+   ser um problema.
+  </para>
+ </sect1>
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

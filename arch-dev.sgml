@@ -1,0 +1,637 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/arch-dev.sgml,v 2.25 2005/01/05 23:42:02 tgl Exp $
+-->
+
+ <chapter id="overview">
+  <title>Visão geral da estrutura interna do PostgreSQL</title>
+
+  <note>
+   <title>Autor</title>
+   <para>
+    Este capítulo se originou como parte da
+    Tese de Mestrado de Stefan Simkovics,
+    preparada na Universidade de Tecnologia de Viena, sob a direção de
+    O.Univ.Prof.Dr. Georg Gottlob e Univ.Ass.Mag. Katrin Seyr,
+    <xref linkend="SIM98">.
+   </para>
+  </note>
+
+  <para>
+   Este capítulo proporciona uma visão geral da estrutura interna do servidor
+   <productname>PostgreSQL</productname>.
+   Após a leitura das seções que vêm a seguir, deve-se ter uma idéia de como
+   os comandos são processados.
+   Este capítulo não tem por objetivo fornecer uma descrição detalhada da
+   operação interna do <productname>PostgreSQL</productname>, uma vez que um
+   documento deste tipo seria muito extenso.
+   Em vez disso, este capítulo tem por objetivo ajudar o leitor entender a
+   seqüência geral das operações que ocorrem dentro do servidor, do ponto em que
+   o comando é recebido ao ponto em que os resultados são retornados para o
+   cliente.
+  </para>
+
+  <sect1 id="query-path">
+   <title>O caminho do comando</title>
+
+   <para>
+    Nesta seção é dada uma visão geral resumida dos estágios pelos quais o
+    comando tem que passar para chegar ao resultado.
+   </para>
+
+   <procedure>
+    <step>
+     <para>
+      Deve ser estabelecida uma conexão entre o programa aplicativo
+      e o servidor <productname>PostgreSQL</productname>.
+      O programa aplicativo transmite um comando para o servidor, e aguarda
+      para receber de volta os resultados transmitidos pelo servidor.
+     </para>
+    </step>
+
+    <step>
+     <para>
+      O <firstterm>estágio de análise</firstterm> verifica o comando transmitido
+      pelo programa aplicativo com relação à correção da sintaxe,
+      e cria a <firstterm>árvore de comando</firstterm>.
+     </para>
+    </step>
+
+    <step>
+     <para>
+      O <firstterm>sistema de reescrita</firstterm> recebe a árvore de comando
+      criada pelo estágio de análise, e procura por alguma
+      <firstterm>regra</firstterm>
+      (armazenada nos <firstterm>catálogos do sistema</firstterm>) a ser
+      aplicada na árvore de comando. Realiza as transformações especificadas no
+      <firstterm>corpo das regras</firstterm>.
+     </para>
+
+     <para>
+      Uma das aplicações do sistema de reescrita é a criação de
+      <firstterm>visões</firstterm>.
+      Sempre que é executado um comando em uma visão
+      (ou seja, <firstterm>uma tabela virtual</firstterm>),
+      o sistema de reescrita reescreve o comando do usuário como um comando
+      acessando as <firstterm>tabelas base</firstterm> especificadas na
+      <firstterm>definição da visão</firstterm>, em vez da visão.
+     </para>
+    </step>
+
+    <step>
+     <para>
+      O <firstterm>planejador/otimizador</firstterm> recebe a árvore de comando
+      (reescrita), e cria o <firstterm>plano de comando</firstterm> que será a
+      entrada do <firstterm>executor</firstterm>.
+     </para>
+
+     <para>
+      Isto é feito criando primeiro todos os <firstterm>caminhos</firstterm>
+      possíveis que levam ao mesmo resultado.
+      Por exemplo, se existe um índice em uma relação a ser varrido, existem
+      dois caminhos para a varredura. Uma possibilidade é uma varredura
+      seqüencial simples, e a outra possibilidade é utilizar o índice.
+      Em seguida é estimado o custo de execução de cada um dos caminhos, e
+      escolhido o mais barato.
+      O caminho mais barato é expandido em um plano completo para que o executor
+      possa utilizá-lo.
+     </para>
+    </step>
+
+    <step>
+     <para>
+      O executor caminha recursivamente através da
+      <firstterm>árvore do plano</firstterm>, e traz as linhas no caminho
+      representado pelo plano.
+      O executor faz uso do <firstterm>sistema de armazenamento</firstterm>
+      ao varrer as relações, realiza <firstterm>classificações</firstterm> e
+      <firstterm>junções</firstterm>, avalia as
+      <firstterm>qualificações</firstterm> e, por fim, envia de volta as
+      linhas derivadas.
+     </para>
+    </step>
+   </procedure>
+
+   <para>
+    Nas seções seguintes cada um dos itens listados acima é coberto de
+    forma mais detalhada, para dar uma compreensão melhor do controle interno
+    e das estruturas de dado do <productname>PostgreSQL</productname>.
+   </para>
+  </sect1>
+
+  <sect1 id="connect-estab">
+   <title>Como as conexões são estabelecidas</title>
+
+   <para>
+    O <productname>PostgreSQL</productname> é implementado utilizando um modelo
+    cliente/servidor simples de <quote>um processo por usuário</>.
+    Neste modelo existe um <firstterm>processo cliente</firstterm> conectado
+    a exatamente um <firstterm>processo servidor</firstterm>.
+    Como não se sabe adiantadamente quantas conexões serão realizadas, é
+    utilizado um <firstterm>processo mestre</firstterm> que cria um novo
+    processo servidor cada vez que uma conexão é requisitada.
+    Este processo mestre se chama <literal>postmaster</literal>, e fica
+    atendendo a chegada de novas conexões na porta TCP/IP especificada.
+    Sempre que é detectada a requisição de uma nova conexão,
+    o processo <literal>postmaster</literal> cria um novo processo servidor
+    chamado <literal>postgres</literal>.
+    Os servidores tarefa (processos <literal>postgres</literal>) se comunicam
+    entre si utilizando <firstterm>semáforos</firstterm> e
+    <firstterm>memória compartilhada</firstterm>, para garantir a integridade
+    dos dados nos acessos simultâneos aos dados.
+   </para>
+
+   <para>
+    O processo cliente pode ser qualquer programa que compreenda o protocolo do
+    <productname>PostgreSQL</productname>, descrito no
+    <xref linkend="protocol">.
+    Muitos clientes são baseados na biblioteca <application>libpq</> da
+    linguagem C, mas existem várias implementações independentes do
+    protocolo, como o <literal>driver</literal> de <application>JDBC</>
+    da linguagem Java.
+   </para>
+
+   <para>
+    Uma vez estabelecida a conexão, o processo cliente pode enviar comandos para
+    o <firstterm>servidor</firstterm> (<literal>backend</literal>).
+    O comando é transmitido utilizando texto puro, ou seja, não existe análise
+    feita no <firstterm>cliente</firstterm> (<literal>frontend</literal>).
+    O servidor analisa o comando, cria o
+    <firstterm>plano de execução</firstterm>, executa o plano, e retorna as
+    linhas obtidas para o cliente transmitindo-as através da conexão
+    estabelecida.
+   </para>
+  </sect1>
+
+  <sect1 id="parser-stage">
+   <title>O estágio de análise</title>
+
+   <para>
+    O <firstterm>estágio de análise</firstterm> consiste de duas partes:
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       O <firstterm>analisador</firstterm> definido em
+       <filename>gram.y</filename> e <filename>scan.l</filename> é
+       construído utilizando as ferramentas do Unix
+       <application>yacc</application> e <application>lex</application>.
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       O <firstterm>processo de transformação</firstterm> faz modificações e
+       ampliações nas estruturas de dados retornadas pelo analisador.
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+
+   <sect2>
+    <title>O analisador</title>
+
+    <para>
+     O analisador (<literal>parser</literal>) precisa verificar a
+     validade da cadeia de caracteres (que chega como texto ASCII puro) com
+     relação à sintaxe.
+     <footnote>
+      <para>
+       sintaxe &mdash; do Lat. syntaxe &lt; Gr. sýntaxis, arranjo, disposição
+       &mdash; parte da estrutura gramatical de uma língua que contém as
+       regras relativas à combinação das palavras em unidades maiores (como as
+       orações), e as relações existentes entre as palavras dentro dessas
+       unidades. <ulink url="http://www.priberam.pt/dlpo/dlpo.aspx">PRIBERAM -
+       Língua Portuguesa On-Line</ulink>. (N. do T.)
+      </para>
+     </footnote>
+     Se a sintaxe estiver correta, é construída uma
+     <firstterm>árvore de análise</firstterm> e enviada de volta;
+     senão, é retornada uma condição de erro.
+     O analisador e o analisador léxico
+     <footnote>
+      <para>
+       léxico &mdash; do Gr. léxicon, relativo às palavras &mdash;
+       dicionário de línguas clássicas antigas;
+       dicionário abreviado;
+       conjunto dos vocábulos de uma língua;
+       dicionário dos vocábulos usados num domínio especializado
+       (ciência, técnica).
+       <ulink url="http://www.priberam.pt/dlpo/dlpo.aspx">PRIBERAM -
+       Língua Portuguesa On-Line</ulink>. (N. do T.)
+      </para>
+     </footnote>
+     (<literal>lexer</literal>) são implementados utilizando as ferramentas bem
+     conhecidas do Unix <application>yacc</> e <application>lex</>.
+    </para>
+
+    <para>
+     O <firstterm>analisador léxico</firstterm> é definido no arquivo
+     <filename>scan.l</filename>, sendo responsável pelo reconhecimento dos
+     <firstterm>identificadores</firstterm>, das
+     <firstterm>palavras chave do SQL</firstterm> etc.
+     Para toda palavra chave ou identificador encontrado é gerado um
+     <firstterm>termo</firstterm> (<literal>token</literal>),
+     e enviado para o analisador.
+    </para>
+
+    <para>
+     O analisador é definido no arquivo <filename>gram.y</filename>,
+     e consiste de um conjunto de <firstterm>regras gramaticais</firstterm>
+     <footnote>
+      <para>
+       gramática &mdash; do Lat. grammatica &lt; grammatike &mdash;
+       estudo ou tratado dos fatos da linguagem falada e escrita e das
+       leis que a regulam; livro que contém as regras e os princípios que regem
+       o funcionamento de uma língua;
+       <ulink url="http://www.priberam.pt/dlpo/dlpo.aspx">PRIBERAM -
+       Língua Portuguesa On-Line</ulink>. (N. do T.)
+      </para>
+     </footnote>
+     e <firstterm>ações</firstterm> executadas sempre que uma regra é disparada.
+     O código das ações (que na verdade é um código C) é utilizado para
+     construir a árvore de análise.
+    </para>
+
+    <para>
+     O arquivo <filename>scan.l</filename> é transformado no arquivo de código
+     fonte C <filename>scan.c</filename> utilizando o programa
+     <application>lex</application>, e <filename>gram.y</filename> é
+     transformado em <filename>gram.c</filename> utilizando o
+     <application>yacc</application>.
+     Após estas transformações serem feitas, pode ser utilizado um compilador C
+     normal para criar o analisador.
+     Não devem ser feitas modificações nos arquivos C gerados, uma vez que
+     estes são sobrescritos quando se executa o
+     <application>lex</application> ou o <application>yacc</application>.
+
+     <note>
+      <para>
+       Normalmente as transformações e compilações mencionadas são realizadas
+       automaticamente utilizado os arquivos <firstterm>Makefile</firstterm>
+       presentes na distribuição do código fonte do
+       <productname>PostgreSQL</productname>.
+      </para>
+     </note>
+    </para>
+
+    <para>
+     Uma descrição detalhada do <application>yacc</application>, ou das
+     regras gramaticais contidas em <filename>gram.y</filename>, estão acima
+     do escopo desta documentação.
+     Existem vários livros e documentos que tratam do
+     <application>lex</application> e do <application>yacc</application>.
+     Deve-se estar familiarizado com o <application>yacc</application> antes de
+     começar a estudar a gramática contida no arquivo
+     <filename>gram.y</filename>, senão vai ser impossível entender o conteúdo
+     deste arquivos.
+    </para>
+
+   </sect2>
+
+   <sect2>
+     <title>O processo de transformação</title>
+
+    <para>
+     O estágio de análise cria uma árvore de análise utilizando somente regras
+     fixadas sobre a estrutura sintática do SQL.
+     Não faz qualquer procura nos catálogos do sistema, portanto não tem
+     possibilidade de compreender os detalhes da semântica
+     <footnote>
+      <para>
+       semântica &mdash; do Gr. semantiké, da significação &mdash;
+       estudo da linguagem humana do ponto de vista do significado das palavras
+       e dos enunciados.
+       <ulink url="http://www.priberam.pt/dlpo/dlpo.aspx">PRIBERAM -
+       Língua Portuguesa On-Line</ulink>. (N. do T.)
+      </para>
+     </footnote>
+     das operações requisitadas.
+     Após o término da análise, o
+     <firstterm>processo de transformação</firstterm> recebe a árvore
+     retornada pelo analisador como entrada, e faz a interpretação
+     semântica necessária para compreender quais tabelas, funções e operadores
+     são referenciados pelo comando.
+     A estrutura de dados construída para representar esta informação é chamada
+     de <firstterm>árvore de comando</>.
+    </para>
+
+    <para>
+     O motivo para separar a análise intacta (<literal>raw</literal>) da análise
+     semântica é que a procura nos catálogos do sistema só pode ser feita dentro
+     de uma transação, e não se deseja iniciar uma transação imediatamente após
+     receber a cadeia de caracteres do comando.
+     O estágio de análise intacta é suficiente para identificar os comandos de
+     controle de transação (<command>BEGIN</>, <command>ROLLBACK</>, etc.), e
+     os que podem ser executados corretamente sem mais análise.
+     Uma vez descoberto que está se lidando com um comando verdadeiro (como
+     <command>SELECT</> ou <command>UPDATE</>), é correto iniciar a transação
+     caso já não se esteja em uma.
+     Somente então o processo de transformação pode ser chamado.
+    </para>
+
+    <para>
+     A árvore de comando criada pelo processo de transformação é estruturalmente
+     semelhante à árvore de análise intacta na maioria dos lugares, mas possui
+     muitas diferenças nos detalhes.
+     Por exemplo, um nodo <structname>FuncCall</> na árvore de análise
+     representa algo que se parece sintaticamente com uma chamada de função.
+     Pode ser transformado em um nodo <structname>FuncExpr</>
+     ou <structname>Aggref</>, dependendo do nome referenciado ser uma função
+     comum ou uma função de agregação.
+     Também são adicionadas à árvore de comando as informações sobre o
+     verdadeiro tipo de dado das colunas e dos resultados das expressões.
+    </para>
+   </sect2>
+  </sect1>
+
+  <sect1 id="rule-system">
+   <title>O sistema de regras do PostgreSQL</title>
+
+   <para>
+    O <productname>PostgreSQL</productname> dá suporte a um poderoso
+    <firstterm>sistema de regras</firstterm> para a especificação de
+    <firstterm>visões</firstterm> e
+    <firstterm>atualizações de visões</firstterm> ambíguas.
+    Originalmente o sistema de regras do <productname>PostgreSQL</productname>
+    consistia de duas implementações:
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       A primeira implementação trabalhava utilizando o processamento no
+       <firstterm>nível de linha</firstterm>, e era implementada no
+       <firstterm>executor</firstterm>.
+       O sistema de regras era chamado sempre que uma linha era acessada.
+       Esta implementação foi removida em 1995 quando a última versão oficial
+       do projeto de <productname>Berkeley Postgres</productname> foi
+       transformada no <productname>Postgres95</productname>.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       A segunda implementação do sistema de regras era uma técnica chamada de
+       <firstterm>reescrita de comando</firstterm>.
+       O <firstterm>sistema de reescrita</firstterm> é um módulo que fica
+       entre o <firstterm>estágio de análise</firstterm> e o
+       <firstterm>planejador/otimizador</firstterm>.
+       Esta técnica ainda é implementada.
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+
+   <para>
+    O reescritor de regras está discutido em algum detalhe no
+    <xref linkend="rules">, portanto não é necessário discuti-lo novamente
+    neste capítulo.
+    Somente será destacado que tanto a entrada quanto a saída do reescritor
+    são árvores de comando, ou seja, não existe alteração na representação
+    ou no nível de detalhamento semântico nas árvores.
+    A reescrita pode ser vista como uma expansão de macro.
+   </para>
+
+  </sect1>
+
+  <sect1 id="planner-optimizer">
+   <title>Planejador/Otimizador</title>
+
+   <para>
+    A tarefa do <firstterm>planejador/otimizador</firstterm> é criar um plano
+    de execução ótimo.
+    Um dado comando SQL (e, portanto, uma árvore de comando) pode, na verdade,
+    ser executada de várias maneiras diferentes, cada uma das quais produzindo
+    o mesmo conjunto de resultados.
+    Se for computacionalmente praticável, o otimizador de comandos examina cada
+    um dos planos de execução possíveis para, no fim, selecionar o plano de
+    execução que espera ser o mais rápido.
+   </para>
+
+   <note>
+    <para>
+     Em algumas situações, o exame de todas as formas pelas quais um comando
+     pode ser executado leva a um consumo excessivo de tempo e de espaço em
+     memória.
+     Em particular, estas situações ocorrem quando se executa comandos que
+     envolvem um grande número de operações de junção.
+     Para ser possível determinar um plano de comando razoável (não o ótimo),
+     em um espaço de tempo razoável, o <productname>PostgreSQL</productname>
+     utiliza o <xref linkend="geqo" endterm="geqo-title">.
+    </para>
+   </note>
+
+   <para>
+    Na verdade, o procedimento de procura do planejador trabalha com estruturas
+    de dados chamadas de <firstterm>caminhos</> (<literal>paths</literal>),
+    que são simplesmente representações reduzidas dos planos, contendo somente
+    as informações necessárias para o planejador tomar suas decisões.
+    Após ser determinado o caminho mais barato, é construída a
+    <firstterm>árvore de plano</> pronta para ser passada para o executor.
+    Esta árvore representa o plano de execução desejado no nível de detalhamento
+    suficiente para o executor processá-la.
+    No restante desta seção será ignorada a distinção entre caminhos e planos.
+   </para>
+
+   <sect2>
+    <title>Geração dos planos possíveis</title>
+
+    <para>
+     O planejador/otimizador inicia gerando planos para varrer individualmente
+     cada relação (tabela) utilizada no comando.
+     Os planos possíveis são determinados pelos índices disponíveis em cada
+     relação.
+     Sempre existe a possibilidade de realizar a varredura seqüencial da
+     relação, portanto o plano para varredura seqüencial é sempre criado.
+     Assumindo que haja um índice definido em uma relação (por exemplo um
+     índice árvore-B), e o comando contenha a restrição
+     <literal>relação.atributo OPR constante</literal>,
+     se acontecer de <literal>relação.atributo</literal> corresponder à chave
+     do índice árvore-B, e <literal>OPR</literal> for um dos operadores
+     listados na <firstterm>classe de operadores</> do índice, é criado um outro
+     plano utilizando o índice árvore-B para varrer a relação.
+     Se existirem outros índices presentes, e a restrição no comando
+     corresponder à chave do índice, serão levados em consideração outros
+     planos.
+    </para>
+
+    <para>
+     Após terem sido encontrados todos os planos viáveis para varrer uma única
+     relação, são criados planos para juntar as relações.
+     O planejador/otimizador considera preferencialmente junções entre quaisquer
+     duas relações para as quais existe uma cláusula de junção correspondente
+     na qualificação do <literal>WHERE</literal> (ou seja, para as quais existe
+     uma restrição do tipo <literal>WHERE rel1.atrib1=rel2.atrib2</literal>).
+     Os pares de junção sem cláusula de junção são considerados somente
+     quando não há outra escolha, ou seja, uma determinada relação não tem
+     disponível cláusula de junção com qualquer outra relação.
+     São gerados todos os planos possíveis para cada par de junção considerado
+     pelo planejador/otimizador.
+     As três estratégias possíveis são:
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        <firstterm>junção de laço aninhado</firstterm>: A relação da direita é
+        varrida uma vez para cada linha encontrada na relação da esquerda.
+        Esta estratégia é fácil de ser implementada, mas pode consumir muito
+        tempo (Entretanto, se a relação da direita puder ser varrida através de
+        uma varredura de índice, esta é uma boa estratégia.
+        É possível utilizar valores da linha corrente da relação da esquerda
+        como chaves para a varredura de índice da relação da direita).
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        <firstterm>junção por classificação e mesclagem</firstterm>:
+        Cada relação é classificada pelo atributo de junção antes do início da
+        junção.
+        As duas relações são varridas em paralelo, e as linhas correspondentes
+        são combinadas para formar as linhas juntadas.
+        Este tipo de junção é mais atrativo, porque só é necessário varrer cada
+        relação uma vez.
+        A classificação requerida pode ser obtida por um passo explícito de
+        classificação, ou varrendo a relação na ordem apropriada utilizando um
+        índice na chave de junção.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        <firstterm>junção hash</firstterm>: Primeiro, a relação da direita é
+        varrida e carregada numa tabela de <literal>hash</literal> utilizando
+        os atributos de junção como chaves de <literal>hash</literal>.
+        Em seguida, a relação da esquerda é varrida e os valores apropriados
+        de cada linha encontrada são utilizados como chave de
+        <literal>hash</literal> para localizar as linhas correspondentes na
+        tabela.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </para>
+
+    <para>
+     Quando o comando envolve mais de duas relações, o resultado final deve
+     ser construído através de uma árvore de passos de junção, cada um com duas
+     entradas.
+     O planejador examina as diferentes possibilidades de seqüência de junção
+     para descobrir a mais barata.
+    </para>
+
+    <para>
+     A árvore do plano pronta consiste de varreduras seqüenciais ou de índice
+     das relações base, mais nodos de junção de laço aninhado, mesclagem e
+     <literal>hash</literal> conforme necessário, mais os passos auxiliares
+     necessários, como nodos de classificação ou nodos de cálculo de funções de
+     agregação.
+     A maioria destes tipos de nodos de plano possuem a capacidade adicional
+     de realizar <firstterm>seleção</> (desprezar as linhas que não correspondem
+     à condição booleana especificada) e <firstterm>projeção</> (cálculo de um
+     conjunto de colunas derivadas baseado em valores de coluna fornecidos,
+     ou seja, avaliação de expressões escalares onde for necessário).
+     Uma das responsabilidades do planejador é anexar as condições de seleção
+     da cláusula <literal>WHERE</literal> e os cálculos das expressões de saída
+     requeridos ao nodo mais apropriado da árvore do plano.
+    </para>
+   </sect2>
+  </sect1>
+
+  <sect1 id="executor">
+   <title>Executor</title>
+
+   <para>
+    O <firstterm>executor</firstterm> recebe o plano retornado pelo
+    planejador/otimizador, e o processa recursivamente para extrair o conjunto
+    de linhas requisitadas.
+    É essencialmente um mecanismo de canal de envio de informação sob demanda.
+    Toda vez que o nodo do plano é chamado deve enviar mais uma linha, ou
+    relatar que não há mais linha a ser enviada.
+   </para>
+
+   <para>
+    Para fornecer um exemplo concreto, será assumido que o nodo do topo é um
+    nodo <literal>MergeJoin</literal> (junção por mesclagem).
+    Antes da mesclagem poder ser feita, devem ser trazidas duas linhas (uma de
+    cada subplano).
+    Assim, o executor chama a si próprio recursivamente para processar
+    os subplanos (começa pelo subplano anexado à <literal>lefttree</literal>
+    &mdash; árvore da esquerda).
+    Digamos que o novo nodo do topo (o nodo do topo do subplano da esquerda)
+    seja um nodo <literal>Sort</literal> (classificação), e novamente haja
+    necessidade de recursão para obter a linha de entrada.
+    O nodo filho do <literal>Sort</literal> deve ser um nodo
+    <literal>SeqScan</>, representando a leitura real da tabela.
+    A execução deste nodo faz o executor trazer uma linha da tabela e retorná-la
+    para o nodo que chamou.
+    O nodo <literal>Sort</literal> chama repetitivamente seu nodo filho para
+    obter todas as linhas a serem classificadas.
+    Quando a entrada é exaurida (conforme indicado pelo nodo filho retornando
+    nulo em vez de uma linha), o código do <literal>Sort</literal> realiza a
+    classificação, e finalmente é capaz de retornar sua primeira linha de saída,
+    que é a primeira linha na ordem da classificação.
+    As demais linhas são mantidas armazenadas, para que possa enviá-las na
+    ordem da classificação em resposta aos próximos comandos.
+   </para>
+
+   <para>
+    De maneira semelhante, o nodo <literal>MergeJoin</literal> solicita a
+    primeira linha de seu subplano da direita.
+    Depois compara as duas linhas para verificar se podem ser juntadas;
+    se puderem ser juntadas, retorna a linha juntada para quem chamou.
+    Na próxima chamada, ou imediatamente se não puder juntar as duas entradas,
+    avança para a próxima linha de uma tabela ou da outra (dependendo do que
+    ocorrer na comparação), e novamente compara.
+    No final, um dos dois subplanos ficará exaurido, e o nodo de
+    <literal>MergeJoin</literal> retorna nulo para indicar que não podem ser
+    formadas mais linhas pela junção.
+   </para>
+
+   <para>
+    Os comandos complexos podem envolver muitos níveis de nodos de plano, mas
+    a abordagem geral é a mesma: cada nodo computa e retorna sua próxima linha
+    de saída cada vez que é chamado.
+    Cada nodo é responsável pela aplicação da seleção e das expressões de
+    projeção atribuídas ao mesmo pelo planejador.
+   </para>
+
+   <para>
+    O mecanismo do executor é utilizado para avaliar todos os quatro tipos de
+    comando SQL básicos: <command>SELECT</>, <command>INSERT</>,
+    <command>UPDATE</> e  <command>DELETE</>.
+    Para o <command>SELECT</>, o código de nível mais alto do executor somente
+    precisa enviar para o cliente cada linha retornada pelo plano de comando.
+    Para o <command>INSERT</>, cada linha retornada é inserida na tabela de
+    destino especificada para o <command>INSERT</> (Um comando
+    <command>INSERT ... VALUES</> cria uma árvore de plano trivial,
+    consistindo de um único nodo <literal>Result</> que computa apenas uma
+    linha de resultado, mas o comando <command>INSERT ... SELECT</> pode
+    demandar todo o poder do mecanismo do executor).
+    Para o <command>UPDATE</>, o planejador faz com que cada linha computada
+    inclua os valores de todas as colunas atualizadas, mais o <firstterm>TID</>
+    (ID da tupla, ou ID da linha) da linha de destino original;
+    o nível superior do executor utiliza esta informação para criar uma nova
+    linha atualizada, e marcar a linha antiga como excluída.
+    Para o <command>DELETE</>, a única coluna realmente retornada pelo plano é
+    a TID, e o nível superior do executor simplesmente utiliza o TID para
+    visitar cada linha de destino e marcá-la como excluída.
+   </para>
+
+  </sect1>
+
+ </chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

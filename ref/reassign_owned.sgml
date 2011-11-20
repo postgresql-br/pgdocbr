@@ -1,0 +1,118 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/reassign_owned.sgml,v 1.3 2006/09/16 00:30:19 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-REASSIGN-OWNED">
+ <refmeta>
+  <refentrytitle id="SQL-REASSIGN-OWNED-TITLE">REASSIGN OWNED</refentrytitle>
+  <refmiscinfo>SQL - Instruções da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>REASSIGN OWNED</refname>
+  <refpurpose>muda o dono dos objetos de banco de dados pertencentes a um papel de banco de dados</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-reassign-owned">
+  <primary>REASSIGN OWNED</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+REASSIGN OWNED BY <replaceable class="parameter">papel_atual</replaceable> [, ...] TO <replaceable class="parameter">novo_papel</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>REASSIGN OWNED</command> instrui ao sistema para mudar
+   o dono dos objetos de banco de dados pertencentes aos papéis atuais para
+   o novo papel.
+   <footnote>
+    <para>
+     <productname>DB2</productname> &mdash;
+     O comando <command>TRANSFER OWNERSHIP</command> transfere a propriedade
+     de um objeto de banco de dados.
+     <ulink url="http://publib.boulder.ibm.com/infocenter/db2luw/v9/topic/com.ibm.db2.udb.admin.doc/doc/r0021665.htm">
+     DB2 Version 9 for Linux, UNIX, and Windows</ulink> (N. do T.)
+    </para>
+   </footnote>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">papel_atual</replaceable></term>
+    <listitem>
+     <para>
+      O nome de um papel.
+      A posse de todos os objetos no banco de dados corrente pertencentes
+      a este papel será transferida para o
+      <replaceable class="parameter">novo_papel</replaceable>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">novo_papel</replaceable></term>
+    <listitem>
+     <para>
+      O nome do papel que se tornará o novo dono dos objetos afetados.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Geralmente o comando <command>REASSIGN OWNED</command> é utilizado para
+   preparar a remoção de um ou mais papéis.
+   Como o comando <command>REASSIGN OWNED</command> afeta somente os objetos
+   no banco de dados corrente, normalmente é necessário executar este
+   comando em cada um dos bancos de dados que contém objetos pertencentes
+   ao papel a ser removido.
+  </para>
+
+  <para>
+   O comando <xref linkend="sql-drop-owned" endterm="sql-drop-owned-title">
+   é uma alternativa que remove todos os objetos de banco de dados pertencentes
+   a um ou mais papéis.
+  </para>
+
+  <para>
+   O comando <command>REASSIGN OWNED</command> não afeta os privilégios
+   concedidos pelos papéis atuais sobre objetos que não pertencem aos mesmos.
+   Para revogar estes privilégios deve ser utilizado o comando
+   <xref linkend="sql-drop-owned" endterm="sql-drop-owned-title">.
+  </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>REASSIGN OWNED</command> é uma extensão do
+   <productname>PostgreSQL</productname>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-drop-owned" endterm="sql-drop-owned-title"></member>
+   <member><xref linkend="sql-droprole" endterm="sql-droprole-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>

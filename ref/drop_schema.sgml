@@ -1,0 +1,126 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/drop_schema.sgml,v 1.6 2003/11/29 19:51:38 pgsql Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-DROPSCHEMA">
+ <refmeta>
+  <refentrytitle id="SQL-DROPSCHEMA-TITLE">DROP SCHEMA</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>DROP SCHEMA</refname>
+  <refpurpose>remove um esquema</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-dropschema">
+  <primary>DROP SCHEMA</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+DROP SCHEMA <replaceable class="parameter">nome</replaceable> [, ...] [ CASCADE | RESTRICT ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>DROP SCHEMA</command> remove esquemas do banco de dados.
+  </para>
+
+  <para>
+   O esquema somente pode ser removido pelo seu dono ou por um superusuário.
+   Deve ser observado que o dono pode remover o esquema (e, portanto, todos os
+   objetos que este contém), mesmo que não seja o dono de alguns objetos
+   contidos no esquema.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome do esquema.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>CASCADE</literal></term>
+    <listitem>
+     <para>
+      Remove automaticamente os objetos (tabelas, funções, etc.)
+      contidos no esquema.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>RESTRICT</literal></term>
+    <listitem>
+     <para>
+      Não permite remover o esquema caso este contenha algum objeto.
+      Este é o padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para remover do banco de dados o esquema <literal>meu_esquema</literal>
+   junto com todos os objetos que este contém:
+
+<programlisting>
+DROP SCHEMA meu_esquema CASCADE;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>DROP SCHEMA</command> está em conformidade total com o
+   padrão SQL, exceto que o padrão permite apenas remover um esquema
+   por comando.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-alterschema" endterm="sql-alterschema-title"></member>
+   <member><xref linkend="sql-createschema" endterm="sql-createschema-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

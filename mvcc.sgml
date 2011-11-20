@@ -1,0 +1,1087 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/mvcc.sgml,v 2.46 2004/12/23 23:07:38 tgl Exp $
+-->
+
+ <chapter id="mvcc">
+  <title>Controle de simultaneidade</title>
+
+  <indexterm>
+   <primary>simultaneidade</primary>
+  </indexterm>
+
+  <para>
+   Este capítulo descreve o comportamento do sistema gerenciador
+   de banco de dados <productname>PostgreSQL</productname> quando
+   duas ou mais sessões tentam acessar os mesmos dados ao mesmo tempo.
+   O objetivo nesta situação é permitir acesso eficiente para todas as
+   sessões mantendo, ao mesmo tempo, uma rigorosa integridade dos dados.
+   Todos os desenvolvedores de aplicativos de banco de dados devem estar
+   familiarizados com os tópicos cobertos por este capítulo.
+  </para>
+
+  <sect1 id="mvcc-intro">
+   <title>Introdução</title>
+
+   <indexterm>
+    <primary>MVCC</primary>
+   </indexterm>
+
+   <para>
+    Diferentemente dos sistemas gerenciadores de banco de dados tradicionais,
+    que usam bloqueios para controlar a simultaneidade, o
+    <productname>PostgreSQL</productname> mantém a consistência dos dados
+    utilizando o modelo multiversão (<literal>Multiversion Concurrency
+    Control</literal>, <acronym>MVCC</acronym>).
+    Isto significa que, ao consultar o banco de dados cada transação enxerga um
+    instantâneo (<literal>snapshot</literal>) dos dados (uma <firstterm>versão
+    do banco de dados</firstterm>) como estes eram há um tempo atrás, sem levar
+    em consideração o estado corrente dos dados subjacentes.
+    Este modelo protege a transação contra enxergar dados inconsistentes, o que
+    poderia ser causado por atualizações feitas por transações simultâneas
+    nas mesmas linhas de dados, fornecendo um <firstterm>isolamento da
+    transação</firstterm> para cada sessão do banco de dados.
+   </para>
+
+   <para>
+    A principal vantagem de utilizar o modelo de controle de simultaneidade
+    <acronym>MVCC</acronym> em vez de bloqueios é que, no
+    <acronym>MVCC</acronym> os bloqueios obtidos para consultar dados
+    (leitura) não conflitam com os bloqueios obtidos para escrever dados e,
+    portanto, a leitura nunca bloqueia a escrita, e a escrita nunca bloqueia a
+    leitura.
+   </para>
+
+   <para>
+    Também estão disponíveis no <productname>PostgreSQL</productname> as
+    funcionalidades de bloqueio no nível de tabela e de linha, para aplicativos
+    que não podem se adaptar facilmente ao comportamento <acronym>MVCC</acronym>.
+    Entretanto, a utilização apropriada do <acronym>MVCC</acronym> geralmente
+    produz um desempenho melhor que os bloqueios.
+   </para>
+  </sect1>
+
+  <sect1 id="transaction-iso">
+   <title>Isolamento da transação</title>
+
+   <indexterm>
+    <primary>isolamento da transação</primary>
+   </indexterm>
+
+   <para>
+    O padrão <acronym>SQL</acronym> define quatro níveis de isolamento de
+    transação em termos de três fenômenos que devem ser evitados entre
+    transações simultâneas. Os fenômenos não desejados são:
+
+    <variablelist>
+     <varlistentry>
+      <term>
+       <literal>dirty read</literal> (leitura suja)
+       <indexterm><primary>dirty read</primary></indexterm>
+      </term>
+     <listitem>
+      <para>
+        A transação lê dados escritos por uma transação simultânea não efetivada
+        (<literal>uncommitted</literal>).
+        <footnote>
+         <para>
+          <literal>dirty read</literal> &mdash;
+          A transação SQL T1 altera uma linha. Em seguida a transação SQL T2
+          lê esta linha antes de T1 executar o comando <command>COMMIT</command>.
+          Se depois T1 executar o comando <command>ROLLBACK</command>, T2 terá
+          lido uma linha que nunca foi efetivada e que, portanto, pode ser
+          considerada como nunca tendo existido.
+          (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+          ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+         </para>
+        </footnote>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>
+       <literal>nonrepeatable read</literal> (leitura que não pode ser repetida)
+       <indexterm><primary>nonrepeatable read</primary></indexterm>
+      </term>
+      <listitem>
+       <para>
+        A transação lê novamente dados lidos anteriormente, e descobre que os
+        dados foram alterados por outra transação (que os efetivou após ter
+        sido feita a leitura anterior).
+        <footnote>
+         <para>
+          <literal>nonrepeatable read</literal> &mdash;
+          A transação SQL T1 lê uma linha. Em seguida a transação SQL T2 altera
+          ou exclui esta linha e executa o comando <command>COMMIT</command>.
+          Se T1 tentar ler esta linha novamente, pode receber o valor alterado
+          ou descobrir que a linha foi excluída.
+          (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+          ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+         </para>
+        </footnote>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>
+       <literal>phantom read</literal> (leitura fantasma)
+       <indexterm><primary>phantom read</primary></indexterm>
+      </term>
+      <listitem>
+       <para>
+        A transação executa uma segunda vez uma consulta que retorna um conjunto
+        de linhas que satisfazem uma determinada condição de procura, e descobre
+        que o conjunto de linhas que satisfazem a condição é diferente por causa
+        de uma outra transação efetivada recentemente.
+        <footnote>
+         <para>
+          <literal>phantom read</literal> &mdash;
+          A transação SQL T1 lê um conjunto de linhas N que satisfazem a uma
+          condição de procura. Em seguida a transação SQL T2 executa comandos
+          SQL que geram uma ou mais linhas que satisfazem a condição de procura
+          usada pela transação T1. Se depois a transação SQL T1 repetir a
+          leitura inicial com a mesma condição de procura, será obtida uma
+          coleção diferente de linhas.
+          (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+          ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+         </para>
+        </footnote>
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+
+   <para>
+    <indexterm>
+     <primary>nível de isolamento da transação</primary>
+    </indexterm>
+    Os quatro níveis de isolamento de transação, e seus comportamentos
+    correspondentes, estão descritos na <xref linkend="mvcc-isolevel-table">.
+   </para>
+
+    <table tocentry="1" id="mvcc-isolevel-table">
+     <title>Níveis de isolamento da transação no <acronym>SQL</acronym></title>
+     <tgroup cols="4">
+      <thead>
+       <row>
+        <entry>
+         Nível de isolamento
+        </entry>
+        <entry>
+         Dirty Read
+        </entry>
+        <entry>
+         Nonrepeatable Read
+        </entry>
+        <entry>
+         Phantom Read
+        </entry>
+       </row>
+      </thead>
+      <tbody>
+       <row>
+        <entry>
+         Read uncommitted
+        </entry>
+        <entry>
+         Possível
+        </entry>
+        <entry>
+         Possível
+        </entry>
+        <entry>
+         Possível
+        </entry>
+       </row>
+
+       <row>
+        <entry>
+         Read committed
+        </entry>
+        <entry>
+         Impossível
+        </entry>
+        <entry>
+         Possível
+        </entry>
+        <entry>
+         Possível
+        </entry>
+       </row>
+
+       <row>
+        <entry>
+         Repeatable read
+        </entry>
+        <entry>
+         Impossível
+        </entry>
+        <entry>
+         Impossível
+        </entry>
+        <entry>
+         Possível
+        </entry>
+       </row>
+
+       <row>
+        <entry>
+         Serializable
+        </entry>
+        <entry>
+         Impossível
+        </entry>
+        <entry>
+         Impossível
+        </entry>
+        <entry>
+         Impossível
+        </entry>
+       </row>
+      </tbody>
+     </tgroup>
+    </table>
+
+   <para>
+    No <productname>PostgreSQL</productname> pode ser requisitado qualquer um
+    dos quatros níveis de isolamento padrão. Porém, internamente só existem dois
+    níveis de isolamento distintos, correspondendo aos níveis de isolamento
+    <literal>Read Committed</literal> e <literal>Serializable</literal>.
+    Quando é selecionado o nível de isolamento <literal>Read Committed</literal>
+    realmente obtém-se <literal>Read Committed</literal>, mas quando é
+    selecionado <literal>Repeatable Read</literal> na realidade é obtido
+    <literal>Serializable</literal>. Portanto, o nível de isolamento real pode
+    ser mais estrito do que o selecionado. Isto é permitido pelo padrão SQL:
+    os quatro níveis de isolamento somente definem quais fenômenos não podem
+    acontecer, não definem quais fenômenos devem acontecer.
+    O motivo pelo qual o <productname>PostgreSQL</productname> só disponibiliza
+    dois níveis de isolamento, é porque esta é a única forma de mapear os
+    níveis de isolamento padrão na arquitetura de controle de simultaneidade
+    multiversão que faz sentido. O comportamento dos níveis de isolamento
+    disponíveis estão detalhados nas próximas subseções.
+   </para>
+
+   <para>
+    É utilizado o comando <xref linkend="sql-set-transaction">
+    para definir o nível de isolamento da transação.
+   </para>
+
+  <sect2 id="xact-read-committed">
+   <title>Nível de isolamento Read Committed</title>
+
+   <indexterm>
+    <primary>nível de isolamento da transação</primary>
+    <secondary>read committed</secondary>
+   </indexterm>
+
+   <para>
+    O <firstterm>Read Committed</firstterm> (lê efetivado)
+    é o nível de isolamento padrão do <productname>PostgreSQL</productname>.
+    Quando uma transação processa sob este nível de isolamento, o comando
+    <command>SELECT</command> enxerga apenas os dados efetivados antes da
+    consulta começar; nunca enxerga dados não efetivados, ou as alterações
+    efetivadas pelas transações simultâneas durante a execução da consulta
+    (Entretanto, o <command>SELECT</command> enxerga os efeitos das atualizações
+    anteriores executadas dentro da sua própria transação, mesmo que ainda não
+    tenham sido efetivadas). Na verdade, o comando <command>SELECT</command>
+    enxerga um instantâneo do banco de dados, como este era no instante em que a
+    consulta começou a executar. Deve ser observado que dois comandos
+    <command>SELECT</command> sucessivos podem enxergar dados diferentes, mesmo
+    estando dentro da mesma transação, se outras transações efetivarem
+    alterações durante a execução do primeiro comando <command>SELECT</command>.
+   </para>
+
+   <para>
+    Os comandos <command>UPDATE</command>, <command>DELETE</command> e
+    <command>SELECT FOR UPDATE</command> se comportam do mesmo modo que o
+    <command>SELECT</command> para encontrar as linhas de destino: somente
+    encontram linhas de destino efetivadas até o momento do início do comando.
+    Entretanto, no momento em que foi encontrada alguma linha de destino pode
+    ter sido atualizada (ou excluída ou marcada para atualização) por outra
+    transação simultânea.
+    Neste caso, a transação que pretende atualizar fica aguardando a transação
+    de atualização que começou primeiro efetivar ou desfazer (se ainda estiver
+    executando).
+    Se a transação de atualização que começou primeiro desfizer as atualizações,
+    então seus efeitos são negados e a segunda transação de atualização pode
+    prosseguir com a atualização da linha original encontrada.
+    Se a transação de atualização que começou primeiro efetivar as atualizações,
+    a segunda transação de atualização ignora a linha caso tenha sido excluída
+    pela primeira transação de atualização, senão tenta aplicar sua operação na
+    versão atualizada da linha.
+    A condição de procura do comando (a cláusula <literal>WHERE</literal>) é
+    avaliada novamente para verificar se a versão atualizada da linha ainda
+    corresponde à condição de procura.
+    Se corresponder, a segunda transação de atualização prossegue sua operação
+    começando a partir da versão atualizada da linha.
+   </para>
+
+   <para>
+    Devido à regra acima, é possível um comando de atualização enxergar um
+    instantâneo inconsistente: pode enxergar os efeitos dos comandos simultâneos
+    de atualização que afetam as mesmas linhas que está tentando atualizar,
+    mas não enxerga os efeitos destes comandos de atualização nas outras linhas
+    do banco de dados.
+    Este comportamento torna o <literal>Read Committed</literal> inadequado
+    para os comandos envolvendo condições de procura complexas. Entretanto, é
+    apropriado para casos mais simples. Por exemplo, considere a atualização do
+    saldo bancário pela transação mostrada abaixo:
+
+<screen>
+<userinput>
+BEGIN;
+UPDATE conta SET saldo = saldo + 100.00 WHERE num_conta = 12345;
+UPDATE conta SET saldo = saldo - 100.00 WHERE num_conta = 7534;
+COMMIT;
+</userinput>
+</screen>
+
+    Se duas transações deste tipo tentam mudar simultaneamente o saldo da conta
+    12345, é claro que se deseja que a segunda transação comece a partir da
+    versão atualizada da linha da conta. Como cada comando afeta apenas uma
+    linha predeterminada, permitir enxergar a versão atualizada da linha não
+    cria nenhum problema de inconsistência.
+   </para>
+
+   <para>
+    Como no modo <literal>Read Committed</literal> cada novo comando começa com
+    um novo instantâneo incluindo todas as transações efetivadas até este
+    instante, de qualquer modo os próximos comandos na mesma transação vão
+    enxergar os efeitos das transações simultâneas efetivadas. O ponto em
+    questão é se, dentro de um <emphasis>único</emphasis> comando, é enxergada
+    uma visão totalmente consistente do banco de dados.
+   </para>
+
+   <para>
+    O isolamento parcial da transação fornecido pelo modo
+    <literal>Read Committed</literal> é adequado para muitos aplicativos, e este
+    modo é rápido e fácil de ser utilizado.
+    Entretanto, para aplicativos que efetuam consultas e atualizações complexas,
+    pode ser necessário garantir uma visão do banco de dados com consistência
+    mais rigorosa que a fornecida pelo modo <literal>Read Committed</literal>.
+   </para>
+  </sect2>
+
+  <sect2 id="xact-serializable">
+   <title>Nível de isolamento serializável</title>
+
+   <indexterm>
+    <primary>nível de isolamento da transação</primary>
+    <secondary>serializável</secondary>
+   </indexterm>
+
+   <para>
+    O nível <firstterm>Serializable</firstterm> fornece o isolamento de transação
+    mais rigoroso. Este nível emula a execução serial das transações, como se
+    todas as transações fossem executadas uma após a outra, em série, em vez de
+    simultaneamente. Entretanto, os aplicativos que utilizam este nível de
+    isolamento devem estar preparados para tentar executar novamente as
+    transações, devido a falhas de serialização.
+   </para>
+
+   <para>
+    Quando uma transação está no nível serializável, o comando
+    <command>SELECT</command> enxerga apenas os dados efetivados antes
+    da transação começar; nunca enxerga dados não efetivados ou alterações
+    efetivadas durante a execução da transação por transações simultâneas
+    (Entretanto, o comando <command>SELECT</command> enxerga os efeitos das
+    atualizações anteriores executadas dentro da sua própria transação, mesmo
+    que ainda não tenham sido efetivadas).
+    É diferente do <literal>Read Committed</literal>, porque o comando
+    <command>SELECT</command> enxerga um instantâneo do momento de início da
+    transação, e não do momento de início do comando corrente dentro da
+    transação. Portanto, comandos <command>SELECT</command> sucessivos dentro
+    de uma mesma transação sempre enxergam os mesmos dados.
+   </para>
+
+   <para>
+    Os comandos <command>UPDATE</command>, <command>DELETE</command> e
+    <command>SELECT FOR UPDATE</command> se comportam do mesmo modo que o
+    comando <command>SELECT</command> para encontrar as linhas de destino:
+    somente encontram linhas de destino efetivadas até o momento do início da
+    transação. Entretanto, alguma linha de destino pode ter sido atualizada
+    (ou excluída ou marcada para atualização) por outra transação simultânea no
+    momento em que foi encontrada. Neste caso, a transação serializável aguarda
+    a transação de atualização que começou primeiro efetivar ou desfazer as
+    alterações (se ainda estiver executando). Se a transação que começou
+    primeiro desfizer as alterações, então seus efeitos são negados e a
+    transação serializável pode prosseguir com a atualização da linha original
+    encontrada. Porém, se a transação que começou primeiro efetivar (e realmente
+    atualizar ou excluir a linha, e não apenas selecionar para atualização),
+    então a transação serializável é desfeita com a mensagem
+
+<programlisting>
+ERRO:  não foi possível serializar o acesso devido a atualização simultânea
+</programlisting>
+
+    porque uma transação serializável não pode alterar linhas alteradas
+    por outra transação após a transação serializável ter começado.
+   </para>
+
+   <para>
+    Quando o aplicativo receber esta mensagem de erro deverá interromper a
+    transação corrente, e tentar executar novamente toda a transação a partir
+    do início. Da segunda vez em diante, a transação passa a enxergar a
+    alteração efetivada anteriormente como parte da sua visão inicial do
+    banco de dados e, portanto, não existirá conflito lógico em usar a nova
+    versão da linha como ponto de partida para atualização na nova transação.
+   </para>
+
+   <para>
+    Deve ser observado que somente as transações que fazem atualizações podem
+    precisar de novas tentativas; as transações somente para leitura nunca
+    estão sujeitas a conflito de serialização.
+   </para>
+
+   <para>
+    O modo serializável fornece uma garantia rigorosa que cada transação
+    enxerga apenas visões totalmente consistentes do banco de dados. Entretanto,
+    o aplicativo deve estar preparado para executar novamente a transação
+    quando atualizações simultâneas tornarem impossível sustentar a ilusão de
+    uma execução serial. Como o custo de refazer transações complexas pode ser
+    significativo, este modo é recomendado somente quando as transações
+    efetuando atualizações contêm lógica suficientemente complexa a ponto de
+    produzir respostas erradas no modo <literal>Read Committed</literal>.
+    Habitualmente, o modo serializável é necessário quando a transação executa
+    vários comandos sucessivos que necessitam enxergar visões idênticas do
+    banco de dados.
+   </para>
+
+   <sect3 id="mvcc-serializability">
+    <title>Isolamento serializável versus verdadeira serialidade</title>
+
+   <indexterm>
+    <primary>serialidade</primary>
+   </indexterm>
+
+   <indexterm>
+    <primary>bloqueio de predicado</primary>
+   </indexterm>
+
+   <para>
+    O significado intuitivo (e a definição matemática) de execução
+    <quote>serializável</> é que quaisquer duas transações simultâneas
+    efetivadas com sucesso parecem ter sido executadas de forma rigorosamente
+    serial, uma após a outra &mdash; embora qual das duas parece
+    ter ocorrido primeiro não pode ser previsto antecipadamente.
+    É importante ter em mente que proibir os comportamentos indesejáveis
+    listados na <xref linkend="mvcc-isolevel-table"> não é suficiente para
+    garantir a verdadeira serialidade e, de fato, o modo serializável do
+    <productname>PostgreSQL</productname> <emphasis>não garante a execução
+    serializável neste sentido</>. Como exemplo será considerada a tabela
+    <structname>minha_tabela</> contendo inicialmente
+<screen>
+<computeroutput>
+ classe | valor
+--------+-------
+      1 |    10
+      1 |    20
+      2 |   100
+      2 |   200
+</computeroutput>
+</screen>
+    Suponha que a transação serializável A calcula
+<programlisting>
+SELECT SUM(valor) FROM minha_tabela WHERE classe = 1;
+</programlisting>
+    e insira o resultado (30) como <structfield>valor</> em uma nova
+    linha com <structfield>classe</> = 2. Simultaneamente a transação
+    serializável B calcula
+<programlisting>
+SELECT SUM(valor) FROM minha_tabela WHERE classe = 2;
+</programlisting>
+    e obtém o resultado 300, que é inserido em uma nova linha com
+    <structfield>classe</> = 1. Em seguida as duas transações efetivam.
+    Nenhum dos comportamentos não desejados ocorreu, ainda assim foi
+    obtido um resultado que não poderia ter ocorrido serialmente em
+    qualquer ordem. Se A tivesse executado antes de B, então B teria calculado
+    a soma como 330, e não 300, e de maneira semelhante a outra ordem
+    teria produzido uma soma diferente na transação A.
+   </para>
+
+   <para>
+    Para garantir serialidade matemática verdadeira, é necessário que o
+    sistema de banco de dados imponha o <firstterm>bloqueio de predicado</>,
+    significando que a transação não pode inserir ou alterar uma linha
+    que corresponde à condição <literal>WHERE</> de um comando de outra
+    transação simultânea. Por exemplo, uma vez que a transação A tenha executado
+    o comando <literal>SELECT ... WHERE class = 1</>, o sistema de bloqueio de
+    predicado proibiria a transação B inserir qualquer linha com classe igual a
+    1 até que A fosse efetivada.
+     <footnote>
+      <para>
+       Em essência, o sistema de bloqueio de predicado evita leituras fantasmas
+       restringindo o que é escrito, enquanto o MVCC evita restringindo
+       o que é lido.
+      </para>
+     </footnote>
+    Um sistema de bloqueio deste tipo é de implementação complexa
+    e de execução extremamente dispendiosa, uma vez que todas as sessões
+    devem estar cientes dos detalhes de todos os comandos executados por
+    todas as transações simultâneas. E este grande gasto em sua maior parte
+    seria desperdiçado, porque na prática a maioria dos aplicativos não fazem
+    coisas do tipo que podem ocasionar problemas (Certamente o exemplo
+    acima é bastante irreal, dificilmente representando um programa de verdade).
+    Portanto, o <productname>PostgreSQL</productname> não implementa o
+    bloqueio de predicado, e tanto quanto saibamos nenhum outro SGBD de
+    produção o faz.
+   </para>
+
+   <para>
+    Nos casos em que a possibilidade de execução não serial representa
+    um perigo real, os problemas podem ser evitados através da utilização
+    apropriada de bloqueios explícitos. São mostrados mais detalhes nas
+    próximas seções.
+   </para>
+  </sect3>
+  </sect2>
+ </sect1>
+
+  <sect1 id="explicit-locking">
+   <title>Bloqueio explícito</title>
+
+   <indexterm>
+    <primary>bloqueio</primary>
+   </indexterm>
+
+   <para>
+    O <productname>PostgreSQL</productname> fornece vários modos de bloqueio para
+    controlar o acesso simultâneo aos dados nas tabelas. Estes modos podem ser
+    utilizados para controlar o bloqueio pela transação, nas situações onde o
+    <acronym>MVCC</acronym> não produz o comportamento adequado.
+    Também, a maioria dos comandos do <productname>PostgreSQL</productname>
+    obtém, automaticamente, bloqueios nos modos apropriados para garantir que
+    as tabelas referenciadas não serão excluídas ou alteradas de forma
+    incompatível enquanto o comando estiver executando (Por exemplo, o comando
+    <command>ALTER TABLE</command> não pode executar simultaneamente com outras
+    operações na mesma tabela).
+   </para>
+
+   <para>
+    Para examinar a lista de bloqueios ativos no servidor de banco de dados
+    em um determinado instante, deve ser utilizada a visão do sistema
+    <structname>pg_locks</structname> (<xref linkend="view-pg-locks">).
+    Para obter informações adicionais sobre a monitoração do status do
+    subsistema de gerência de bloqueios consulte o <xref linkend="monitoring">.
+   </para>
+
+  <sect2 id="locking-tables">
+   <title>Bloqueios no nível de tabela</title>
+
+   <indexterm zone="locking-tables">
+    <primary>LOCK</primary>
+   </indexterm>
+
+   <para>
+    A lista abaixo mostra os modos de bloqueio disponíveis, e os contextos onde
+    estes modos são utilizados automaticamente pelo
+    <productname>PostgreSQL</productname>.
+    Também pode ser obtido explicitamente qualquer um destes níveis de bloqueio
+    através do comando <xref linkend="sql-lock">.
+    Lembre-se que todos estes modos de bloqueio são no nível de tabela, mesmo
+    que o nome contenha a palavra <quote>row</quote> (linha).
+    Os nomes dos modos de bloqueio são históricos.
+    De alguma forma os nomes refletem a utilização típica de cada modo de
+    bloqueio &mdash; mas as semânticas são todas a mesma. A única diferença real
+    entre um modo de bloqueio e outro é o conjunto de modos de bloqueio que cada
+    um conflita.
+    Duas transações não podem obter bloqueios com modos conflitantes na mesma
+    tabela ao mesmo tempo (Entretanto, uma transação nunca conflita consigo
+    mesma. Por exemplo, pode obter o bloqueio <literal>ACCESS EXCLUSIVE</literal>
+    e posteriormente obter o bloqueio <literal>ACCESS SHARE</literal> na mesma
+    tabela).
+    Podem ser obtidos simultaneamente modos de bloqueio não conflitantes por
+    muitas transações.
+    Em particular, deve ser observado que alguns modos de bloqueio são
+    autoconflitantes (por exemplo, o modo de bloqueio
+    <literal>ACCESS EXCLUSIVE</literal> não pode ser obtido por mais de uma
+    transação ao mesmo tempo), enquanto outros não são autoconflitantes (por
+    exemplo, o modo de bloqueio <literal>ACCESS SHARE</literal> pode ser obtido
+    por várias transações ao mesmo tempo).
+    Uma vez obtido, o modo de bloqueio permanece até o fim da transação.
+   </para>
+
+     <variablelist>
+      <title>Modos de bloqueio no nível de tabela</title>
+      <varlistentry>
+       <term>
+        <literal>ACCESS SHARE</literal>
+       </term>
+       <listitem>
+        <para>
+         Conflita apenas com o modo de bloqueio
+         <literal>ACCESS EXCLUSIVE</literal>.
+        </para>
+
+        <para>
+         O comando <command>SELECT</command> e o comando
+         <command>ANALYZE</command> obtêm um bloqueio neste modo nas tabelas
+         referenciadas. Em geral, qualquer comando que apenas lê a tabela sem
+         modificá-la obtém este modo de bloqueio.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term>
+        <literal>ROW SHARE</literal>
+       </term>
+       <listitem>
+        <para>
+        Conflita com os modos de bloqueio <literal>EXCLUSIVE</literal> e
+        <literal>ACCESS EXCLUSIVE</literal>.
+        </para>
+
+        <para>
+         O comando <command>SELECT FOR UPDATE</command> obtém o bloqueio neste
+         modo na(s) tabela(s) de destino (além do bloqueio no modo
+         <literal>ACCESS SHARE</literal> para as demais tabelas referenciadas
+         mas não selecionadas <option>FOR UPDATE</option>).
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term>
+        <literal>ROW EXCLUSIVE</literal>
+       </term>
+       <listitem>
+        <para>
+         Conflita com os modos de bloqueio <literal>SHARE</literal>,
+         <literal>SHARE ROW EXCLUSIVE</literal>, <literal>EXCLUSIVE</literal> e
+         <literal>ACCESS EXCLUSIVE</literal>.
+        </para>
+
+        <para>
+         Os comandos <command>UPDATE</command>, <command>DELETE</command> e
+         <command>INSERT</command> obtêm este modo de bloqueio na tabela de
+         destino (além do modo de bloqueio <literal>ACCESS SHARE</literal> nas
+         outras tabelas referenciadas). Em geral, este modo de bloqueio é
+         obtido por todos os comandos que alteram os dados da tabela.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term>
+        <literal>SHARE UPDATE EXCLUSIVE</literal>
+       </term>
+       <listitem>
+        <para>
+         Conflita com os modos de bloqueio
+         <literal>SHARE UPDATE EXCLUSIVE</literal>, <literal>SHARE</literal>,
+         <literal>SHARE ROW EXCLUSIVE</literal>, <literal>EXCLUSIVE</literal> e
+         <literal>ACCESS EXCLUSIVE</literal>.
+         Este modo protege a tabela contra alterações simultâneas no esquema e a
+         execução do comando <command>VACUUM</command>.
+        </para>
+
+        <para>
+         Obtida pelo comando <command>VACUUM</command>
+         (sem a opção <option>FULL</option>).
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term>
+        <literal>SHARE</literal>
+       </term>
+       <listitem>
+        <para>
+         Conflita com os modos de bloqueio <literal>ROW EXCLUSIVE</literal>,
+         <literal>SHARE UPDATE EXCLUSIVE</literal>, <literal>SHARE ROW
+         EXCLUSIVE</literal>, <literal>EXCLUSIVE</literal> e
+         <literal>ACCESS EXCLUSIVE</literal>.
+         Este modo protege a tabela contra alterações simultâneas nos dados.
+        </para>
+
+        <para>
+         Obtido pelo comando <command>CREATE INDEX</command>.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term>
+        <literal>SHARE ROW EXCLUSIVE</literal>
+       </term>
+       <listitem>
+        <para>
+         Conflita com os modos de bloqueio <literal>ROW EXCLUSIVE</literal>,
+         <literal>SHARE UPDATE EXCLUSIVE</literal>,
+         <literal>SHARE</literal>, <literal>SHARE ROW EXCLUSIVE</literal>,
+         <literal>EXCLUSIVE</literal> e <literal>ACCESS EXCLUSIVE</literal>.
+        </para>
+
+        <para>
+         Este modo de bloqueio não é obtido automaticamente por nenhum
+         comando do <productname>PostgreSQL</productname>.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term>
+        <literal>EXCLUSIVE</literal>
+       </term>
+       <listitem>
+        <para>
+         Conflita com os modos de bloqueio <literal>ROW SHARE</literal>,
+         <literal>ROW EXCLUSIVE</literal>, <literal>SHARE UPDATE
+         EXCLUSIVE</literal>, <literal>SHARE</literal>, <literal>SHARE
+         ROW EXCLUSIVE</literal>, <literal>EXCLUSIVE</literal> e
+         <literal>ACCESS EXCLUSIVE</literal>.
+         Este modo permite apenas bloqueios <literal>ACCESS SHARE</literal>
+         simultâneos, ou seja, somente leituras da tabela podem prosseguir em
+         paralelo com uma transação que obteve este modo de bloqueio.
+        </para>
+
+        <para>
+         Este modo de bloqueio não é obtido automaticamente por nenhum
+         comando do <productname>PostgreSQL</productname>.
+         Entretanto, é obtido em alguns catálogos do sistema em algumas
+         operações.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term>
+        <literal>ACCESS EXCLUSIVE</literal>
+       </term>
+       <listitem>
+        <para>
+         Conflita com todos os modos de bloqueio (<literal>ACCESS
+         SHARE</literal>, <literal>ROW SHARE</literal>, <literal>ROW
+         EXCLUSIVE</literal>, <literal>SHARE UPDATE EXCLUSIVE</literal>,
+         <literal>SHARE</literal>, <literal>SHARE ROW EXCLUSIVE</literal>,
+         <literal>EXCLUSIVE</literal> e <literal>ACCESS EXCLUSIVE</literal>).
+         Este modo garante que a transação que o obteve é a única acessando
+         a tabela de qualquer forma.
+        </para>
+
+        <para>
+         Obtido pelos comandos <command>ALTER TABLE</command>,
+         <command>DROP TABLE</command>, <command>REINDEX</command>,
+         <command>CLUSTER</command> e <command>VACUUM FULL</command>.
+         Este é, também, o modo de bloqueio padrão para o comando
+         <command>LOCK TABLE</command> sem a especificação explícita do modo.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
+
+     <tip>
+      <para>
+       Somente o bloqueio <literal>ACCESS EXCLUSIVE</literal> bloqueia o
+       comando <command>SELECT</command>
+       (sem a cláusula <option>FOR UPDATE</option>).
+      </para>
+     </tip>
+
+   </sect2>
+
+   <sect2 id="locking-rows">
+    <title>Bloqueios no nível de linha</title>
+
+    <para>
+     Além dos bloqueios no nível de tabela, existem os bloqueios no nível de
+     linha. O bloqueio no nível de linha é obtido automaticamente para uma
+     linha específica quando a linha é atualizada (ou excluída ou marcada para
+     atualização). O bloqueio é mantido até a transação efetivar ou desfazer as
+     alterações. Os bloqueios no nível de linha não afetam a consulta aos dados;
+     bloqueiam apenas <emphasis>escritas na mesma linha</emphasis>. Para obter
+     um bloqueio no nível de linha sem na verdade modificá-la, a linha deve ser
+     selecionada por meio do comando <command>SELECT FOR UPDATE</command>.
+     Deve ser observado que após ser obtido um bloqueio no nível de linha,
+     a transação pode atualizar esta linha várias vezes sem medo de conflito.
+    </para>
+
+    <para>
+     O <productname>PostgreSQL</productname> não guarda em memória qualquer
+     informação sobre as linhas alteradas, portanto não existe limite de
+     número de linhas bloqueadas de cada vez. Entretanto, o bloqueio de uma
+     linha pode causar escrita no disco; por exemplo, o comando <command>SELECT
+     FOR UPDATE</command> altera as linhas selecionadas para marcá-las,
+     ocasionando escrita em disco.
+    </para>
+
+    <para>
+     Além dos bloqueios de tabela e de linha, também são utilizados bloqueios
+     compartilhados e exclusivos no nível de página, para controlar o acesso de
+     leitura e escrita nas páginas da tabela no <literal>shared buffer
+     pool</literal>. Estes bloqueios são liberados imediatamente após a linha
+     ser lida ou atualizada. Normalmente os desenvolvedores de aplicativos não
+     precisam se preocupar com bloqueios no nível de página, sendo mencionados
+     somente para o assunto ficar completo.
+    </para>
+
+   </sect2>
+
+   <sect2 id="locking-deadlocks">
+    <title>Impasses</title>
+
+    <indexterm zone="locking-deadlocks">
+     <primary>impasse</primary>
+    </indexterm>
+
+    <para>
+     A utilização de bloqueios explícitos pode aumentar a probabilidade de
+     acontecerem <firstterm>impasse</firstterm>s (<literal>deadlocks</literal>),
+     onde duas (ou mais) transações mantêm bloqueios que a outra deseja.
+     Por exemplo, se a transação 1 obtiver um bloqueio exclusivo na tabela A e,
+     depois, tentar obter um bloqueio exclusivo na tabela B, enquanto a
+     transação 2 já possui um bloqueio exclusivo na tabela B, e agora deseja
+     obter um bloqueio exclusivo na tabela A, então nenhuma das duas transações
+     pode prosseguir.
+     O <productname>PostgreSQL</productname> detecta automaticamente as
+     situações de impasse, resolvendo-as interrompendo uma das transações
+     envolvidas, permitindo que a(s) outra(s) prossiga(m) (Exatamente qual
+     transação será interrompida é difícil prever, não se devendo confiar nesta
+     previsão).
+    </para>
+
+    <para>
+     Deve ser observado que os impasses também podem ocorrer como resultado de
+     um bloqueio no nível de linha (e, por isso, podem ocorrer mesmo que não se
+     use bloqueios explícitos). Considere o caso onde existam duas transações
+     simultâneas alterando uma tabela. A primeira transação executa:
+
+<programlisting>
+UPDATE conta SET saldo = saldo + 100.00 WHERE num_conta = 11111;
+</programlisting>
+
+     Este comando obtém um bloqueio no nível de linha na linha com o número da
+     conta especificado. Depois a segunda transação executa:
+
+<programlisting>
+UPDATE conta SET saldo = saldo + 100.00 WHERE num_conta = 22222;
+UPDATE conta SET saldo = saldo - 100.00 WHERE num_conta = 11111;
+</programlisting>
+
+     O primeiro comando <command>UPDATE</command> é bem-sucedido ao obter
+     o bloqueio no nível de linha na linha especificada e, portanto, prossegue
+     atualizando a linha. Entretanto, o segundo comando <command>UPDATE</command>
+     descobre que a linha a ser atualizada está bloqueada e, portanto, fica
+     aguardando a transação que obteve o bloqueio terminar. A transação 2 agora
+     está aguardando a transação 1 completar para poder continuar. Agora,
+     a transação 1 executa:
+
+<programlisting>
+UPDATE conta SET saldo = saldo - 100.00 WHERE num_conta = 22222;
+</programlisting>
+
+     A transação 1 tenta obter um bloqueio no nível de linha na linha
+     especificada, mas não pode: a transação 2 já possui este bloqueio.
+     Portanto, fica aguardando a transação 2 terminar. Assim sendo, a
+     transação 1 está bloqueada pela transação 2, e a transação 2 está
+     bloqueada pela transação 1: uma condição de impasse.
+     O <productname>PostgreSQL</productname> detecta esta
+     situação e interrompe uma das transações.
+    </para>
+
+    <para>
+     Geralmente a melhor defesa contra os impasses é evitá-los, tendo certeza
+     que todos os aplicativos que utilizam o banco de dados obtêm bloqueios em
+     vários objetos em uma ordem consistente. No exemplo anterior, se as duas
+     transações tivessem atualizado as linhas na mesma ordem, não teria ocorrido
+     nenhum impasse. Deve-se garantir, também, que o primeiro bloqueio obtido em
+     um objeto em uma transação seja aquele com o modo mais alto que será
+     necessário para este objeto. Se for impraticável verificar esta situação
+     antecipadamente, então os impasses podem ser tratados em tempo de execução
+     tentando executar novamente as transações interrompidas pelos impasses.
+    </para>
+
+    <para>
+     Enquanto a situação de impasse não for detectada, uma transação em busca de
+     um bloqueio no nível de tabela ou no nível de linha ficará aguardando
+     indefinidamente pela liberação dos bloqueios conflitantes. Isso significa
+     que é uma péssima idéia os aplicativos manterem transações abertas por
+     longos períodos de tempo (por exemplo, aguardando a entrada de dados pelo
+     usuário).
+    </para>
+   </sect2>
+  </sect1>
+
+  <sect1 id="applevel-consistency">
+   <title>Verificação da consistência dos dados no nível do aplicativo</title>
+
+   <para>
+    Como no <productname>PostgreSQL</productname> a leitura não bloqueia os
+    dados, independentemente do nível de isolamento da transação, os dados lidos
+    por uma transação podem ser sobrescritos por outra transação simultânea.
+    Em outras palavras, se uma linha foi retornada pelo comando
+    <command>SELECT</command>, não significa que esta linha ainda era a linha
+    corrente no instante em que foi retornada (ou seja, algum tempo depois do
+    comando corrente ter começado). A linha pode ter sido alterada ou
+    excluída por uma transação já efetivada, que efetivou após esta transação
+    ter começado.  Mesmo que a linha ainda seja válida <quote>agora</quote>,
+    esta linha pode ser mudada ou excluída antes da transação corrente efetivar
+    ou desfazer suas alterações.
+   </para>
+
+   <para>
+    Outra maneira de pensar sobre isto é que cada transação enxerga um
+    instantâneo do conteúdo do banco de dados, e as transações executando
+    simultaneamente podem, perfeitamente bem, enxergar instantâneos diferentes.
+    Portanto, o próprio conceito de <quote>agora</quote> de alguma forma é mal
+    definido. Normalmente isto não é um grande problema quando os aplicativos
+    cliente estão isolados um do outro, mas se os clientes puderem se comunicar
+    por meio de canais externos ao banco de dados, então podem acontecer
+    sérias confusões.
+   </para>
+
+   <para>
+    Para garantir a validade corrente de uma linha e protegê-la contra
+    atualizações simultâneas, deve ser utilizado o comando
+    <command>SELECT FOR UPDATE</command> ou uma declaração
+    <command>LOCK TABLE</command> apropriada (o comando
+    <command>SELECT FOR UPDATE</command> bloqueia apenas as linhas retornadas
+    contra atualizações simultâneas, enquanto o <command>LOCK TABLE</command>
+    bloqueia toda a tabela).
+    Isto deve ser levado em consideração ao portar aplicativos de outros
+    ambientes para o <productname>PostgreSQL</productname> (Antes da versão 6.5
+    o <productname>PostgreSQL</productname> utilizava bloqueios de leitura e,
+    portanto, as considerações acima também se aplicam quando é feita a
+    atualização de uma versão do <productname>PostgreSQL</productname>
+    anterior a 6.5).
+   </para>
+
+   <para>
+    As verificações de validade globais requerem considerações adicionais sob o
+    <acronym>MVCC</acronym>. Por exemplo, um aplicativo bancário pode desejar
+    verificar se a soma de todos os créditos em uma tabela é igual a soma de
+    todos os débitos em outra tabela, num momento em que as duas tabelas estão
+    sendo ativamente atualizadas. Comparar os resultados de dois comandos
+    <literal>SELECT SUM(...)</literal> sucessivos não funciona confiavelmente
+    no modo <literal>Read Committed</literal>, porque o segundo comando,
+    provavelmente, vai incluir resultados de transações não contabilizadas pelo
+    primeiro comando. Realizar as duas somas em uma mesma transação serializável
+    fornece uma imagem precisa dos efeitos das transações efetivadas antes do
+    início da transação serializável &mdash; mas pode ser legitimamente
+    questionado se a resposta ainda era relevante na hora que foi entregue.
+    Se a própria transação serializável introduziu algumas alterações antes de
+    tentar efetuar a verificação de consistência, o valor prático da verificação
+    se torna ainda mais discutível, porque agora são incluídas algumas, mas não
+    todas as alterações ocorridas após o início da transação. Em casos como este,
+    uma pessoa cuidadosa pode desejar bloquear todas as tabelas necessárias para
+    a verificação, para obter uma imagem da situação atual acima de qualquer
+    suspeita. Um bloqueio no modo <literal>SHARE</literal> (ou superior) garante
+    não haver alterações não efetivadas na tabela bloqueada, fora as alterações
+    efetuadas pela própria transação corrente.
+   </para>
+
+   <para>
+    Deve ser observado, também, que quando se depende de bloqueios explícitos
+    para evitar alterações simultâneas deve ser utilizado o modo
+    <literal>Read Committed</literal> ou, no modo serializável, tomar o cuidado
+    de obter os bloqueios antes de executar os comandos.
+    Um bloqueio obtido por uma transação serializável garante que nenhuma outra
+    transação alterando a tabela está executando, mas se o instantâneo
+    enxergado pela transação for anterior à obtenção do bloqueio, pode ser que
+    seja anterior a algumas alterações na tabela que agora estão efetivadas.
+    O instantâneo de uma transação serializável é, na verdade, tirado no início
+    da sua primeira consulta ou comando de alteração de dados
+    (<literal>SELECT</literal>, <literal>INSERT</literal>,
+    <literal>UPDATE</literal> ou <literal>DELETE</literal>)
+    sendo, portanto, possível obter bloqueios explicitamente antes do
+    instantâneo ser tirado.
+   </para>
+  </sect1>
+
+  <sect1 id="locking-indexes">
+   <title>Bloqueio e índices</title>
+
+   <indexterm zone="locking-indexes">
+    <primary>indice</primary>
+    <secondary>bloqueio</secondary>
+   </indexterm>
+
+   <para>
+    Embora o <productname>PostgreSQL</productname> disponibilize acesso de
+    leitura e escrita não bloqueante aos dados das tabelas, o acesso de leitura
+    e escrita não bloqueante não é fornecido, atualmente, por todos os métodos
+    de acesso de índice implementados pelo <productname>PostgreSQL</productname>.
+    Os vários tipos de índice são tratados como mostrado a seguir:
+
+    <variablelist>
+     <varlistentry>
+      <term>
+       Índices <literal>B-tree</literal>
+      </term>
+      <listitem>
+       <para>
+        São utilizados bloqueios no nível de página, compartilhados ou exclusivos,
+        de curta duração, para acesso de leitura/escrita. Os bloqueios são
+        liberados imediatamente após cada linha do índice ser lida ou inserida.
+        Os índices <literal>B-tree</literal> fornecem a mais alta simultaneidade
+        sem condições de impasse.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>
+       Índices <acronym>GiST</acronym> e <literal>R-tree</literal>
+      </term>
+      <listitem>
+       <para>
+        São utilizados bloqueios no nível de índice, compartilhados ou exclusivos,
+        para acesso de leitura/escrita. Os bloqueios são liberados após o
+        comando terminar.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>
+       Índices <literal>Hash</literal>
+      </term>
+      <listitem>
+       <para>
+        São utilizados bloqueios no nível de receptáculo de
+        <literal>hash</literal> (<literal>hash-bucket-level</literal>),
+        compartilhados ou exclusivos, para acesso de leitura/escrita.
+        Os bloqueios são liberados após todo o receptáculo ser processado.
+        Os bloqueios no nível de receptáculo fornecem uma simultaneidade melhor
+        que os bloqueios no nível de índice, mas podem ocorrer impasses uma
+        vez que os bloqueios são mantidos por mais tempo que uma operação de
+        índice.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+
+   <para>
+    Em resumo, o índice <literal>B-tree</literal> oferece o melhor desempenho
+    para aplicações simultâneas; uma vez que também possui mais funcionalidades
+    do que o índice <literal>hash</literal>, é o tipo de índice recomendado
+    para aplicações simultâneas que necessitam indexar dados escalares.
+    Para tratar dados não escalares, os índices <literal>B-tree</literal>
+    obviamente não podem ser utilizados; nesta situação, os desenvolvedores de
+    aplicativos devem estar cientes do desempenho relativamente pobre dos
+    índices <literal>GiST</literal> e <literal>R-tree</literal>.
+   </para>
+  </sect1>
+ </chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

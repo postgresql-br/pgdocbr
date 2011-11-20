@@ -1,0 +1,76 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/info.sgml,v 1.21 2003/11/29 19:51:37 pgsql Exp $
+-->
+
+<sect1 id="resources">
+ <title>Outras Informações</title>
+
+ <para>
+  Além da documentação, ou seja, este livro, existem outras
+  informações sobre o <productname>PostgreSQL</productname>:
+
+  <variablelist>
+   <varlistentry>
+    <term>FAQs</term>
+    <listitem>
+     <para>
+      A lista de perguntas freqüentemente formuladas
+      <indexterm><primary>FAQ-Liste</primary></indexterm> contém respostas
+      continuamente atualizadas para as perguntas mais freqüentes.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term>READMEs</term>
+    <listitem>
+     <para>
+      Os arquivos <filename>README</filename> (leia-me) estão disponíveis
+      na maioria dos pacotes contribuídos.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term>Sítio na Web</term>
+    <listitem>
+     <para>
+      O <ulink url="http://www.postgresql.org">sítio na Web do
+      <productname>PostgreSQL</productname></ulink> contém detalhes sobre a
+      última versão e outras informações para tornar o trabalho ou a diversão
+      com o <productname>PostgreSQL</productname> mais produtiva.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term>Listas de discussão</term>
+    <listitem>
+     <para>
+      As listas de discussão são bons lugares ter as perguntas respondidas,
+      para trocar experiências com outros usuários, e para fazer contato com os
+      desenvolvedores. Consulte o sítio na Web do
+      <productname>PostgreSQL</productname> para obter detalhes.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term>Você mesmo!</term>
+    <listitem>
+     <para>
+      O <productname>PostgreSQL</productname> é um projeto de código aberto.
+      Como tal, depende do apoio permanente da comunidade de usuários.
+      Quando começamos a utilizar o <productname>PostgreSQL</productname>
+      dependemos da ajuda de outros, tanto através da documentação quanto das
+      listas de discussão. Considere então retribuir seus conhecimentos.
+      Leia as listas de discussão e responda as perguntas.
+      Se você aprender algo que não esteja na documentação,
+      escreva e contribua. Se você adicionar funcionalidades ao código,
+      contribua com estas funcionalidades.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </para>
+</sect1>

@@ -1,0 +1,778 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/manage-ag.sgml,v 2.40 2005/01/08 22:13:34 tgl Exp $
+-->
+
+<chapter id="managing-databases">
+ <title>Gerenciamento de bancos de dados</title>
+
+ <indexterm zone="managing-databases"><primary>banco de dados</primary></>
+
+ <para>
+  Cada instância em execução do servidor <productname>PostgreSQL</productname>
+  gerencia um ou mais bancos de dados. Os bancos de dados são, portanto,
+  o nível hierárquico mais alto da organização dos objetos <acronym>SQL</acronym>
+  (<quote>objetos de banco de dados</quote>). Este capítulo descreve as
+  propriedades dos bancos de dados, e como são criados, gerenciados e removidos.
+ </para>
+
+ <sect1 id="manage-ag-overview">
+  <title>Visão geral</title>
+
+  <indexterm zone="manage-ag-overview">
+   <primary>esquema</primary>
+  </indexterm>
+
+  <para>
+   Um banco de dados é uma coleção nomeada de objetos <acronym>SQL</acronym>
+   (<quote>objetos de banco de dados</quote>). Geralmente, todos os objetos de
+   banco de dados (tabelas, funções, etc.) pertencem a um e somente um banco de
+   dados (Mas existem alguns poucos catálogos do sistema como, por exemplo,
+   <literal>pg_database</literal>, que pertencem a todo o agrupamento e podem
+   ser acessados por todos os bancos de dados do agrupamento).
+   Mais precisamente, um banco de dados é uma coleção de esquemas, e os
+   esquemas contêm as tabelas, funções, etc. Portanto, a hierarquia completa é:
+   servidor, banco de dados, esquema, tabela (ou outro tipo de objeto em vez de
+   tabela, como uma função).
+   <footnote>
+    <para>
+     Um <emphasis>catálogo</emphasis> é uma coleção nomeada de esquemas-SQL,
+     descritores de servidores remotos e descritores de empacotadores de dados
+     remotos em um ambiente-SQL. Os mecanismos para criar e remover os catálogos
+     são definidos pela implementação.
+     Um <emphasis>esquema-SQL</emphasis>, geralmente referido simplesmente como
+     esquema, é uma coleção nomeada, persistente, de descritores. Qualquer
+     objeto cujo descritor está em algum esquema-SQL é conhecido como um
+     objeto do esquema-SQL.
+     (ISO-ANSI Working Draft) Framework (SQL/Framework), August 2003,
+     ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+    </para>
+   </footnote>
+   <footnote>
+    <para>
+     <productname>Oracle 9i</productname> &mdash;
+      O <emphasis>esquema</emphasis> é uma coleção nomeada de objetos,
+      como tabelas, visões, agrupamentos, procedimentos e pacotes, associados
+      a um determinado usuário.
+      <ulink url="http://www.stanford.edu/dept/itss/docs/oracle/9i/win.920/a95491/glossary.htm#432367">
+      Oracle9i Database Administrator's Guide - Glossary</ulink> (N. do T.)
+    </para>
+   </footnote>
+   <footnote>
+    <para>
+     <productname>DB2 8.1</productname> &mdash;
+     Os <emphasis>esquemas</emphasis> são objetos do banco de dados utilizados
+     no DB2 para agrupar logicamente outros objetos de banco de dados. A maioria
+     dos objetos de banco de dados têm seus nomes formados usando uma convenção
+     para nomes de duas partes (nome_do_esquema.nome_do_objeto). A primeira
+     parte do nome é referida como nome do esquema (também conhecida como
+     qualificador do objeto de banco de dados). A segunda parte é o nome do
+     objeto.
+     <ulink url="http://www.phptr.com/title/0130463612">
+     DB2® Universal Database V8 for Linux, UNIX, and Windows Database
+     Administration Certification Guide, 5th Edition</ulink>,
+     George Baklarz e Bill Wong, Series IBM Press, Prentice Hall
+     Professional Technical Reference, 2003, pág. 192. (N. do T.)
+    </para>
+   </footnote>
+  </para>
+
+  <para>
+   Para se conectar ao servidor de banco de dados, o cliente deve especificar
+   no pedido de conexão o nome do banco de dados que deseja se conectar.
+   Não é possível acessar mais de um banco de dados por conexão (Mas não há
+   restrição quanto ao número de conexões que um aplicativo pode abrir no mesmo
+   ou em outros bancos de dados).
+   Os bancos de dados são fisicamente separados, e o controle de acesso é
+   gerenciado no nível de conexão.
+   Se uma instância do servidor <productname>PostgreSQL</productname> é usada
+   para abrigar projetos e usuários que devem estar separados e, em sua maioria,
+   desconhecendo um ao outro, é recomendável colocá-los em bancos de dados
+   separados.
+   Se os projetos ou os usuários estão inter-relacionados, devendo um poder
+   utilizar os recursos do outro, devem ser colocados no mesmo banco de dados,
+   mas possivelmente em esquemas separados.
+   Os esquemas são estruturas puramente lógicas, e quem pode acessar o que é
+   gerenciado pelo sistema de privilégios.
+   Podem ser encontradas informações adicionais sobre o gerenciamento de
+   esquemas na <xref linkend="ddl-schemas">.
+  </para>
+
+  <para>
+   Os bancos de dados são criados através do comando <command>CREATE DATABASE</>
+   (consulte a <xref linkend="manage-ag-createdb">), e removidos pelo comando
+   <command>DROP DATABASE</> (consulte a <xref linkend="manage-ag-dropdb">).
+   Para conhecer o conjunto de bancos de dados existentes, deve ser examinado
+   o catálogo do sistema <structname>pg_database</> como, por exemplo:
+<synopsis>
+SELECT datname FROM pg_database;
+</synopsis>
+   O meta-comando <literal>\l</> e a opção da linha de comando <option>-l</>
+   do aplicativo <xref linkend="app-psql"> são úteis para listar os bancos de
+   dados existentes.
+  </para>
+
+  <note>
+   <para>
+    O padrão <acronym>SQL</acronym> chama os bancos de dados de
+    <quote>catálogos</quote>, mas na prática não há diferença.
+   </para>
+  </note>
+ </sect1>
+
+ <sect1 id="manage-ag-createdb">
+  <title>Criação de banco de dados</title>
+
+  <para>
+   Para ser possível criar um banco de dados, o servidor
+   <productname>PostgreSQL</productname> deve estar em execução
+   (consulte a <xref linkend="postmaster-start">).
+  </para>
+
+  <para>
+   Os bancos de dados são criados através do comando SQL
+   <xref linkend="sql-createdatabase">:
+   <indexterm><primary>CREATE DATABASE</primary></indexterm>
+<synopsis>
+CREATE DATABASE <replaceable>nome_do_banco_de_dados</replaceable>;
+</synopsis>
+   onde <replaceable>nome_do_banco_de_dados</replaceable> segue as regras usuais
+   para identificadores <acronym>SQL</acronym>. O usuário corrente se torna,
+   automaticamente, o dono do novo banco de dados. É um privilégio do dono do
+   banco de dados removê-lo posteriormente (o que também remove todos os
+   objetos contidos no banco de dados, mesmo que sejam de outro dono).
+  </para>
+
+  <para>
+   A criação de bancos de dados é uma operação restrita.
+   Veja como conceder permissão na <xref linkend="user-attributes">.
+  </para>
+
+  <para>
+   Uma vez que é necessário estar conectado ao servidor de banco de dados para
+   poder executar o comando <command>CREATE DATABASE</command>, a questão é como
+   pode ser criado o <emphasis>primeiro</emphasis> banco de dados de um
+   determinado agrupamento. O primeiro banco de dados é sempre criado pelo
+   utilitário <command>initdb</command> quando a área de armazenamento de dados
+   é inicializada (Consulte a <xref linkend="creating-cluster">).
+   Este banco de dados se chama <literal>template1</literal>.
+   <indexterm><primary>template1</primary></indexterm>
+   Portanto, para criar o primeiro banco de dados <quote>de verdade</quote>
+   é necessário se conectar ao banco de dados <literal>template1</literal>.
+  </para>
+
+  <para>
+   O nome <literal>template1</literal> (modelo1) não é um acidente: Quando se
+   cria um novo banco de dados, o banco de dados modelo é essencialmente clonado.
+   Isto significa que qualquer mudança feita em <literal>template1</literal> é
+   propagada para todos os bancos de dados criados posteriormente. Implica que
+   o banco de dados modelo não deve ser utilizado para trabalho, mas esta
+   funcionalidade, usada com bom senso, pode ser conveniente.
+   Na <xref linkend="manage-ag-templatedbs"> podem ser vistos mais detalhes.
+  </para>
+
+  <para>
+   Para facilitar, também existe um programa que pode ser executado a partir do
+   interpretador de comandos para criar novos bancos de dados, o
+   <xref linkend="app-createdb">:
+   <indexterm><primary>createdb</primary></indexterm>
+
+<synopsis>
+createdb <replaceable class="parameter">nome_do_banco_de_dados</replaceable>
+</synopsis>
+
+   O programa <command>createdb</command> não realiza nenhuma mágica:
+   se conecta ao banco de dados <literal>template1</literal> e executa o
+   comando <command>CREATE DATABASE</command>, exatamente como descrito acima.
+   A página de referência de <command>createdb</command> contém os detalhes da
+   chamada. Deve ser observado que executar <command>createdb</command>
+   sem nenhum argumento cria um banco de dados com o mesmo nome do usuário
+   corrente, que pode ser o desejado, ou não.
+  </para>
+
+  <note>
+   <para>
+    O <xref linkend="client-authentication"> contém informações sobre
+    como restringir quem pode se conectar a um determinado banco de dados.
+   </para>
+  </note>
+
+  <para>
+   Algumas vezes se deseja criar um banco de dados para outra pessoa. Este
+   usuário deve se tornar o dono do novo banco de dados e, portanto, poder
+   configurá-lo e gerenciá-lo por si próprio. Para fazer isto deve
+   ser utilizado um dos seguintes comandos:
+<programlisting>
+CREATE DATABASE <replaceable>nome_do_banco_de_dados</replaceable> OWNER <replaceable>nome_do_usuário</replaceable>;
+</programlisting>
+   a partir do ambiente SQL, ou
+<programlisting>
+createdb -O <replaceable>nome_do_usuário</replaceable> <replaceable>nome_do_banco_de_dados</replaceable>
+</programlisting>
+   a partir do interpretador de comandos. É necessário ser um superusuário para
+   poder criar bancos de dados para outros usuários.
+  </para>
+ </sect1>
+
+ <sect1 id="manage-ag-templatedbs">
+  <title>Bancos de dado modelo</title>
+
+  <para>
+   Na verdade o comando <command>CREATE DATABASE</command> funciona copiando um
+   banco de dados existente. Por padrão, copia o banco de dados padrão do
+   sistema chamado <literal>template1</literal>.
+   <indexterm><primary>template1</primary></indexterm>
+   Portanto, este banco de dados é o <quote>modelo</quote> a partir do qual os
+   novos bancos de dados são criados. Se forem adicionados objetos ao
+   <literal>template1</literal>, estes objetos serão copiados nos próximos
+   bancos de dados de usuário criados. Este comportamento permite modificar
+   localmente o conjunto padrão de objetos nos bancos de dados. Por exemplo, se
+   for instalada a linguagem procedural <application>PL/pgSQL</application> em
+   <literal>template1</literal>, esta se tornará automaticamente disponível nos
+   bancos de dados dos usuários sem que precise ser feito qualquer procedimento
+   adicional na criação dos bancos de dados.
+  </para>
+
+  <para>
+   Existe um segundo banco de dados padrão do sistema chamado
+   <literal>template0</literal>.
+   <indexterm><primary>template0</primary></indexterm>
+   Este banco de dados contém os mesmos dados contidos inicialmente em
+   <literal>template1</literal>, ou seja, contém somente os objetos padrão
+   pré-definidos pela versão do <productname>PostgreSQL</productname>.
+   O banco de dados <literal>template0</literal> nunca deve ser modificado após
+   a execução do utilitário <command>initdb</command>. Instruindo o comando
+   <command>CREATE DATABASE</command> para copiar <literal>template0</literal>
+   em vez de <literal>template1</literal>, pode ser criado um banco de dados de
+   usuário <quote>intacto</quote>, não contendo nenhuma adição feita ao banco de
+   dados <literal>template1</literal> da instalação local. É particularmente
+   útil ao se restaurar uma cópia de segurança feita por
+   <application>pg_dump</application>: o script da cópia de segurança deve ser
+   restaurado em um banco de dados intocado, para garantir a recriação do
+   conteúdo correto da cópia de segurança do banco de dados, sem conflito com
+   as adições que podem estar presentes em <literal>template1</literal>.
+  </para>
+
+  <para>
+   Para criar um banco de dados copiando <literal>template0</literal>
+   deve ser utilizado:
+<programlisting>
+CREATE DATABASE <replaceable>nome_do_banco_de_dados</replaceable> TEMPLATE template0;
+</programlisting>
+   a partir do ambiente SQL, ou
+<programlisting>
+createdb -T template0 <replaceable>nome_do_banco_de_dados</replaceable>
+</programlisting>
+   a partir do interpretador de comandos.
+  </para>
+
+  <para>
+   É possível criar bancos de dados modelo adicionais e, na verdade, pode ser
+   copiado qualquer banco de dados do agrupamento especificando seu nome como
+   modelo no comando <command>CREATE DATABASE</command>. Entretanto, é
+   importante compreender que não há intenção (ainda) que este seja um
+   mecanismo tipo <quote><command>COPY DATABASE</command></quote> de uso geral.
+   Em particular, é essencial que o banco de dados de origem esteja inativo
+   (nenhuma transação em andamento alterando dados) durante a operação de cópia.
+   O comando <command>CREATE DATABASE</command> verifica se nenhuma sessão (além
+   da própria) está conectada ao banco de dados de origem no início da operação,
+   mas não garante que não possa haver alteração durante a execução da cópia,
+   resultando em um banco de dados copiado inconsistente. Portanto, recomenda-se
+   que os bancos de dados utilizados como modelo sejam tratados como somente
+   para leitura.
+  </para>
+
+  <para>
+   Existem no banco de dados <literal>pg_database</literal>
+   <indexterm><primary>pg_database</primary></indexterm>
+   dois sinalizadores úteis para cada banco de dados: as colunas
+   <literal>datistemplate</literal> e <literal>datallowconn</literal>. A coluna
+   <literal>datistemplate</literal> pode ser definida para indicar que o banco
+   de dados se destina a servir de modelo para o comando
+   <command>CREATE DATABASE</command>. Se este sinalizador estiver habilitado,
+   o banco de dados pode ser clonado por qualquer usuário com privilégio de
+   <literal>CREATEDB</literal>; se não estiver habilitado, somente os
+   superusuários e o dono do banco de dados podem cloná-lo.
+   Se <literal>datallowconn</literal> for falso, então não é permitida nenhuma
+   nova conexão ao banco de dados (mas as sessões existentes não são
+   interrompidas simplesmente definindo o sinalizador como falso). O banco de
+   dados <literal>template0</literal> normalmente é marcado com
+   <literal>datallowconn = false</literal> para evitar que seja modificado.
+   Tanto <literal>template0</literal> quanto <literal>template1</literal>
+   devem estar sempre marcados com <literal>datistemplate = true</literal>.
+  </para>
+
+  <para>
+   Após preparar um banco de dados modelo, ou fazer alguma mudança em um deles,
+   é recomendado executar o comando <command>VACUUM FREEZE</command> ou
+   <command>VACUUM FULL FREEZE</command> neste banco de dados.
+   Se for feito quando não houver nenhuma outra transação aberta no mesmo banco
+   de dados, é garantido que todas as linhas no banco de dados serão
+   <quote>congeladas</quote> e não estarão sujeitas a problemas de recomeço do
+   ID de transação. Isto é particularmente importante em um banco de dados
+   que terá <literal>datallowconn</literal> definido como falso, uma vez que
+   não será possível executar a rotina de manutenção <command>VACUUM</command>
+   neste banco de dados. Para obter informações adicionais deve ser consultada a
+   <xref linkend="vacuum-for-wraparound"> .
+  </para>
+
+  <note>
+   <para>
+    Os bancos de dados <literal>template1</literal> e
+    <literal>template0</literal> não possuem qualquer status especial além do
+    fato do nome <literal>template1</literal> ser o nome padrão para banco de
+    dados de origem do comando <command>CREATE DATABASE</command>, e além de ser
+    o banco de dados padrão para se conectar utilizado por vários programas,
+    como o <command>createdb</command>.
+    Por exemplo, <literal>template1</literal> pode ser removido e recriado a
+    partir de <literal>template0</literal> sem qualquer efeito prejudicial.
+    Esta forma de agir pode ser aconselhável se forem adicionadas, por descuido,
+    coisas inúteis ao <literal>template1</literal>.
+   </para>
+  </note>
+
+   <example id="manage-ag-templatedbs-recriate">
+    <title>Recriação do banco de dados template1</title>
+    <para>
+     Neste exemplo o banco de dados <literal>template1</literal> é recriado.
+     Deve ser observado na seqüência de comandos utilizada que não é possível
+     remover o banco de dados <literal>template1</literal> conectado ao mesmo,
+     e enquanto este banco de dados estiver marcado como modelo no catálogo
+     do sistema <literal>pg_database</literal>.
+     <footnote>
+      <para>
+       Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+      </para>
+     </footnote>
+    </para>
+    <para>
+     Para recriar o banco de dados <literal>template1</literal> é necessário: se
+     conectar a outro banco de dados (<literal>teste</literal> neste exemplo);
+     atualizar o catálogo <literal>pg_database</literal> para que o banco de
+     dados <literal>template1</literal> não fique marcado como um banco de dados
+     modelo; remover e criar o banco de dados <literal>template1</literal>;
+     conectar ao banco de dados <literal>template1</literal>; executar os
+     comandos <command>VACUUM FULL</command> e <command>VACUUM FREEZE</command>;
+     atualizar o catálogo do sistema <literal>pg_database</literal> para que o
+     banco de dados <literal>template1</literal> volte a ficar marcado como um
+     banco de dados modelo.
+    </para>
+    <para>
+     Abaixo está mostrada a seqüência de comandos utilizada:
+    </para>
+
+<screen>
+<prompt>template1=# </prompt> <userinput>DROP DATABASE template1;</userinput>
+<computeroutput>
+ERRO:  não é possível remover o banco de dados aberto atualmente
+</computeroutput>
+<prompt>template1=# </prompt> <userinput>\c teste</userinput>
+<computeroutput>
+Conectado ao banco de dados "teste".
+</computeroutput>
+<prompt>teste=# </prompt> <userinput>DROP DATABASE template1;</userinput>
+<computeroutput>
+ERRO:  não é possível remover um banco de dados modelo
+</computeroutput>
+<prompt>teste=# </prompt> <userinput>UPDATE pg_database SET datistemplate=false WHERE datname='template1';</userinput>
+<computeroutput>
+UPDATE 1
+</computeroutput>
+<prompt>teste=# </prompt> <userinput>DROP DATABASE template1;</userinput>
+<computeroutput>
+DROP DATABASE
+</computeroutput>
+<prompt>teste=# </prompt> <userinput>CREATE DATABASE template1 TEMPLATE template0 ENCODING 'latin1';</userinput>
+<computeroutput>
+CREATE DATABASE
+</computeroutput>
+<prompt>teste=# </prompt> <userinput>\c template1</userinput>
+<computeroutput>
+Conectado ao banco de dados "template1".
+</computeroutput>
+<prompt>template1=# </prompt> <userinput>VACUUM FULL;</userinput>
+<computeroutput>
+VACUUM
+</computeroutput>
+<prompt>template1=# </prompt> <userinput>VACUUM FREEZE;</userinput>
+<computeroutput>
+VACUUM
+</computeroutput>
+<prompt>template1=# </prompt> <userinput>UPDATE pg_database SET datistemplate=true WHERE datname='template1';</userinput>
+<computeroutput>
+UPDATE 1
+</computeroutput>
+</screen>
+   </example>
+ </sect1>
+
+ <sect1 id="manage-ag-config">
+  <title>Configuração do banco de dados</title>
+
+  <para>
+   Como foi visto na <xref linkend="runtime-config">, o servidor
+   <productname>PostgreSQL</productname> possui um grande número de variáveis
+   de configuração em tempo de execução. Para muitas destas variáveis podem ser
+   definidos valores padrão específicos para cada banco de dados.
+  </para>
+
+  <para>
+   Por exemplo, se por algum motivo for desejado desabilitar o otimizador
+   <acronym>GEQO</acronym> para um determinado banco de dados, normalmente
+   seria necessário desabilitá-lo para todos os bancos de dados, ou ter certeza
+   que cada cliente ao se conectar a este banco de dados vai executar
+   <literal>SET geqo TO off;</literal>. Para tornar esta definição a definição
+   padrão, pode ser executado o comando:
+<programlisting>
+ALTER DATABASE meu_banco_de_dados SET geqo TO off;
+</programlisting>
+   Este comando salva a definição (mas não a define imediatamente), e nas
+   próximas conexões a este banco de dados vai parecer que <literal>SET geqo
+   TO off;</literal> foi executado logo após a sessão iniciar.
+   Deve ser observado que os usuários continuarão podendo alterar esta definição
+   durante a sessão; apenas será a definição padrão. Para desfazer esta
+   definição deve ser utilizado <literal>ALTER DATABASE
+   <replaceable>nome_do_banco_de_dados</replaceable> RESET
+   <replaceable>nome_da_variável</replaceable>;</literal>.
+  </para>
+ </sect1>
+
+ <sect1 id="manage-ag-dropdb">
+  <title>Remoção do banco de dados</title>
+
+  <para>
+   Os bancos de dados são removidos através do comando
+   <xref linkend="sql-dropdatabase">:
+   <indexterm><primary>DROP DATABASE</primary></indexterm>
+<synopsis>
+DROP DATABASE <replaceable>nome_do_banco_de_dados</replaceable>;
+</synopsis>
+   Somente o dono do banco de dados (ou seja, o usuário que o criou) ou
+   um superusuário podem remover um banco de dados. A remoção do
+   banco de dados remove todos os objetos contidos no banco de dados.
+   A remoção do banco de dados não pode ser desfeita.
+  </para>
+
+  <para>
+   Não é possível executar o comando <command>DROP DATABASE</command> estando
+   conectado ao banco de dados a ser removido. É possível, entretanto, estar
+   conectado a qualquer outro banco de dados, inclusive o banco de dados
+   <literal>template1</literal>. O banco de dados <literal>template1</literal>
+   é a única opção para remover o último banco de dados de usuário de um
+   determinado agrupamento.
+  </para>
+
+  <para>
+   Para facilitar, também existe um programa que pode ser executado a partir do
+   interpretador de comandos para remover bancos de dados, o
+   <xref linkend="app-dropdb">:
+   <indexterm><primary>dropdb</primary></indexterm>
+<synopsis>
+dropdb <replaceable class="parameter">nome_do_banco_de_dados</replaceable>
+</synopsis>
+   (Diferentemente do <command>createdb</command>, a ação padrão não é remover
+   o banco de dados que tem o mesmo nome do usuário corrente).
+  </para>
+ </sect1>
+
+ <sect1 id="manage-ag-tablespaces">
+  <title>Espaços de tabelas</title>
+
+  <indexterm zone="manage-ag-tablespaces">
+   <primary>espaço de tabelas</primary>
+  </indexterm>
+
+   <para>
+    No <productname>PostgreSQL</> os espaços de tabelas permitem aos
+    administradores definir locais no sistema de arquivos onde os arquivos que
+    representam objetos do banco de dados podem ser armazenados. Uma vez criado,
+    o espaço de tabelas pode ser referenciado por seu nome ao criar os objetos
+    do banco de dados.
+   <footnote>
+    <para>
+     <productname>Oracle 9i</productname> &mdash;
+      O banco de dados é dividido em uma ou mais unidades lógicas de
+      armazenamento chamadas de <emphasis>espaços de tabelas</emphasis>.
+      Os espaços de tabelas são divididos em unidades lógicas de armazenamento
+      chamadas de segmentos, que por sua vez são divididas em extensões.
+      <ulink url="http://www.stanford.edu/dept/itss/docs/oracle/9i/win.920/a95491/glossary.htm#432418">
+      Oracle9i Database Administrator's Guide - Glossary</ulink> (N. do T.)
+    </para>
+   </footnote>
+   <footnote>
+    <para>
+     <productname>DB2 8.1</productname> &mdash;
+     Os <emphasis>espaços de tabelas</emphasis> são camadas lógicas entre o
+     banco de dados e as tabelas armazenadas no banco de dados. Os espaços de
+     tabelas são criados no banco de dados, e as tabelas são criadas no
+     espaço de tabelas.
+     <ulink url="http://www.phptr.com/title/0130463612">
+     DB2® Universal Database V8 for Linux, UNIX, and Windows Database
+     Administration Certification Guide, 5th Edition</ulink>,
+     George Baklarz e Bill Wong, Series IBM Press, Prentice Hall
+     Professional Technical Reference, 2003, pág. 193. (N. do T.)
+    </para>
+   </footnote>
+   <footnote>
+    <para>
+     <productname>SQL Server 2000</productname> &mdash;
+     Um <emphasis>grupo de arquivos</emphasis> categoriza os arquivos do sistema
+     operacional que contêm dados de um único banco de dados para simplificar as
+     tarefas de administração do banco de dados, como a cópia de segurança.
+     O grupo de arquivos é uma propriedade do banco de dados, não podendo conter
+     arquivos do sistema operacional de mais de um banco de dados, embora um
+     único banco de dados possa conter mais de um grupo de arquivos.
+     Quando o banco de dados é criado, este é criado em exatamente um grupo de
+     arquivos chamado <literal>PRIMARY</literal>. Após a criação do banco de
+     dados podem ser adicionados grupos de arquivos ao banco de dados. O nome
+     do grupo de arquivos pode ser especificado nos comandos
+     <command>CREATE TABLE</command> e <command>CREATE INDEX</command>,
+     direcionando o armazenamento dos dados do banco de dados.
+     SQL Server Books Online. (N. do T.)
+    </para>
+   </footnote>
+   </para>
+
+   <para>
+    Utilizando espaços de tabelas, o administrador pode controlar a organização
+    em disco da instalação do <productname>PostgreSQL</productname>.
+    É útil pelo menos de duas maneiras:
+   </para>
+
+   <para>
+    Primeira: se a partição ou volume onde o agrupamento foi
+    inicializado ficar sem espaço, e não puder ser estendido, pode ser criado
+    um espaço de tabelas em uma partição diferente e utilizado até que o
+    sistema possa ser reconfigurado.
+   </para>
+
+   <para>
+    Segunda: os espaços de tabelas permitem que o administrador utilize seu
+    conhecimento do padrão de utilização dos objetos de banco de dados para
+    otimizar o desempenho. Por exemplo, um índice muito utilizado pode ser
+    colocado em um disco muito rápido com alta disponibilidade, como uma unidade
+    de estado sólido.
+    <footnote>
+     <para>
+      unidade de estado sólido &mdash; um tipo de unidade de
+      <literal>hardware</literal> que não contém partes móveis, geralmente
+      esta unidade é feita em grande parte de circuitos eletrônicos.
+      <ulink url="http://www.computerhope.com/jargon/s/solistat.htm">Solid-state
+      device</ulink>. (N. do T.)
+     </para>
+    </footnote>
+    Ao mesmo tempo, uma tabela armazenando dados históricos raramente
+    utilizados, ou que seu desempenho não seja crítico, pode ser armazenada em
+    um sistema de disco mais barato e mais lento.
+   </para>
+
+   <para>
+    Para definir um espaço de tabelas é utilizado o comando
+    <xref linkend="sql-createtablespace"> como, por exemplo:
+    <indexterm><primary>CREATE TABLESPACE</></>
+<programlisting>
+CREATE TABLESPACE area_veloz LOCATION '/mnt/sda1/postgresql/data';
+</programlisting>
+    O local deve ser um diretório existente, vazio, pertencente ao usuário de
+    sistema do <productname>PostgreSQL</productname>. Depois disso, todos os
+    objetos criados neste espaço de tabelas serão armazenados em arquivos sob
+    este diretório.
+   </para>
+
+   <note>
+    <para>
+     Geralmente não faz muito sentido criar mais de um espaço de tabelas
+     por sistema de arquivos lógico, uma vez que não se pode controlar o local
+     de cada arquivo dentro do sistema de arquivos lógico. Entretanto, o
+     <productname>PostgreSQL</productname> não impõe este tipo de restrição e,
+     na verdade, não está preocupado com as fronteiras do sistema de arquivos.
+     Apenas armazena os arquivos nos diretórios onde se informa que devam ser
+     utilizados.
+    </para>
+   </note>
+
+   <para>
+    A criação do espaço de tabelas deve ser feito por um superusuário do banco
+    de dados, mas após ser criado pode ser permitido o seu uso pelos usuários
+    comuns. Para isso ser feito deve ser concedido o privilégio
+    <literal>CREATE</literal> para o mesmo.
+   </para>
+
+   <para>
+    Podem ser direcionados tabelas, índices, e bancos de dados inteiros para um
+    determinado espaço de tabelas. Para que isto seja feito, um usuário que
+    possua o privilégio <literal>CREATE</literal> para o espaço de tabelas
+    deve informar o nome do espaço de tabelas no respectivo comando.
+    Por exemplo, o comando abaixo cria uma tabela no espaço de tabelas
+    <literal>espaco1</>:
+<programlisting>
+CREATE TABLE foo(i int) TABLESPACE espaco1;
+</programlisting>
+   </para>
+
+   <para>
+    Como alternativa, pode ser utilizado o parâmetro
+    <xref linkend="guc-default-tablespace">:
+<programlisting>
+SET default_tablespace = espaco1;
+CREATE TABLE foo(i int);
+</programlisting>
+    Quando <xref linkend="guc-default-tablespace"> é definido como qualquer
+    coisa que não seja uma cadeia de caracteres vazia, este fornece uma
+    cláusula <literal>TABLESPACE</> implícita para os comandos
+    <command>CREATE TABLE</> e <command>CREATE INDEX</> que não possuem uma
+    cláusula explícita.
+   </para>
+
+   <para>
+    O espaço de tabelas associado com o banco de dados é utilizado para
+    armazenar os catálogos do sistema deste banco de dados, assim como todos os
+    arquivos temporários criados pelos processos servidor que utilizam este
+    banco de dados. Além disso, é o espaço de tabelas padrão usado para as
+    tabelas e índices criados no banco de dados, se a cláusula
+    <literal>TABLESPACE</literal> não for fornecida (explicitamente ou através
+    de <varname>default_tablespace</>) quando os objetos são criados. Se o banco
+    de dados for criado sem que seja especificado um espaço de tabelas para o
+    mesmo, é utilizado o mesmo espaço de tabelas do banco de dados modelo do
+    qual é copiado.
+   </para>
+
+   <para>
+    São criados, automaticamente, dois espaços de tabelas pelo utilitário
+    <literal>initdb</>. O espaço de tabelas <literal>pg_global</literal> é
+    utilizado para os catálogos do sistema compartilhados. O espaço de tabelas
+    <literal>pg_default</> é o espaço de tabelas padrão dos bancos de dados
+    <literal>template1</> e <literal>template0</> (e, portanto, será o
+    espaço de tabelas padrão para todos os outros bancos de dados, a menos que
+    seja mudado pela cláusula <literal>TABLESPACE</literal> do comando
+    <command>CREATE DATABASE</command>).
+   </para>
+
+   <para>
+    Uma vez criado, o espaço de tabelas pode ser utilizado por qualquer banco de
+    dados, desde que o usuário solicitante tenha os privilégios necessários.
+    Isto significa que o espaço de tabelas não pode ser removido até que todos
+    os objetos de todos os bancos de dados que utilizam o espaço de tabelas
+    sejam removidos.
+   </para>
+
+   <para>
+    Para remover um espaço de tabelas vazio deve ser utilizado o comando
+    <xref linkend="sql-droptablespace">.
+   </para>
+
+   <para>
+    Para conhecer o conjunto de espaços de tabelas existente deve ser consultado
+    o catálogo do sistema <structname>pg_tablespace</> como, por exemplo:
+<synopsis>
+SELECT spcname FROM pg_tablespace;
+</synopsis>
+    O meta-comando <literal>\db</literal> do programa <xref linkend="app-psql">
+    também pode ser utilizado para listar os espaços de tabela existentes.
+   </para>
+
+   <para>
+    O <productname>PostgreSQL</> faz amplo uso de vínculos simbólicos para
+    simplificar a implementação de espaços de tabelas. Isto siginifica que
+    os espaços de tabelas <emphasis>somente</emphasis> podem ser utilizados
+    nos sistemas que suportam vínculos simbólicos.
+    <footnote>
+     <para>
+      O <emphasis>vínculo simbólico</emphasis> aponta para um arquivo por nome.
+      Quando o <literal>kernel</literal> encontra um vínculo simbólico ao
+      procurar por um nome de caminho, redireciona sua atenção para o nome de
+      caminho armazenado como conteúdo do vínculo. Manual de Administração do
+      Sistema Unix - Evi Nemeth e outros - Bookman. (N. do T.)
+     </para>
+    </footnote>
+   </para>
+
+   <para>
+    O diretório <filename class="directory">$PGDATA/pg_tblspc</filename> contém
+    vínculos simbólicos que apontam para cada um dos espaços de tabela
+    não-nativos definidos no agrupamento. Embora não seja recomendado, é
+    possível mudar a disposição manualmente. Duas advertências: não faça isso
+    com o <command>postmaster</command> executando; após reiniciar o
+    <command>postmaster</command>, deve ser atualizado o catálogo do sistema
+    <structname>pg_tablespace</structname> para que reflita os novos locais
+    (Se isto não for feito, o <application>pg_dump</application> continuará
+    mostrando os locais antigos dos espaços de tabelas).
+   </para>
+
+   <example>
+    <title>Criação de espaço de tabelas no Windows</title>
+    <para>
+     Este exemplo mostra o efeito produzido no diretório
+     <filename class="directory">$PGDATA/pg_tblspc</filename> pela
+     criação de um espaço de tabelas.
+     <footnote>
+      <para>
+       Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+      </para>
+     </footnote>
+     <footnote>
+      <para>
+       <literal>junction point</literal> &mdash;
+       o ponto de junção é uma posição física no disco rígido que aponta
+       para dados localizados em outro local no disco rígido ou em outra
+       unidade de armazenamento. Os pontos de junção são criados quando é
+       criada uma unidade montada. Os pontos e junção também podem ser criados
+       pelo comando <command>linkd</command>.
+       <ulink url="http://www.microsoft.com/atwork/glossary.mspx">Microsoft
+       Glossary for Business Users</ulink> (N. do T.)
+      </para>
+     </footnote>
+<screen>
+<prompt>=#</prompt> <userinput>CREATE TABLESPACE disco_f LOCATION 'F:\\postgresql';</userinput>
+
+<computeroutput>
+CREATE TABLESPACE
+</computeroutput>
+
+<prompt>=#</prompt> <userinput>SELECT * FROM pg_tablespace;</userinput>
+
+<computeroutput>
+  spcname   | spcowner |  spclocation  | spcacl
+------------+----------+---------------+--------
+ pg_default |        1 |               |
+ pg_global  |        1 |               |
+ disco_f    |        1 | F:/postgresql |
+(3 linhas)
+</computeroutput>
+
+<prompt>E:\Program Files\PostgreSQL\8.0\data&gt;</prompt> <userinput>dir pg_tblspc</userinput>
+
+<computeroutput>
+ Volume in drive E is Local Disk
+ Volume Serial Number is 1C2A-9875
+
+ Directory of E:\Program Files\PostgreSQL\8.0\data\pg_tblspc
+
+21/06/2005  11:16       &lt;DIR&gt;          .
+21/06/2005  11:16       &lt;DIR&gt;          ..
+21/06/2005  11:16       &lt;JUNCTION&gt;     58588
+               0 File(s)              0 bytes
+               3 Dir(s)   3.744.190.464 bytes free
+</computeroutput>
+</screen>
+    </para>
+   </example>
+
+ </sect1>
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

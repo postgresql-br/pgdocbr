@@ -1,0 +1,570 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/xoper.sgml,v 1.32 2004/11/15 06:32:14 neilc Exp $
+-->
+
+ <sect1 id="xoper">
+  <title>Operadores definidos pelo usuário</title>
+
+  <indexterm zone="xoper">
+   <primary>operador</primary>
+   <secondary>definido pelo usuário</secondary>
+  </indexterm>
+
+  <Para>
+   Todo operador é um <quote>adoçamento sintático</quote> para chamada a uma
+   função subjacente que realiza o trabalho real; portanto, primeiro deve ser
+   criada a função subjacente para depois ser criado o operador.
+   Entretanto o operador <emphasis>não é meramente</emphasis> um
+   adoçamento sintático, porque possui informações adicionais para ajudar
+   o otimizador de comandos a otimizar os comandos que utilizam o operador.
+   A próxima seção se dedica a explicar estas informações adicionais.
+  </Para>
+
+  <Para>
+   O <productname>PostgreSQL</productname> dá suporte a operador unário
+   esquerdo, unário direito e binário. Os operadores podem ser sobrecarregados,
+   <indexterm>
+    <primary>sobrecarga</primary>
+    <secondary>operadores</secondary>
+   </indexterm>
+   ou seja, o mesmo nome de operador pode ser utilizado por operadores
+   diferentes que possuam número ou tipo diferente de operandos.
+   Quando o comando é executado, o sistema determina o operador a ser chamado
+   a partir do número e tipo dos operandos fornecidos.
+  </Para>
+
+  <Para>
+   Abaixo segue um exemplo da criação de um operador para adicionar dois números
+   complexos. É assumido que já se tenha criado a definição do tipo
+   <type>complex</type> (consulte a <xref linkend="xtypes">). Primeiro é necessária
+   uma função para fazer o trabalho, para depois ser definido o operador:
+
+<ProgramListing>
+CREATE FUNCTION complex_add(complex, complex)
+    RETURNS complex
+    AS '<replaceable>nome_do_arquivo</replaceable>', 'complex_add'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OPERATOR + (
+    leftarg = complex,
+    rightarg = complex,
+    procedure = complex_add,
+    commutator = +
+);
+</ProgramListing>
+  </Para>
+
+  <Para>
+   Agora é possível executar um comando como este:
+
+<screen>
+<userinput>SELECT (a + b) AS c FROM test_complex;</userinput>
+
+<computeroutput>
+        c
+-----------------
+ (5.2,6.05)
+ (133.42,144.95)
+</computeroutput>
+</screen>
+  </Para>
+
+  <Para>
+   Aqui foi mostrado como criar um operador binário. Para criar um operador
+   binário deve-se apenas omitir <literal>leftarg</> (para operadores unários
+   esquerdo) ou <literal>rightarg</> (para operadores unários direito).
+   A cláusula <literal>procedure</literal> e as cláusulas de argumento são os
+   únicos itens requeridos pelo comando <command>CREATE OPERATOR</command>.
+   A cláusula <literal>commutator</literal> mostrada no exemplo é uma dica
+   opcional para o otimizador de comandos. Na próxima seção podem ser obtidos
+   mais detalhes sobre a cláusula <literal>commutator</literal> e outras dicas
+   para o otimizador.
+  </Para>
+ </sect1>
+
+  <sect1 id="xoper-optimization">
+   <title>Informações de otimização do operador</title>
+
+   <para>
+    No <ProductName>PostgreSQL</ProductName> a definição do operador pode
+    incluir diversas cláusulas opcionais contendo informações sobre como o
+    operador se comporta, úteis ao sistema. Estas cláusulas devem ser fornecidas
+    sempre que for apropriado, porque podem acelerar muito os comandos que
+    utilizam o operador. Mas se forem fornecidas, é preciso haver certeza que
+    estão corretas! A utilização incorreta de uma cláusula de otimização pode
+    resultar na queda do servidor, uma saída sutilmente errada, e outras coisas
+    ruins. A cláusula de otimização sempre pode ser deixada de fora quando não
+    há certeza sobre a mesma; a única conseqüência pode ser o comando demorar
+    mais tempo para executar que o necessário.
+   </para>
+
+   <para>
+    Poderão ser adicionadas cláusulas de otimização nas versões futuras do
+    <ProductName>PostgreSQL</ProductName>. As cláusulas aqui descritas são as
+    que a versão &version; compreende.
+   </para>
+
+   <sect2 id="xoper-commutator">
+    <title><literal>COMMUTATOR</></title>
+
+    <para>
+     Se for fornecida a cláusula <literal>COMMUTATOR</>, esta informa o nome
+     do operador que é o operador de comutação do operador sendo definido.
+     Se diz que o operador A é o operador de comutação do operador B, se
+     (x A y) for igual a (y B x), para todas as entradas possíveis x, y.
+     Deve ser observado que B também é o operador de comutação de A.
+     Por exemplo, para um determinado tipo de dado os operadores
+     <literal>&lt;</> e <literal>&gt;</> geralmente são o operador de comutação
+     um do outro, e o operador <literal>+</> geralmente é o operador de
+     comutação dele mesmo. Porém, o operador <literal>-</> geralmente não é o
+     operador de comutação de nenhum outro.
+    </para>
+
+    <para>
+     O tipo do operando esquerdo de um operador comutável é idêntico ao tipo
+     do operando direito de seu operador de comutação, e vice-versa.
+     Portanto, o nome do operador de comutação é tudo que precisa ser informado
+     ao <ProductName>PostgreSQL</ProductName> para que este procure pelo
+     operador de comutação, e é tudo que precisa ser informado na cláusula
+     <literal>COMMUTATOR</>.
+    </para>
+
+    <para>
+     É crítico fornecer a informação sobre o operador de comutação para os
+     operadores a serem utilizados em cláusulas de índice e de junção, porque
+     isto permite ao otimizador de comandos <quote>girar</> a cláusula para que
+     esta atenda a uma das formas requeridas por algum dos diferentes tipos de
+     plano.
+     Por exemplo, considere uma consulta com uma cláusula WHERE do tipo
+     <literal>tab1.x = tab2.y</>, onde <literal>tab1.x</> e <literal>tab2.y</>
+     são de um tipo definido pelo usuário, e suponha que <literal>tab2.y</>
+     seja indexada.
+     O otimizador não poderá gerar uma varredura de índice a menos que possa
+     determinar como girar a cláusula para que se torne
+     <literal>tab2.y = tab1.x</>, porque a maquinaria de varredura de índice
+     espera encontrar a coluna indexada à esquerda do operador fornecido.
+     O <ProductName>PostgreSQL</ProductName> <emphasis>não</> vai simplesmente
+     assumir que esta é uma transformação válida &mdash; quem cria o operador
+     <literal>=</> deve especificar que isto é válido, marcando o operador com
+     a informação sobre o operador de comutação.
+    </para>
+
+    <para>
+     Quando se está definindo um operador autocomutativo é simples e direto.
+     Agora, quando se está definindo um par de operadores de comutação a
+     situação fica mais complicada: como é possível o primeiro operador
+     definido fazer referência ao segundo que ainda não foi definido?
+     Existem duas soluções para este problema:
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        Uma forma é omitir a cláusula <literal>COMMUTATOR</> no primeiro
+        operador definido, e depois especificar na definição do segundo
+        operador.
+        Uma vez que o <ProductName>PostgreSQL</ProductName> sabe que os
+        operadores de comutação aparecem aos pares, quando encontra a segunda
+        definição retorna automaticamente e preenche a cláusula
+        <literal>COMMUTATOR</> que ficou faltando na primeira definição.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        A outra forma, mais direta, é simplesmente incluir as cláusulas
+        <literal>COMMUTATOR</> nas duas definições.
+        O <ProductName>PostgreSQL</ProductName> processa a primeira definição e
+        percebe que a cláusula <literal>COMMUTATOR</> faz referência a um
+        operador que não existe. O sistema então cria uma entrada fictícia
+        para este operador no catálogo do sistema.
+        Esta entrada fictícia possui entrada válida apenas para o nome do
+        operador, os tipos de dado dos operandos da esquerda e da direita, e o
+        tipo de dado do resultado, uma vez que isto é tudo que o
+        <ProductName>PostgreSQL</ProductName> pode deduzir neste instante.
+        A entrada no catálogo deste operador vai ficar vinculada a esta entrada
+        fictícia.
+        Posteriormente, quando o segundo operador for definido, o sistema
+        atualiza a entrada fictícia com as informações adicionais obtidas a
+        partir da segunda definição.
+        No caso de se tentar utilizar o operador fictício antes deste ser
+        preenchido, será recebida uma mensagem de erro.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </para>
+   </sect2>
+
+   <sect2 id="xoper-negator">
+    <title><literal>NEGATOR</></title>
+
+    <para>
+     A cláusula <literal>NEGATOR</>, se estiver presente, declara o nome de um
+     operador que é o operador de negação do operador sendo definido.
+     Se diz que o operador A é o operador de negação do operador B se ambos
+     retornam resultados booleanos, e (x A y) é igual a NÃO (x B y) para todas
+     as entradas possíveis de x, y.
+     Deve ser observado que B também é o operador de negação de A.
+     Por exemplo, <literal>&lt;</> e <literal>&gt;=</> é um par de operadores
+     de negação para a maior parte dos tipos de dado.
+     Nunca é válido um operador ser seu próprio operador de negação.
+    </para>
+
+   <para>
+    Ao contrário dos operadores de comutação, pode ser válido existir um par de
+    operadores unários marcados como operadores de negação um do outro; isto
+    significa que (A x) é igual a NÃO (B x) para todo x, ou o equivalente para
+    os operadores unários direito.
+   </para>
+
+   <para>
+    O operador de negação do operador deve possuir o mesmo tipo de dado do
+    operando esquerdo e/ou direito do operador sendo definido. Portanto,
+    da mesma forma que em <literal>COMMUTATOR</>, somente é necessário
+    especificar o nome do operador na cláusula <literal>NEGATOR</>.
+   </para>
+
+   <para>
+    Fornecer o operador de negação é muito útil para o otimizador de comandos,
+    por permitir que expressões como <literal>NOT (x = y)</> sejam simplificadas
+    como <literal>x &lt;&gt; y</>. Isto ocorre com mais freqüência do que se
+    imagina, porque podem ser inseridas operações <literal>NOT</> como
+    conseqüência de outras rearrumações.
+   </para>
+
+   <para>
+    Os pares de operadores de negação podem ser definidos utilizando os mesmos
+    métodos explicados acima para os pares de operadores de comutação.
+   </para>
+
+  </sect2>
+
+  <sect2 id="xoper-restrict">
+   <title><literal>RESTRICT</></title>
+
+   <para>
+    A cláusula <literal>RESTRICT</>, se estiver presente, declara o nome de uma
+    função estimadora de seletividade de restrição para o operador (Deve ser
+    observado que é declarado o nome da função, e não o nome do operador).
+    A cláusula <literal>RESTRICT</> só faz sentido em operador binário
+    que retorna o tipo <type>boolean</>. A idéia por trás do estimador de
+    seletividade de restrição é adivinhar a fração de linhas da tabela que
+    satisfazem a condição da cláusula <literal>WHERE</literal> na forma
+<ProgramListing>
+coluna OP constante
+</ProgramListing>
+    para o operador corrente e para um determinado valor constante.
+    Isto ajuda o otimizador dando uma noção de quantas linhas serão
+    eliminadas pela cláusula <literal>WHERE</> que possui esta forma
+    (Você pode estar se perguntando o que acontece quando a constante está do
+    lado esquerdo. Bem, é para isto que o <literal>COMMUTATOR</> existe...).
+   </para>
+
+   <para>
+    A escrita de funções estimadoras de seletividade de restrição está muito
+    acima do escopo deste capítulo, mas felizmente geralmente é possível
+    utilizar uma das funções estimadoras padrão do sistema em operadores
+    definidos pelo usuário.
+    Estas são as funções estimadoras de restrição padrão:
+    <simplelist>
+     <member><function>eqsel</>	para <literal>=</></member>
+     <member><function>neqsel</> para <literal>&lt;&gt;</></member>
+     <member><function>scalarltsel</> para <literal>&lt;</> ou <literal>&lt;=</></member>
+     <member><function>scalargtsel</> para <literal>&gt;</> ou <literal>&gt;=</></member>
+   </simplelist>
+    Pode parecer um pouco estranho que estas sejam as categorias, mas faz
+    sentido quando se pensa sobre isto.
+    Geralmente <literal>=</> aceita apenas uma pequena fração das linhas da
+    tabela;
+    Geralmente <literal>&lt;&gt;</> rejeita somente uma pequena fração.
+    <literal>&lt;</> aceita uma fração que depende da constante fornecida
+    estar na faixa de valores da coluna da tabela (que, caso seja verdade,
+    a informação coletada pelo comando <command>ANALYZE</command> será utilizada
+    pela função estimadora de seletividade).
+    <literal>&lt;=</> aceita uma fração um pouco maior que <literal>&lt;</> para
+    a comparação com a mesma constante, mas as frações são próximas o suficiente
+    para não valer a pena fazer distinção entre as duas, principalmente porque
+    não se está fazendo nada melhor que uma estimativa grosseira.
+    Comentários semelhantes se aplicam a <literal>&gt;</> e <literal>&gt;=</>.
+   </para>
+
+   <para>
+    Freqüentemente pode-se utilizar <function>eqsel</function> ou
+    <function>neqsel</function> para o caso de operadores que possuam uma
+    seletividade muito alta ou muito baixa, mesmo que não sejam realmente
+    uma igualdade ou desigualdade. Por exemplo, os operadores geométricos de
+    igualdade aproximada usam <function>eqsel</function> assumindo que
+    irão corresponder apenas a uma pequena fração das entradas na tabela.
+   </para>
+
+   <para>
+    Podem ser utilizados <function>scalarltsel</> e <function>scalargtsel</>
+    para fazer comparação em tipos de dado onde a conversão em escalares
+    numéricos para fazer comparação de intervalo faça sentido.
+    Se for possível, o tipo de dado deve ser adicionado aos compreendidos pela
+    função <function>convert_to_scalar()</function> no arquivo
+    <filename>src/backend/utils/adt/selfuncs.c</filename>
+    (Um dia esta função será substituída por funções por-tipo-de-dado
+    identificadas através de uma coluna do catálogo do sistema
+    <classname>pg_type</>; mas isto ainda não foi feito).
+    Se não for utilizado os comandos ainda assim vão funcionar, mas as
+    estimativas do otimizador não serão tão boas quanto poderiam ser.
+   </para>
+
+   <para>
+    Existem funções estimadoras de seletividade adicionais projetadas para
+    operadores geométricos no arquivo
+    <filename>src/backend/utils/adt/geo_selfuncs.c</filename>:
+    <function>areasel</function>, <function>positionsel</function>,
+    e <function>contsel</function>. Quando este texto foi escrito estas funções
+    eram apenas <literal>stubs</literal>, mas podem ser utilizadas assim mesmo
+    (ou melhor ainda, melhoradas).
+   </para>
+   </sect2>
+
+   <sect2 id="xoper-join">
+    <title><literal>JOIN</></title>
+
+    <para>
+     A cláusula <literal>JOIN</>, se estiver presente, declara o nome de uma
+     função estimadora de seletividade de junção para o operador (Deve ser
+     observado que é declarado o nome de uma função, e não o nome de operador).
+     A cláusula <literal>JOIN</> só faz sentido em operador binário
+     que retorna o tipo <type>boolean</type>. A idéia por trás do estimador de
+     seletividade de junção é adivinhar a fração de linhas de um par de tabelas
+     que satisfazem a condição da cláusula <literal>WHERE</> na forma
+<ProgramListing>
+tabela1.coluna1 OP tabela2.coluna2
+</ProgramListing>
+     para o operador corrente. Assim como na cláusula <literal>RESTRICT</>,
+     ajuda o otimizador permitindo que descubra entre várias seqüências de
+     junção possíveis qual a que deve dar menos trabalho para ser realizada.
+    </para>
+
+    <para>
+     Da mesma maneira que antes, este capítulo não tenta explicar como escrever
+     uma função estimadora de seletividade de junção, e apenas sugere que seja
+     utilizada uma das funções estimadoras existentes, caso uma delas se aplique:
+     <simplelist>
+      <member><function>eqjoinsel</> para <literal>=</></member>
+      <member><function>neqjoinsel</> para <literal>&lt;&gt;</></member>
+      <member><function>scalarltjoinsel</> para <literal>&lt;</> ou <literal>&lt;=</></member>
+      <member><function>scalargtjoinsel</> para <literal>&gt;</> ou <literal>&gt;=</></member>
+      <member><function>areajoinsel</> para comparações baseadas em área 2D</member>
+      <member><function>positionjoinsel</> para comparações baseadas em posição 2D</member>
+      <member><function>contjoinsel</> para operações baseadas em contém 2D</member>
+     </simplelist>
+    </para>
+   </sect2>
+
+   <sect2 id="xoper-hashes">
+    <title><literal>HASHES</></title>
+
+    <para>
+     A cláusula <literal>HASHES</literal>, se estiver presente, informa ao
+     sistema que é permitido utilizar o método de junção por <literal>hash</>
+     em uma junção baseada neste operador. A cláusula <literal>HASHES</> só faz
+     sentido em operador binário que retorna o tipo <literal>boolean</> e, na
+     prática, o operador deve representar igualdade para algum tipo de dado.
+    </para>
+
+    <para>
+     A suposição subjacente à junção por <literal>hash</literal> é que o
+     operador de junção só retorna verdade para pares de valores à esquerda
+     e à direita que resultam no mesmo código de <literal>hash</literal>.
+     Se dois valores forem colocados em receptáculos de <literal>hash</literal>
+     diferentes, a junção nunca vai compará-los, assumindo implicitamente que o
+     resultado do operador de junção é falso.
+     Portanto, nunca faz sentido especificar <literal>HASHES</literal> para
+     operadores que não representam igualdade.
+    </para>
+
+    <para>
+     Para ser marcado como <literal>HASHES</literal> o operador de junção deve
+     estar presente em uma classe de operadores de índice
+     <literal>hash</literal>.
+     Isto não é exigido quando se cria o operador, uma vez que a classe de
+     operadores que faz referência não pode existir ainda.
+     Mas a tentativa de utilizar o operador em junções <literal>hash</literal>
+     falham em tempo de execução quando a classe de operadores não existe.
+     O sistema precisa da classe de operadores para encontrar a função de
+     <literal>hash</literal> específica do tipo de dado, para o tipo de dado de
+     entrada do operador.
+     Obviamente, antes de ser possível criar a classe de operadores é necessário
+     criar uma função de <literal>hash</literal> adequada.
+    </para>
+
+    <para>
+     Deve ser tomado cuidado ao preparar a função de <literal>hash</literal>,
+     porque existem formas dependentes de máquina pelas quais a função pode
+     deixar de funcionar corretamente.
+     Por exemplo, quando o tipo de dado é uma estrutura onde existem bits de
+     preenchimento que não interessam, não se pode simplesmente passar toda a
+     estrutura para a função <function>hash_any</> (A menos que se escreva
+     outros operadores e funções para garantir que os bits não utilizados sejam
+     sempre zero, que é a estratégia recomendada).
+     Outro exemplo são as máquinas que seguem o padrão <acronym>IEEE</> para
+     valores de ponto flutuante. Nestas máquinas zero negativo e zero positivo
+     são valores diferentes (padrões de bit diferentes), mas definidos como
+     sendo iguais na comparação. Se o valor de ponto flutuante puder conter
+     zero negativo, então são necessários passos adicionais para garantir que
+     este gera o mesmo valor de <literal>hash</literal> que o zero positivo.
+    </para>
+
+    <note>
+    <para>
+     A função subjacente ao operador juntável por <literal>hash</literal> deve
+     ser marcada como imutável ou estável. Se for volátil, o sistema nunca vai
+     tentar utilizar o operador para uma junção por <literal>hash</literal>.
+    </para>
+    </note>
+
+    <note>
+    <para>
+     Se o operador juntável por <literal>hash</literal> possuir uma função
+     subjacente marcada como estrita, a função também deve ser completa,
+     ou seja, a função deve retornar verdade ou falso, e nunca nulo, para
+     quaisquer duas entradas não nulas. Se esta regra não for seguida, a
+     otimização de <literal>hash</literal> nas operações <literal>IN</> podem
+     gerar resultados errados (Especificamente, <literal>IN</> deve retornar
+     falso onde a resposta correta de acordo com o padrão seria nulo; ou pode
+     gerar um erro reclamando que não foi preparada para resultado nulo).
+    </para>
+    </note>
+
+   </sect2>
+
+   <sect2 id="xoper-merges">
+    <title>MERGES (SORT1, SORT2, LTCMP, GTCMP)</title>
+
+    <para>
+     A cláusula <literal>MERGES</literal>, se estiver presente, informa ao
+     sistema que é permitido utilizar o método de junção por mesclagem
+     (<literal>merge</literal>) em uma junção baseada neste operador.
+     A cláusula <literal>MERGES</> só faz sentido em operador binário que
+     retorna o tipo <literal>boolean</> e, na prática, o operador deve
+     representar igualdade para algum tipo de dado ou par de tipos de dado.
+    </para>
+
+    <para>
+     A junção por mesclagem se baseia na idéia de ordenar as tabelas da esquerda
+     e da direita primeiro, para depois varre-las em paralelo.
+     Portanto, os dois tipos de dado devem ser capaz de ser totalmente
+     ordenados, e o operador de junção deve ser um que somente seja bem sucedido
+     para pares de valores que <quote>caiam no mesmo lugar</quote> na ordem de
+     classificação.
+     Na prática isto significa que o operador de junção deve se comportar como
+     igualdade, mas diferentemente da junção por <literal>hash</literal>, onde
+     devem ser o mesmo (ou pelo menos equivalente bit a bit), é possível fazer
+     a junção por mesclagem de dois tipos de dado distintos, desde que sejam
+     binariamente compatíveis. Por exemplo, o operador de igualdade
+     <type>smallint</type>-versus-<type>integer</type> é juntável por mesclagem.
+     Somente se necessita de operadores de classificação que coloquem os dois
+     tipos de dado em uma seqüência logicamente compatível.
+    </para>
+
+    <para>
+     A execução de uma junção por mesclagem requer que o sistema seja capaz
+     de identificar quatro operadores relacionados com o operador de junção por
+     mesclagem: comparação menor-que para o tipo de dado do operando à esquerda,
+     comparação menor-que para o tipo de dado do operando à direita, comparação
+     menor-que entre os dois tipos de dado, e comparação maior-que entre os dois
+     tipos de dado (Na verdade são quatro operadores distintos quando o operador
+     juntável por mesclagem possui tipos de dado dos operandos diferentes,
+     mas quando os tipos de dado dos operandos são o mesmo os três operadores
+     menor-que são o mesmo).
+     É possível especificar estes operadores individualmente por nome, pelas
+     opções <literal>SORT1</>, <literal>SORT2</>, <literal>LTCMP</> e
+     <literal>GTCMP</>, respectivamente. O sistema preenche os nomes padrão
+     <literal>&lt;</>, <literal>&lt;</>, <literal>&lt;</>, <literal>&gt;</>,
+     respectivamente, quando um destes é omitido ao se especificar
+     <literal>MERGES</>.
+     Também, <literal>MERGES</> é assumido como implicado quando alguma destas
+     quatro opções de operador aparece, portanto é possível especificar apenas
+     algumas delas e deixar o sistema preencher o restante.
+    </para>
+
+    <para>
+     Os tipos de dado dos operandos dos quatro operadores de comparação podem
+     ser deduzidos a partir dos tipos dos operandos do operador juntável por
+     mesclagem e, portanto, da mesma maneira que em <literal>COMMUTATOR</>,
+     somente é necessário fornecer o nome do operador nestas cláusulas.
+     A menos que se esteja utilizando escolhas peculiares para os nomes dos
+     operadores, basta escrever <literal>MERGES</> e deixar o sistema preencher
+     os detalhes (Da mesma forma que em <literal>COMMUTATOR</> e
+     <literal>NEGATOR</>, o sistema tem condição de criar entradas de operador
+     fictícias se for definido o operador de igualdade antes dos demais).
+    </para>
+
+    <para>
+     Existem restrições adicionais para os operadores marcados como juntáveis
+     por mesclagem. No momento estas restrições não são verificadas pelo comando
+     <command>CREATE OPERATOR</command>, mas podem ocorrer erros ao se utilizar
+     o operador quando alguma destas restrições não é atendida:
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        Um operador de igualdade juntável por mesclagem deve possuir um
+        comutador juntável por mesclagem (ele mesmo, se os tipos de dado dos
+        operandos forem o mesmo, ou um operador de igualdade relacionado
+        se forem diferentes).
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Caso exista um operador juntável por mesclagem relacionando quaisquer
+        dois tipos de dado A e B, e outro operador juntável por mesclagem
+        relacionando B com um terceiro tipo de dado C, então A e C também devem
+        ter um operador juntável por mesclagem; em outras palavras, possuir um
+        operador juntável por mesclagem deve ser transitivo.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Podem acontecer resultados estranhos em tempo de execução quando os
+        quatro operadores de comparação declarados não classificarem os dados
+        de forma compatível.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </para>
+
+    <note>
+    <para>
+     A junção subjacente ao operador juntável por mesclagem deve ser marcada
+     como imutável ou estável. Se for volátil, o sistema nunca tentará utilizar
+     o operador em uma junção por mesclagem.
+    </para>
+    </note>
+
+    <note>
+    <para>
+     Nas versões do <ProductName>PostgreSQL</ProductName> anteriores a 7.3,
+     <literal>MERGES</> não estava disponível: para construir um operador
+     juntável por mesclagem era necessário escrever <literal>SORT1</> e
+     <literal>SORT2</> explicitamente. E, também, as opções <literal>LTCMP</>
+     e <literal>GTCMP</> não existiam; os nomes destes operadores eram
+     estabelecidos como <literal>&lt;</> e <literal>&gt;</>, respectivamente.
+    </para>
+    </note>
+   </sect2>
+  </sect1>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

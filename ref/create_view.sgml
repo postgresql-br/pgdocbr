@@ -1,0 +1,234 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_view.sgml,v 1.29 2005/01/04 00:39:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATEVIEW">
+ <refmeta>
+  <refentrytitle id="SQL-CREATEVIEW-TITLE">CREATE VIEW</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE VIEW</refname>
+  <refpurpose>cria uma visão</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createview">
+  <primary>CREATE VIEW</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE [ OR REPLACE ] VIEW <replaceable class="parameter">nome</replaceable> [ ( <replaceable
+class="PARAMETER">nome_da_coluna</replaceable> [, ...] ) ] AS <replaceable class="parameter">consulta</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE VIEW</command> cria uma visão. A visão não
+   é materializada fisicamente. Em vez disso, a consulta é executada
+   toda vez que a visão é referenciada em uma consulta.
+  </para>
+
+  <para>
+   O comando <command>CREATE OR REPLACE VIEW</command> é semelhante, mas se já
+   existir uma visão com o mesmo nome então esta é substituída. Uma visão
+   somente pode ser substituída por uma nova consulta que produza um conjunto
+   idêntico de colunas (ou seja, colunas com mesmos nomes e tipos de dado).
+  </para>
+
+  <para>
+   Se for fornecido o nome do esquema (por exemplo, <literal>CREATE VIEW
+   meu_esquema.minha_visao ...</literal>) então a visão será criada no esquema
+   especificado, senão será criada no esquema corrente.
+   O nome da visão deve ser distinto do nome de qualquer outra visão,
+   tabela, seqüência ou índice no mesmo esquema.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) da visão a ser criada.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">nome_da_coluna</replaceable></term>
+    <listitem>
+     <para>
+      Uma lista opcional de nomes a serem usados para as colunas da visão.
+      Se não for fornecida, os nomes das colunas são determinados a partir da
+      consulta.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">consulta</replaceable></term>
+    <listitem>
+     <para>
+      Uma consulta (ou seja, um comando <command>SELECT</command>)
+      que gera as colunas e linhas da visão.
+     </para>
+
+     <para>
+      Consulte o comando <xref linkend="sql-select" endterm="sql-select-title">
+      para obter informações adicionais sobre as consultas válidas.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+   <para>
+    Atualmente, as visões são somente para leitura: o sistema não permite
+    inserção, atualização ou exclusão em uma visão. É possível obter o efeito de
+    uma visão atualizável criando regras que reescrevem as inserções, etc. na
+    visão como ações apropriadas em outras tabelas.
+    Para obter informações adicionais consulte o comando
+    <xref linkend="sql-createrule" endterm="sql-createrule-title">.
+   </para>
+
+   <para>
+    Deve ser utilizado o comando <command>DROP VIEW</command>
+    para remover uma visão.
+   </para>
+
+   <para>
+    Tome cuidado para que os nomes e os tipos das colunas da visão
+    sejam atribuídos da maneira desejada. Por exemplo,
+<programlisting>
+CREATE VIEW vista AS SELECT 'Hello World';
+</programlisting>
+    é ruim por dois motivos: o nome padrão da coluna é
+    <literal>?column?</literal>, e o tipo de dado padrão da coluna é
+    <type>unknown</type>. Se for desejado um literal cadeia de caracteres no
+    resultado da visão deve ser utilizado algo como
+<programlisting>
+CREATE VIEW vista AS SELECT text 'Hello World' AS hello;
+</programlisting>
+   </para>
+
+   <para>
+    O acesso às tabelas referenciadas pela visão é determinado pelas permissões
+    do dono da visão. Entretanto, as funções chamadas pela visão são tratadas da
+    mesma maneira como se tivessem sido chamadas diretamente pela consulta que
+    utiliza a visão. Portanto, o usuário da visão deve possuir permissão para
+    chamar todas as funções utilizadas pela visão.
+   </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Criar uma visão mostrando todos os filmes de comédia:
+
+<programlisting>
+CREATE VIEW comedias AS
+    SELECT *
+    FROM filmes
+    WHERE tipo = 'Comédia';
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O padrão SQL especifica algumas funcionalidades adicionais para o comando
+   <command>CREATE VIEW</command>:
+<synopsis>
+CREATE VIEW <replaceable class="parameter">nome</replaceable> [ ( <replaceable class="parameter">coluna</replaceable> [, ...] ) ]
+    AS consulta
+    [ WITH [ CASCADE | LOCAL ] CHECK OPTION ]
+</synopsis>
+  </para>
+
+  <para>
+   As cláusulas opcionais para o comando SQL completo são:
+
+   <variablelist>
+     <varlistentry>
+      <term><literal>CHECK OPTION</literal></term>
+      <listitem>
+       <para>
+        Esta opção está associada às visões atualizáveis.
+        Todos os comandos <command>INSERT</command> e <command>UPDATE</command>
+        na visão são verificados para garantir que os dados
+        satisfazem às condições que definem a visão (ou seja, os novos dados
+        devem ser visíveis através da visão).
+        Se as condições não forem satisfeitas, a atualização será rejeitada.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>LOCAL</literal></term>
+      <listitem>
+       <para>
+        Verifica a integridade nesta visão.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>CASCADE</literal></term>
+      <listitem>
+       <para>
+        Verifica a integridade nesta visão e em todas as visões dependentes.
+        <literal>CASCADE</literal> é assumido se nem <literal>CASCADE</literal>
+        nem <literal>LOCAL</literal> forem especificados.
+       </para>
+      </listitem>
+     </varlistentry>
+   </variablelist>
+  </para>
+
+  <para>
+   O comando <command>CREATE OR REPLACE VIEW</command> é uma
+   extensão do <productname>PostgreSQL</productname> à linguagem.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-dropview" endterm="sql-dropview-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

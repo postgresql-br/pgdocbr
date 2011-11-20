@@ -1,0 +1,555 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_role.sgml,v 1.8 2006/09/16 00:30:17 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATEROLE">
+ <refmeta>
+  <refentrytitle id="sql-createrole-title">CREATE ROLE</refentrytitle>
+  <refmiscinfo>SQL - Instruções da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE ROLE</refname>
+  <refpurpose>cria um papel do banco de dados</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createrole">
+  <primary>CREATE ROLE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE ROLE <replaceable class="parameter">nome</replaceable> [ [ WITH ] <replaceable class="parameter">opção</replaceable> [ ... ] ]
+
+onde <replaceable class="parameter">opção</replaceable> pode ser:
+
+      SUPERUSER | NOSUPERUSER
+    | CREATEDB | NOCREATEDB
+    | CREATEROLE | NOCREATEROLE
+    | CREATEUSER | NOCREATEUSER
+    | INHERIT | NOINHERIT
+    | LOGIN | NOLOGIN
+    | CONNECTION LIMIT <replaceable class="parameter">limite_de_conexões</replaceable>
+    | [ ENCRYPTED | UNENCRYPTED ] PASSWORD '<replaceable class="parameter">senha</replaceable>'
+    | VALID UNTIL '<replaceable class="parameter">carimbo_do_tempo</replaceable>'
+    | IN ROLE <replaceable class="parameter">nome_do_papel</replaceable> [, ...]
+    | IN GROUP <replaceable class="parameter">nome_do_papel</replaceable> [, ...]
+    | ROLE <replaceable class="parameter">nome_do_papel</replaceable> [, ...]
+    | ADMIN <replaceable class="parameter">nome_do_papel</replaceable> [, ...]
+    | USER <replaceable class="parameter">nome_do_papel</replaceable> [, ...]
+    | SYSID <replaceable class="parameter">id_usuário</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE ROLE</command> adiciona um novo papel
+   (<foreignphrase>role</foreignphrase>) ao agrupamento de bancos de dados do
+   <productname>PostgreSQL</productname>.
+   O papel é uma entidade que pode possuir objetos do banco de dados e
+   possuir privilégios do banco de dados; o papel pode ser considerado
+   como sendo um <quote>usuário</>, um <quote>grupo</>, ou ambos,
+   dependendo de como é utilizado.
+   Para obter informações sobre como gerenciar usuários e autenticação deve
+   ser consultado o <xref linkend="user-manag"> e o
+   <xref linkend="client-authentication">.
+   Para utilizar este comando é necessário possuir o privilégio
+   <literal>CREATEROLE</>, ou ser um superusuário do banco de dados.
+   <footnote>
+    <para>
+     <productname>Oracle</productname> &mdash; Introdução aos papéis &mdash;
+     O gerenciamento e controle dos privilégios fica mais fácil quando se
+     utilizam <emphasis>papéis</emphasis> (<foreignphrase>roles</>), que são
+     <emphasis>grupos com nome de privilégios relacionados</emphasis> que são
+     concedidos, como um grupo, aos usuários e outros grupos.
+     No banco de dados cada nome de papel deve ser único, diferente dos nomes
+     de todos os usuários e de todos os papéis.
+     Diferentemente dos objetos do esquema, os papéis não estão contidos em
+     nenhum esquema.
+     Portanto, o usuário que criou o papel pode ser removido sem afetar o papel.
+     <ulink url="http://download-east.oracle.com/docs/cd/B14117_01/server.101/b10743/security.htm#sthref2782">
+     <trademark class='registered'>Oracle</trademark> Database Concepts 10g
+     Release 1 (10.1) Part Number B10743-01</ulink> (N. do T.)
+    </para>
+   </footnote>
+   <footnote>
+    <para>
+     <productname>Oracle</productname> &mdash;
+     Para criar um <emphasis>papel</emphasis>, que é um conjunto de privilégios
+     que pode ser concedido a usuários ou a outros papéis, é utilizado o
+     comando <command>CREATE ROLE</command>. Os papéis podem ser utilizados
+     para administrar os privilégios do banco de dados. Podem ser adicionados
+     privilégios aos papéis, e depois ser concedido o papel para um usuário.
+     O usuário poderá, então, ativar o papel para exercer os privilégios
+     concedidos pelo papel. O papel possui todos os privilégios concedidos
+     para o papel, e todos os privilégios dos outros papéis concedidos a este
+     papel. O novo papel se encontra inicialmente vazio. Os privilégios para
+     o papel são adicionados através do comando <command>GRANT</command>.
+     <ulink url="http://download-east.oracle.com/docs/cd/B14117_01/server.101/b10759/statements_6011.htm">
+     <trademark class='registered'>Oracle</trademark> Database SQL Reference
+     10g Release 1 (10.1) Part Number B10759-01</ulink> (N. do T.)
+    </para>
+   </footnote>
+   <footnote>
+    <para>
+     <productname>SQL Server</productname> &mdash;
+     O comando <command>CREATE ROLE</command> cria um novo papel de banco de
+     dados no banco de dados corrente.
+     Os papéis são <foreignphrase>securables</foreignphrase> no nível de
+     banco de dados.
+     Após o papel ser criado, as permissões no nível de banco de dados são
+     configuradas utilizando os comandos <command>GRANT</command>,
+     <command>DENY</command> e <command>REVOKE</command>.
+     Para adicionar membros a um papel no nível de banco de dados é utilizado
+     o procedimento armazenado <function>sp_addrolemember</function>.
+     <ulink url="http://msdn2.microsoft.com/en-us/library/ms187936.aspx">
+     SQL Server 2005 Books Online &mdash; CREATE ROLE (Transact-SQL)</ulink>
+     (N. do T.)
+    </para>
+   </footnote>
+   <footnote>
+    <para>
+     <productname>SQL Server</productname> &mdash;
+     Todos os objetos de um banco de dados estão localizados em esquemas.
+     <emphasis>Todo esquema pertence a papéis</emphasis>
+     (<foreignphrase>roles</foreignphrase>)
+     <emphasis>em vez de a usuários individuais</emphasis>,
+     permitindo que múltiplos usuários administrem objetos de banco de dados.
+     Isso resolve uma questão das primeiras versões do
+     <productname>SQL Server</productname>, em que os usuários não podiam ser
+     excluídos de um banco de dados sem repassar a posse de cada objeto que
+     possuíam. Agora você só precisa alterar a posse do esquema, não de cada
+     objeto.
+     <ulink url="http://www.temporeal.com.br/produtos.php?id=170470">
+     Microsoft <trademark class='trade'>SQL Server 2005</trademark> &mdash;
+     Guia de Bolso do Administrador &mdash; William R. Stanek</ulink>, pág. 235
+     (N. do T.)
+    </para>
+   </footnote>
+  </para>
+
+  <para>
+   Deve ser observado que os papéis são definidos no nível de agrupamento dos
+   bancos de dados e, portanto, são válidos para todos os bancos de dados do
+   agrupamento.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+    <variablelist>
+     <varlistentry>
+      <term><replaceable class="parameter">nome</replaceable></term>
+      <listitem>
+       <para>
+        O nome do novo papel.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>SUPERUSER</literal></term>
+      <term><literal>NOSUPERUSER</literal></term>
+      <listitem>
+       <para>
+        Estas cláusulas determinam se o novo papel é um <quote>superusuário</>,
+        o qual pode passar por cima de todas as restrições de acesso dos
+        bancos de dados. O status de superusuário é perigoso, e somente deve
+        ser utilizado quando for realmente necessário. É necessário ser um
+        superusuário para criar um novo superusuário. Se nenhuma destas duas
+        cláusulas for especificada, o padrão é <literal>NOSUPERUSER</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>CREATEDB</></term>
+      <term><literal>NOCREATEDB</></term>
+      <listitem>
+       <para>
+        Estas cláusulas definem a permissão para o papel criar bancos de
+        dados. Se for especificado <literal>CREATEDB</literal>, o papel sendo
+        definido poderá criar bancos de dados. Se for especificado
+        <literal>NOCREATEDB</literal> o papel não poderá criar bancos de dados.
+        Se nenhuma destas duas cláusulas for especificada, o padrão é
+        <literal>NOCREATEDB</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>CREATEROLE</literal></term>
+      <term><literal>NOCREATEROLE</literal></term>
+      <listitem>
+       <para>
+        Estas cláusulas determinam se o papel terá permissão para criar novos
+        papéis (ou seja, executar o comando <command>CREATE ROLE</command>).
+        Um papel com o privilégio <literal>CREATEROLE</literal> também pode
+        alterar e remover outros papéis. Se nenhuma destas duas cláusulas for
+        especificada, o padrão é <literal>NOCREATEROLE</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>CREATEUSER</literal></term>
+      <term><literal>NOCREATEUSER</literal></term>
+      <listitem>
+       <para>
+        Estas cláusulas são formas obsoletas, mas ainda aceitas, das cláusulas
+        <literal>SUPERUSER</literal> e <literal>NOSUPERUSER</literal>.
+        Deve ser observado que <emphasis>não</> são equivalentes a
+        <literal>CREATEROLE</literal>, como poderia ser esperado!
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>INHERIT</literal></term>
+      <term><literal>NOINHERIT</literal></term>
+      <listitem>
+       <para>
+        Estas cláusulas determinam se o papel <quote>herda</> os privilégios
+        dos papéis dos quais é membro.
+        Um papel com o atributo <literal>INHERIT</literal> pode utilizar,
+        automaticamente, todos os privilégios de banco de dados que foram
+        concedidos a todos os papéis dos quais é um membro direto ou indireto.
+        Sem <literal>INHERIT</literal>, o status de membro de outro papel
+        apenas concede o direito de utilizar o comando
+        <xref linkend="sql-set-role" endterm="sql-set-role-title">
+        especificando este outro papel; os privilégios deste outro papel só
+        se tornarão disponíveis após executar <command>SET ROLE</>.
+        Se nenhuma destas duas cláusulas for especificada, o padrão é
+        <literal>INHERIT</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>LOGIN</literal></term>
+      <term><literal>NOLOGIN</literal></term>
+      <listitem>
+       <para>
+        Estas cláusulas determinam se o papel pode estabelecer uma conexão
+        (<foreignphrase>log in</>); ou seja, se o papel pode ser fornecido
+        como nome de autorização inicial da sessão durante a conexão do cliente.
+        Um papel com o atributo <literal>LOGIN</literal> pode ser considerado
+        como sendo um usuário.
+        Os papéis sem este atributo são úteis para gerenciar privilégios de
+        banco de dados, mas não são usuários no sentido habitual da palavra.
+        Se nenhuma destas duas cláusulas for especificada, o padrão é
+        <literal>NOLOGIN</literal>, exceto quando <command>CREATE ROLE</>
+        for chamada através de sua forma alternativa <command>CREATE USER</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>CONNECTION LIMIT</literal> <replaceable class="parameter">limite_de_conexões</replaceable></term>
+      <listitem>
+       <para>
+        Se o papel puder estabelecer uma conexão, esta cláusula especifica
+        quantas conexões simultâneas este papel pode estabelecer.
+        -1 (o padrão) significa sem limite.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>PASSWORD</> <replaceable class="parameter">senha</replaceable></term>
+      <listitem>
+       <para>
+        Define a senha do papel (A senha só é útil para os papéis que possuem
+        o atributo <literal>LOGIN</literal>, mesmo assim pode ser definida uma
+        senha para os papéis sem este atributo).
+        Se não se pretende utilizar autenticação por senha, esta opção poderá
+        ser omitida.
+        Se não for especificada nenhuma senha, a senha será definida como nula
+        e a autenticação por senha sempre irá falhar para este usuário.
+        A senha nula pode, opcionalmente, ser escrita explicitamente como
+        <literal>PASSWORD NULL</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>ENCRYPTED</></term>
+      <term><literal>UNENCRYPTED</></term>
+      <listitem>
+       <para>
+        Estas cláusulas controlam se a senha será armazenada criptografada,
+        ou não, nos catálogos do sistema; Se não for especificada nenhuma
+        destas cláusulas, o comportamento padrão será determinado pelo
+        parâmetro de configuração <xref linkend="guc-password-encryption">.
+        Se a cadeia de caracteres da senha já estiver criptografada no formato
+        MD5, então a cadeia de caracteres será armazenada como está,
+        independentemente de ser especificado <literal>ENCRYPTED</literal> ou
+        <literal>UNENCRYPTED</literal> (porque o sistema não pode
+        descriptografar a cadeia de caracteres criptografada contendo a
+        senha). Esta funcionalidade permite a restauração de senhas
+        criptografadas efetuadas por uma operação de
+        <literal>dump</literal>/<literal>restore</literal>.
+       </para>
+
+       <para>
+        Deve ser observado que os clientes antigos podem não possuir suporte
+        para o mecanismo de autenticação MD5, necessário para trabalhar com
+        as senhas que são armazenadas criptografadas.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>VALID UNTIL</literal> '<replaceable class="parameter">carimbo_do_tempo</replaceable>'</term>
+      <listitem>
+       <para>
+        A cláusula <literal>VALID UNTIL</literal> define uma data
+        e hora após a qual o papel não é mais válido.
+        Se esta cláusula for omitida, a senha será válida para sempre.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>IN ROLE</> <replaceable class="parameter">nome_do_papel</replaceable></term>
+      <listitem>
+       <para>
+        A cláusula <literal>IN ROLE</literal> relaciona um ou mais papéis
+        existentes, aos quais o novo papel será adicionado imediatamente
+        como sendo um novo membro (Deve ser observado que não existe opção
+        para adicionar o novo papel como administrador; para fazer isto
+        deve ser utilizado um comando <command>GRANT</> em separado).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>IN GROUP</> <replaceable class="parameter">nome_do_papel</replaceable></term>
+      <listitem>
+       <para>
+        A cláusula <literal>IN GROUP</literal> é uma forma obsoleta de
+        <literal>IN ROLE</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>ROLE</> <replaceable class="parameter">nome_do_papel</replaceable></term>
+      <listitem>
+       <para>
+        A cláusula <literal>ROLE</literal> relaciona um ou mais papéis
+        existentes a serem automaticamente adicionados como membros do novo
+        papel (Isto tem como efeito tornar o novo papel um <quote>grupo</>).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>ADMIN</> <replaceable class="parameter">nome_do_papel</replaceable></term>
+      <listitem>
+       <para>
+        A cláusula <literal>ADMIN</literal> é como a cláusula
+        <literal>ROLE</literal>, mas os papéis especificados são adicionados
+        ao novo papel <literal>WITH ADMIN OPTION</>, dando aos mesmos o
+        direito de permitir que outros papéis se tornem membros deste grupo.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>USER</> <replaceable class="parameter">nome_do_papel</replaceable></term>
+      <listitem>
+       <para>
+        A cláusula <literal>USER</literal> é uma forma obsoleta da cláusula
+        <literal>ROLE</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>SYSID</> <replaceable class="parameter">id_usuário</replaceable></term>
+      <listitem>
+       <para>
+        A cláusula <literal>SYSID</literal> é ignorada, mas é aceita para
+        manter a compatibilidade com as versões anteriores.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Para mudar os atributos do papel deve ser utilizado o comando
+   <xref linkend="SQL-ALTERROLE" endterm="SQL-ALTERROLE-title">,
+   e para remover um papel deve ser utilizado o comando
+   <xref linkend="SQL-DROPROLE" endterm="SQL-DROPROLE-title">.
+   Todos os atributos especificados em <command>CREATE ROLE</> poderão ser
+   modificados posteriormente pelo comando <command>ALTER ROLE</>.
+  </para>
+
+  <para>
+   A forma preferida para adicionar e remover membros, em papéis que estão
+   sendo utilizados como grupos, é através dos comandos
+   <xref linkend="SQL-GRANT" endterm="SQL-GRANT-title"> e
+   <xref linkend="SQL-REVOKE" endterm="SQL-REVOKE-title">.
+  </para>
+
+  <para>
+   A cláusula <literal>VALID UNTIL</> define uma data de expiração para a senha
+   apenas, e não para o papel em si.
+   Em particular, a data de expiração não é aplicada ao se conectar utilizando
+   um método de autenticação que não é baseado em senha.
+  </para>
+
+  <para>
+   O atributo <literal>INHERIT</> governa a herança dos privilégios que podem
+   ser concedidos (ou seja, os privilégios de acesso aos objetos do banco de
+   dados e ser membro de um papel). Não se aplica aos atributos especiais de
+   papel definidos por <command>CREATE ROLE</> e <command>ALTER ROLE</>.
+   Por exemplo, ser membro de um papel com o privilégio <literal>CREATEDB</>
+   não dá imediatamente o direito de criar bancos de dados, mesmo que esteja
+   definido <literal>INHERIT</>; é necessário assumir este papel através do
+   comando <xref linkend="SQL-SET-ROLE" endterm="SQL-SET-ROLE-title"> antes
+   de criar o banco de dados.
+  </para>
+
+  <para>
+   O atributo <literal>INHERIT</> é o padrão por motivo de compatibilidade com
+   as versões anteriores: nas versões anteriores do <productname>PostgreSQL</>,
+   os usuários sempre tinham acesso a todos os privilégios dos grupos dos quais
+   eram membros. Entretanto, <literal>NOINHERIT</> fornece uma correspondência
+   mais próxima da semântica especificada pelo padrão <acronym>SQL</acronym>.
+  </para>
+
+  <para>
+   Deve ser tomado cuidado com o privilégio <literal>CREATEROLE</>.
+   Não existe o conceito de herança para os privilégios do papel com
+   <literal>CREATEROLE</>.
+   Isto significa que, mesmo que o papel não possua um determinado privilégio,
+   mas tenha permissão para criar outros papéis, poderá facilmente criar um
+   papel com privilégios diferentes do próprio papel (exceto criar papéis com
+   privilégio de superusuário).
+   Por exemplo, o papel <quote>user</> possui o privilégio
+   <literal>CREATEROLE</>, mas não o privilégio <literal>CREATEDB</>,
+   mesmo assim pode criar um novo papel com o privilégio <literal>CREATEDB</>.
+   Portanto, os papéis que possuem o privilégio <literal>CREATEROLE</> devem
+   ser considerados como quase papéis superusuários.
+  </para>
+
+  <para>
+   O <productname>PostgreSQL</productname> inclui o aplicativo
+   <xref linkend="APP-CREATEUSER" endterm="APP-CREATEUSER-title"> que possui a
+   mesma funcionalidade do <command>CREATE ROLE</command> (na verdade, chama
+   este comando), mas pode ser executado a partir da linha de comando.
+  </para>
+
+  <para>
+   A opção <literal>CONNECTION LIMIT</> é imposta apenas aproximadamente;
+   se duas novas sessões começarem aproximadamente ao mesmo tempo quando
+   restar apenas um <quote>encaixe</> de conexão para o papel, será
+   possível que ambas falhem.
+   Além disso, o limite não é imposto aos superusuários.
+  </para>
+
+  <para>
+   Deve ser tomado cuidado ao se especificar uma senha não criptografada
+   neste comando.
+   A senha será transmitida para o servidor como texto aberto, e também poderá
+   ficar registrada no histórico de comandos do cliente ou no registro do
+   servidor.
+   O comando <xref linkend="APP-CREATEUSER" endterm="APP-CREATEUSER-title">
+   transmite a senha criptografada.
+   O aplicativo <xref linkend="app-psql" endterm="app-psql-title"> contém o
+   comando <command>\password</command> que poderá ser utilizado para alterar
+   a senha posteriormente com segurança.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Criar um papel que pode estabelecer uma conexão, mas sem fornecer uma senha:
+<programlisting>
+CREATE ROLE joaquim LOGIN;
+</programlisting>
+  </para>
+
+  <para>
+   Criar um papel com uma senha:
+<programlisting>
+CREATE USER manuel WITH PASSWORD 'jw8s0F4';
+</programlisting>
+   (O comando <command>CREATE USER</> é idêntico a <command>CREATE ROLE</>,
+   exceto por implicar em <literal>LOGIN</>)
+  </para>
+
+  <para>
+   Criar um papel com uma senha válida até o fim de 2004.
+   Após o primeiro segundo de 2005 a senha não será mais
+   válida.
+
+<programlisting>
+CREATE ROLE manuel WITH LOGIN PASSWORD 'jw8s0F4' VALID UNTIL '2005-01-01';
+</programlisting>
+  </para>
+
+  <para>
+   Criar um papel que pode criar bancos de dados e gerenciar papéis:
+<programlisting>
+CREATE ROLE admin WITH CREATEDB CREATEROLE;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>CREATE ROLE</> faz parte do padrão <acronym>SQL</>, mas o
+   padrão requer apenas a sintaxe
+<synopsis>
+CREATE ROLE <replaceable class="parameter">nome</> [ WITH ADMIN <replaceable class="parameter">nome_do_papel</> ]
+</synopsis>
+   Vários administradores iniciais, e todas as demais opções do comando
+   <command>CREATE ROLE</command>, são extensões do
+   <productname>PostgreSQL</productname>.
+  </para>
+
+  <para>
+   O padrão <acronym>SQL</acronym> define os conceitos de usuário e de papel,
+   mas considera-os como sendo conceitos distintos, e deixa para a
+   implementação de cada sistema de banco de dados a especificação de todos
+   os comandos para definir usuários.
+   No <productname>PostgreSQL</productname> foi decidido pela unificação de
+   usuários e papéis em um único tipo de entidade.
+   Portanto, os papéis possuem muito mais atributos opcionais do que no padrão.
+  </para>
+
+  <para>
+   Fica mais próximo do comportamento especificado pelo padrão <acronym>SQL</>
+   quando se dá aos usuários o atributo <literal>NOINHERIT</>, e aos papéis o
+   atributo <literal>INHERIT</>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-set-role" endterm="sql-set-role-title"></member>
+   <member><xref linkend="sql-alterrole" endterm="sql-alterrole-title"></member>
+   <member><xref linkend="sql-droprole" endterm="sql-droprole-title"></member>
+   <member><xref linkend="sql-grant" endterm="sql-grant-title"></member>
+   <member><xref linkend="sql-revoke" endterm="sql-revoke-title"></member>
+   <member><xref linkend="app-createuser"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

@@ -1,0 +1,176 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/delete.sgml,v 1.22 2005/01/09 05:57:45 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-DELETE">
+ <refmeta>
+  <refentrytitle id="SQL-DELETE-TITLE">DELETE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>DELETE</refname>
+  <refpurpose>exclui linhas de uma tabela</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-delete">
+  <primary>DELETE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+DELETE FROM [ ONLY ] <replaceable class="parameter">tabela</replaceable> [ WHERE <replaceable class="parameter">condição</replaceable> ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>DELETE</command> exclui da tabela especificada
+   as linhas que satisfazem a cláusula <literal>WHERE</literal>. Se a cláusula
+   <literal>WHERE</literal> estiver ausente, o efeito produzido é a exclusão de
+   todas as linhas da tabela. O resultado é uma tabela válida, porém vazia.
+  </para>
+
+   <tip>
+    <para>
+     O comando <xref linkend="sql-truncate" endterm="sql-truncate-title">
+     é uma extensão do <productname>PostgreSQL</productname> que fornece
+     um mecanismo mais rápido para excluir todas as linha da tabela.
+    </para>
+   </tip>
+
+  <para>
+   Por padrão, o comando <command>DELETE</command> exclui linhas
+   da tabela especificada e de todas as suas descendentes. Se for desejado
+   excluir linhas apenas da tabela especificada, deve ser utilizada a cláusula
+   <literal>ONLY</literal>.
+  </para>
+
+  <para>
+   É necessário possuir o privilégio <literal>DELETE</literal> na tabela
+   para excluir linhas da mesma, assim como o privilégio 
+   <literal>SELECT</literal> para todas as tabelas cujos valores são lidos pela
+   <replaceable class="parameter">condição</replaceable>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">tabela</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) de uma tabela existente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">condição</replaceable></term>
+    <listitem>
+     <para>
+      Uma expressão de valor, que retorna um valor do tipo
+      <type>boolean</type>, que determina as linhas a serem
+      excluídas.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Saídas</title>
+
+  <para>
+   Ao terminar bem-sucedido, o comando <command>DELETE</command>
+   retorna uma linha de fim de comando na forma
+<screen>
+DELETE <replaceable class="parameter">contador</replaceable>
+</screen>
+   O <replaceable class="parameter">contador</replaceable> é o número de linhas
+   excluídas. Se <replaceable class="parameter">contador</replaceable> for
+   igual a 0, então não há linhas correspondendo à
+   <replaceable class="parameter">condição</replaceable>
+   (isto não é considerado um erro).
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   O <productname>PostgreSQL</productname> permite que se faça referência a
+   colunas de outras tabelas na condição <literal>WHERE</literal>. Por exemplo, para
+   excluir todos os filmes produzidos por um determinado produtor pode ser
+   utilizado:
+<programlisting>
+DELETE FROM filmes
+  WHERE filmes.id_produtor = produtores.id_produtor AND produtores.nome = 'foo';
+</programlisting>
+   Essencialmente o que acontece neste comando é uma junção entre as tabelas
+   <structname>filmes</structname> e <structname>produtores</structname>, com todas as linhas
+   de <structname>filmes</structname> juntadas com sucesso sendo marcadas para exclusão.
+   Esta sintaxe não é padrão. Uma forma de se escrever mais de acordo com o
+   padrão seria:
+<programlisting>
+DELETE FROM filmes
+  WHERE id_produtor IN (SELECT id_produtor FROM produtores WHERE nome = 'foo');
+</programlisting>
+   Em alguns casos o estilo junção é mais fácil de ser escrito ou mais rápido
+   de executar do que o estilo subseleção.
+   Uma objeção ao estilo junção é que não existe uma lista explícita de quais
+   tabelas estão sendo utilizadas, o que torna este estilo propenso a erros;
+   também não pode tratar autojunções.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Excluir todos os filmes, exceto os musicais:
+<programlisting>
+DELETE FROM filmes WHERE tipo &lt;&gt; 'Musical';
+</programlisting>
+  </para>
+
+  <para>
+   Esvaziar a tabela <literal>filmes</literal>:
+<programlisting>
+DELETE FROM filmes;
+</programlisting>      
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Este comando está em conformidade com o padrão SQL, exceto que capacidade
+   de fazer referência a outras tabelas na cláusula <literal>WHERE</literal>
+   é uma extensão do <productname>PostgreSQL</productname>.
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

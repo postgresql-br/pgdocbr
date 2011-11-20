@@ -1,0 +1,740 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/pg_dump.sgml,v 1.76 2005/01/17 04:30:37 neilc Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="APP-PGDUMP">
+ <refmeta>
+  <refentrytitle>pg_dump</refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Aplicação</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>pg_dump</refname>
+
+  <refpurpose>
+   salva um banco de dados do <productname>PostgreSQL</productname> em um arquivo de script ou de outro tipo
+  </refpurpose>
+ </refnamediv>
+
+ <indexterm zone="app-pgdump">
+  <primary>pg_dump</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>pg_dump</command>
+   <arg rep="repeat"><replaceable>opção</replaceable></arg>
+   <arg><replaceable>nome_do_banco_de_dados</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+
+ <refsect1 id="pg-dump-description">
+  <title>
+   Descrição
+  </title>
+
+  <para>
+   O <application>pg_dump</application> é um utilitário para fazer cópia de
+   segurança de um banco de dados do <productname>PostgreSQL</productname>.
+   São feitas cópias de segurança consistentes mesmo que o banco de dados
+   esteja sendo utilizado concorrentemente.
+   O <application>pg_dump</application> não bloqueia os outros usuários
+   que estão acessando o banco de dados (leitura ou escrita).
+  </para>
+
+  <para>
+   As cópias de segurança podem ser feitas no formato de script ou em outros
+   formatos.
+   As cópias de segurança no formato de script são arquivos no formato texto
+   puro, contendo os comandos SQL necessários para reconstruir o banco de dados
+   no estado em que este se encontrava quando foi salvo.
+   Para restaurar a partir destes scripts, deve ser utilizado o
+   <xref linkend="app-psql">.
+   Os arquivos de script podem ser utilizados para reconstruir o banco de dados
+   até em outras máquinas com outras arquiteturas; com algumas modificações,
+   até mesmo em outros produtos gerenciadores de banco de dados SQL.
+  </para>
+
+  <para>
+   Os formatos de arquivo de cópia de segurança alternativos devem ser
+   utilizados com o <xref linkend="app-pgrestore"> para reconstruir o banco de
+   dados.
+   Estes formatos permitem que o <application>pg_restore</application>
+   selecione o que será restaurado, ou mesmo reordene os itens antes de
+   restaurá-los.
+   Os formatos alternativos de cópia de segurança também permitem salvar e
+   restaurar os <quote>objetos grandes</quote>, o que não é possível com a cópia
+   de segurança em arquivo de script.
+   Os formatos de cópia de segurança alternativos também são projetados para
+   serem portáveis entre arquiteturas diferentes.
+  </para>
+
+  <para>
+   Quando usado com um dos formatos de cópia de segurança alternativos, e
+   combinado com o <application>pg_restore</application>, o
+   <application>pg_dump</application> fornece um mecanismo flexível para cópias
+   de segurança e transferência.
+   O <application>pg_dump</application> pode ser usado para fazer a cópia de
+   segurança de todo o banco de dados e, posteriormente, o
+   <application>pg_restore</application> pode ser usado para examinar a cópia
+   de segurança e/ou selecionar as partes do banco de dados a serem restauradas.
+   O formato de arquivo de saída mais flexível é o <quote>personalizado</quote>
+   (<literal>custom</literal>, <option>-Fc</option>); permite a seleção e a
+   reordenação de todos os itens da cópia de segurança, e é comprimido por
+   padrão. O formato <application>tar</application> (<option>-Ft</option>) não é
+   comprimido e não permite reordenar os dados ao a restaurar, mas por outro
+   lado é bastante flexível; além disso, pode ser manipulado pelas ferramentas
+   padrão do Unix, como o <command>tar</command>.
+  </para>
+
+  <para>
+   Ao executar o <application>pg_dump</application> a saída deve ser examinada
+   à procura de advertências (escritas na saída de erro padrão),
+   com atenção especial às limitações mostradas abaixo.
+  </para>
+
+ </refsect1>
+
+ <refsect1 id="pg-dump-options">
+  <title>Opções</title>
+
+  <para>
+   As seguintes opções de linha de comando controlam o conteúdo
+   e o formato da saída:
+
+    <variablelist>
+     <varlistentry>
+      <term><replaceable class="parameter">nome_do_banco_de_dados</replaceable></term>
+      <listitem>
+       <para>
+        Especifica o nome do banco de dados a ser salvo.
+        Se não for especificado, é utilizada a variável de ambiente
+        <envar>PGDATABASE</envar>. Caso esta variável não esteja
+        definida, é utilizado o nome do usuário especificado para a conexão.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-a</option></term>
+      <term><option>--data-only</option></term>
+      <listitem>
+       <para>
+        Salva somente os dados, não salva o esquema (definições de dado).
+       </para>
+
+       <para>
+        Esta opção só faz sentido para o formato texto-puro. Para
+        os formatos alternativos esta opção pode ser especificada ao
+        chamar o <command>pg_restore</command>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-b</option></term>
+      <term><option>--blobs</option></term>
+      <listitem>
+       <para>
+        Inclui os objetos grandes na cópia de segurança.
+        Deve ser selecionado um formato de saída não-texto.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-c</option></term>
+      <term><option>--clean</option></term>
+      <listitem>
+       <para>
+        Inclui comandos para remover (<literal>drop</literal>) os objetos
+        do banco de dados antes dos comandos para criá-los.
+       </para>
+
+       <para>
+        Esta opção só faz sentido para o formato texto-puro. Para
+        os formatos alternativos esta opção pode ser especificada ao
+        chamar o <command>pg_restore</command>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-C</option></term>
+      <term><option>--create</option></term>
+      <listitem>
+       <para>
+        Inicia a saída por um comando para criar o banco de dados
+        e conectar ao banco de dados criado (Com um script
+        assim não importa qual banco de dados se está conectado
+        antes de executar o script).
+       </para>
+
+       <para>
+        Esta opção só faz sentido para o formato texto-puro. Para
+        os formatos alternativos a opção pode ser especificada ao
+        chamar o <command>pg_restore</command>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-d</option></term>
+      <term><option>--inserts</option></term>
+      <listitem>
+       <para>
+        Salva os dados como comandos <command>INSERT</command>,
+        em vez de <command>COPY</command>. Torna a restauração muito lenta;
+        sua utilização principal é para fazer cópias de segurança que possam
+        ser carregadas em outros bancos de dados que não o
+        <productname>PostgreSQL</productname>.
+        Deve ser observado que a restauração pode falhar inteiramente se a
+        ordem das colunas tiver sido modificada.
+        A opção <option>-D</option> é mais segura, mas ainda mais lenta.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-D</option></term>
+      <term><option>--column-inserts</option></term>
+      <term><option>--attribute-inserts</option></term>
+      <listitem>
+       <para>
+        Salva os dados como comandos <command>INSERT</command>
+        explicitando os nomes das colunas (<literal>INSERT INTO
+        <replaceable>tabela</replaceable>
+        (<replaceable>coluna</replaceable>, ...) VALUES
+        ...</literal>). Torna a restauração muito lenta;
+        sua utilização principal é para fazer cópias de segurança que possam
+        ser carregadas em outros bancos de dados que não o
+        <productname>PostgreSQL</productname>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-f <replaceable class="parameter">arquivo</replaceable></option></term>
+      <term><option>--file=<replaceable class="parameter">arquivo</replaceable></option></term>
+      <listitem>
+       <para>
+        Envia a saída para o arquivo especificado. Se for omitido
+        é usada a saída padrão.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-F <replaceable class="parameter">formato</replaceable></option></term>
+      <term><option>--format=<replaceable class="parameter">formato</replaceable></option></term>
+      <listitem>
+       <para>
+        Seleciona o formato da saída.
+        O <replaceable>formato</replaceable> pode ser um dos seguintes:
+
+       <variablelist>
+        <varlistentry>
+         <term><literal>p</literal></term>
+         <listitem>
+          <para>
+           Gera um arquivo de script <acronym>SQL</acronym>
+           no formato texto-puro (padrão)
+          </para>
+         </listitem>
+        </varlistentry>
+
+        <varlistentry>
+         <term><literal>t</literal></term>
+         <listitem>
+          <para>
+           Gera um arquivo <filename>tar</filename> adequado para servir de
+           entrada para o <command>pg_restore</command>. A utilização deste
+           formato de arquivo permite reordenar e/ou excluir objetos do banco
+           de dados ao fazer a restauração. Também é possível limitar
+           os dados a serem recarregados ao fazer a restauração.
+          </para>
+         </listitem>
+        </varlistentry>
+
+        <varlistentry>
+         <term><literal>c</literal></term>
+         <listitem>
+          <para>
+           Gera um arquivo personalizado adequado para servir de entrada
+           para o <command>pg_restore</command>. Este é o formato mais flexível,
+           porque permite a reordenação da restauração dos dados, assim como das
+           definições dos objetos. Também, este formato é comprimido por padrão.
+          </para>
+         </listitem>
+        </varlistentry>
+
+       </variablelist>
+       </para>
+
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-i</option></term>
+      <term><option>--ignore-version</option></term>
+      <listitem>
+       <para>
+        Ignora a diferença de versão entre o <application>pg_dump</application>
+        e o servidor de banco de dados.
+       </para>
+
+       <para>
+        O <application>pg_dump</application> pode tratar bancos de dados
+        de versões anteriores do <productname>PostgreSQL</productname>, mas as
+        versões muito antigas não são mais suportadas (atualmente as anteriores
+        a 7.0). Esta opção deve ser utilizada se for necessário desconsiderar a
+        verificação de versão (mas se o <application>pg_dump</application> não
+        for bem-sucedido, não diga que não foi avisado).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-n <replaceable class="parameter">esquema</replaceable></option></term>
+      <term><option>--schema=<replaceable class="parameter">esquema</replaceable></option></term>
+      <listitem>
+       <para>
+        Salva apenas o conteúdo do
+        <replaceable class="parameter">esquema</replaceable>.
+        Se esta opção não for especificada, todos os esquemas no banco de dados
+        especificado (fora os do sistema) são salvos.
+       </para>
+
+       <note>
+        <para>
+         Neste modo, o <application>pg_dump</application> não tenta salvar
+         os demais objetos de banco de dados que os objetos no esquema
+         selecionado possam depender. Portanto, não existe nenhuma garantia que
+         o resultado de salvar um único esquema possa, por si próprio, ser
+         bem-sucedido quando restaurado em um banco de dados vazio.
+        </para>
+       </note>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-o</option></term>
+      <term><option>--oids</option></term>
+      <listitem>
+       <para>
+        Salva os identificadores de objeto (<acronym>OID</acronym>s) de todas as
+        tabelas como parte dos dados. Esta opção deve ser usada quando a coluna
+        OID é referenciada de alguma maneira (por exemplo, em uma restrição de
+        chave estrangeira). Caso contrário, esta opção não deve ser usada.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-O</option></term>
+      <term><option>--no-owner</option></term>
+      <listitem>
+       <para>
+        Não gera comandos para definir o dono dos objetos
+        correspondendo ao do banco de dados original. Por padrão, o
+        <application>pg_dump</application> emite os comandos
+        <command>ALTER OWNER</command> ou
+        <command>SET SESSION AUTHORIZATION</command>
+        para definir o dono dos objetos de bancos de dados criados.
+        Estes comandos não são bem-sucedidos quando o script é executado,
+        a menos que o script seja executado por um superusuário
+        (ou o mesmo usuário que possui todos os objetos presentes no script).
+        Para gerar um script que possa ser restaurado por qualquer usuário, mas
+        que torna este usuário o dono de todos os objetos, deve ser
+        especificada a opção <option>-O</option>.
+       </para>
+
+       <para>
+        Esta opção só faz sentido para o formato texto-puro. Para
+        os formatos alternativos a opção pode ser especificada ao
+        chamar o <command>pg_restore</command>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-R</option></term>
+      <term><option>--no-reconnect</option></term>
+      <listitem>
+       <para>
+        Esta opção está obsoleta, mas ainda é aceita para manter
+        compatibilidade com as versões anteriores.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-s</option></term>
+      <term><option>--schema-only</option></term>
+      <listitem>
+       <para>
+        Salva somente o esquema (definições dos dados), não os dados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-S <replaceable class="parameter">nome_do_usuário</replaceable></option></term>
+      <term><option>--superuser=<replaceable class="parameter">nome_do_usuário</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o nome de usuário do superusuário a ser usado para
+        desabilitar os gatilhos. Somente é relevante quando é usada a opção
+        <option>--disable-triggers</option>
+        (Geralmente é melhor não utilizar esta opção e, em vez disso,
+        executar o script produzido como um superusuário).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-t <replaceable class="parameter">tabela</replaceable></option></term>
+      <term><option>--table=<replaceable class="parameter">tabela</replaceable></option></term>
+      <listitem>
+       <para>
+        Salva somente os dados da
+        <replaceable class="parameter">tabela</replaceable>.
+        É possível existirem várias tabelas com o mesmo nome em esquemas
+        diferentes; se este for o caso, todas as tabelas correspondentes serão
+        salvas. Deve ser especificado tanto <option>--schema</option> quanto
+        <option>--table</option> para selecionar apenas uma tabela.
+       </para>
+
+       <note>
+        <para>
+         Neste modo, o <application>pg_dump</application> não tenta salvar
+         os demais objetos de banco de dados que a tabela selecionada possa
+         depender. Portanto, não existe nenhuma garantia que
+         o resultado de salvar uma única tabela possa, por si próprio, ser
+         bem-sucedido quando restaurado em um banco de dados vazio.
+        </para>
+       </note>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-v</option></term>
+      <term><option>--verbose</option></term>
+      <listitem>
+       <para>
+        Especifica o modo verboso, fazendo o <application>pg_dump</application>
+        colocar comentários detalhados sobre os objetos e os tempos de
+        início/fim no arquivo de cópia de segurança, e mensagens de progresso
+        na saída de erro padrão.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-x</option></term>
+      <term><option>--no-privileges</option></term>
+      <term><option>--no-acl</option></term>
+      <listitem>
+       <para>
+        Impede salvar os privilégios de acessos (comandos GRANT/REVOKE).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-X disable-dollar-quoting</option></term>
+      <term><option>--disable-dollar-quoting</option></term>
+      <listitem>
+       <para>
+        Esta opção desabilita a utilização do caractere cifrão
+        (<literal>$</literal>) para delimitar o corpo das funções, obrigando a
+        utilização da sintaxe para cadeia de caracteres do padrão SQL.
+       </para>
+     </listitem>
+    </varlistentry>
+
+     <varlistentry>
+      <term><option>-X disable-triggers</option></term>
+      <term><option>--disable-triggers</option></term>
+      <listitem>
+       <para>
+        Esta opção somente é relevante ao criar um arquivo de cópia de segurança
+        somente de dados. Faz o <application>pg_dump</application> incluir
+        comandos para desabilitar, temporariamente, os gatilhos das tabelas de
+        destino enquanto os dados são recarregados. Deve ser utilizado quando
+        existem verificações de integridade referencial, ou outros gatilhos nas
+        tabelas, que não se deseja que sejam chamados durante a recarga dos dados.
+       </para>
+
+       <para>
+        Atualmente, os comandos emitidos para a opção
+        <option>--disable-triggers</option> devem ser executados por
+        superusuários. Portanto, também deve ser especificado o nome de um
+        superusuário com a opção <option>-S</option> ou, de preferência,
+        executar, com cuidado, o script produzido como um superusuário.
+       </para>
+
+       <para>
+        Esta opção só faz sentido para o formato texto-puro. Para
+        os formatos alternativos esta opção pode ser especificada ao
+        chamar o <command>pg_restore</command>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-X use-set-session-authorization</option></term>
+      <term><option>--use-set-session-authorization</option></term>
+      <listitem>
+       <para>
+        Gera comandos SET SESSION AUTHORIZATION do padrão SQL em vez dos
+        comandos OWNER TO. Isto torna a cópia de segurança mais compatível com o
+        padrão, mas dependendo da disposição dos objetos na cópia de segurança
+        pode não restaurar de forma apropriada.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-Z <replaceable class="parameter">0..9</replaceable></option></term>
+      <term><option>--compress=<replaceable class="parameter">0..9</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o nível de compressão a ser usado nas cópias de segurança
+        com formatos que suportam compressão (atualmente somente
+        o formato personalizado suporta compressão).
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+
+   <para>
+    As seguintes opções de linha de comando controlam os parâmetros de conexão
+    com o servidor de banco de dados:
+
+    <variablelist>
+     <varlistentry>
+      <term><option>-h <replaceable class="parameter">máquina</replaceable></option></term>
+      <term><option>--host=<replaceable class="parameter">máquina</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o nome da máquina onde o servidor
+        está executando. Se o nome iniciar por uma barra (/) é usado
+        como o diretório do soquete do domínio Unix. O padrão é obter o nome a
+        partir da variável de ambiente <envar>PGHOST</envar>, se esta estiver
+        definida, senão tentar uma conexão pelo soquete do domínio Unix.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-p <replaceable class="parameter">porta</replaceable></option></term>
+      <term><option>--port=<replaceable class="parameter">porta</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica a porta TCP, ou a extensão do arquivo de soquete
+        do domínio Unix local, onde o servidor está atendendo as conexões.
+        O padrão é obter o valor a partir da variável de ambiente
+        <envar>PGPORT</envar>, se esta estiver definida, senão usar o valor
+        padrão compilado.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-U <replaceable>nome_do_usuário</replaceable></option></term>
+      <listitem>
+       <para>
+        Conectar como o usuário especificado.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-W</option></term>
+      <listitem>
+       <para>
+        Força a solicitação da senha, o que deve acontecer automaticamente
+        quando o servidor requer autenticação por senha.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Ambiente</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><envar>PGDATABASE</envar></term>
+    <term><envar>PGHOST</envar></term>
+    <term><envar>PGPORT</envar></term>
+    <term><envar>PGUSER</envar></term>
+
+    <listitem>
+     <para>
+      Parâmetros de conexão padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1 id="app-pgdump-diagnostics">
+  <title>Diagnósticos</title>
+
+  <para>
+   O <application>pg_dump</application> executa internamente comandos
+   <command>SELECT</command>. Se acontecerem problemas ao executar o
+   <application>pg_dump</application>, deve-se ter certeza que é possível
+   selecionar as informações no banco de dados utilizando, por exemplo, o
+   utilitário <xref linkend="app-psql">.
+  </para>
+ </refsect1>
+
+
+ <refsect1 id="pg-dump-notes">
+  <title>Observações</title>
+
+  <para>
+   Se o agrupamento de bancos de dados tiver alguma adição local ao banco de
+   dados <literal>template1</literal>, deve-se ter o cuidado de restaurar a
+   saída do <application>pg_dump</application> em um banco de dados totalmente
+   vazio; senão, podem acontecer erros devido à duplicidade de
+   definição dos objetos adicionados.
+   Para criar um banco de dados vazio, sem nenhuma adição local, deve-se fazê-lo
+   partir de <literal>template0</literal>, e não de <literal>template1</literal>
+   como, por exemplo:
+<programlisting>
+CREATE DATABASE foo WITH TEMPLATE template0;
+</programlisting>
+  </para>
+
+  <para>
+   O <application>pg_dump</application> possui algumas poucas limitações:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Ao salvar uma única tabela, ou no formato texto-puro, o
+      <application>pg_dump</application> não trata os objetos grandes.
+      Os objetos grandes devem ser salvos juntamente com todo o
+      banco de dados usando um dos formatos de cópia de segurança não-texto.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Quando é escolhido salvar apenas os dados, e se utiliza a opção
+      <option>--disable-triggers</option>, o <application>pg_dump</application>
+      emite comandos para desabilitar os gatilhos das tabelas do usuário antes
+      de inserir os dados, e comandos para reabilitá-los após os dados terem
+      sido inseridos. Se a restauração for interrompida antes do fim, os
+      catálogos do sistema podem ser deixados em um estado errado.
+     </para>
+    </listitem>
+
+   </itemizedlist>
+  </para>
+
+  <para>
+   Os membros de arquivos <literal>tar</literal> estão limitados a um tamanho
+   inferior a 8 GB (esta limitação é inerente ao formato dos arquivos
+   <literal>tar</literal>). Portanto, este formato não pode ser utilizado se a
+   representação textual de uma tabela exceder este tamanho. O tamanho total do
+   arquivo <literal>tar</literal>, e dos outros formatos de saída, não possui
+   limitação exceto, talvez, pelo sistema operacional.
+  </para>
+
+  <para>
+   Os arquivos de cópia de segurança produzidos pelo
+   <application>pg_dump</application> não contêm as estatísticas utilizadas pelo
+   otimizador para fazer as decisões de planejamento dos comandos.
+   Portanto, é aconselhável executar o <command>ANALYZE</command> após restaurar
+   de uma cópia de segurança para garantir um bom desempenho.
+  </para>
+
+ </refsect1>
+
+ <refsect1 id="pg-dump-examples">
+  <title>Exemplos</title>
+
+  <para>
+   Para salvar um banco de dados:
+<screen>
+<prompt>$</prompt> <userinput>pg_dump meu_bd &gt; bd.out</userinput>
+</screen>
+  </para>
+
+  <para>
+   Para recarregar este banco de dados:
+<screen>
+<prompt>$</prompt> <userinput>psql -d banco_de_dados -f bd.out</userinput>
+</screen>
+  </para>
+
+  <para>
+   Para salvar o banco de dados chamado <literal>meu_bd</literal> contendo
+   objetos grandes em um arquivo <filename>tar</filename>:
+
+<screen>
+<prompt>$</prompt> <userinput>pg_dump -Ft -b meu_bd &gt; bd.tar</userinput>
+</screen>
+  </para>
+
+  <para>
+   Para recarregar este banco de dados (com os objetos grandes) em um
+   banco de dados existente chamado <literal>novo_bd</literal>:
+
+<screen>
+<prompt>$</prompt> <userinput>pg_restore -d novo_bd bd.tar</userinput>
+</screen>
+  </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Histórico</title>
+
+  <para>
+   O <application>pg_dump</application> apareceu pela primeira vez no
+   <application>Postgres95</application> versão 0.02. Os
+   formatos de saída não-texto-puro foram introduzidos no
+   <productname>PostgreSQL</productname> versão 7.1.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="app-pg-dumpall"></member>
+   <member><xref linkend="app-pgrestore"></member>
+   <member><xref linkend="app-psql"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

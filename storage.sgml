@@ -1,0 +1,865 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/storage.sgml,v 1.4 2005/01/10 00:04:38 tgl Exp $
+-->
+
+<chapter id="storage">
+
+<title>Armazenamento físico dos bancos de dados</title>
+
+<para>
+Este capítulo fornece uma visão geral do formato de armazenamento físico
+utilizado nos bancos de dados do <productname>PostgreSQL</productname>.
+</para>
+
+<sect1 id="storage-file-layout">
+
+<title>Organização dos arquivos de banco de dados</title>
+
+<para>
+Esta seção descreve o formato de armazenamento no nível de arquivos e
+diretórios.
+</para>
+
+<para>
+Todos os dados necessários para um agrupamento de bancos de dados são
+armazenados dentro do diretório de dados do agrupamento, geralmente referenciado
+como <varname>PGDATA</> (devido ao nome da variável de ambiente que pode ser
+utilizada para defini-lo). Um local comum para <varname>PGDATA</> é
+<filename>/var/lib/pgsql/data</filename>. Podem existir na mesma máquina
+vários agrupamentos, gerenciados por diferentes <command>postmaster</command>.
+</para>
+
+<para>
+O diretório <varname>PGDATA</> contém vários subdiretórios e arquivos de
+controle, conforme mostrado na <xref linkend="pgdata-contents-table">.
+Além destes itens requeridos, os arquivos de configuração do agrupamento
+<filename>postgresql.conf</filename>, <filename>pg_hba.conf</filename> e
+<filename>pg_ident.conf</filename> são tradicionalmente armazenados em
+<varname>PGDATA</> (embora a partir da versão 8.0 do
+<productname>PostgreSQL</productname> seja possível mantê-los em qualquer
+outro lugar).
+</para>
+
+<table tocentry="1" id="pgdata-contents-table">
+<title>Conteúdo de PGDATA</title>
+<tgroup cols="2">
+<thead>
+<row>
+<entry>
+Item
+</entry>
+<entry>Descrição</entry>
+</row>
+</thead>
+
+<tbody>
+
+<row>
+ <entry><filename>PG_VERSION</></entry>
+ <entry>Arquivo contendo o número de versão principal do <productname>PostgreSQL</productname></entry>
+</row>
+
+<row>
+ <entry><filename>base</></entry>
+ <entry>Subdiretório contendo subdiretórios por banco de dados</entry>
+</row>
+
+<row>
+ <entry><filename>global</></entry>
+ <entry>Subdiretório contendo tabelas para todo o agrupamento, como
+ <structname>pg_database</></entry>
+</row>
+
+<row>
+ <entry><filename>pg_clog</></entry>
+ <entry>Subdiretório contendo dados sobre status de efetivação de transação</entry>
+</row>
+
+<row>
+ <entry><filename>pg_subtrans</></entry>
+ <entry>Subdiretório contendo dados sobre status de subtransação</entry>
+</row>
+
+<row>
+ <entry><filename>pg_tblspc</></entry>
+ <entry>Subdiretório contendo vínculos simbólicos para espaços de tabelas</entry>
+</row>
+
+<row>
+ <entry><filename>pg_xlog</></entry>
+ <entry>Subdiretório contendo os arquivos do WAL (registro prévio da escrita)</entry>
+</row>
+
+<row>
+ <entry><filename>postmaster.opts</></entry>
+ <entry>Arquivo contendo as opções de linha de comando com as quais o
+ <command>postmaster</command> foi inicializado da última vez</entry>
+</row>
+
+<row>
+ <entry><filename>postmaster.pid</></entry>
+ <entry>Arquivo de bloqueio contendo o PID corrente do
+ <command>postmaster</command>, e o ID do segmento de memória compartilhada
+ (não mais presente após o <command>postmaster</command> ser parado)</entry>
+</row>
+
+</tbody>
+</tgroup>
+</table>
+
+<para>
+Para cada banco de dados do agrupamento existe um subdiretório dentro de
+<varname>PGDATA</><filename>/base</>, com nome correspondente ao OID do
+banco de dados em <structname>pg_database</structname>.
+Este subdiretório é o local padrão para os arquivos do banco de dados;
+em particular, os catálogos do sistema do banco de dados são armazenados neste
+subdiretório.
+</para>
+
+<para>
+Cada tabela e índice é armazenado em um arquivo separado, com nome
+correspondente ao número do <firstterm>filenode</> da tabela ou do índice, que
+pode ser encontrado em <structname>pg_class</>.<structfield>relfilenode</>.
+</para>
+
+<caution>
+<para>
+Deve ser observado que enquanto o <firstterm>filenode</> da tabela geralmente
+corresponde ao seu OID, <emphasis>não</> é necessariamente assim; algumas
+operações, como <command>TRUNCATE</>, <command>REINDEX</>, <command>CLUSTER</>,
+e algumas formas de <command>ALTER TABLE</>, podem mudar o
+<firstterm>filenode</> e preservar o OID. Deve-se evitar assumir que o
+<firstterm>filenode</> e o OID da tabela sejam idênticos.
+</para>
+</caution>
+
+<para>
+Quando uma tabela ou um índice excede 1Gb, este é dividido em
+<firstterm>segmentos</> de até 1 GB. O nome do primeiro arquivo de segmento
+é o mesmo do <firstterm>filenode</>; os arquivos subseqüentes são chamados de
+filenode.1, filenode.2, etc. Esta organização evita problemas em plataformas
+que possuem limitação de tamanho de arquivo. O conteúdo das tabelas e dos
+índices são discutidos em mais detalhes na
+<xref linkend="storage-page-layout">.
+</para>
+
+<para>
+As tabelas que possuem colunas com entradas potencialmente grandes possuem uma
+tabela <firstterm>TOAST</firstterm> (fatias) associada, que é utilizada para
+armazenamento fora-de-linha dos valores de campo que são muito grandes para
+serem mantidos na própria linha da tabela.
+<structname>pg_class</>.<structfield>reltoastrelid</> faz o vínculo entre a
+tabela e a sua tabela <acronym>TOAST</>, caso haja alguma.
+Para obter informações adicionais deve ser consultada a
+<xref linkend="storage-toast">.
+</para>
+
+<para>
+Os espaços de tabela tornam o cenário mais complicado. Cada espaço de tabelas
+definido pelo usuário possui um vínculo simbólico dentro do diretório
+<varname>PGDATA</><filename>/pg_tblspc</>, que aponta para o diretório físico
+do espaço de tabelas (conforme especificado em seu comando
+<command>CREATE TABLESPACE</>). O nome do vínculo simbólico corresponde ao OID
+do espaço de tabelas. Dentro do diretório físico do espaço de tabelas existe um
+subdiretório, para cada banco de dados que possui elementos no espaço de
+tabelas, com nome correspondente ao OID do banco de dados.
+As tabelas dentro deste diretório seguem o esquema de nomes baseado no
+<firstterm>filenode</>.
+O espaço de tabelas <literal>pg_default</> não é acessado através de
+<filename>pg_tblspc</>, e corresponde a <varname>PGDATA</><filename>/base</>.
+De maneira semelhante, o espaço de tabelas <literal>pg_global</> não é acessado
+através de <filename>pg_tblspc</>, e corresponde a
+<varname>PGDATA</><filename>/global</>.
+</para>
+
+</sect1>
+
+<sect1 id="storage-toast">
+
+<title>TOAST</title>
+
+    <indexterm>
+     <primary>TOAST</primary>
+    </indexterm>
+    <indexterm><primary>pão fatiado</><see>TOAST</></indexterm>
+
+<para>
+Esta seção fornece uma visão geral do <acronym>TOAST</> (A técnica de
+armazenamento de atributo de tamanho grande).
+</para>
+
+<para>
+Uma vez que o <productname>PostgreSQL</productname> utiliza um tamanho de
+página fixo (geralmente 8Kb), e não permite as tuplas se estenderem por várias
+páginas, não é possível armazenar valores de campo muito grandes diretamente.
+Antes da versão 7.1 do <productname>PostgreSQL</>, havia um limite rígido
+de apenas uma página para a quantidade total de dados que podia ser colocado
+em uma linha da tabela.
+Na versão 7.1, e posteriores, este limite é superado permitindo os valores
+dos campos serem comprimidos e/ou divididos em várias linhas físicas.
+Isto acontece de forma transparente para o usuário, causando apenas um pequeno
+impacto para a maior parte do código do servidor.
+Esta técnica é afetuosamente chamada de <acronym>TOAST</> (ou
+<quote>a melhor coisa desde o pão em fatias</>).
+</para>
+
+<para>
+Apenas certos tipos de dado suportam <acronym>TOAST</> &mdash; não é
+necessário impor sobrecarga em tipos de dado que não podem produzir
+valores de campo grandes.
+Para suportar o <acronym>TOAST</>, o tipo de dado deve possuir uma representação
+de comprimento variável (<firstterm>varlena</>), na qual a primeira palavra de
+32 bits de qualquer valor armazenado contém o comprimento total do valor em
+bytes (incluindo a si próprio).
+O <acronym>TOAST</> não restringe o restante da representação.
+Todas as funções no nível-C com suporte a tipo de dado fatiável
+devem tomar o cuidado de tratar os valores de entrada na forma de
+<acronym>TOAST</> (Geralmente isto é feito chamando
+<function>PG_DETOAST_DATUM</> antes de fazer qualquer coisa com o valor de
+entrada; mas em alguns casos é possível uma abordagem mais eficiente).
+</para>
+
+<para>
+<acronym>TOAST</> se apodera dos dois bits de mais alta ordem da palavra de
+comprimento <literal>varlena</literal>, limitando, portanto, o tamanho lógico
+de qualquer valor de um tipo de dado fatiável a 1Gb
+(2<superscript>30</> - 1 bytes).
+Quando os dois bits são iguais a zero, o valor é um valor comum não fatiado do
+tipo de dado.
+Um desses bits, se estiver definido, indica que o valor foi comprimido devendo
+ser descomprimido antes de ser utilizado.
+O outro bit, se estiver definido, indica que o valor foi armazenado
+fora-de-linha.
+Neste caso, o restante do valor é apenas um ponteiro e os dados corretos devem
+ser encontrados em outro lugar.
+Quando os dois bits estão definidos, os dados fora-de-linha também estão
+comprimidos.
+Em cada caso o comprimento nos bits de mais baixa ordem da palavra
+<literal>varlena</literal> indica o tamanho real do dado, e não o tamanho do
+valor lógico que seria obtido pela descompressão ou busca dos dados
+fora-de-linha.
+</para>
+
+<para>
+Quando alguma coluna da tabela é fatiável, a tabela possui uma tabela
+<acronym>TOAST</> associada, cujo OID é armazenado na entrada
+<structname>pg_class</>.<structfield>reltoastrelid</> da tabela.
+Os valores fatiados fora-de-linha são mantidos na tabela <acronym>TOAST</>,
+conforme descrito em mais detalhes abaixo.
+</para>
+
+<para>
+A técnica de compressão utilizada é um membro bem simples e bem rápido da
+família de técnicas de compressão LZ.
+Para obter detalhes deve ser visto o arquivo
+<filename>src/backend/utils/adt/pg_lzcompress.c</>.
+</para>
+
+<para>
+Os valores fora-de-linha são divididos (após a compressão, se esta for
+aplicada) em pedaços de no máximo <literal>TOAST_MAX_CHUNK_SIZE</> bytes
+(este valor é um pouco menor que <literal>BLCKSZ/4</>, ou cerca de 2000 bytes
+por padrão).
+Cada pedaço é armazenado como uma linha separada na tabela <acronym>TOAST</>
+para a tabela possuidora.
+Toda tabela <acronym>TOAST</> possui as colunas <structfield>chunk_id</>
+(OID identificador de um determinado valor fatiado), <structfield>chunk_seq</>
+(número de seqüência do pedaço dentro de seu valor) e
+<structfield>chunk_data</> (os dados reais do pedaço).
+Um índice único englobando <structfield>chunk_id</> e <structfield>chunk_seq</>
+permite a busca rápida dos valores.
+O dado ponteiro que representa o valor fora-de-linha fatiado necessita,
+portanto, armazenar o OID da tabela <acronym>TOAST</> onde é feita a procura,
+e o OID do valor específico (seu <structfield>chunk_id</>).
+Por conveniência, o dado ponteiro também armazena o tamanho do dado lógico
+(comprimento original do dado não comprimido), e o tamanho real armazenado
+(diferente, caso tenha sido aplicada compressão).
+Incluindo a palavra de cabeçalho <literal>varlena</literal>, o tamanho total
+do dado ponteiro para <acronym>TOAST</> é portanto de 20 bytes, a despeito
+do tamanho real do valor representado.
+</para>
+
+<para>
+O código <acronym>TOAST</> é disparado apenas quando um valor de linha a ser
+armazenado na tabela é maior que <literal>BLCKSZ/4</> bytes (normalmente 2Kb).
+O código <acronym>TOAST</> comprime e/ou move os valores de campo para
+fora-de-linha até que o valor da linha se torne menor <literal>BLCKSZ/4</>
+bytes, ou que não possa mais obter ganho.
+Durante a operação de atualização, os valores não alterados dos campos
+normalmente são preservados na forma em que estão; portanto, a atualização
+de uma linha com valores fora-de-linha não incorre em custos de
+<acronym>TOAST</>, se nenhum dos valores fora-de-linha for alterado.
+</para>
+
+<para>
+O código <acronym>TOAST</> reconhece quatro estratégias diferentes para
+armazenar colunas fatiáveis:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      <literal>PLAIN</literal> não permite compressão ou armazenamento
+      fora-de-linha. Esta é a única estratégia possível para as colunas com
+      tipo de dado não fatiável.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      <literal>EXTENDED</literal> permite tanto compressão quanto armazenamento
+      fora-de-linha. Este é o padrão para a maioria dos tipos de dado fatiáveis.
+      Primeiro tenta-se a compressão, e depois o armazenamento fora-de-linha se
+      a linha continuar muito grande.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      <literal>EXTERNAL</literal> permite armazenamento fora-de-linha, mas não a
+      compressão. A utilização de <literal>EXTERNAL</literal> faz com que as
+      operações em subcadeias de caracteres nas colunas com tipos de dado
+      <type>text</type> e <type>bytea</type> sejam mais rápidas (ao custo de um
+      maior espaço de armazenamento), porque estas operações são otimizadas para
+      buscar apenas as partes requeridas do valor fora-de-linha quando este não
+      está comprimido.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      <literal>MAIN</literal> permite compressão, mas não permite o
+      armazenamento fora-de-linha (Na verdade o armazenamento fora-de-linha
+      ainda será feito para estas colunas, mas apenas como último recurso quando
+      não houver maneira de tornar a linha pequena o suficiente).
+     </para>
+    </listitem>
+   </itemizedlist>
+
+Cada tipo de dado fatiável especifica a estratégia padrão para as colunas deste
+tipo de dado, mas a estratégia para uma determinada coluna de uma tabela pode
+ser alterada pelo comando <command>ALTER TABLE SET STORAGE</>.
+</para>
+
+<para>
+Este esquema possui várias vantagens quando comparado com uma abordagem mais
+direta, como a que permite os valores de linha se estenderem por várias páginas.
+Assumindo que os comandos geralmente são qualificados por comparações com
+valores chave relativamente pequenos, a maior parte do trabalho do executor é
+feito utilizando a entrada principal da linha.
+Os valores grandes dos atributos fatiados serão trazidos (se forem
+selecionados), somente na hora em que o conjunto contendo os resultados for
+enviado para o cliente.
+Portanto, a tabela principal é muito menor, cabendo uma quantidade maior de suas
+linhas no <literal>cache</literal> de <literal>buffers</literal> compartilhados
+do que caberia no caso de não haver o armazenamento fora-de-linha.
+Os conjuntos de classificação também encolhem, e a classificação será feita
+inteiramente em memória com mais freqüência.
+Um pequeno teste mostrou que uma tabela contendo páginas HTML típicas, e suas
+respectivas URLs, foi armazenada na metade do seu tamanho bruto incluindo a
+tabela <acronym>TOAST</>, e que a tabela principal continha apenas 10% de todos
+os dados (As URLs e algumas páginas HTML pequenas).
+Não houve diferença no tempo de execução quando comparada com a tabela não
+fatiada, onde todas as páginas HTML foram cortadas para caber em 7Kb.
+</para>
+
+</sect1>
+
+<sect1 id="storage-page-layout">
+
+<title>Disposição das páginas de banco de dados</title>
+
+<para>
+Esta seção fornece uma visão geral do formato de página utilizado dentro das
+tabelas e índices do <productname>PostgreSQL</productname>.
+<footnote>
+  <para>
+    Na verdade, os métodos de acesso de índice não precisam utilizar este
+    formato de página. Todos os métodos de índice existentes utilizam este
+    formato básico, mas os dados mantidos nas metapáginas dos índices geralmente
+    não seguem as regras de disposição de item.
+  </para>
+</footnote>
+As tabelas de seqüência e <acronym>TOAST</> são formatadas como qualquer outra
+tabela regular.
+</para>
+
+<para>
+Na explicação a seguir, é assumido que um <firstterm>byte</firstterm> tem
+8 bits. Além disso, o termo <firstterm>item</firstterm> se refere a um valor
+de dado individual armazenado na página. Em uma tabela, um item é uma linha;
+em um índice, um item é uma entrada do índice.
+</para>
+
+<para>
+Todas as tabelas e índices são armazenadas em uma matriz de
+<firstterm>páginas</> de tamanho fixo (geralmente 8Kb, embora possa ser
+selecionado um tamanho de página diferente ao compilar o servidor).
+Em uma tabela todas as páginas são logicamente equivalentes, portanto um
+determinado item (linha) pode ser armazenado em qualquer página.
+Nos índices, a primeira página geralmente é reservada para uma
+<firstterm>metapágina</firstterm> contendo informações de controle, e podem
+existir tipos diferentes de página dentro do índice, dependendo do método de
+acesso do índice.
+</para>
+
+<para>
+A <xref linkend="page-table"> mostra a disposição global da página.
+Existem cinco partes em cada página.
+</para>
+
+<table tocentry="1" id="page-table">
+<title>Disposição global da página</title>
+<titleabbrev>Disposição da página</titleabbrev>
+<tgroup cols="2">
+<thead>
+<row>
+<entry>
+Item
+</entry>
+<entry>Descrição</entry>
+</row>
+</thead>
+
+<tbody>
+
+<row>
+ <entry>PageHeaderData</entry>
+ <entry>Comprimento de 20 bytes. Contém informações gerais sobre a página,
+ incluindo ponteiros para espaços livres.</entry>
+</row>
+
+<row>
+<entry>ItemPointerData</entry>
+<entry>Matriz de pares (deslocamento, comprimento) apontando para os itens
+existentes. 4 bytes por item.</entry>
+</row>
+
+<row>
+<entry>Espaço livre</entry>
+<entry>Espaço não alocado. Os novos ponteiros de item são alocados a partir do
+início desta área, e os novos itens a partir do fim.</entry>
+</row>
+
+<row>
+<entry>Itens</entry>
+<entry>Os próprios itens existentes.</entry>
+</row>
+
+<row>
+<entry>Espaço especial</entry>
+<entry>Dados específicos do método de acesso do índice. Métodos diferentes
+armazenam dados diferentes. Vazio nas tabelas comuns.</entry>
+</row>
+
+</tbody>
+</tgroup>
+</table>
+
+ <para>
+
+  Os primeiros 20 bytes de cada página compõem o cabeçalho da página
+  (PageHeaderData).
+  Seu formato é detalhado na <xref linkend="pageheaderdata-table">.
+  Os primeiros dois campos registram a entrada mais recente no WAL relacionada
+  a esta página.
+  São seguidos por três campos inteiros de 2 bytes
+  (<structfield>pd_lower</structfield>, <structfield>pd_upper</structfield>,
+  e <structfield>pd_special</structfield>).
+  Estes campos contêm o deslocamento em bytes do início da página ao início do
+  espaço não alocado, ao final do espaço não alocado, e ao início do espaço
+  especial.
+  Os últimos 2 bytes do cabeçalho da página,
+  <structfield>pd_pagesize_version</structfield>, armazenam o tamanho da
+  página e o indicador de versão.
+  A partir do <productname>PostgreSQL</productname> 8.0 o número da versão é 2;
+  O <productname>PostgreSQL</productname> 7.3 e 7.4 usam a versão número 1;
+  as versões anteriores usam a versão número 0
+  (A disposição básica da página e o formato do cabeçalho não mudaram nestas
+  versões, mas a disposição dos cabeçalhos das linhas <literal>heap</literal>
+  mudou).
+  Basicamente, o tamanho da página somente está presente como uma verificação
+  cruzada; não há suporte para a existência de mais de um tamanho de página
+  em uma instalação.
+
+ </para>
+
+ <table tocentry="1" id="pageheaderdata-table">
+ <title>Disposição de PageHeaderData</title>
+ <titleabbrev>Disposição de PageHeaderData</titleabbrev>
+ <tgroup cols="4">
+ <thead>
+  <row>
+   <entry>Campo</entry>
+   <entry>Tipo</entry>
+   <entry>Comprimento</entry>
+   <entry>Descrição</entry>
+  </row>
+ </thead>
+ <tbody>
+  <row>
+   <entry>pd_lsn</entry>
+   <entry>XLogRecPtr</entry>
+   <entry>8 bytes</entry>
+   <entry>LSN: próximo byte após o último byte do registro do xlog
+   (gerenciador do registro de transação do PostgreSQL) para a última
+   modificação nesta página</entry>
+  </row>
+  <row>
+   <entry>pd_tli</entry>
+   <entry>TimeLineID</entry>
+   <entry>4 bytes</entry>
+   <entry>TLI da última mudança</entry>
+  </row>
+  <row>
+   <entry>pd_lower</entry>
+   <entry>LocationIndex</entry>
+   <entry>2 bytes</entry>
+   <entry>Deslocamento até o início do espaço livre</entry>
+  </row>
+  <row>
+   <entry>pd_upper</entry>
+   <entry>LocationIndex</entry>
+   <entry>2 bytes</entry>
+   <entry>Deslocamento até o final do espaço livre</entry>
+  </row>
+  <row>
+   <entry>pd_special</entry>
+   <entry>LocationIndex</entry>
+   <entry>2 bytes</entry>
+   <entry>Deslocamento até o início do espaço especial</entry>
+  </row>
+  <row>
+   <entry>pd_pagesize_version</entry>
+   <entry>uint16</entry>
+   <entry>2 bytes</entry>
+   <entry>Informação sobre o tamanho em bytes e número da versão de disposição
+   da página</entry>
+  </row>
+ </tbody>
+ </tgroup>
+ </table>
+
+ <para>
+  Todos os detalhes podem ser encontrados no arquivo
+  <filename>src/include/storage/bufpage.h</filename>.
+  <footnote>
+   <para>
+    O trecho do arquivo <filename>bufpage.h</filename> mostrado abaixo
+    não faz parte do manual original. (N. do T.)
+   </para>
+  </footnote>
+<programlisting>
+/*
+ * A página de disco do postgres é uma camada de abstração por cima do
+ * bloco de disco do postgres (que é simplesmente uma unidade de E/S)
+ * (veja block.h).
+ *
+ * Especificamente, enquanto um bloco de disco pode estar não-formatado,
+ * uma página de disco é sempre uma página com encaixes na forma:
+ *
+ * +----------------+-----------------------------------+
+ * | PageHeaderData | linp1 linp2 linp3 ...             |
+ * +-----------+----+-----------------------------------+
+ * | ... linpN |                                        |
+ * +-----------+----------------------------------------+
+ * |           ^ pd_lower                               |
+ * |                                                    |
+ * |             v pd_upper                             |
+ * +-------------+--------------------------------------+
+ * |             | tuplaN ...                           |
+ * +-------------+------------------+-------------------+
+ * |       ... tupla3 tupla2 tupla1 | "espaço especial" |
+ * +--------------------------------+-------------------+
+ *                                  ^ pd_special
+ *
+ * a página fica cheia quando não pode ser adicionado mais nada entre
+ * pd_lower e pd_upper.
+ *
+ * todos os blocos escritos por um método de acesso devem ser páginas de disco.
+ *
+ * EXCEÇÕES:
+ *
+ * como é óbvio, a página não é formatada antes de ser inicializada por uma
+ * chamada a PageInit.
+ *
+ * NOTAS:
+ *
+ * linp1..N formam uma matriz de ItemId. Os ItemPointers apontam para esta
+ * matriz em vez de apontar diretamente para a tupla. Deve ser observado que
+ * OffsetNumbers convencionalmente começa por 1, e não por 0.
+ *
+ * tupla1..N são adicionadas na página "de trás para frente".
+ * Como o ItemPointer da tupla aponta para a sua entrada ItemId, em vez de
+ * apontar para a sua posição real medida em deslocamento em bytes, as tuplas
+ * podem ser fisicamente embaralhadas na página sempre que houver necessidade.
+ *
+ * Informações genéricas por página do método de acesso são mantidas em
+ * PageHeaderData.
+ *
+ * Informações específicas por página do método de acesso (se existirem) são
+ * mantidas na área marcada como "espaço especial"; cada método de acesso
+ * possui uma estrutura "opaca" definida em algum lugar que é armazenada como
+ * o rodapé da página. O método de acesso deve inicializar sempre suas páginas
+ * com PageInit, e depois definir seus próprios campos opacos.
+ */
+
+typedef Pointer Page;
+
+
+/*
+ * posição (deslocamento em bytes) dentro da página.
+ *
+ * deve ser observado que na verdade está limitado a 2^15, porque
+ * ItemIdData.lp_off e ItemIdData.lp_len foram limitados a 15 bits
+ * (veja itemid.h).
+ */
+typedef uint16 LocationIndex;
+
+
+/*
+ * organização da página do disco
+ *
+ * informações de gerenciamento de espaço genéricas para qualquer página
+ *
+ *    pd_lsn
+ *       identifica o registro do xlog para a última modificação nesta página.
+ *    pd_tli
+ *       a mesma coisa.
+ *    pd_lower
+ *       deslocamento até o início do espaço livre
+ *    pd_upper
+ *       deslocamento até o final do espaço livre
+ *    pd_special
+ *       deslocamento até o início do espaço especial
+ *    pd_pagesize_version
+ *        tamanho em bytes e número da versão de disposição da página
+ *
+ * O LSN é utilizado pelo gerenciador de buffers para garantir a regra
+ * básica do WAL: "deve ser escrito em xlog antes de escrever os dados".
+ * Um buffer sujo não pode ser descarregado no disco até que xlog tenha
+ * sido descarregado atingindo pelo menos o LSN da página.
+ * O TLI também é armazenado para fins de identificação (não é claro se é
+ * realmente necessário, mas parece ser uma boa idéia).
+ *
+ * O número da versão da página e o tamanho da página são empacotados juntos
+ * em um único campo uint16. Isto se deve a motivos históricos: antes do
+ * PostgreSQL 7.3, não havia o conceito de número de versão de página,
+ * e fazendo desta maneira fingimos que os bancos de dados anteriores a
+ * versão 7.3 possuem o número de versão de página zero.
+ * Os tamanhos de página são restritos a múltiplos de 256, deixando os 8 bits
+ * de mais baixa ordem disponíveis para o número da versão.
+ *
+ * O tamanho mínimo possível de uma página é, talvez, 64B para caber o
+ * cabeçalho da página, o espaço opaco e uma tupla mínima; obviamente,
+ * na realidade se deseja um tamanho muito maior e, portanto, a restrição
+ * do tamanho da página ser múltiplo de 256 não é uma restrição importante.
+ * Do lado mais alto, só é possível suportar páginas de até 32KB, porque
+ * lp_off/lp_len são 15 bits.
+ */
+typedef struct PageHeaderData
+{
+    /* XXX LSN é membro de *qualquer* bloco, não apenas os organizados por página */
+    XLogRecPtr       pd_lsn;         /* LSN: próximo byte após o último byte
+                                      * do registro do xlog para a última
+                                      * modificação nesta página */
+    TimeLineID       pd_tli;         /* TLI da última modificação */
+    LocationIndex    pd_lower;       /* Deslocamento até o início de espaço livre */
+    LocationIndex    pd_upper;       /* Deslocamento até o final de espaço livre */
+    LocationIndex    pd_special;     /* Deslocamento até o início de espaço especial */
+    uint16           pd_pagesize_version;
+    ItemIdData       pd_linp[1];     /* Início da matriz de ponteiro de linha */
+} PageHeaderData;
+
+typedef PageHeaderData *PageHeader;
+
+/*
+ * O número de versão de disposição de página 0 é usado nas versões
+ * anteriores a 7.3 do Postgres. As versões 7.3 e 7.4 utilizam 1,
+ * denotando a nova disposição de HeapTupleHeader. A versão 8.0 mudou
+ * a disposição de HeapTupleHeader novamente.
+ */
+#define PG_PAGE_LAYOUT_VERSION		2
+</programlisting>
+ </para>
+
+ <para>
+
+  Depois do cabeçalho da página estão os identificadores de itens
+  (<type>ItemIdData</type>), cada um requerendo quatro bytes.
+  O identificador de item contém o deslocamento em bytes até o início do item,
+  o comprimento do item em bytes, e uns poucos bits de atributo que afetam a
+  interpretação do item.
+  Os novos identificadores são alocados, conforme a necessidade, a partir do
+  início do espaço não alocado.
+  O número de itens identificadores presentes pode ser determinado olhando
+  <structfield>pd_lower</>, que é aumentado para abrir espaço para o novo
+  identificador.
+  Como um identificador de item nunca é movido até que seja liberado, seu índice
+  pode ser utilizado por longo prazo para referenciar um item, mesmo quando o
+  próprio item é movido dentro da página para compactar o espaço livre.
+  Na verdade, todo ponteiro para um item (<type>ItemPointer</type>, também
+  conhecido como <type>CTID</type>) criado pelo
+  <productname>PostgreSQL</productname>, consiste de um número de página e
+  o índice do identificador do item.
+
+ </para>
+
+ <para>
+
+  Os itens em si são armazenados em um espaço obtido de trás para frente a
+  partir do final do espaço não alocado. A estrutura exata varia conforme
+  o conteúdo da tabela. As tabelas e as seqüências utilizam uma estrutura
+  chamada <type>HeapTupleHeaderData</type>, descrita abaixo.
+
+ </para>
+
+ <para>
+
+  A seção final é a <quote>seção especial</quote>, e pode conter qualquer coisa
+  que o método de acesso deseje armazenar. Por exemplo, os índices
+  <literal>b-tree</literal> armazenam vínculos para os irmãos
+  (<literal>siblings</literal>) esquerdo e direito da página, assim como
+  alguns outros dados relevantes para a estrutura do índice.
+  As tabelas comuns não utilizam a seção especial (indicado pela definição
+  <structfield>pd_special</> igual ao tamanho da página).
+
+ </para>
+
+ <para>
+
+  Todas as linhas da tabela são estruturadas da mesma maneira. Existe um
+  cabeçalho de tamanho fixo (ocupando 27 bytes na maioria das máquinas),
+  seguido por um mapa de bits de nulo opcional, um campo do ID do objeto
+  opcional, e os dados do usuário. O cabeçalho está detalhado na
+  <xref linkend="heaptupleheaderdata-table">.
+  Os dados verdadeiros (colunas da linha) começam no primeiro deslocamento
+  indicado por <structfield>t_hoff</>, que sempre deve ser um múltiplo
+  da distância MAXALIGN para a plataforma.
+  O mapa de bits de nulo somente está presente se o bit
+  <firstterm>HEAP_HASNULL</firstterm> estiver definido em
+  <structfield>t_infomask</structfield>.
+  Se estiver presente, começa logo após o cabeçalho fixo e ocupa uma
+  quantidade de bytes suficiente para ter um bit para cada coluna de dados
+  (ou seja, <structfield>t_natts</> bits no total).
+  Nesta lista de bits, o bit 1 indica não-nulo, e o bit 0 indica nulo.
+  Quando o mapa de bits não está presente, é assumido que o valor de todas as
+  colunas é diferente de nulo (não-nulas).
+  O ID do objeto só está presente quando o bit
+  <firstterm>HEAP_HASOID</firstterm> está definido em
+  <structfield>t_infomask</structfield>.
+  Se estiver presente, aparece logo antes da fronteira de
+  <structfield>t_hoff</>.
+  Qualquer enchimento necessário para tornar <structfield>t_hoff</> um
+  múltiplo de MAXALIGN fica entre o mapa de bits de nulo e o ID do
+  objeto (Por sua vez, isto garante que o ID do objeto está alinhado de forma
+  apropriada).
+
+ </para>
+
+ <table tocentry="1" id="heaptupleheaderdata-table">
+ <title>Disposição de HeapTupleHeaderData</title>
+ <titleabbrev>Disposição de HeapTupleHeaderData</titleabbrev>
+ <tgroup cols="4">
+ <thead>
+  <row>
+   <entry>Campo</entry>
+   <entry>Tipo</entry>
+   <entry>Comprimento</entry>
+   <entry>Descrição</entry>
+  </row>
+ </thead>
+ <tbody>
+  <row>
+   <entry>t_xmin</entry>
+   <entry>TransactionId</entry>
+   <entry>4 bytes</entry>
+   <entry>marca do XID de inserção</entry>
+  </row>
+  <row>
+   <entry>t_cmin</entry>
+   <entry>CommandId</entry>
+   <entry>4 bytes</entry>
+   <entry>marca do CID de inserção</entry>
+  </row>
+  <row>
+   <entry>t_xmax</entry>
+   <entry>TransactionId</entry>
+   <entry>4 bytes</entry>
+   <entry>marca do XID de exclusão</entry>
+  </row>
+  <row>
+   <entry>t_cmax</entry>
+   <entry>CommandId</entry>
+   <entry>4 bytes</entry>
+   <entry>marca do CID de exclusão (sobrepõe t_xvac)</entry>
+  </row>
+  <row>
+   <entry>t_xvac</entry>
+   <entry>TransactionId</entry>
+   <entry>4 bytes</entry>
+   <entry>XID da operação de VACUUM movendo a versão da linha</entry>
+  </row>
+  <row>
+   <entry>t_ctid</entry>
+   <entry>ItemPointerData</entry>
+   <entry>6 bytes</entry>
+   <entry>TID corrente desta ou de uma nova versão da linha</entry>
+  </row>
+  <row>
+   <entry>t_natts</entry>
+   <entry>int16</entry>
+   <entry>2 bytes</entry>
+   <entry>número de atributos</entry>
+  </row>
+  <row>
+   <entry>t_infomask</entry>
+   <entry>uint16</entry>
+   <entry>2 bytes</entry>
+   <entry>vários bits sinalizadores</entry>
+  </row>
+  <row>
+   <entry>t_hoff</entry>
+   <entry>uint8</entry>
+   <entry>1 byte</entry>
+   <entry>deslocamento até os dados do usuário</entry>
+  </row>
+ </tbody>
+ </tgroup>
+ </table>
+
+ <para>
+   Todos os detalhes se encontram em
+   <filename>src/include/access/htup.h</filename>.
+ </para>
+
+ <para>
+
+  A interpretação dos dados reais somente pode ser feita com informações
+  obtidas a partir de outras tabelas, principalmente
+  <structname>pg_attribute</structname>.
+  Os valores chave necessários para identificar a posição do campo são
+  <structfield>attlen</structfield> e <structfield>attalign</structfield>.
+  Não há maneira de obter um determinado atributo diretamente, exceto
+  quando existem somente campos de largura fixa e nenhum nulo.
+  Todos os truques estão contidos nas funções
+  <firstterm>heap_getattr</firstterm>, <firstterm>fastgetattr</firstterm>
+  e <firstterm>heap_getsysattr</firstterm>.
+
+ </para>
+ <para>
+
+  Para ler os dados é necessário examinar cada atributo por vez.
+  Primeiro deve ser verificado se o campo é nulo utilizando o mapa de bits
+  de nulo. Se for, deve-se ir para o próximo.
+  Depois deve haver certeza de estar no alinhamento correto.
+  Se o campo for de largura fixa, então todos os bytes estão simplesmente
+  colocados em seus lugares.
+  Se for um campo de largura variável (attlen = -1), então é um pouco mais
+  complicado.
+  Todos os tipos de dado de comprimento variável compartilham uma estrutura de
+  cabeçalho comum, <type>varattrib</type>, que inclui o comprimento total do
+  valor armazenado e alguns bits sinalizadores. Dependendo dos sinalizadores,
+  os dados podem estar em-linha ou em uma tabela <acronym>TOAST</>;
+  também pode estar comprimido (consulte a <xref linkend="storage-toast">).
+
+ </para>
+</sect1>
+
+</chapter>

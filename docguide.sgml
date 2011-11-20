@@ -1,0 +1,1300 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/docguide.sgml,v 1.51 2004/11/15 06:32:13 neilc Exp $ -->
+
+<appendix id="docguide">
+ <title>Documentação</title>
+
+ <para>
+  O <productname>PostgreSQL</productname> possui quatro formatos
+  de documentação principais:
+
+  <itemizedlist>
+   <listitem>
+    <para>
+     Texto puro, para informações de pré-instalação.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     <acronym>HTML</acronym>, para navegação <literal>on-line</literal>
+     e referência.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     PDF ou Postscript, para impressão.
+    </para>
+   </listitem>
+   <listitem>
+    <para>
+     <literal>man pages</literal> para referência rápida.
+     <footnote>
+      <para>
+       <literal>man pages</literal> &mdash;
+       Unix Manual Page - Uma parte da extensa documentação on-line do Unix.
+       <ulink url="http://wombat.doc.ic.ac.uk/foldoc/foldoc.cgi?query=man+pages">
+       FOLDOC - Free On-Line Dictionary of Computing</ulink> (N. do T.)
+      </para>
+     </footnote>
+    </para>
+   </listitem>
+  </itemizedlist>
+
+  Além desses, podem ser encontrados vários arquivos texto puro
+  <filename>README</filename> dentro da árvore do código fonte do
+  <productname>PostgreSQL</productname>, documentando vários
+  tópicos da implementação.
+ </para>
+
+ <para>
+  A documentação em <acronym>HTML</acronym> e as <literal>man pages</literal>
+  fazem parte da distribuição padrão, sendo instaladas por padrão. Os formatos
+  PDF e Postscript da documentação estão disponíveis em separado, podendo ser
+  baixados.
+ </para>
+
+ <sect1 id="docguide-docbook">
+  <title>DocBook</title>
+  <para>
+   Os fontes da documentação estão escritos em <firstterm>DocBook</firstterm>,
+   que é uma linguagem de marcação semelhante, superficialmente, ao
+   <acronym>HTML</acronym>. Estas duas linguagens são aplicações da
+   <firstterm>Linguagem Padrão de Marcação Generalizada</firstterm>
+   (<literal>Standard Generalized Markup Language</literal>),
+   <acronym>SGML</acronym>, que é essencialmente uma linguagem para descrever
+   outras linguagens. No que vem a seguir, é utilizado tanto o termo DocBook
+   quanto <acronym>SGML</acronym>, mas tecnicamente estes dois termos não são
+   intercambiáveis.
+  </para>
+
+  <para>
+   O <productname>DocBook</productname> permite ao autor especificar a
+   estrutura e o conteúdo de um documento técnico, sem se preocupar com os
+   detalhes da apresentação. O estilo do documento define como o conteúdo é
+   apresentado em uma dentre várias formas finais. O DocBook é mantido pelo
+   grupo <ulink url="http://www.oasis-open.org">OASIS</ulink>.
+   O <ulink url="http://www.oasis-open.org/docbook">site oficial do DocBook
+   </ulink> possui uma boa documentação introdutória e de referência, além de
+   um livro completo da O'Reilly que pode ser lido <literal>on-line</literal>.
+   O <ulink url="http://www.freebsd.org/docproj/docproj.html">Projeto de
+   Documentação do FreeBSD</ulink> também usa o DocBook e possui boas
+   informações, incluindo vários guias para estilo que valem a pena
+   serem levados em consideração.
+  </para>
+ </sect1>
+
+ <sect1 id="docguide-toolsets">
+  <title>Conjunto de ferramentas</title>
+
+  <para>
+   As seguintes ferramentas são utilizadas para processar a documentação.
+   Algumas podem ser opcionais, conforme indicado.
+
+   <variablelist>
+    <varlistentry>
+     <term><ulink url="http://www.oasis-open.org/docbook/sgml/">DTD do DocBook</ulink></term>
+     <listitem>
+      <para>
+       Esta é a definição do próprio DocBook. Atualmente é utilizada a versão
+       4.2; não pode ser usada uma versão anterior ou posterior. Deve ser
+       observado que também existe uma versão <acronym>XML</acronym> do DocBook
+       &mdash; não utilize esta versão.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><ulink url="http://www.oasis-open.org/cover/ISOEnts.zip">Entidades de caractere ISO 8879</ulink></term>
+     <listitem>
+      <para>
+       Estas entidades são requeridas pelo DocBook, mas são distribuídas em
+       separado porque são mantidas pela ISO.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><ulink url="http://openjade.sourceforge.net">OpenJade</ulink></term>
+     <listitem>
+      <para>
+       Este é o pacote básico para processar o <acronym>SGML</acronym>.
+       Contém um analisador <acronym>SGML</acronym>, um processador
+       <acronym>DSSSL</acronym> (ou seja, um programa para
+       converter <acronym>SGML</acronym> em outros formatos utilizando as
+       folhas de estilo <acronym>DSSSL</acronym>), assim como várias
+       ferramentas relacionadas. O <productname>Jade</productname> agora é
+       mantido pelo grupo OpenJade, e não mais por James Clark.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><ulink url="http://docbook.sourceforge.net/projects/dsssl/index.html">Folhas de estilo DSSSL do DocBook</ulink></term>
+     <listitem>
+      <para>
+       Contém instruções de processamento para converter os fontes em DocBook
+       para outros formatos, tal como <acronym>HTML</acronym>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><ulink url="http://docbook2x.sourceforge.net">Ferramentas DocBook2X</ulink></term>
+     <listitem>
+      <para>
+       Este pacote opcional é utilizado para criar as
+       <literal>man pages</literal>, e contém vários pacotes de pré-requisitos
+       próprios. Verifique o sítio na Web.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><ulink url="http://jadetex.sourceforge.net">JadeTeX</ulink></term>
+     <listitem>
+      <para>
+       Se for desejado, também pode ser instalado o
+       <productname>JadeTeX</productname> para utilizar o
+       <productname>TeX</productname> como formatador para o
+       <productname>Jade</productname>.
+       O <application>JadeTeX</application> pode criar arquivos Postscript
+       ou <acronym>PDF</acronym> (este último com marcadores).
+      </para>
+
+      <para>
+       Entretanto, a saída do <application>JadeTeX</application> é
+       inferior à obtida pelo processador do <acronym>RTF</acronym>.
+       Entre as áreas com problemas específicos estão as tabelas e vários
+       artefatos de espaçamento vertical e horizontal. Além disso,
+       não existe oportunidade para melhorar manualmente os resultados.
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+  </para>
+
+  <para>
+   Existem experiências documentadas sobre vários métodos de instalação
+   para as várias ferramentas necessárias para processar a documentação,
+   as quais estão descritas abaixo. Podem haver outros pacotes contendo
+   distribuições destas ferramentas. Por favor informe o status do pacote
+   para a lista de discussão da documentação, e esta informação
+   será incluída aqui.
+  </para>
+
+  <sect2>
+   <title>Instalação de <acronym>RPM</acronym> no <productname>Linux</productname></title>
+
+   <para>
+    A maioria dos fornecedores disponibiliza um conjunto completo de pacotes
+    RPM para processar o DocBook em suas distribuições. Procure pela opção
+    <quote>SGML</quote> ao instalar, ou pelos seguintes pacotes:
+    <filename>sgml-common</filename>, <filename>docbook</filename>,
+    <filename>stylesheets</filename>, <filename>openjade</filename>
+    (ou <filename>jade</filename>). É possível que também seja necessário o
+    pacote <filename>sgml-tools</filename>. Se estes pacotes não estiverem
+    disponíveis na distribuição utilizada, então deve ser possível utilizar
+    pacotes de alguma outra distribuição, razoavelmente compatível.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Instalação no FreeBSD</title>
+
+   <para>
+    O próprio <quote>Projeto de Documentação do FreeBSD</quote> é um grande
+    usuário do DocBook e, portanto, não é surpresa que exista um conjunto
+    completo das ferramentas de documentação <quote>portadas</quote> disponível
+    no <systemitem class="osname">FreeBSD</systemitem>. É necessário instalar
+    as seguintes ferramentas para gerar a documentação no
+    <systemitem class="osname">FreeBSD</systemitem>.
+    <itemizedlist>
+     <listitem>
+      <para><filename>textproc/sp</filename></para>
+     </listitem>
+     <listitem>
+      <para><filename>textproc/openjade</filename></para>
+     </listitem>
+     <listitem>
+      <para><filename>textproc/iso8879</filename></para>
+     </listitem>
+     <listitem>
+      <para><filename>textproc/dsssl-docbook-modular</filename></para>
+     </listitem>
+    </itemizedlist>
+    Aparentemente, não existe um <literal>DocBook V4.2 SGML DTD</literal>
+    portado disponível atualmente, sendo necessário efetuar sua instalação
+    manualmente.
+   </para>
+
+   <para>
+    Também podem ser de interesse vários outros aplicativos contidos em
+    <filename>/usr/ports/print</filename>
+    (<filename>tex</filename>, <filename>jadetex</filename>).
+   </para>
+
+   <para>
+    É possível que os aplicativos portados não atualizem o arquivo do catálogo
+    principal em <filename>/usr/local/share/sgml/catalog</filename>.
+    Certifique-se que a seguinte linha está presente:
+<programlisting>
+CATALOG "/usr/local/share/sgml/docbook/4.2/docbook.cat"
+</programlisting>
+    Se não for desejado editar o arquivo, também pode ser definida a variável
+    de ambiente <envar>SGML_CATALOG_FILES</envar> como uma lista separada por
+    vírgulas de arquivos de catálogo (tal como mostrado acima).
+   </para>
+
+   <para>
+    Podem ser encontradas informações adicionais sobre as ferramentas de
+    documentação do <systemitem class="osname">FreeBSD</systemitem> nas
+    <ulink url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/fdp-primer/tools.html">
+    Instruções do Projeto de Documentação do FreeBSD</ulink>.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Pacotes do Debian</title>
+
+   <para>
+    Existe um conjunto completo de pacotes para as ferramentas de documentação
+    disponível para o <systemitem class="osname">Debian GNU/Linux</systemitem>.
+    Para instalar, deve simplesmente ser utilizado:
+    <footnote>
+     <para>
+      Para gerar esta documentação foi necessário instalar também:
+      libc6-dev, openjade, jadetex e opensp. (N. do T.)
+     </para>
+    </footnote>
+<programlisting>
+apt-get install jade
+apt-get install docbook
+apt-get install docbook-stylesheets
+</programlisting>
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Instalação manual a partir dos fontes</title>
+
+   <para>
+    O processo de instalação manual das ferramentas do DocBook é um tanto
+    complexo e, portanto, havendo pacotes pré-construídos disponíveis estes
+    devem ser utilizados. Aqui é descrita apenas a instalação padrão, com
+    caminhos de instalação padrão razoáveis, e nenhuma funcionalidade
+    <quote>extravagante</quote>. Para obter detalhes, deve ser estudada a
+    documentação do próprio pacote, e lido o material introdutório do
+    <acronym>SGML</acronym>.
+   </para>
+
+   <sect3>
+    <title>Instalação do OpenJade</title>
+
+    <procedure>
+      <step>
+       <para>
+        A instalação do OpenJade possui um processo de construção
+        <literal>./configure; make; make install</literal> ao
+        estilo GNU. Os detalhes podem ser encontrados na distribuição
+        do código fonte do OpenJade. De forma concisa:
+<synopsis>
+./configure --enable-default-catalog=/usr/local/share/sgml/catalog
+make
+make install
+</synopsis>
+        Não se esqueça onde foi colocado o <quote>catálogo padrão</quote>, pois
+        será necessário abaixo. Também pode ser deixado de fora, mas deverá ser
+        definida a variável de ambiente <envar>SGML_CATALOG_FILES</envar> para
+        apontar para o arquivo sempre que o <application>jade</application> for
+        utilizado posteriormente (Este método também é uma opção se OpenJade já
+        estiver instalado, e for desejado instalar o restante do conjunto de
+        ferramentas localmente).
+       </para>
+      </step>
+
+      <step id="doc-openjade-install">
+       <para>
+        Além disso, devem ser instalados os arquivos
+        <filename>dsssl.dtd</filename>, <filename>fot.dtd</filename>,
+        <filename>style-sheet.dtd</filename> e
+        <filename>catalog</filename> do diretório
+        <filename class="directory">dsssl</filename> em algum lugar,
+        talvez no diretório
+        <filename class="directory">/usr/local/share/sgml/dsssl</filename>.
+        Provavelmente é mais fácil copiar todo o diretório:
+<synopsis>
+cp -R dsssl /usr/local/share/sgml
+</synopsis>
+       </para>
+      </step>
+
+      <step>
+       <para>
+        Para terminar, deve ser criado o arquivo
+        <filename>/usr/local/share/sgml/catalog</filename>
+        e adicionada a seguinte linha ao mesmo:
+<programlisting>
+CATALOG "dsssl/catalog"
+</programlisting>
+        (Esta é uma referência ao caminho relativo do arquivo instalado no
+        <xref linkend="doc-openjade-install">. Assegure de ajustá-la
+        se for escolhido um posicionamento diferente para a instalação).
+       </para>
+      </step>
+     </procedure>
+   </sect3>
+
+   <sect3>
+    <title>Instalação do kit <acronym>DTD</acronym> do <productname>DocBook</productname></title>
+
+    <procedure>
+     <step>
+      <para>
+       Obter a distribuição <ulink
+       url="http://www.docbook.org/sgml/4.2/docbook-4.2.zip">DocBook
+       V4.2</ulink>.
+      </para>
+     </step>
+
+     <step>
+      <para>
+       Criar o diretório
+       <filename class="directory">/usr/local/share/sgml/docbook-4.2</filename>
+       e torná-lo o diretório corrente (O local exato é irrelevante,
+       mas este é razoável dentro do posicionamento que está sendo seguido).
+<screen>
+<prompt>$ </prompt><userinput>mkdir /usr/local/share/sgml/docbook-4.2</userinput>
+<prompt>$ </prompt><userinput>cd /usr/local/share/sgml/docbook-4.2</userinput>
+</screen>
+      </para>
+     </step>
+
+     <step>
+      <para>
+       Descompactar o arquivo.
+<screen>
+<prompt>$ </prompt><userinput>unzip -a ...../docbook-4.2.zip</userinput>
+</screen>
+       (Os arquivos serão descompactados no diretório corrente)
+      </para>
+     </step>
+
+     <step>
+      <para>
+       Editar o arquivo
+       <filename>/usr/local/share/sgml/catalog</filename> (ou o que foi
+       informado ao jade durante a instalação) e adicionar uma linha como
+       esta:
+<programlisting>
+CATALOG "docbook-4.2/docbook.cat"
+</programlisting>
+      </para>
+     </step>
+
+     <step>
+      <para>
+       Obter o arquivo <ulink
+       url="http://www.oasis-open.org/cover/ISOEnts.zip">Entidades caractere
+       ISO 8879</ulink>, e descompactá-lo colocando os arquivos
+       no mesmo diretório onde foram colocados os arquivos do DocBook.
+<screen>
+<prompt>$ </prompt><userinput>cd /usr/local/share/sgml/docbook-4.2</userinput>
+<prompt>$ </prompt><userinput>unzip ...../ISOEnts.zip</userinput>
+</screen>
+      </para>
+     </step>
+
+     <step>
+      <para>
+       Executar o seguinte comando no diretório contendo os arquivos do DocBook
+       e do ISO:
+<programlisting>
+perl -pi -e 's/iso-(.*).gml/ISO\1/g' docbook.cat
+</programlisting>
+       (Este procedimento corrige uma discrepância entre os nomes utilizados
+       no arquivo de catálogo do DocBook e os nomes verdadeiros dos arquivos
+       das entidades caractere ISO).
+      </para>
+     </step>
+    </procedure>
+   </sect3>
+
+   <sect3>
+    <title>Instalação das folhas de estilo <acronym>DSSSL</acronym> do DocBook</title>
+
+    <para>
+     Para instalar as folhas de estilo os arquivos deve ser descompactados e
+     movidos para um lugar adequado como, por exemplo,
+     <filename>/usr/local/share/sgml</filename> (O arquivo compactado
+     cria automaticamente um subdiretório ao ser descompactado).
+<screen>
+<prompt>$</prompt> <userinput>gunzip docbook-dsssl-1.<replaceable>xx</>.tar.gz</userinput>
+<prompt>$</prompt> <userinput>tar -C /usr/local/share/sgml -xf docbook-dsssl-1.<replaceable>xx</>.tar</userinput>
+</screen>
+    </para>
+
+    <para>
+     Também pode ser colocada a entrada usual do catálogo em
+     <filename>/usr/local/share/sgml/catalog</filename>:
+<programlisting>
+CATALOG "docbook-dsssl-1.<replaceable>xx</>/catalog
+</programlisting>
+     Como as folhas de estilo mudam muito freqüentemente, sendo alguma vezes
+     benéfico tentar versões alternativas, o
+     <productname>PostgreSQL</productname> não utiliza esta entrada do catálogo.
+     Consulte a <xref linkend="docguide-toolsets-configure"> para
+     obter informações sobre como selecionar as folhas de estilo.
+    </para>
+   </sect3>
+
+   <sect3>
+    <title>Instalação do <productname>JadeTeX</productname></title>
+
+    <para>
+     Para instalar e utilizar o <productname>JadeTeX</productname>, é
+     necessário haver uma instalação do <productname>TeX</productname> e do
+     <productname>LaTeX2e</productname> funcionando, incluindo os pacotes
+     suportados <productname>tools</productname> e
+     <productname>graphics</productname>,
+     <productname>Babel</productname>,
+     <productname>fontes <acronym>AMS</acronym></productname> e
+     <productname>AMS-LaTeX</productname>, a extensão
+     <productname><acronym>PSNFSS</acronym></productname>
+     e o kit que acompanha <quote>as 35 fontes</quote>, o programa
+     <productname>dvips</productname> para gerar
+     <productname>PostScript</productname>, os pacotes de macros
+     <productname>fancyhdr</productname>,
+     <productname>hyperref</productname>,
+     <productname>minitoc</productname>,
+     <productname>url</productname> e
+     <productname>ot2enc</productname>.  Todos estes podem ser encontrados
+     <ulink
+     url="http://www.ctan.org"><acronym>CTAN</acronym></ulink>.
+     A instalação do sistema básico do <application>TeX</application>
+     está muito acima do escopo desta introdução. Devem existir pacotes binários
+     disponíveis para qualquer sistema que possa executar o
+     <application>TeX</application>.
+    </para>
+
+    <para>
+     Antes de ser possível utilizar o <application>JadeTeX</application> com os
+     fontes da documentação do <productname>PostgreSQL</productname>,
+     é necessário aumentar o tamanho das estruturas de dado internas do
+     <application>TeX</application>.
+     Os detalhes podem ser encontrados nas instruções de instalação do
+     <application>JadeTeX</application>.
+    </para>
+
+    <para>
+     Após terminar esta parte pode ser instalado o <application>JadeTeX</application>:
+<screen>
+<prompt>$</prompt> <userinput>gunzip jadetex-<replaceable>xxx</replaceable>.tar.gz</userinput>
+<prompt>$</prompt> <userinput>tar xf jadetex-<replaceable>xxx</replaceable>.tar</userinput>
+<prompt>$</prompt> <userinput>cd jadetex</userinput>
+<prompt>$</prompt> <userinput>make install</userinput>
+<prompt>$</prompt> <userinput>mktexlsr</userinput>
+</screen>
+     Os dois últimos comando devem ser executados como
+     <systemitem>root</systemitem>.
+    </para>
+
+   </sect3>
+
+  </sect2>
+
+  <sect2 id="docguide-toolsets-configure">
+   <title>Detecção pelo configure</title>
+
+  <para>
+   Para se poder construir a documentação, primeiro é necessário executar o
+   script <filename>configure</filename>, como é feito para gerar os
+   próprios programas do <productname>PostgreSQL</productname>.
+   Deve ser verificado se a saída perto do fim da execução se parece com:
+<screen>
+<computeroutput>
+checking for onsgmls... onsgmls
+checking for openjade... openjade
+checking for DocBook V4.2... yes
+checking for DocBook stylesheets... /usr/lib/sgml/stylesheets/nwalsh-modular
+checking for sgmlspl... sgmlspl
+</computeroutput>
+</screen>
+   Se não for encontrado nem o <filename>onsgmls</filename> nem o
+   <filename>nsgmls</filename>, então as outras quatro linhas não serão vistas.
+   O <filename>nsgmls</filename> é parte do pacote Jade.
+   Se não for encontrado o <quote>DocBook V4.2</quote>, então o kit
+   <literal>DocBook DTD</literal> não foi instalado em um local onde o jade possa
+   encontrá-lo, ou os arquivos do catálogo não foram definidos corretamente.
+   Devem ser vistas as dicas de instalação acima. As folhas de estilo do DocBook
+   são procuradas em vários locais relativamente padrão, mas se estiverem em
+   algum outro local deve ser definida a variável de ambiente
+   <envar>DOCBOOKSTYLE</envar> com o local correto, e executado novamente
+   <filename>configure</filename> após isto.
+  </para>
+
+  </sect2>
+ </sect1>
+
+ <sect1 id="docguide-build">
+  <title>Geração da documentação</title>
+
+  <para>
+   Após estar tudo instalado, o diretório
+   <filename class="directory">doc/src/sgml</filename> deve ser tornado o
+   diretório corrente, e um dos comandos descritos nas subseções abaixo deve
+   ser executado para gerar a documentação (Lembre-se de utilizar o
+   <application>make</application> do GNU).
+  </para>
+
+  <sect2>
+   <title>HTML</title>
+
+   <para>
+    Para gerar a versão <acronym>HTML</acronym> da documentação:
+<screen>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake html</userinput>
+</screen>
+    Esta também é a versão gerada por padrão.
+   </para>
+
+   <para>
+    Quando a documentação HTML é gerada, o processamento também gera as
+    informações de vínculo com as entradas do índice. Portanto, se for desejado
+    que a documentação possua um índice no final, é necessário gerar
+    a documentação HTML primeiro, e depois gerar a documentação
+    novamente no formato desejado.
+   </para>
+
+   <para>
+    Para permitir o tratamento mais fácil da distribuição final, os arquivos
+    que compõem a documentação HTML são armazenados em um arquivo
+    <literal>tar</literal> que é desempacotado durante a instalação. Para criar
+    o pacote de documentação <acronym>HTML</acronym>, devem ser utilizados os
+    comandos
+<programlisting>
+cd doc/src
+gmake postgres.tar.gz
+</programlisting>
+    Na distribuição, estes arquivos se encontram no diretório
+    <filename class="directory">doc</filename>, sendo instalados por padrão
+    pelo <command>gmake install</command>.
+  </para>
+ </sect2>
+
+ <sect2>
+  <title>Páginas do manual Unix</title>
+
+  <para>
+   É utilizado o utilitário <application>docbook2man</application> para
+   converter as páginas <sgmltag>refentry</sgmltag> do
+   <productname>DocBook</productname> em saída <literal>*roff</literal>
+   adequada para as páginas do manual. As páginas do manual também são
+   distribuídas como um arquivo <literal>tar</literal>, semelhante à versão
+   <acronym>HTML</acronym>. Para gerar o pacote de páginas do manual devem ser
+   utilizados os comandos
+<programlisting>
+cd doc/src
+gmake man.tar.gz
+</programlisting>
+   que produz um arquivo <literal>tar</literal> gerado no diretório
+   <filename class="directory">doc/src</filename>.
+  </para>
+
+  <para>
+   Para gerar páginas do manual com qualidade, pode ser necessário utilizar
+   uma versão <quote>hackeada</quote> do utilitário de conversão, ou fazer algum
+   pós-processamento manual. Todas as páginas do manual devem ser inspecionadas
+   manualmente antes de serem distribuídas.
+  </para>
+ </sect2>
+
+  <sect2>
+   <title>Imprimir a saída usando <application>JadeTex</application></title>
+
+   <para>
+    Se for desejado utilizar o <application>JadeTex</application> para gerar
+    uma versão da documentação que possa ser impressa, pode ser utilizado
+    um dos seguintes comandos:
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       Para gerar a versão <acronym>DVI</acronym>:
+<screen>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake postgres.dvi</userinput>
+</screen>
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Para gerar o Postscript a partir do <acronym>DVI</acronym>:
+<screen>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake postgres.ps</userinput>
+</screen>
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Para gerar o <acronym>PDF</acronym>:
+<screen>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake postgres.pdf</userinput>
+</screen>
+       (Obviamente pode ser gerada a versão <acronym>PDF</acronym>
+       a partir do Postscript, mas se o <acronym>PDF</acronym> for gerado
+       diretamente, terá hiperligações e outras funcionalidades avançadas).
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Imprimir a saída através do <acronym>RTF</acronym></title>
+
+   <para>
+    Também é possível criar uma versão imprimível da documentação do
+    <productname>PostgreSQL</productname> convertendo-a em
+    <acronym>RTF</acronym>, e depois aplicando pequenas correções de formatação
+    utilizando um pacote de automação de escritórios. Dependendo das
+    funcionalidades do pacote de automação de escritórios utilizado,
+    a documentação pode ser convertida para Postscript a partir do
+    <acronym>PDF</acronym>. O procedimento abaixo mostra este processo
+    utilizando o <productname>Applixware</productname>.
+   </para>
+
+   <note>
+    <para>
+     Parece que a versão corrente da documentação do
+     <productname>PostgreSQL</productname> dispara algum erro ou excede o
+     limite de tamanho do OpenJade. Se o processo de geração da versão
+     <acronym>RTF</acronym> demorar muito tempo, e o tamanho do arquivo de
+     saída permanecer igual a 0, então você esbarrou no problema mas tenha
+     em mente que a geração normal leva de 5 a 10 minutos, portanto não
+     interrompa muito rapidamente.
+    </para>
+   </note>
+
+   <procedure>
+    <title>Limpeza do <acronym>RTF</acronym> usando o <productname>Applixware</productname></title>
+
+    <para>
+     O <application>OpenJade</application> omite a especificação do estilo
+     padrão para o corpo do texto. No passado, este problema não diagnosticado
+     levava a um longo processo para geração do sumário. Entretanto,
+     com grande ajuda das pessoas da <productname>Applixware</productname>,
+     o sintoma foi diagnosticado e uma correção está disponível.
+    </para>
+
+    <step performance="required">
+     <para>
+      Gerar a versão <acronym>RTF</acronym> digitando:
+<screen>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake postgres.rtf</userinput>
+</screen>
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+      Reparar o arquivo RTF para especificar corretamente todos os estilos, em
+      particular o estilo padrão. Se o documento contém seções
+      <sgmltag>refentry</sgmltag>, também devem ser substituídas
+      as dicas de formatação que ligam o parágrafo precedente ao parágrafo
+      corrente e, em seu lugar, ligar o parágrafo corrente ao
+      parágrafo seguinte. O utilitário <command>fixrtf</command> está
+      disponível em <filename>doc/src/sgml</filename> para efetuar estes
+      reparos:
+
+<screen>
+<prompt>doc/src/sgml$ </prompt><userinput>./fixrtf --refentry postgres.rtf</userinput>
+</screen>
+     </para>
+
+     <para>
+      Este script adiciona <literal>{\s0 Normal;}</literal> como sendo o
+      zero-ésimo estilo no documento. De acordo com a
+      <productname>Applixware</productname>, o padrão RTF proíbe
+      adicionar um zero-ésimo estilo implícito, embora o Word da Microsoft
+      trate este caso. Para reparar as seções
+      <sgmltag>refentry</sgmltag>, o script substitui as marcas
+      <literal>\keepn</literal> por <literal>\keep</literal>.
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+      Abra um novo documento no <productname>Applixware Words</productname> e
+      depois importe o arquivo <acronym>RTF</acronym>.
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+      Gere o novo Sumário (ToC) utilizando o
+      <productname>Applixware</productname>.
+     </para>
+
+     <substeps>
+      <step>
+       <para>
+        Selecione as linhas existentes no Sumário, do início do primeiro
+        caractere da primeira linha ao último caractere da última
+        linha.
+       </para>
+      </step>
+
+      <step>
+       <para>
+        Construa um novo Sumário utilizando
+        <menuchoice><guimenu>Tools</guimenu><guisubmenu>Book
+        Building</guisubmenu><guimenuitem>Create Table of
+        Contents</guimenuitem></menuchoice>. Selecione os três primeiros níveis
+        de cabeçalho para serem incluídos no Sumário. Este procedimento
+        substitui as linhas existentes importadas no RTF por um Sumário nativo
+        do <productname>Applixware</productname>.
+       </para>
+      </step>
+
+      <step>
+       <para>
+        Ajuste a formatação do Sumário utilizando
+        <menuchoice><guimenu>Format</guimenu><guimenuitem>Style</guimenuitem></menuchoice>,
+        selecione cada um dos três estilos de Sumário, e ajuste o
+        recuo para <literal>First</literal> e
+        <literal>Left</literal>. Use os seguintes valores:
+
+        <informaltable>
+         <tgroup cols="3">
+          <thead>
+           <row>
+            <entry>Style</entry>
+            <entry>First Indent (inches)</entry>
+            <entry>Left Indent (inches)</entry>
+           </row>
+          </thead>
+
+          <tbody>
+           <row>
+            <entry><literal>TOC-Heading 1</literal></entry>
+            <entry><literal>0.4</literal></entry>
+            <entry><literal>0.4</literal></entry>
+           </row>
+
+           <row>
+            <entry><literal>TOC-Heading 2</literal></entry>
+            <entry><literal>0.8</literal></entry>
+            <entry><literal>0.8</literal></entry>
+           </row>
+
+           <row>
+            <entry><literal>TOC-Heading 3</literal></entry>
+            <entry><literal>1.2</literal></entry>
+            <entry><literal>1.2</literal></entry>
+           </row>
+          </tbody>
+         </tgroup>
+        </informaltable>
+       </para>
+      </step>
+     </substeps>
+    </step>
+
+    <step performance="required">
+     <para>
+      Percorra o documento para:
+
+      <itemizedlist>
+       <listitem>
+        <para>
+         Ajustar as quebras de página.
+        </para>
+       </listitem>
+
+       <listitem>
+        <para>
+         Ajustar as larguras das colunas das tabelas.
+        </para>
+       </listitem>
+      </itemizedlist>
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+      Substitua os números das páginas alinhados à direita na parte de Exemplos
+      e de Figuras do Sumário pelos valores corretos. Esta atividade só toma
+      alguns minutos.
+     </para>
+    </step>
+
+    <step performance="optional">
+     <para>
+       Apague a seção de índice do documento caso esteja vazia.
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+       Gere novamente e ajuste o Sumário.
+     </para>
+
+      <substeps>
+       <step>
+        <para>
+         Selecione o campo Sumário.
+        </para>
+       </step>
+
+       <step>
+        <para>
+         Selecione <menuchoice><guimenu>Tools</guimenu><guisubmenu>Book
+         Building</guisubmenu><guimenuitem>Create Table of
+         Contents</guimenuitem></menuchoice>.
+        </para>
+       </step>
+
+       <step>
+        <para>
+         Desvincule o Sumário selecionando
+         <menuchoice><guimenu>Tools</guimenu><guisubmenu>Field
+         Editing</guisubmenu><guimenuitem>Unprotect</guimenuitem></menuchoice>.
+        </para>
+       </step>
+
+       <step>
+        <para>
+         Apague a primeira linha do Sumário, que é uma entrada para o próprio
+         Sumário.
+        </para>
+       </step>
+      </substeps>
+    </step>
+
+    <step performance="required">
+     <para>
+      Salve o documento no formato nativo do <productname>Applixware
+      Words</productname> para facilitar uma edição posterior,
+      caso seja necessário.
+     </para>
+    </step>
+
+    <step performance="required">
+     <para>
+      Imprima (<quote>Print</quote>) o documento
+      em um arquivo no formato Postscript.
+     </para>
+    </step>
+   </procedure>
+  </sect2>
+
+  <sect2>
+   <title>Arquivos texto puro</title>
+
+   <para>
+    Diversos arquivos são distribuídos como texto puro, para serem lidos durante
+    o processo de instalação. O arquivo <filename>INSTALL</filename>
+    corresponde ao <xref linkend="installation">, com pequenas alterações
+    para levar em conta a diferença de contexto. Para recriar este arquivo,
+    o diretório <filename class="directory">doc/src/sgml</filename> deve ser
+    tornado o diretório corrente, e deve ser executado
+    <userinput>gmake INSTALL</userinput>. Isto cria o arquivo
+    <filename>INSTALL.html</filename> que pode ser salvo como texto
+    utilizando o <productname>Netscape Navigator</productname> e colocado no
+    lugar do arquivo existente.
+    O <productname>Netscape</productname> parece oferecer a melhor
+    qualidade na conversão de <acronym>HTML</acronym> em texto (melhor que o
+    <application>lynx</application> e o
+    <application>w3m</application>).
+   </para>
+
+   <para>
+    O arquivo <filename>HISTORY</filename> pode ser criado de forma semelhante,
+    utilizando o comando <userinput>gmake HISTORY</userinput>. Para criar o
+    arquivo <filename>src/test/regress/README</filename> o comando é
+    <userinput>gmake regress_README</userinput>.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Verificação da sintaxe</title>
+
+   <para>
+    A geração da documentação pode ser demorada. Entretanto, existe um método
+    para verificar apenas se a sintaxe dos arquivos de documentação está
+    correta que só leva alguns segundos:
+<screen>
+<prompt>doc/src/sgml$ </prompt><userinput>gmake check</userinput>
+</screen>
+   </para>
+  </sect2>
+ </sect1>
+
+
+ <sect1 id="docguide-authoring">
+  <title>Criação da documentação</title>
+
+   <para>
+    O <acronym>SGML</acronym> e o <productname>DocBook</productname>
+    não sofrem o mal do número excessivo de ferramentas de código aberto
+    para criação de páginas. O conjunto de ferramentas mais comum é o editor
+    <productname>Emacs</productname>/<productname>XEmacs</productname>
+    com o modo apropriado de edição. Em alguns sistemas
+    estas ferramentas fazem parte da instalação típica completa.
+   </para>
+
+   <sect2>
+    <title>Emacs/PSGML</title>
+
+    <para>
+     O <productname>PSGML</productname> é o modo de editar documentos
+     <acronym>SGML</acronym> mais comum e mais poderoso.
+     Quando configurado de forma apropriada, permite utilizar o
+     <application>Emacs</application> para inserir marcas e verificar a
+     consistência da marcação. Também pode ser utilizado para
+     <acronym>HTML</acronym>. Visite o <ulink
+     url="http://www.lysator.liu.se/projects/about_psgml.html">página na Web do
+     PSGML</ulink> para baixar os arquivos, obter as instruções de instalação, e
+     ver a documentação detalhada.
+    </para>
+
+    <para>
+     Existe um ponto importante a ser observado com relação ao
+     <productname>PSGML</productname>: o autor assume que o diretório
+     principal da <acronym>DTD</acronym> do <acronym>SGML</acronym> na máquina
+     utilizada é <filename>/usr/local/lib/sgml</filename>. Se for utilizado
+     <filename>/usr/local/share/sgml</filename>, como acontece nos exemplos
+     deste capítulo, isto deve ser compensado, seja definindo a variável de
+     ambiente <envar>SGML_CATALOG_FILES</envar>, ou personalizando a instalação
+     do <productname>PSGML</productname> (o manual explica como fazer).
+    </para>
+
+    <para>
+     O que vem a seguir deve ser adicionado ao arquivo de ambiente
+     <filename>~/.emacs</filename> (ajustando os nomes dos caminhos
+     conforme apropriado para o sistema utilizado):
+
+<programlisting>
+; ********** for SGML mode (psgml)
+
+(setq sgml-omittag t)
+(setq sgml-shorttag t)
+(setq sgml-minimize-attributes nil)
+(setq sgml-always-quote-attributes t)
+(setq sgml-indent-step 1)
+(setq sgml-indent-data t)
+(setq sgml-parent-document nil)
+(setq sgml-default-dtd-file "./reference.ced")
+(setq sgml-exposed-tags nil)
+(setq sgml-catalog-files '("/usr/local/share/sgml/catalog"))
+(setq sgml-ecat-files nil)
+
+(autoload 'sgml-mode "psgml" "Major mode to edit SGML files." t )
+</programlisting>
+
+     e no mesmo arquivo deve ser adicionada uma entrada para
+     <acronym>SGML</acronym> na definição (existente) de
+     <varname>auto-mode-alist</varname>:
+<programlisting>
+(setq
+  auto-mode-alist
+  '(("\\.sgml$" . sgml-mode)
+   ))
+</programlisting>
+    </para>
+
+    <para>
+     Atualmente, cada arquivo fonte <acronym>SGML</acronym> possui o
+     seguinte bloco no final:
+
+<programlisting>
+&lt;!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:t
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+--&gt;
+</programlisting>
+     Isto define vários parâmetros do modo de edição, mesmo que o arquivo
+     <filename>~/.emacs</filename> não esteja definido mas, por azar, se
+     forem seguidas as instruções de instalação acima, então o caminho do
+     catálogo não corresponde a este local na máquina utilizada. Por isso pode
+     ser necessário desabilitar as variáveis locais:
+<programlisting>
+(setq inhibit-local-variables t)
+</programlisting>
+    </para>
+
+    <para>
+     A distribuição do <productname>PostgreSQL</productname> inclui o
+     arquivo de definições DTD analisado <filename>reference.ced</filename>.
+     Ao utilizar o PSGML, acaba-se descobrindo que uma maneira confortável
+     de trabalhar com os arquivos separados das partes do livro é inserindo uma
+     declaração <literal>DOCTYPE</literal> apropriada ao editar.
+     Por exemplo, ao se trabalhar com o fonte deste arquivo, que é um
+     capítulo do apêndice, o documento pode ser especificado como uma
+     instância do <quote>appendix</quote> do documento DocBook
+     fazendo a primeira linha se parecer com:
+
+<programlisting>
+&lt;!DOCTYPE appendix PUBLIC "-//OASIS//DTD DocBook V4.2//EN"&gt;
+</programlisting>
+
+     Isto permite que tudo que leia <acronym>SGML</acronym> o faça direito,
+     e que o documento possa ser verificado pelo comando
+     <command>nsgmls -s docguide.sgml</command>; mas esta linha precisa ser
+     removida antes de ser gerado o conjunto completo da documentação.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Outros modos do Emacs</title>
+
+    <para>
+     O <productname>GNU Emacs</productname> vem com um modo SGML diferente,
+     que não é tão poderoso quanto o <productname>PSGML</productname>,
+     mas que é menos confuso e mais leve. Oferece, também, realce da sintaxe
+     (bloqueio de fonte), que pode ser muito útil.
+    </para>
+
+    <para>
+     Norm Walsh disponibiliza um
+     <ulink url="http://nwalsh.com/emacs/docbookide/index.html">modo principal
+     do <productname>GNU Emacs</productname> para editar documentos
+     DocBook</ulink>, que também possui bloqueio de fonte e várias
+     funcionalidades para reduzir a digitação.
+    </para>
+   </sect2>
+
+ </sect1>
+
+
+ <sect1 id="docguide-style">
+  <title>Guia de estilo</title>
+
+  <sect2>
+   <title>Páginas de referência</title>
+
+   <para>
+    As páginas de referência devem seguir uma organização padrão. Isto permite
+    aos usuários encontrarem as informações desejadas mais rapidamente e, também,
+    encoraja os autores a documentar todos os aspectos relevantes do comando.
+    A consistência não é desejada apenas entre as páginas de referência do
+    <productname>PostgreSQL</productname>, mas também com as páginas de
+    referência disponibilizadas pelo sistema operacional e por outros pacotes.
+    As diretrizes descritas a seguir foram desenvolvidas para esta finalidade.
+    Em sua maior parte estas diretrizes são consistentes com as diretrizes
+    semelhantes estabelecidas por vários sistemas operacionais.
+   </para>
+
+   <para>
+    As páginas de referência que descrevem comandos executáveis devem conter
+    as seguintes seções, nesta ordem. As seções que não se aplicam podem ser
+    omitidas. Seções adicionais de nível mais alto devem ser utilizadas
+    apenas em circunstâncias especiais; geralmente esta informação pertence à
+    seção <quote>Utilização</quote>.
+
+    <variablelist>
+     <varlistentry>
+      <term>Nome</term>
+      <listitem>
+       <para>
+        Esta seção é gerada automaticamente. Contém o nome do comando
+        e um breve resumo de sua funcionalidade.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Sinopse</term>
+      <listitem>
+       <para>
+        Esta seção contém o diagrama da sintaxe do comando. Normalmente
+        a sinopse não deve relacionar todas as opções de linha de comando;
+        isto é feito abaixo. Em vez disto, devem ser relacionados os principais
+        componentes da linha de comando, tal como o local dos arquivos de
+        entrada e de saída.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Descrição</term>
+      <listitem>
+       <para>
+        Vários parágrafos explicando o que o comando faz.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Opções</term>
+      <listitem>
+       <para>
+        Uma lista descrevendo cada opção de linha de comando. Havendo muitas
+        opções, podem ser usadas subseções.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Status de saída</term>
+      <listitem>
+       <para>
+        Se o programa utilizar zero para execução bem-sucedida, e diferente de
+        zero para mal-sucedida, então isto não precisa ser documentado.
+        Havendo um significado por trás dos códigos de retorno diferentes de
+        zero, estes devem ser descritos aqui.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Utilização</term>
+      <listitem>
+       <para>
+        Descreve todas as sub-linguagens ou interfaces em tempo de execução do
+        programa. Normalmente esta seção pode ser omitida quando o programa não
+        é interativo. Caso contrário, esta seção engloba a descrição de todas as
+        funcionalidades em tempo de execução. Devem ser utilizadas subseções
+        quando for apropriado.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Ambiente</term>
+      <listitem>
+       <para>
+        Relaciona todas as variáveis de ambiente que o programa pode utilizar.
+        Deve ser completa; mesmo variáveis que parecem triviais, como
+        <envar>SHELL</envar>, podem ser de interesse do usuário.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Arquivos</term>
+      <listitem>
+       <para>
+        Relaciona todos os arquivos que o programa pode acessar implicitamente,
+        ou seja, não relaciona os arquivos de entrada e de saída especificados
+        na linha de comando, mas relaciona os arquivos de configuração, etc.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Diagnósticos</term>
+      <listitem>
+       <para>
+        Explica qualquer saída não usual que o programa pode produzir.
+        Deve-se evitar relacionar todas as mensagens de erro possíveis; isto dá
+        muito trabalho e possui pouca utilidade prática. Mas se, por exemplo,
+        as mensagens de erro possuem um formato padrão que o usuário pode
+        analisar, este é o lugar para que isto seja explicado.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Notas</term>
+      <listitem>
+       <para>
+        Tudo que não é adequado em outro lugar, mas em particular erros,
+        problemas na implementação, considerações sobre segurança, e questões
+        de compatibilidade.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Exemplos</term>
+      <listitem>
+       <para>
+        Exemplos
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Histórico</term>
+      <listitem>
+       <para>
+        Havendo marcos relevantes na história do programa,
+        estes devem ser descritos aqui. Normalmente esta
+        seção pode ser omitida.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Consulte também</term>
+      <listitem>
+       <para>
+        Referências cruzadas, relacionadas na seguinte ordem: outras páginas de
+        referência de comandos do <productname>PostgreSQL</productname>,
+        páginas de referência de comandos SQL do
+        <productname>PostgreSQL</productname>, citação dos manuais do
+        <productname>PostgreSQL</productname>, outras páginas de referência
+        (por exemplo, sistema operacional, outros pacotes), outra documentação.
+        Os itens do mesmo grupo devem estar em ordem alfabética.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+   </para>
+
+   <para>
+    As páginas de referência contendo comandos SQL devem possuir as seguintes
+    seções: Nome, Sinopse, Descrição, Parâmetros, Saídas, Notas, Exemplos,
+    Compatibilidade, Histórico e Consulte Também. A seção sobre Parâmetros é
+    como a seção Opções, mas há maior liberdade sobre que cláusulas do comando
+    podem ser relacionadas. A seção Saídas somente é necessária quando o comando
+    retorna algo diferente da marca padrão de comando terminado. A seção
+    Compatibilidade deve explicar a extensão da conformidade
+    <footnote>
+     <para>
+      conformidade &mdash; atributos do software que o tornam consonante
+      com padrões ou convenções relacionadas à portabilidade.
+      NBR 13596/1996, Tecnologia da Informação - Avaliação de produto de
+      software - Características de qualidade e diretrizes para o seu uso,
+      ABNT, Rio de Janeiro. (N. do T.)
+     </para>
+    </footnote>
+    do comando com o padrão SQL, ou informar com que outro sistema de banco de
+    dados é compatível. A seção Consulte Também dos comandos SQL deve relacionar
+    os comandos SQL antes da referência cruzada com os programas.
+   </para>
+  </sect2>
+
+ </sect1>
+</appendix>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

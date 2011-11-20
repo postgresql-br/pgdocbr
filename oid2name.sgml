@@ -1,0 +1,288 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/oid2name.sgml,v 1.3 2007/12/10 05:32:51 tgl Exp $ -->
+
+<sect1 id="oid2name">
+ <title>oid2name</title>
+
+ <indexterm zone="oid2name">
+  <primary>oid2name</primary>
+ </indexterm>
+
+ <para>
+  <application>oid2name</> é um utilitário que ajuda administradores a 
+  examinar a estrutura de arquivos utilizada pelo PostgreSQL. Para utilizá-lo,
+  você precisa se familiarizar com a estrutura do banco de dados, que é descrita em
+  <xref linkend="storage">.
+ </para>
+
+ <note>
+  <para>
+   O nome <quote>oid2name</> é histórico, e é atualmente um tanto quanto
+   enganoso, uma vez que a maior parte do tempo que você o utiliza, você estará
+   se preocupando com números de nós de arquivos das tabelas (que são os nomes dos
+   arquivos visíveis nos diretórios do banco de dados). Tenha certeza que você entendeu 
+   a diferença entre OIDs de tabelas e nós de arquivos das tabelas!
+  </para>
+ </note>
+
+ <sect2>
+  <title>Visão geral</title>
+
+  <para>
+   <application>oid2name</application> se conecta ao banco de dados alvo e 
+   extrai o OID, nó de arquivo e/ou informação do nome da tabela. Você também pode fazê-lo 
+   mostrar OIDs de banco de dados ou OIDs de tablespace. O programa é 
+   controlado por um grande número de opções de linha de comando, como mostrado em
+   <xref linkend="oid2name-switches">.
+  </para>
+
+  <table id="oid2name-switches">
+   <title>opções do <application>oid2name</></title>
+   <tgroup cols="2">
+    <thead>
+     <row>
+      <entry>Opção</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><literal>-o</literal> <replaceable>oid</></entry>
+      <entry>mostra informação por tabela com OID <replaceable>oid</></entry>
+     </row>
+
+     <row>
+      <entry><literal>-f</literal> <replaceable>filenode</></entry>
+      <entry>mostra informação por tabela com nó de arquivo <replaceable>filenode</></entry>
+     </row>
+
+     <row>
+      <entry><literal>-t</literal> <replaceable>modelo_nomedatabela</></entry>
+      <entry>mostra informação por tabela(s) correspondente(s) a <replaceable>modelo_nomedatabela</></entry>
+     </row>
+
+     <row>
+      <entry><literal>-s</literal></entry>
+      <entry>mostra OIDs das tablespaces</entry>
+     </row>
+
+     <row>
+      <entry><literal>-S</literal></entry>
+      <entry>inclui objetos do sistema (aqueles nos esquemas
+       <literal>information_schema</literal>, <literal>pg_toast</literal>
+       e <literal>pg_catalog</literal>)
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal>-i</literal></entry>
+      <entry>inclui índices e sequências na listagem</entry>
+     </row>
+
+     <row>
+      <entry><literal>-x</literal></entry>
+      <entry>exibe informações adicionais sobre cada objeto mostrado: nome da tablespace,
+       nome do schema e OID
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal>-q</literal></entry>
+      <entry>omite cabeçalhos (útil para scripts)</entry>
+     </row>
+
+     <row>
+      <entry><literal>-d</literal> <replaceable>banco_de_dados</></entry>
+      <entry>banco de dados para se conectar</entry>
+     </row>
+
+     <row>
+      <entry><literal>-H</literal> <replaceable>máquina</></entry>
+      <entry>máquina do servidor de banco de dados</entry>
+     </row>
+
+     <row>
+      <entry><literal>-p</literal> <replaceable>porta</></entry>
+      <entry>porta do servidor de banco de dados </entry>
+     </row>
+
+     <row>
+      <entry><literal>-U</literal> <replaceable>nome_do_usuário</></entry>
+      <entry>nome do usuário a se conectar</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   Para exibir tabelas específicas, selecione as tabelas a serem exibidas
+   utilizando <literal>-o</>, <literal>-f</> e/ou <literal>-t</>.
+   <literal>-o</> seleciona um OID,
+   <literal>-f</> seleciona um nó de arquivo,
+   e <literal>-t</> seleciona o nome de uma tabela (atualmente, é uma expressão 
+   LIKE, então você pode utilizar expressões como<literal>foo%</>).
+   Você pode usar muitas dessas expressões como quiser, e a listagem incluirá
+   todos os objetos que coincidirem com essas expressões. Mas note que 
+   essas expressões só podem mostrar objetos no banco de dados informado em
+   <literal>-d</>.
+  </para>
+
+  <para>
+   Se você não utilizar <literal>-o</>, <literal>-f</> ou <literal>-t</>,
+   mas utilizar <literal>-d</>, serão listadas todas as tabelas do banco de dados
+   informado por <literal>-d</>.  Nesse modo, as opções <literal>-S</> e
+   <literal>-i</> controlam o que é listado.
+  </para>
+
+ <para>
+   Se você não utilizar  <literal>-d</> , será mostrada uma lista de OIDs
+   dos bancos de dados. Alternativamente, você pode utilizar <literal>-s</> 
+   para listar as tablespaces.
+  </para>
+ </sect2>
+
+ <sect2>
+  <title>Exemplos</title>
+
+  <programlisting>
+$ # o que está no servidor de banco de dados?
+$ oid2name
+All databases:
+    Oid  Database Name  Tablespace
+----------------------------------
+  17228       alvherre  pg_default
+  17255     regression  pg_default
+  17227      template0  pg_default
+      1      template1  pg_default
+
+$ oid2name -s
+All tablespaces:
+     Oid  Tablespace Name
+-------------------------
+    1663       pg_default
+    1664        pg_global
+  155151         fastdisk
+  155152          bigdisk
+
+$ # OK, veja o banco de dados alvherre
+$ cd $PGDATA/base/17228
+
+$ #  consiga os 10 primeiros objetos do banco de dados na tablespace, 
+ordenados por tamanho
+
+$ ls -lS * | head -10
+-rw-------  1 alvherre alvherre 136536064 sep 14 09:51 155173
+-rw-------  1 alvherre alvherre  17965056 sep 14 09:51 1155291
+-rw-------  1 alvherre alvherre   1204224 sep 14 09:51 16717
+-rw-------  1 alvherre alvherre    581632 sep  6 17:51 1255
+-rw-------  1 alvherre alvherre    237568 sep 14 09:50 16674
+-rw-------  1 alvherre alvherre    212992 sep 14 09:51 1249
+-rw-------  1 alvherre alvherre    204800 sep 14 09:51 16684
+-rw-------  1 alvherre alvherre    196608 sep 14 09:50 16700
+-rw-------  1 alvherre alvherre    163840 sep 14 09:50 16699
+-rw-------  1 alvherre alvherre    122880 sep  6 17:51 16751
+
+$ # Eu desejo saber o que o arquivo 155173 é ...
+$ oid2name -d alvherre -f 155173
+From database "alvherre":
+  Filenode  Table Name
+----------------------
+    155173    accounts
+
+$ # você pode perguntar por mais de um objeto
+$ oid2name -d alvherre -f 155173 -f 1155291
+From database "alvherre":
+  Filenode     Table Name
+-------------------------
+    155173       accounts
+   1155291  accounts_pkey
+
+$ # você pode misturar as opções e conseguir mais detalhes com -x
+$ oid2name -d alvherre -t accounts -f 1155291 -x
+From database "alvherre":
+  Filenode     Table Name      Oid  Schema  Tablespace
+------------------------------------------------------
+    155173       accounts   155173  public  pg_default
+   1155291  accounts_pkey  1155291  public  pg_default
+
+$ # mostrar o espaço em disco de todos os objetos do banco de dados
+$ du [0-9]* |
+> while read SIZE FILENODE
+> do
+>   echo "$SIZE       `oid2name -q -d alvherre -i -f $FILENODE`"
+> done
+16            1155287  branches_pkey
+16            1155289  tellers_pkey
+17561            1155291  accounts_pkey
+...
+
+$ # o mesmo, mas ordenando por tamanho
+$ du [0-9]* | sort -rn | while read SIZE FN
+> do
+>   echo "$SIZE   `oid2name -q -d alvherre -f $FN`"
+> done
+133466             155173    accounts
+17561            1155291  accounts_pkey
+1177              16717  pg_proc_proname_args_nsp_index
+...
+
+$ #  Se você quer ver o que está nas tablespaces, use o diretório pg_tblspc
+$ cd $PGDATA/pg_tblspc
+$ oid2name -s
+All tablespaces:
+     Oid  Tablespace Name
+-------------------------
+    1663       pg_default
+    1664        pg_global
+  155151         fastdisk
+  155152          bigdisk
+
+$ # quais bancos de dados têm objetos na tablespace "fastdisk"?
+$ ls -d 155151/*
+155151/17228/  155151/PG_VERSION
+
+$ # Oh, qual era o banco de dados 17228 mesmo?
+$ oid2name
+All databases:
+    Oid  Database Name  Tablespace
+----------------------------------
+  17228       alvherre  pg_default
+  17255     regression  pg_default
+  17227      template0  pg_default
+      1      template1  pg_default
+
+$ # Veja quais objetos esse banco de dados tem na tablespace.
+$ cd 155151/17228
+$ ls -l
+total 0
+-rw-------  1 postgres postgres 0 sep 13 23:20 155156
+
+$ # OK, essa é uma tabela muito pequena ... mas qual é essa tabela?
+$ oid2name -d alvherre -f 155156
+From database "alvherre":
+  Filenode  Table Name
+----------------------
+    155156         foo
+  </programlisting>
+ </sect2>
+
+ <sect2>
+  <title>Limitações</title>
+
+<para>
+   <application>oid2name</> requer um servidor de banco de dados
+   executando com catálogo do sistema que não foi corrompido. Por isso, o seu 
+   uso é limitado ao recuperar de situações catastróficas de corrupção
+   do banco de dados.
+  </para>
+ </sect2>
+
+ <sect2>
+  <title>Autor</title>
+
+  <para>
+   B. Palmer <email>bpalmer@crimelabs.net</email>
+  </para>
+ </sect2>
+
+</sect1>

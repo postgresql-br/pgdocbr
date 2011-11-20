@@ -1,0 +1,710 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/monitoring.sgml,v 1.27 2004/12/28 19:08:58 tgl Exp $
+-->
+
+<chapter id="monitoring">
+ <title>Monitoramento das atividades do banco de dados</title>
+
+ <indexterm zone="monitoring">
+  <primary>monitoramento</primary>
+  <secondary>atividade do banco de dados</secondary>
+ </indexterm>
+
+ <indexterm zone="monitoring">
+  <primary>atividade do banco de dados</primary>
+  <secondary>monitoramento</secondary>
+ </indexterm>
+
+ <para>
+  Freqüentemente o administrador de banco de dados deseja saber,
+  <quote>O que o sistema está fazendo agora?</quote>.
+  Este capítulo explica como descobrir isto.
+ </para>
+
+  <para>
+   Estão disponíveis várias ferramentas para monitorar a atividade do banco de
+   dados e analisar o desempenho. A maior parte deste capítulo dedica-se a
+   descrever o coletor de estatísticas do <productname>PostgreSQL</productname>,
+   mas não se deve desprezar os programas regulares de monitoramento do Unix,
+   como <command>ps</command>, <command>top</command>, <command>iostat</> e
+   <command>vmstat</>. Também, uma vez que tenha sido identificado um comando
+   com baixo desempenho, podem ser necessárias outras investigações utilizando
+   o comando <xref linkend="sql-explain" endterm="sql-explain-title"> do
+   <productname>PostgreSQL</productname>. A <xref linkend="using-explain">
+   discute o comando <command>EXPLAIN</command> e outros métodos para
+   compreender o comportamento individual de um comando.
+  </para>
+
+ <sect1 id="monitoring-ps">
+  <title>Ferramentas padrão do Unix</Title>
+
+  <indexterm zone="monitoring-ps">
+   <primary>ps</primary>
+   <secondary>para monitorar atividade</secondary>
+  </indexterm>
+
+  <para>
+   O <productname>PostgreSQL</productname> modifica, na maioria das plataformas,
+   o seu título de comando mostrado pelo <command>ps</command> de forma que os
+   processos servidor individuais possam ser prontamente identificados.
+   Um exemplo do que é mostrado é:
+
+<screen>
+<prompt>$</prompt> <userinput>ps auxww | grep ^postgres</userinput>
+
+<computeroutput>
+postgres   960  0.0  1.1  6104 1480 pts/1    SN   13:17   0:00 postmaster -i
+postgres   963  0.0  1.1  7084 1472 pts/1    SN   13:17   0:00 postgres: stats buffer process
+postgres   965  0.0  1.1  6152 1512 pts/1    SN   13:17   0:00 postgres: stats collector process
+postgres   998  0.0  2.3  6532 2992 pts/1    SN   13:18   0:00 postgres: tgl runbug 127.0.0.1 idle
+postgres  1003  0.0  2.4  6532 3128 pts/1    SN   13:19   0:00 postgres: tgl regression [local] SELECT waiting
+postgres  1016  0.1  2.4  6532 3080 pts/1    SN   13:19   0:00 postgres: tgl regression [local] idle in transaction
+</computeroutput>
+</screen>
+
+   A forma apropriada para chamar o <command>ps</command> varia entre
+   plataformas diferentes, assim como os detalhes mostrados. Este exemplo foi
+   tirado de um sistema Linux recente. O primeiro processo listado neste
+   exemplo é o <application>postmaster</application>, o processo servidor
+   mestre. Os argumentos do comando mostrados são os mesmos fornecidos quando o
+   <application>postmaster</application> foi ativado. Os dois processos
+   seguintes implementam o coletor de estatísticas, que será descrito em
+   detalhes na próxima seção (Não estão presentes quando o sistema é configurado
+   para não ativar o coletor de estatísticas). Cada um dos demais processos é um
+   processo servidor tratando uma conexão cliente. Cada um destes processos
+   define a exibição da sua linha de comando na forma:
+
+<screen>
+<computeroutput>postgres: <replaceable>usuário</replaceable> <replaceable>banco_de_dados</replaceable> <replaceable>hospedeiro</replaceable> <replaceable>atividade</replaceable></computeroutput>
+</screen>
+
+  Os itens usuário, banco de dados e hospedeiro originais da conexão permanecem
+  o mesmo durante toda a existência da conexão cliente, mas o indicador de
+  atividade muda.
+  <footnote>
+   <para>
+    A conexão com um outro banco de dados, ou por outro usuário, fecha a conexão
+    existente e cria uma nova conexão com outro identificador de processo.
+    (N. do T.)
+   </para>
+  </footnote>
+  <footnote>
+   <para>
+     O <productname>pgpool</productname> é um servidor de <literal>pool</> de
+     conexões para o <productname>PostgreSQL</productname>, que executa entre
+     os clientes do <productname>PostgreSQL</productname> e os processos
+     servidor. O cliente do <productname>PostgreSQL</productname> se
+     conecta ao <productname>pgpool</productname> como se este fosse um
+     servidor <productname>PostgreSQL</productname> padrão. Quando se usa o
+     <productname>pgpool</productname> é monitorado o <literal>pool</literal>,
+     e não um determinado cliente. (N. do T.)
+   </para>
+  </footnote>
+  A atividade pode ser <literal>idle</literal> (ou seja, ociosa, aguardando por
+  um comando do cliente), <literal>idle in transaction</literal> (aguardando
+  pelo cliente dentro de um bloco <command>BEGIN</command>), ou o nome de um
+  tipo de comando como <literal>SELECT</literal>. Além disso, é anexado
+  <literal>waiting</literal> se o processo servidor estiver aguardando no
+  momento por um bloqueio mantido por outro processo servidor. No exemplo acima
+  pode ser inferido que o processo 1003 está aguardando o processo 1016
+  completar sua transação e, portanto, liberar algum bloqueio.
+  </para>
+
+  <tip>
+  <para>
+  O <productname>Solaris</productname> requer tratamento especial. Deve ser
+  utilizado <command>/usr/ucb/ps</command> em vez de <command>/bin/ps</command>.
+  Também devem ser utilizados dois sinalizadores <option>w</option>, e não
+  apenas um. Além disso, a chamada original do comando <command>postmaster</>
+  deve possuir um status exibido pelo <command>ps</command> mais curto que o
+  exibido por cada processo servidor. Se estas três coisas não forem feitas, a
+  saída do <command>ps</command> para cada processo servidor será a linha de
+  comando original do <command>postmaster</command>.
+  </para>
+  </tip>
+ </sect1>
+
+ <sect1 id="monitoring-stats">
+  <title>O coletor de estatísticas</title>
+
+  <indexterm zone="monitoring-stats">
+   <primary>estatísticas</primary>
+  </indexterm>
+
+  <para>
+   O <firstterm>coletor de estatísticas</> do <productname>PostgreSQL</>
+   é um subsistema de apoio a coleta e relatório de informações sobre as
+   atividades do servidor. Atualmente, o coletor pode contar acessos a tabelas
+   e índices em termos de blocos de disco e linhas individuais. Também apóia a
+   determinação exata do comando sendo executado no momento pelos outros
+   processos servidor.
+  </para>
+
+ <sect2 id="monitoring-stats-setup">
+  <title>Configuração da coleta de estatísticas</title>
+
+  <para>
+   Uma vez que a coleta de estatísticas adiciona alguma sobrecarga à execução do
+   comando, o sistema pode ser configurado para coletar informações, ou não.
+   Isto é controlado por parâmetros de configuração, normalmente definidos no
+   arquivo <filename>postgresql.conf</filename> (para obter detalhes sobre como
+   definir os parâmetros de configuração deve ser consultada a
+   <xref linkend="runtime-config"> ).
+  </para>
+
+  <para>
+   O parâmetro <xref linkend="guc-stats-start-collector"> deve ser definido como
+   <literal>true</literal> para que o coletor de estatísticas seja ativado.
+   Esta é a definição padrão e recomendada, mas pode ser desabilitado se não
+   houver interesse nas estatísticas e for desejado eliminar até a última gota
+   de sobrecarga (Entretanto, provavelmente o ganho será pequeno). Deve ser
+   observado que esta opção não pode ser mudada enquanto o servidor está
+   executando.
+  </para>
+
+  <para>
+   Os parâmetros <xref linkend="guc-stats-command-string">,
+   <xref linkend="guc-stats-block-level"> e <xref linkend="guc-stats-row-level">
+   controlam a quantidade de informação que é enviada para o coletor e,
+   portanto, determinam quanta sobrecarga ocorre em tempo de execução.
+   Determinam se o processo servidor envia para o coletor a cadeia de caracteres
+   do comando corrente, as estatísticas de acesso no nível de bloco de disco, e
+   as estatísticas de acesso no nível de linha, respectivamente.
+   Normalmente estes parâmetros são definidos no arquivo
+   <filename>postgresql.conf</filename> e, portanto, se aplicam a todos os
+   processos servidor, mas é possível ativá-los ou desativá-los para sessões
+   individuais utilizando o comando
+   <xref linkend="sql-set" endterm="sql-set-title"> (Para evitar que os
+   usuários comuns escondam suas atividades do administrador, somente os
+   superusuários podem alterar estes parâmetros através do comando
+   <command>SET</command>).
+  </para>
+
+   <note>
+    <para>
+     Uma vez que o valor dos parâmetros <varname>stats_command_string</varname>,
+     <varname>stats_block_level</varname> e <varname>stats_row_level</varname>
+     são <literal>false</literal> por padrão, muito poucas estatísticas são
+     coletadas na configuração padrão. Habilitar uma ou mais destas variáveis
+     de configuração aumenta, significativamente, a quantidade de dados úteis
+     produzidos pelo coletor de estatísticas, ao custo de uma sobrecarga
+     adicional em tempo de execução.
+    </para>
+   </note>
+
+ </sect2>
+
+ <sect2 id="monitoring-stats-views">
+  <title>Ver as estatísticas coletadas</title>
+
+  <para>
+   Estão disponíveis diversas visões pré-definidas para mostrar os resultados
+   das estatísticas coletadas, conforme listado na
+   <xref linkend="monitoring-stats-views-table">. Como alternativa, podem ser
+   construídas visões personalizadas utilizando as funções de estatísticas
+   subjacentes.
+  </para>
+
+  <para>
+   Ao se utilizar as estatísticas para monitorar a atividade corrente, é
+   importante ter em mente que as informações não são atualizadas
+   instantaneamente. Cada processo servidor individual transmite os novos
+   contadores de acesso a bloco e a linha para o coletor logo antes de ficar
+   ocioso; portanto, um comando ou transação ainda em progresso não afeta os
+   totais exibidos. Também, o próprio coletor emite um novo relatório no máximo
+   uma vez a cada <varname>pgstat_stat_interval</varname> milissegundos
+   (500 por padrão). Portanto, as informações mostradas são anteriores à
+   atividade corrente.
+   A informação do comando corrente é enviada para o coletor imediatamente, mas
+   ainda está sujeita ao retardo de <varname>pgstat_stat_interval</varname>
+   antes de se tornar visível.
+  </para>
+
+  <para>
+   Outro ponto importante é que, quando se solicita a um processo servidor para
+   mostrar uma destas estatísticas, primeiro este busca os relatórios mais
+   recentes emitidos pelo processo coletor, e depois continua utilizando este
+   instantâneo para todas as visões e funções de estatística até o término da
+   transação corrente. Portanto, as estatísticas parecem não mudar enquanto se
+   permanece na transação corrente. Isto é uma característica, e não um erro,
+   porque permite realizar várias consultas às estatísticas e correlacionar os
+   resultados sem se preocupar com números variando por baixo. Se desejar ver
+   novos resultados a cada consulta, certifique-se que as consultas estão fora
+   de qualquer bloco de transação.
+  </para>
+
+  <table id="monitoring-stats-views-table">
+   <title>Visões de estatísticas padrão</title>
+
+   <tgroup cols="2">
+    <thead>
+     <row>
+      <entry>Nome da visão</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><structname>pg_stat_activity</></entry>
+      <entry>Uma linha por processo servidor, mostrando o <acronym>ID</acronym>
+      do processo, o banco de dados, o usuário, o comando corrente e a hora em
+      que o comando corrente começou a executar. As colunas que mostram os dados
+      do comando corrente somente estão disponíveis quando o parâmetro
+      <varname>stats_command_string</varname> está habilitado. Além disso,
+      estas colunas mostram o valor nulo a menos que o usuário consultando a
+      visão seja um superusuário, ou o mesmo usuário dono do processo sendo
+      mostrado (Deve ser observado que devido ao retardo do que é informado pelo
+      coletor, o comando corrente somente será mostrado no caso dos comandos
+      com longo tempo de execução).</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_stat_database</></entry>
+      <entry>Uma linha por banco de dados, mostrando o número de processos
+      servidor ativos, total de transações efetivadas e total de transações
+      canceladas neste banco de dados, total de blocos de disco lidos e total
+      de acertos no <literal>buffer</literal> (ou seja, solicitações de leitura
+      de bloco evitadas por encontrar o bloco no <literal>cache</literal> do
+      <literal>buffer</literal>).
+     </entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_stat_all_tables</></entry>
+      <entry>Para cada tabela do banco de dados corrente, o número total de:
+      varreduras seqüenciais e de índice; linhas retornadas por cada
+      tipo de varredura; linhas inseridas, atualizadas e excluídas.</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_stat_sys_tables</></entry>
+      <entry>O mesmo que <structname>pg_stat_all_tables</structname>, exceto que
+      somente são mostradas as tabelas do sistema.</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_stat_user_tables</></entry>
+      <entry>O mesmo que <structname>pg_stat_all_tables</structname>, exceto que
+      somente são mostradas as tabelas de usuário.</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_stat_all_indexes</></entry>
+      <entry>Para cada índice do banco de dados corrente, o total de varreduras
+      de índice que utilizaram este índice, o número de linhas do índice lidas,
+      e o número de linhas da tabela buscadas com sucesso (Pode ser menor quando
+      existem entradas do índice apontando para linhas da tabela expiradas)
+      </entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_stat_sys_indexes</></entry>
+      <entry>O mesmo que <structname>pg_stat_all_indexes</structname>, exceto
+      que somente são mostrados os índices das tabelas do sistema.</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_stat_user_indexes</></entry>
+      <entry>O mesmo que <structname>pg_stat_all_indexes</structname>, exceto
+      que somente são mostrados os índices das tabelas de usuário.</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_statio_all_tables</></entry>
+      <entry>Para cada tabela do banco de dados corrente, o número total de
+      blocos de disco da tabela lidos, o número de acertos no
+      <literal>buffer</literal>, o número de blocos de disco lidos e acertos no
+      <literal>buffer</literal> para todos os índices da tabela, o número de
+      blocos de disco lidos e acertos no <literal>buffer</literal> para a tabela
+      auxiliar TOAST da tabela (se houver), e o número de blocos de disco lidos
+      e acertos no <literal>buffer</literal> para o índice da tabela TOAST.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_statio_sys_tables</></entry>
+      <entry>O mesmo que <structname>pg_statio_all_tables</structname>, exceto
+      que somente são mostradas as tabelas do sistema.</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_statio_user_tables</></entry>
+      <entry>O mesmo que <structname>pg_statio_all_tables</structname>, exceto
+      que somente são mostradas as tabelas de usuário.</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_statio_all_indexes</></entry>
+      <entry>Para cada índice do banco de dados corrente, o número de blocos de
+      disco lidos e de acertos no <literal>buffer</literal> para o índice.
+      </entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_statio_sys_indexes</></entry>
+      <entry>O mesmo que <structname>pg_statio_all_indexes</structname>, exceto
+      que somente são mostrados os índices das tabelas do sistema.</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_statio_user_indexes</></entry>
+      <entry>O mesmo que <structname>pg_statio_all_indexes</structname>, exceto
+      que somente são mostrados os índices das tabelas de usuário.</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_statio_all_sequences</></entry>
+      <entry>Para cada objeto de seqüência do banco de dados corrente, o número
+      de blocos de disco lidos e de acertos no <literal>buffer</literal> para a
+      seqüência.</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_statio_sys_sequences</></entry>
+      <entry>O mesmo que <structname>pg_statio_all_sequences</structname>,
+      exceto que somente são mostradas as seqüências do sistema (Atualmente não
+      está definida nenhuma seqüência do sistema e, portanto, esta visão está
+      sempre vazia).</entry>
+     </row>
+
+     <row>
+      <entry><structname>pg_statio_user_sequences</></entry>
+      <entry>O mesmo que <structname>pg_statio_all_sequences</structname>,
+      exceto que somente são mostradas as seqüências de usuário.</entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+  <para>
+   As estatísticas por índice são particularmente úteis para determinar quais
+   índices estão sendo utilizados e quão efetivos são.
+  </para>
+
+  <para>
+   As visões <structname>pg_statio_</structname> são úteis, principalmente, para
+   determinar a efetividade do <literal>cache</literal> do <literal>buffer</>.
+   Quando o número de leituras físicas no disco é muito menor do que o número de
+   acertos no <literal>buffer</literal>, então o <literal>cache</literal> está
+   respondendo à maioria das solicitações de leitura, evitando chamadas ao
+   núcleo. Entretanto, estas estatísticas não fornecem toda a história: devido
+   à forma como o <productname>PostgreSQL</productname> trata a E/S em disco,
+   dados que não estão no <literal>cache</literal> do <literal>buffer</> do
+   <productname>PostgreSQL</productname> podem estar no <literal>cache</literal>
+   de E/S do núcleo e, portanto, podem ser lidos sem que haja necessidade
+   de uma leitura física. Os usuários interessados em obter informações mais
+   detalhadas sobre o comportamento de E/S do <productname>PostgreSQL</>, são
+   aconselhados a utilizar o coletor de estatísticas do
+   <productname>PostgreSQL</productname> em combinação com os utilitários do
+   sistema operacional que permitem analisar o tratamento da E/S pelo núcleo.
+  </para>
+
+  <para>
+   Podem ser criadas outras formas de ver as estatísticas, escrevendo consultas
+   que utilizam as mesmas funções subjacentes de acesso às estatísticas
+   utilizadas pelas visões padrão. Esta funções estão listadas na
+   <xref linkend="monitoring-stats-funcs-table">. As funções de acesso por banco
+   de dados, recebem como argumento o OID do banco de dados que identifica para
+   qual banco de dados é o relatório. As funções por tabela e por índice recebem
+   o OID da tabela ou do índice, respectivamente (Deve ser observado que somente
+   podem ser vistos por estas funções as tabelas e índices presentes no banco de
+   dados corrente). As funções de acesso por processo servidor recebem o número
+   de ID do processo servidor, que varia de um ao número de processos servidor
+   ativos no momento.
+  </para>
+
+  <table id="monitoring-stats-funcs-table">
+   <title>Funções de acesso às estatísticas</title>
+
+   <tgroup cols="3">
+    <thead>
+     <row>
+      <entry>Função</entry>
+      <entry>Tipo retornado</entry>
+      <entry>Descrição</entry>
+     </row>
+    </thead>
+
+    <tbody>
+     <row>
+      <entry><literal><function>pg_stat_get_db_numbackends</function>(<type>oid</type>)</literal></entry>
+      <entry><type>integer</type></entry>
+      <entry>
+       Número de processos servidor ativos conectados ao banco de dados
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_db_xact_commit</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Transações efetivadas no banco de dados
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_db_xact_rollback</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Transações canceladas no banco de dados
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_db_blocks_fetched</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Número de solicitações de busca de blocos de disco para o banco de dados
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_db_blocks_hit</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Número de solicitações de busca de blocos de disco para o banco de dados
+       encontradas no <literal>cache</literal>
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_numscans</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Número de varreduras seqüenciais realizadas quando o argumento é uma
+       tabela, ou o número de varreduras de índice quando o argumento é um
+       índice
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_tuples_returned</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Número de linhas lidas por varreduras seqüenciais quando o argumento é
+       uma tabela, ou o número de linhas do índice lidas quando o argumento é
+       um índice
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_tuples_fetched</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Número de linhas válidas (não expiradas) da tabela buscadas por
+       varreduras seqüenciais quando o argumento é uma tabela, ou buscadas por
+       varreduras de índice, utilizando este índice, quando o argumento é um
+       índice
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_tuples_inserted</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Número de linhas inseridas na tabela
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_tuples_updated</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Número de linhas atualizadas na tabela
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_tuples_deleted</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Número de linhas excluídas da tabela
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_blocks_fetched</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Número de solicitações de busca de bloco de disco para a tabela ou índice
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_blocks_hit</function>(<type>oid</type>)</literal></entry>
+      <entry><type>bigint</type></entry>
+      <entry>
+       Número de solicitações de busca de bloco de disco encontradas no
+       <literal>cache</literal> para a tabela ou o índice
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_backend_idset</function>()</literal></entry>
+      <entry><type>conjunto de integer</type></entry>
+      <entry>
+       Conjunto de IDs de processos servidor ativos no momento (de 1 ao
+       número de processos servidor ativos). Veja o exemplo de utilização no
+       texto.
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_backend_pid</function>()</literal></entry>
+      <entry><type>integer</type></entry>
+      <entry>
+       ID de processo do processo servidor conectado à sessão corrente
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_backend_pid</function>(<type>integer</type>)</literal></entry>
+      <entry><type>integer</type></entry>
+      <entry>
+       ID de processo do processo servidor especificado
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_backend_dbid</function>(<type>integer</type>)</literal></entry>
+      <entry><type>oid</type></entry>
+      <entry>
+       ID de banco de dados do processo servidor especificado
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_backend_userid</function>(<type>integer</type>)</literal></entry>
+      <entry><type>oid</type></entry>
+      <entry>
+       ID de usuário do processo servidor especificado
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_backend_activity</function>(<type>integer</type>)</literal></entry>
+      <entry><type>text</type></entry>
+      <entry>
+       Comando ativo do processo servidor especificado (nulo se o usuário
+       corrente não for um superusuário nem o mesmo usuário da sessão sendo
+       consultada, ou se <varname>stats_command_string</varname> não estiver
+       habilitado)
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_get_backend_activity_start</function>(<type>integer</type>)</literal></entry>
+      <entry><type>timestamp with time zone</type></entry>
+      <entry>
+       A hora em que o comando executando no momento, no processo servidor
+       especificado, começou (nulo se o usuário corrente não for um superusuário
+       nem o mesmo usuário da sessão sendo consultada, ou se
+       <varname>stats_command_string</varname> não estiver habilitado)
+      </entry>
+     </row>
+
+     <row>
+      <entry><literal><function>pg_stat_reset</function>()</literal></entry>
+      <entry><type>boolean</type></entry>
+      <entry>
+       Reinicia todas as estatísticas atualmente coletadas
+      </entry>
+     </row>
+    </tbody>
+   </tgroup>
+  </table>
+
+   <note>
+    <para>
+     <function>pg_stat_get_db_blocks_fetched</function> menos
+     <function>pg_stat_get_db_blocks_hit</function> fornece o número de chamadas
+     à função <function>read()</function> do núcleo feitas para a tabela, índice
+     ou banco de dados; mas o número verdadeiro de leituras físicas é geralmente
+     menor por causa da <literal>buferização</literal> no nível do núcleo.
+    </para>
+   </note>
+
+  <para>
+   A função <function>pg_stat_get_backend_idset</function> fornece uma maneira
+   conveniente de gerar uma linha para cada processo servidor ativo.
+   Por exemplo, para mostrar o <acronym>PID</acronym> e o comando corrente de
+   todos os processos servidor:
+
+<programlisting>
+SELECT pg_stat_get_backend_pid(s.backendid) AS procpid,
+       pg_stat_get_backend_activity(s.backendid) AS current_query
+    FROM (SELECT pg_stat_get_backend_idset() AS backendid) AS s;
+</programlisting>
+  </para>
+
+ </sect2>
+ </sect1>
+
+ <sect1 id="monitoring-locks">
+  <title>Ver os bloqueios</title>
+
+  <indexterm zone="monitoring-locks">
+   <primary>bloqueio</primary>
+   <secondary>monitoramento</secondary>
+  </indexterm>
+
+  <para>
+   Outra ferramenta útil para monitorar a atividade do banco de dados é a
+   tabela do sistema <structname>pg_locks</structname>. Esta tabela permite ao
+   administrador do banco de dados ver informações sobre os bloqueios ativos
+   no gerenciador de bloqueios. Por exemplo, esta funcionalidade pode ser
+   utilizada para:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Ver todos os bloqueios ativos no momento, todos os bloqueios nas
+      relações em um determinado banco de dados, todos os bloqueios em uma
+      determinada relação, ou todos os bloqueios mantidos por uma determinada
+      sessão do <productname>PostgreSQL</productname>.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Determinar a relação no banco de dados corrente com mais bloqueios
+      não concedidos (que pode ser uma origem de contenção entre clientes
+      do banco de dados).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Determinar o efeito da contenção de bloqueio sobre o desempenho global do
+      banco de dados, assim como até que ponto a contenção varia com o tráfego
+      global do banco de dados.
+     </para>
+    </listitem>
+   </itemizedlist>
+
+   Os detalhes da visão <structname>pg_locks</structname> são mostrados na
+   <xref linkend="view-pg-locks">.
+   Para obter informações adicionais sobre bloqueio e gerenciamento de
+   simultaneidade no <productname>PostgreSQL</productname>, consulte o
+   <xref linkend="mvcc">.
+  </para>
+ </sect1>
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

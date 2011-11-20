@@ -1,0 +1,114 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/rollback_prepared.sgml,v 1.3 2006/09/16 00:30:20 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-ROLLBACK-PREPARED">
+ <refmeta>
+  <refentrytitle id="sql-rollback-prepared-title">ROLLBACK PREPARED</refentrytitle>
+  <refmiscinfo>SQL - Instruções da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>ROLLBACK PREPARED</refname>
+  <refpurpose>cancela uma transação previamente preparada para uma efetivação de duas fases</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-rollback-prepared">
+  <primary>ROLLBACK PREPARED</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+ROLLBACK PREPARED <replaceable class="parameter">id_transação</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>ROLLBACK PREPARED</command> desfaz a transação que está
+   no estado preparado.
+   <footnote>
+    <para>
+     <productname>Oracle</productname> &mdash;
+     O comando <command>ROLLBACK</command> é utilizado para desfazer o
+     trabalho realizado na transação corrente, ou para desfazer manualmente
+     o trabalho realizado por uma transação distribuída duvidosa.
+     A cláusula <literal>FORCE</literal> deve ser especificada para desfazer
+     manualmente uma transação distribuída duvidosa.
+     A transação é identificada pelo texto contendo seu ID de transação
+     local ou global.
+     Para descobrir os IDs destas transações, deve ser consultada a visão
+     do dicionário de dados <database class="table">DBA_2PC_PENDING</database>.
+     O comando <command>ROLLBACK</command> com a cláusula <literal>FORCE</>
+     desfaz apenas a transação especificada, sem afetar a transação corrente.
+     <ulink url="http://download-east.oracle.com/docs/cd/B14117_01/server.101/b10759/statements_9021.htm">
+     <trademark class='registered'>Oracle</trademark> Database SQL Reference
+     10g Release 1 (10.1) Part Number B10759-01</ulink> (N. do T.)
+    </para>
+   </footnote>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">id_transação</replaceable></term>
+    <listitem>
+     <para>
+      O identificador de transação da transação a ser desfeita.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Para desfazer uma transação preparada é necessário ser o mesmo usuário
+   que executou a transação originalmente, ou ser um superusuário, mas não
+   é necessário estar na mesma sessão que executou a transação.
+  </para>
+
+  <para>
+   Este comando não pode ser executado dentro de um bloco de transação.
+   A transação preparada é desfeita imediatamente.
+  </para>
+
+  <para>
+   A visão do sistema
+   <link linkend="view-pg-prepared-xacts">
+   <database class="table">pg_prepared_xacts</database></link>
+   mostra todas as transações preparadas disponíveis no momento.
+  </para>
+ </refsect1>
+
+ <refsect1 id="sql-rollback-prepared-examples">
+  <title id="sql-rollback-prepared-examples-title">Exemplos</title>
+  <para>
+   Desfazer a transação identificada pelo identificador de transação
+   <database>foobar</database>:
+
+<programlisting>
+ROLLBACK PREPARED 'foobar';
+</programlisting>
+  </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-prepare-transaction" endterm="sql-prepare-transaction-title"></member>
+   <member><xref linkend="sql-commit-prepared" endterm="sql-commit-prepared-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>

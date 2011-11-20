@@ -1,0 +1,971 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/indices.sgml,v 1.49 2005/01/08 22:13:25 tgl Exp $ -->
+
+<chapter id="indexes">
+ <title id="indexes-title">Índices</title>
+
+ <indexterm zone="indexes">
+  <primary>indice</primary>
+ </indexterm>
+
+ <para>
+  Os índices são um modo comum de melhorar o desempenho do banco de dados.
+  O índice permite ao servidor de banco de dados encontrar e trazer linhas
+  específicas muito mais rápido do que faria sem o índice. Entretanto, os
+  índices também produzem trabalho adicional para o sistema de banco de dados
+  como um todo devendo, portanto, serem utilizados com sensatez.
+ </para>
+
+
+ <sect1 id="indexes-intro">
+  <title>Introdução</title>
+
+  <para>
+   Suponha a existência de uma tabela como:
+<programlisting>
+CREATE TABLE teste1 (
+    id        integer,
+    conteudo  varchar
+);
+</programlisting>
+   e um aplicativo requerendo muitas consultas da forma:
+<programlisting>
+SELECT conteudo FROM teste1 WHERE id = <replaceable>constante</replaceable>;
+</programlisting>
+   Sem preparo prévio, o sistema teria que varrer toda a tabela
+   <structname>teste1</structname>, linha por linha, para encontrar todas as
+   entradas correspondentes. Havendo muitas linhas em
+   <structname>teste1</structname>, e somente poucas linhas (talvez somente uma
+   ou nenhuma) retornadas pela consulta, então este método é claramente
+   ineficiente. Porém, se o sistema fosse instruído para manter um índice para
+   a coluna <structfield>id</structfield>, então poderia ser utilizado um método
+   mais eficiente para localizar as linhas correspondentes. Por exemplo, só
+   necessitaria percorrer uns poucos níveis dentro da árvore de procura.
+  </para>
+
+  <para>
+   Uma abordagem semelhante é utilizada pela maioria dos livros, fora os de
+   ficção: os termos e os conceitos procurados freqüentemente pelos leitores
+   são reunidos em um índice alfabético colocado no final do livro. O leitor
+   interessado pode percorrer o índice rapidamente e ir direto para a página
+   desejada, em vez de ter que ler o livro por inteiro em busca do que está
+   procurando. Assim como é tarefa do autor prever os itens que os leitores
+   mais provavelmente vão procurar, é tarefa do programador de banco de dados
+   prever quais índices trarão benefícios.
+  </para>
+
+  <para>
+   Pode ser utilizado o seguinte comando para criar um índice
+   na coluna <structfield>id</structfield>:
+<programlisting>
+CREATE INDEX idx_teste1_id ON teste1 (id);
+</programlisting>
+   O nome <structname>idx_teste1_id</structname> pode ser escolhido
+   livremente, mas deve ser usado algo que permita lembrar mais tarde
+   para que serve o índice.
+  </para>
+
+  <para>
+   Para remover um índice é utilizado o comando <command>DROP INDEX</command>.
+   Os índices podem ser adicionados ou removidos das tabelas a qualquer instante.
+  </para>
+
+  <para>
+   Após o índice ser criado, não é necessária mais nenhuma intervenção
+   adicional: o sistema atualiza o índice quando a tabela é modificada, e
+   utiliza o índice nas consultas quando julgar mais eficiente que a varredura
+   seqüencial da tabela.
+   Porém, talvez seja necessário executar regularmente o comando
+   <command>ANALYZE</command> para atualizar as estatísticas, para permitir
+   que o planejador de comandos tome as decisões corretas.
+   Consulte o <xref linkend="performance-tips"> para obter informações
+   sobre como descobrir se o índice está sendo utilizado; e quando e porque o
+   planejador pode decidir <emphasis>não</emphasis> utilizar um índice.
+  </para>
+
+  <para>
+   Os índices também podem beneficiar os comandos de atualização
+   (<command>UPDATE</command>) e de exclusão (<command>DELETE</command>) com
+   condição de procura. Além disso, os índices também podem ser utilizados em
+   consultas com junção. Portanto, um índice definido em uma coluna que faça
+   parte da condição de junção pode acelerar, significativamente, a consulta.
+  </para>
+
+  <para>
+   Quando um índice é criado, o sistema precisa mantê-lo sincronizado com a
+   tabela. Isto adiciona um trabalho extra para as operações de manipulação de
+   dados. Portanto, os índices não essenciais ou não utilizados devem ser
+   removidos. Deve ser observado que uma consulta ou um comando de manipulação
+   de dados pode utilizar, no máximo, um índice por tabela.
+  </para>
+ </sect1>
+
+
+ <sect1 id="indexes-types">
+  <title>Tipos de índice</title>
+
+  <para>
+   O <productname>PostgreSQL</productname> disponibiliza vários tipos de índice:
+   <literal>B-tree</literal> (árvore B), <literal>R-tree</literal> (árvore R),
+   <literal>Hash</literal>
+   <footnote>
+    <para>
+      <literal>hashing</literal> &mdash; valor de identificação produzido
+      através da execução de uma operação numérica, denominada função de
+      <literal>hashing</literal>, em um item de dado. O valor identifica de
+      forma exclusiva o item de dado, mas exige um espaço de armazenamento bem
+      menor. Por isso, o computador pode localizar mais rapidamente os valores
+      de <literal>hashing</literal> que os itens de dado, que são mais
+      extensos. Uma tabela de <literal>hashing</literal> associa cada valor a
+      um item de dado exclusivo. Webster's New World Dicionário de Informática,
+      Brian Pfaffenberger, Editora Campus, 1999. (N. do T.)
+    </para>
+   </footnote>
+   e <literal>GiST</literal>. Cada tipo de índice utiliza um algoritmo
+   diferente, mais apropriado para tipos diferentes de consulta.
+   Por padrão, o comando <command>CREATE INDEX</command> cria um índice
+   <literal>B-tree</literal>, adequado para a maioria das situações comuns.
+  </para>
+
+  <para>
+   <indexterm>
+    <primary>indice</primary>
+    <secondary>B-tree</secondary>
+   </indexterm>
+   <indexterm>
+    <primary>B-tree</primary>
+    <see>índice</see>
+   </indexterm>
+   Os índices <literal>B-tree</literal> podem tratar consultas de igualdade e
+   de faixa, em dados que podem ser classificados em alguma ordem.
+   Em particular, o planejador de comandos do
+   <productname>PostgreSQL</productname> leva em consideração utilizar um
+   índice <literal>B-tree</literal> sempre que uma coluna indexada está
+   envolvida em uma comparação utilizando um dos seguintes operadores:
+
+   <simplelist>
+    <member><literal>&lt;</literal></member>
+    <member><literal>&lt;=</literal></member>
+    <member><literal>=</literal></member>
+    <member><literal>&gt;=</literal></member>
+    <member><literal>&gt;</literal></member>
+   </simplelist>
+
+   As construções equivalentes a combinações destes operadores, tais como
+   <literal>BETWEEN</> e <literal>IN</>, também podem ser implementadas com
+   procura de índice <literal>B-tree</literal> (Mas deve ser observado que
+   <literal>IS NULL</> não é equivalente a <literal>=</> e não é indexável).
+  </para>
+
+  <para>
+   O otimizador também pode utilizar um índice <literal>B-tree</literal> nos
+   comandos envolvendo os operadores de correspondência com padrão
+   <literal>LIKE</literal>, <literal>ILIKE</literal>, <literal>~</literal> e
+   <literal>~*</literal>, <emphasis>se</emphasis> o padrão estiver ancorado ao
+   início da cadeia de caracteres como, por exemplo, em <literal>col LIKE
+   'foo%'</literal> ou <literal>col ~ '^foo'</literal>, mas não em
+   <literal>col LIKE '%bar'</literal>. Entretanto, se o servidor não utilizar o
+   idioma C, será necessário criar um índice com uma classe de operadores
+   especial, para dar suporte a indexação de consultas com correspondência com
+   padrão. Consulte a <xref linkend="indexes-opclass"> adiante.
+  </para>
+
+  <para>
+   A consulta abaixo mostra o idioma.
+   <footnote>
+    <para>
+     Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+    </para>
+   </footnote>
+  </para>
+
+<screen>
+<prompt>=&gt;</prompt> <userinput>\pset title Idioma</userinput>
+<prompt>=&gt;</prompt> <userinput>SELECT name, setting FROM pg_settings WHERE name LIKE 'lc%';</userinput>
+
+<computeroutput>
+            Idioma
+    name     |    setting
+-------------+----------------
+ lc_collate  | pt_BR.iso88591
+ lc_ctype    | pt_BR.iso88591
+ lc_messages | pt_BR.iso88591
+ lc_monetary | pt_BR.iso88591
+ lc_numeric  | pt_BR.iso88591
+ lc_time     | pt_BR.iso88591
+(6 linhas)
+</computeroutput>
+</screen>
+
+  <para>
+   <indexterm>
+    <primary>indice</primary>
+    <secondary>R-tree</secondary>
+   </indexterm>
+   <indexterm>
+    <primary>R-tree</primary>
+    <see>índice</see>
+   </indexterm>
+   Os índices <literal>R-tree</literal> são adequados para consultas a dados
+   espaciais. Para criar um índice <literal>R-tree</literal> deve ser utilizado
+   um comando da forma:
+<synopsis>
+CREATE INDEX <replaceable>nome</replaceable> ON <replaceable>tabela</replaceable> USING RTREE (<replaceable>coluna</replaceable>);
+</synopsis>
+   O planejador de comandos do <productname>PostgreSQL</productname>
+   considera utilizar um índice <literal>R-tree</literal> sempre que
+   a coluna indexada está envolvida em uma comparação utilizando um
+   dos seguintes operadores:
+
+   <simplelist>
+    <member><literal>&lt;&lt;</literal></member>
+    <member><literal>&amp;&lt;</literal></member>
+    <member><literal>&amp;&gt;</literal></member>
+    <member><literal>&gt;&gt;</literal></member>
+    <member><literal>@</literal></member>
+    <member><literal>~=</literal></member>
+    <member><literal>&amp;&amp;</literal></member>
+   </simplelist>
+
+   (Consulte a <xref linkend="functions-geometry"> para conhecer o significado
+   destes operadores).
+  </para>
+
+  <para>
+   <indexterm>
+    <primary>indice</primary>
+    <secondary>hash</secondary>
+   </indexterm>
+   <indexterm>
+    <primary>hash</primary>
+    <see>índice</see>
+   </indexterm>
+   Os índices <literal>hash</literal> podem tratar apenas comparações de
+   igualdade simples. O planejador de comandos do
+   <productname>PostgreSQL</productname> considera utilizar
+   um índice <literal>hash</literal> sempre que a coluna indexada está
+   envolvida em uma comparação utilizando o operador <literal>=</literal>.
+   O seguinte comando é utilizado para criar um índice <literal>hash</literal>:
+<synopsis>
+CREATE INDEX <replaceable>nome</replaceable> ON <replaceable>tabela</replaceable> USING HASH (<replaceable>coluna</replaceable>);
+</synopsis>
+   <note>
+    <para>
+     Os testes mostraram que os índices <literal>hash</literal> do
+     <productname>PostgreSQL</productname> não têm desempenho melhor do que os
+     índices <literal>B-tree</literal>, e que o tamanho e o tempo de construção
+     dos índices <literal>hash</literal> são muito piores. Por estas razões,
+     desencoraja-se a utilização dos índices <literal>hash</literal>.
+    </para>
+   </note>
+  </para>
+
+  <para>
+   Os índices <literal>GiST</literal> não são um único tipo de índice, mas em
+   vez disto uma infraestrutura dentro da qual podem sem implementadas muitas
+   estratégias de indexação diferentes.
+   Assim sendo, os operadores em particular com os quais o índice
+   <literal>GiST</literal> pode ser utilizado variam dependendo da estratégia
+   de indexação (a <firstterm>classe de operadores</>). Para obter mais
+   informações consulte a <xref linkend="GiST">.
+  </para>
+
+  <para>
+   O método de índice <literal>B-tree</literal> é uma implementação das árvores
+   B de alta-simultaneidade de Lehman-Yao.
+   O método de índice <literal>R-tree</literal> implementa árvores R padrão
+   utilizando o algoritmo de partição quadrática de Guttman.
+   O método de índice <literal>hash</literal> é uma uma implementação do
+   <literal>hashing</literal> linear de Litwin.
+   São mencionados os algoritmos utilizados somente para indicar que todos
+   estes métodos de índice são inteiramente dinâmicos, não necessitando de
+   otimização periódica (como é o caso, por exemplo, dos métodos de acesso
+   <literal>hash</literal> estáticos).
+  </para>
+ </sect1>
+
+
+ <sect1 id="indexes-multicolumn">
+  <title>Índices com várias colunas</title>
+
+  <indexterm zone="indexes-multicolumn">
+   <primary>indice</primary>
+   <secondary>várias colunas</secondary>
+  </indexterm>
+
+  <para>
+   Pode ser definido um índice contendo mais de uma coluna. Por exemplo,
+   se existir uma tabela como:
+<programlisting>
+CREATE TABLE teste2 (
+  principal  int,
+  secundario int,
+  nome       varchar
+);
+</programlisting>
+   (Digamos que seja armazenado no banco de dados o diretório
+   <filename class="directory">/dev</filename>...)
+   e freqüentemente sejam feitas consultas como
+<programlisting>
+SELECT nome
+    FROM  teste2
+    WHERE principal = <replaceable>constante</replaceable> AND secundario = <replaceable>constante</replaceable>;
+</programlisting>
+   então é apropriado definir um índice contendo as colunas
+   <structfield>principal</structfield> e
+   <structfield>secundario</structfield> como, por exemplo,
+<programlisting>
+CREATE INDEX idx_teste2_princ_sec ON teste2 (principal, secundario);
+</programlisting>
+  </para>
+
+  <para>
+   Atualmente, somente as implementações de <literal>B-tree</literal> e
+   <literal>GiST</literal> suportam índices com várias colunas.
+   Podem ser especificadas até 32 colunas (Este limite pode ser alterado
+   durante a geração do <productname>PostgreSQL</productname>; consulte o
+   arquivo <filename>pg_config_manual.h</filename>).
+  </para>
+
+  <para>
+   O planejador de comandos pode utilizar um índice com várias colunas, para
+   comandos envolvendo a coluna mais à esquerda na definição do índice mais
+   qualquer número de colunas listadas à sua direita, sem omissões. Por exemplo,
+   um índice contendo <literal>(a, b, c)</literal> pode ser utilizado em comandos
+   envolvendo todas as colunas <literal>a</literal>, <literal>b</literal> e
+   <literal>c</literal>, ou em comandos envolvendo <literal>a</literal> e
+   <literal>b</literal>, ou em comandos envolvendo apenas <literal>a</literal>,
+   mas não em outras combinações (Em um comando envolvendo <literal>a</literal>
+   e <literal>c</literal>, o planejador pode decidir utilizar o índice apenas
+   para <literal>a</literal>, tratando <literal>c</literal> como uma coluna
+   comum não indexada). Obviamente, cada coluna deve ser usada com os operadores
+   apropriados para o tipo do índice; as cláusulas envolvendo outros operadores
+   não são consideradas.
+  </para>
+
+  <para>
+   Os índices com várias colunas só podem ser utilizados se as cláusulas
+   envolvendo as colunas indexadas forem ligadas por <literal>AND</literal>.
+   Por exemplo,
+<programlisting>
+SELECT nome
+    FROM  teste2
+    WHERE principal = <replaceable>constante</replaceable> OR secundario = <replaceable>constante</replaceable>;
+</programlisting>
+   não pode utilizar o índice <structname>idx_teste2_princ_sec</structname>
+   definido acima para procurar pelas duas colunas (Entretanto, pode ser
+   utilizado para procurar apenas a coluna <structfield>principal</structfield>).
+  </para>
+
+  <para>
+   Os índices com várias colunas devem ser usados com moderação. Na maioria das
+   vezes, um índice contendo apenas uma coluna é suficiente, economizando espaço
+   e tempo. Um índice com mais de três colunas é quase certo não ser útil,
+   a menos que a utilização da tabela seja muito peculiar.
+  </para>
+ </sect1>
+
+
+ <sect1 id="indexes-unique">
+  <title>Índices únicos</title>
+
+  <indexterm zone="indexes-unique">
+   <primary>indice</primary>
+   <secondary>unicidade</secondary>
+  </indexterm>
+
+  <para>
+   Os índices também podem ser utilizados para impor a unicidade do valor de
+   uma coluna, ou a unicidade dos valores combinados de mais de uma coluna.
+<synopsis>
+CREATE UNIQUE INDEX <replaceable>nome</replaceable> ON <replaceable>tabela</replaceable> (<replaceable>coluna</replaceable> <optional>, ...</optional>);
+</synopsis>
+   Atualmente, somente os índices <literal>B-tree</literal> poder ser declarados
+   como únicos.
+  </para>
+
+  <para>
+   Quando o índice é declarado como único, não pode existir na tabela mais de
+   uma linha com valores indexados iguais. Os valores nulos não são considerados
+   iguais. Um índice único com várias colunas rejeita apenas os casos onde todas
+   as colunas indexadas são iguais em duas linhas.
+  </para>
+
+  <para>
+   O <productname>PostgreSQL</productname> cria, automaticamente, um índice
+   único quando é definida na tabela uma restrição de unicidade ou uma chave
+   primária. O índice abrange as colunas que compõem a chave primária ou as
+   colunas únicas (um índice com várias colunas, se for apropriado), sendo este
+   o mecanismo que impõe a restrição.
+  </para>
+
+  <note>
+   <para>
+    A forma preferida para adicionar restrição de unicidade a uma tabela é
+    por meio do comando <literal>ALTER TABLE ... ADD CONSTRAINT</literal>.
+    A utilização de índices para impor restrições de unicidade pode ser
+    considerada um detalhe de implementação que não deve ser acessado
+    diretamente. Entretanto, deve-se ter em mente que não é necessário
+    criar índices em colunas únicas manualmente; caso se faça,
+    simplesmente se duplicará o índice criado automaticamente.
+   </para>
+  </note>
+ </sect1>
+
+
+ <sect1 id="indexes-expressional">
+  <title>Índices em expressões</title>
+
+  <indexterm zone="indexes-expressional">
+   <primary>indice</primary>
+   <secondary sortas="expressions">em expressões</secondary>
+  </indexterm>
+
+  <para>
+   Uma coluna do índice não precisa ser apenas uma coluna da tabela subjacente,
+   pode ser uma função ou uma expressão escalar computada a partir de uma
+   ou mais colunas da tabela. Esta funcionalidade é útil para obter acesso
+   rápido às tabelas com base em resultados de cálculos.
+   <footnote>
+    <para>
+     O sistema gerenciador de banco de dados
+     <productname>Oracle 10g</productname> também permite usar função e
+     expressão escalar na coluna do índice, mas o
+     <productname>SQL Server 2000</productname> e o
+     <productname>DB2 8.1</productname> não permitem.
+     <ulink url="http://www.answers.com/topic/comparison-of-relational-database-management-systems">
+     Comparison of relational database management systems</ulink> (N. do T.)
+    </para>
+   </footnote>
+  </para>
+
+  <para>
+   Por exemplo, uma forma habitual de fazer comparações não diferenciando letras
+   maiúsculas de minúsculas é utilizar a função <function>lower</function>:
+<screen>
+<userinput>SELECT * FROM teste1 WHERE lower(col1) = 'valor';</userinput>
+
+-- Para não diferenciar maiúsculas e minúsculas, acentuadas ou não (N. do T.)
+
+<userinput>SELECT * FROM teste1 WHERE lower(to_ascii(col1)) = 'valor';</userinput>
+
+</screen>
+   Esta consulta pode utilizar um índice, caso algum tenha sido definido
+   sobre o resultado da operação
+   <literal>lower(col1)</literal>:
+<screen>
+<userinput>CREATE INDEX idx_teste1_lower_col1 ON teste1 (lower(col1));</userinput>
+
+-- Para incluir as letras acentuadas (N. do T.)
+
+<userinput>CREATE INDEX idx_teste1_lower_ascii_col1 ON teste1 (lower(to_ascii(col1)));</userinput>
+</screen>
+  </para>
+
+  <para>
+   Se o índice for declarado como <literal>UNIQUE</literal>, este impede a
+   criação de linhas cujos valores de <literal>col1</literal> diferem apenas em
+   letras maiúsculas e minúsculas, assim como a criação de linhas cujos valores
+   de <literal>col1</literal> são realmente idênticos.
+   Portanto, podem ser utilizados índices em expressões para impor restrições
+   que não podem ser definidas como restrições simples de unicidade.
+  </para>
+
+  <para>
+   Como outro exemplo, quando são feitas habitualmente consultas do tipo
+<programlisting>
+SELECT * FROM pessoas WHERE (primeiro_nome || ' ' || ultimo_nome) = 'Manoel Silva';
+</programlisting>
+   então vale a pena criar um índice como:
+<programlisting>
+CREATE INDEX idx_pessoas_nome ON pessoas ((primeiro_nome || ' ' || ultimo_nome));
+</programlisting>
+  </para>
+
+  <para>
+   A sintaxe do comando <command>CREATE INDEX</command> normalmente requer que
+   se escreva parênteses em torno da expressão do índice, conforme mostrado no
+   segundo exemplo. Os parênteses podem ser omitidos quando a expressão for
+   apenas uma chamada de função, como no primeiro exemplo.
+  </para>
+
+  <para>
+   É relativamente dispendioso manter expressões de índice,
+   uma vez que a expressão derivada deve ser computada para cada linha
+   inserida, ou sempre que for atualizada. Portanto, devem ser utilizadas
+   somente quando as consultas que usam o índice são muito freqüentes.
+  </para>
+ </sect1>
+
+
+ <sect1 id="indexes-opclass">
+  <title>Classes de operadores</title>
+
+  <indexterm zone="indexes-opclass">
+   <primary>classe de operadores</primary>
+  </indexterm>
+
+  <para>
+   A definição do índice pode especificar uma
+   <firstterm>classe de operadores</firstterm> para cada coluna do índice.
+<synopsis>
+CREATE INDEX <replaceable>nome</replaceable> ON <replaceable>tabela</replaceable> (<replaceable>coluna</replaceable> <replaceable>classe_de_operadores</replaceable> <optional>, ...</optional>);
+</synopsis>
+   A classe de operadores identifica os operadores a serem utilizados pelo
+   índice para esta coluna. Por exemplo, um índice <literal>B-tree</literal>
+   no tipo <type>int4</type> utiliza a classe <literal>int4_ops</literal>;
+   esta classe de operadores inclui funções de comparação para valores do tipo
+   <type>int4</type>. Na prática, a classe de operadores padrão para o tipo de
+   dado da coluna é normalmente suficiente. O ponto principal de existir classes
+   de operadores é que, para alguns tipos de dado, pode haver mais de um
+   comportamento do índice que faça sentido. Por exemplo, pode-se desejar
+   ordenar o tipo de dado do número complexo tanto pelo valor absoluto quanto
+   pela parte real, o que pode ser feito definindo duas classes de operadores
+   para o tipo de dado e, depois, selecionando a classe apropriada ao definir o
+   índice.
+  </para>
+
+  <para>
+   Existem, também, algumas classes de operadores nativas além das classes padrão:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      As classes de operadores <literal>text_pattern_ops</literal>,
+      <literal>varchar_pattern_ops</literal>,
+      <literal>bpchar_pattern_ops</literal> e
+      <literal>name_pattern_ops</literal> dão suporte a índices
+      <literal>B-tree</literal> nos tipos <type>text</type>,
+      <type>varchar</type>, <type>char</type> e <type>name</type>,
+      respectivamente. A diferença com relação às classes de operadores comuns,
+      é que os valores são comparados estritamente caractere por caractere,
+      em vez de seguir as regras de classificação (<literal>collation</literal>
+      <footnote>
+       <para>
+        <literal>collation</literal>; <literal>collating sequence</literal>
+        &mdash; Um método para comparar duas cadeias de caracteres comparáveis.
+        Todo conjunto de caracteres possui seu <literal>collation</literal>
+        padrão. (Second Informal Review Draft) ISO/IEC 9075:1992, Database
+        Language SQL- July 30, 1992. (N. do T.)
+       </para>
+      </footnote>
+      ) específicas do idioma. Isto torna estas classes de operadores
+      adequadas para serem usadas em comandos envolvendo expressões de
+      correspondência com padrão (expressões regulares <literal>LIKE</literal>
+      ou POSIX) se o servidor não usar o idioma <quote>C</quote> padrão.
+      Como exemplo, uma coluna <type>varchar</type> pode ser indexada da
+      seguinte forma:
+<programlisting>
+CREATE INDEX idx_teste ON tbl_teste (col varchar_pattern_ops);
+</programlisting>
+      Se for utilizado o idioma C, em vez disso pode ser criado um índice
+      com a classe de operadores padrão, e ainda assim será útil para comandos
+      com correspondência com padrão. Deve ser observado, também, que deve ser
+      criado um índice com a classe de operadores padrão se for desejado
+      que consultas envolvendo comparações comuns utilizem um índice. Estas
+      consultas não podem utilizar a classe de operadores
+      <literal><replaceable>xxx</replaceable>_pattern_ops</literal>.
+      Podem ser criados vários índices na mesma coluna com classes de
+      operadores diferentes.
+     </para>
+    </listitem>
+   </itemizedlist>
+  </para>
+
+  <para>
+    A consulta a seguir mostra todas as classes de operadores definidas:
+
+<programlisting>
+SELECT am.amname AS index_method,
+       opc.opcname AS opclass_name
+    FROM pg_am am, pg_opclass opc
+    WHERE opc.opcamid = am.oid
+    ORDER BY index_method, opclass_name;
+</programlisting>
+
+    Podendo ser estendida para mostrar todos os operadores incluídos em cada classe:
+<programlisting>
+SELECT am.amname AS index_method,
+       opc.opcname AS opclass_name,
+       opr.oprname AS opclass_operator
+    FROM pg_am am, pg_opclass opc, pg_amop amop, pg_operator opr
+    WHERE opc.opcamid = am.oid AND
+          amop.amopclaid = opc.oid AND
+          amop.amopopr = opr.oid
+    ORDER BY index_method, opclass_name, opclass_operator;
+</programlisting>
+  </para>
+ </sect1>
+
+
+ <sect1 id="indexes-partial">
+  <title>Índices parciais</title>
+
+  <indexterm zone="indexes-partial">
+   <primary>indice</primary>
+   <secondary>parcial</secondary>
+  </indexterm>
+
+  <para>
+   O <firstterm>índice parcial</firstterm> é um índice construído sobre um
+   subconjunto da tabela; o subconjunto é definido por uma expressão condicional
+   (chamada de <firstterm>predicado</firstterm>
+   <footnote>
+    <para>
+     predicado &mdash; especifica uma condição que pode ser avaliada
+     para obter um resultado booleano.
+     (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+     ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+    </para>
+   </footnote>
+   do índice parcial). O índice contém entradas apenas para as linhas da tabela
+   que satisfazem o predicado.
+   <footnote>
+    <para>
+     Os sistemas gerenciadores de banco de dados
+     <productname>SQL Server 2000</productname>,
+     <productname>Oracle 10g</productname> e <productname>DB2 8.1</productname>
+     não possuem suporte a índices parciais.
+     <ulink url="http://www.answers.com/topic/comparison-of-relational-database-management-systems">
+     Comparison of relational database management systems</ulink> (N. do T.)
+    </para>
+   </footnote>
+  </para>
+
+  <para>
+   O principal motivo para criar índices parciais é evitar a indexação de
+   valores freqüentes. Como um comando procurando por um valor freqüente
+   (um que apareça em mais que uma pequena percentagem de linhas da tabela)
+   não utiliza o índice de qualquer forma, não faz sentido manter estas linhas
+   no índice. Isto reduz o tamanho do índice, acelerando as consultas que
+   utilizam este índice. Também acelera muitas operações de atualização da
+   tabela, porque o índice não precisa ser atualizado em todos os casos.
+   O <xref linkend="indexes-partial-ex1"> mostra uma aplicação possível desta
+   idéia.
+  </para>
+
+  <example id="indexes-partial-ex1">
+   <title>Definir um índice parcial excluindo valores freqüentes</title>
+
+   <para>
+    Suponha que os registros de acesso ao servidor <literal>Web</literal> são
+    armazenadas no banco de dados, e que a maioria dos acessos se origina na
+    faixa de endereços de IP da própria organização, mas alguns são de fora
+    (digamos, empregados com acesso discado). Se a procura por endereços de IP
+    for principalmente sobre acesso externo, provavelmente não será necessário
+    indexar a faixa de endereços de IP correspondente à subrede da própria
+    organização.
+   </para>
+
+   <para>
+    Assumindo que exista uma tabela como esta:
+<programlisting>
+CREATE TABLE tbl_registro_acesso (
+    url         varchar,
+    ip_cliente  inet,
+    ...
+);
+</programlisting>
+   </para>
+
+   <para>
+    Para criar um índice parcial adequado ao exemplo acima, deve ser utilizado
+    um comando como:
+<programlisting>
+CREATE INDEX idx_registro_acesso_ip_cliente ON tbl_registro_acesso (ip_cliente)
+    WHERE NOT (ip_cliente > inet '192.168.100.0' AND ip_cliente &lt; inet '192.168.100.255');
+</programlisting>
+   </para>
+
+   <para>
+    Uma consulta típica que pode utilizar este índice é:
+<programlisting>
+SELECT * FROM tbl_registro_acesso WHERE url = '/index.html' AND ip_cliente = inet '212.78.10.32';
+</programlisting>
+    Uma consulta típica que não pode utilizar este índice é:
+<programlisting>
+SELECT * FROM access_log WHERE client_ip = inet '192.168.100.23';
+</programlisting>
+   </para>
+
+   <para>
+    Deve ser observado que este tipo de índice parcial requer que os valores
+    comuns sejam determinados a priori. Se a distribuição dos valores for
+    inerente (devido à natureza da aplicação) e estática (não muda com o tempo)
+    não é difícil, mas se os valores freqüentes se devem meramente
+    à carga de dados coincidentes, pode ser necessário bastante trabalho
+    de manutenção.
+   </para>
+  </example>
+
+  <para>
+   Outra possibilidade é excluir do índice os valores para os quais o perfil
+   típico das consultas não tenha interesse, conforme mostrado no <xref
+   linkend="indexes-partial-ex2">. Isto resulta nas mesmas vantagens mostradas
+   acima, mas impede o acesso aos valores <quote>que não interessam</quote> por
+   meio deste índice, mesmo se a varredura do índice for vantajosa neste caso.
+   Obviamente, definir índice parcial para este tipo de cenário requer muito
+   cuidado e experimentação.
+  </para>
+
+  <example id="indexes-partial-ex2">
+   <title>Definir um índice parcial excluindo valores que não interessam</title>
+
+   <para>
+    Se existir uma tabela contendo tanto pedidos faturados quanto não faturados,
+    onde os pedidos não faturados representam uma pequena parte da tabela, mas
+    são os mais acessados, é possível melhorar o desempenho criando um
+    índice somente para os pedidos não faturados. O comando para criar o índice
+    deve ser parecido com este:
+<programlisting>
+CREATE INDEX idx_pedidos_nao_faturados ON pedidos (num_pedido)
+    WHERE faturado is not true;
+</programlisting>
+   </para>
+
+   <para>
+    Uma possível consulta utilizando este índice é
+<programlisting>
+SELECT * FROM pedidos WHERE faturado is not true AND num_pedido &lt; 10000;
+</programlisting>
+    Entretanto, o índice também pode ser utilizado em consultas não envolvendo
+    <structfield>num_pedido</structfield> como, por exemplo,
+<programlisting>
+SELECT * FROM pedidos WHERE faturado is not true AND valor &gt; 5000.00;
+</programlisting>
+    Embora não seja tão eficiente quanto seria um índice parcial na coluna
+    <structfield>valor</structfield>, porque o sistema precisa percorrer
+    o índice por inteiro, mesmo assim, havendo poucos pedidos não faturados,
+    a utilização do índice parcial para localizar apenas os pedidos não
+    faturados pode ser vantajosa.
+   </para>
+
+   <para>
+    Deve ser observado que a consulta abaixo não pode utilizar este índice:
+<programlisting>
+SELECT * FROM pedidos WHERE num_pedido = 3501;
+</programlisting>
+    O pedido número 3501 pode estar entre os pedidos faturados e os não
+    faturados.
+   </para>
+  </example>
+
+  <para>
+   O <xref linkend="indexes-partial-ex2"> também ilustra que a coluna indexada
+   e a coluna utilizada no predicado não precisam corresponder.
+   O <productname>PostgreSQL</productname> suporta índices parciais com
+   predicados arbitrários, desde que somente estejam envolvidas colunas da
+   tabela indexada. Entretanto, deve-se ter em mente que o predicado deve
+   corresponder às condições utilizadas nos comandos que supostamente vão se
+   beneficiar do índice. Para ser preciso, o índice parcial somente pode ser
+   utilizado em um comando se o sistema puder reconhecer que a condição
+   <literal>WHERE</literal> do comando implica matematicamente no predicado do
+   índice. O <productname>PostgreSQL</productname> não possui um provador de
+   teoremas sofisticado que possa reconhecer expressões equivalentes
+   matematicamente escritas de forma diferente (Não seria apenas extremamente
+   difícil criar este provador de teoremas geral, como este provavelmente também
+   seria muito lento para poder ser usado na prática). O sistema pode reconhecer
+   implicações de desigualdades simples como, por exemplo,
+   <quote>x &lt; 1</quote> implica <quote>x &lt; 2</quote>; senão, a condição do
+   predicado deve corresponder exatamente a uma parte da condição
+   <literal>WHERE</literal> da consulta, ou o índice não será reconhecido como
+   utilizável.
+  </para>
+
+  <para>
+   Um terceiro uso possível para índices parciais não requer que o índice seja
+   utilizado em nenhum comando. A idéia é criar um índice único sobre um
+   subconjunto da tabela, como no <xref linkend="indexes-partial-ex3">, impondo
+   a unicidade das linhas que satisfazem o predicado do índice, sem restringir
+   as que não fazem parte.
+  </para>
+
+  <example id="indexes-partial-ex3">
+   <title>Definir um índice único parcial</title>
+
+   <para>
+    Suponha que exista uma tabela contendo perguntas e respostas. Deseja-se
+    garantir que exista apenas uma resposta <quote>correta</quote> para uma dada
+    pergunta, mas que possa haver qualquer número de respostas
+    <quote>incorretas</quote>. Abaixo está mostrada a forma de fazer:
+<programlisting>
+CREATE TABLE tbl_teste
+    (pergunta  text,
+     resposta  text,
+     correto   bool
+     ...
+);
+
+CREATE UNIQUE INDEX unq_resposta_correta ON tbl_teste (pergunta, correto)
+    WHERE correto;
+</programlisting>
+    Esta forma é particularmente eficiente quando existem
+    poucas respostas corretas, e muitas incorretas.
+   </para>
+  </example>
+
+  <para>
+   Finalizando, também pode ser utilizado um índice parcial para mudar a escolha
+   do plano de comando feito pelo sistema. Pode ocorrer que conjuntos de dados
+   com distribuições peculiares façam o sistema utilizar um índice quando na
+   realidade não deveria. Neste caso, o índice pode ser definido de modo que não
+   esteja disponível para o comando com problema. Normalmente, o
+   <productname>PostgreSQL</productname> realiza escolhas razoáveis com relação
+   à utilização dos índices (por exemplo, evita-os ao buscar valores com muitas
+   ocorrências, desta maneira o primeiro exemplo realmente economiza apenas o
+   tamanho do índice, mas não é necessário para evitar a utilização do índice),
+   e a escolha de um plano grosseiramente incorreto é motivo para um relatório
+   de erro.
+  </para>
+
+  <para>
+   Deve-se ter em mente que a criação de um índice parcial indica que você sabe
+   pelo menos tanto quanto o planejador de comandos sabe. Em particular, você
+   sabe quando um índice poderá ser vantajoso. A formação deste conhecimento
+   requer experiência e compreensão sobre como os índices funcionam no
+   <productname>PostgreSQL</productname>. Na maioria dos casos, a vantagem de um
+   índice parcial sobre um índice regular não é muita.
+  </para>
+
+  <para>
+   Podem ser obtidas informações adicionais sobre índices parciais em
+   <xref linkend="STON89b">, <xref linkend="OLSON93"> e
+   <xref linkend="SESHADRI95">.
+  </para>
+ </sect1>
+
+ <sect1 id="indexes-examine">
+  <title>Examinar a utilização do índice</title>
+
+  <indexterm zone="indexes-examine">
+   <primary>indice</primary>
+   <secondary>examinar a utilização</secondary>
+  </indexterm>
+
+  <para>
+   Embora no <productname>PostgreSQL</productname> os índices não necessitem de
+   manutenção e ajuste, ainda assim é importante verificar quais índices são
+   utilizados realmente pelos comandos executados no ambiente de produção.
+   O exame da utilização de um índice por um determinado comando é feito por
+   meio do comando <xref linkend="sql-explain" endterm="sql-explain-title">;
+   sua aplicação para esta finalidade está ilustrada na
+   <xref linkend="using-explain">. Também é possível coletar estatísticas
+   gerais sobre a utilização dos índices por um servidor em operação da maneira
+   descrita na <xref linkend="monitoring-stats">.
+  </para>
+
+  <para>
+   É difícil formular um procedimento genérico para determinar
+   quais índices devem ser definidos. Existem vários casos típicos que
+   foram mostrados nos exemplos das seções anteriores.
+   Muita verificação experimental é necessária na maioria dos casos.
+   O restante desta seção dá algumas dicas.
+  </para>
+
+  <itemizedlist>
+   <listitem>
+    <para>
+     O comando <xref linkend="sql-analyze" endterm="sql-analyze-title"> sempre
+     deve ser executado primeiro. Este comando coleta estatísticas sobre a
+     distribuição dos valores na tabela. Esta informação é necessária para
+     estimar o número de linhas retornadas pela consulta, que é uma necessidade
+     do planejador para atribuir custos dentro da realidade para cada plano de
+     comando possível. Na ausência de estatísticas reais, são assumidos alguns
+     valores padrão, quase sempre imprecisos. O exame da utilização do índice
+     pelo aplicativo sem a execução prévia do comando <command>ANALYZE</command>
+     é, portanto, uma causa perdida.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     Devem ser usados dados reais para a verificação experimental. O uso de
+     dados de teste para definir índices diz quais índices são necessários para
+     os dados de teste, e nada além disso.
+    </para>
+
+    <para>
+     É especialmente fatal utilizar conjuntos de dados de teste muito pequenos.
+     Enquanto selecionar 1.000 de cada 100.000 linhas pode ser um candidato para
+     um índice, selecionar 1 de cada 100 linhas dificilmente será, porque as
+     100 linhas provavelmente cabem dentro de uma única página do disco, e não
+     existe nenhum plano melhor que uma busca seqüencial em uma página do disco.
+    </para>
+
+    <para>
+     Também deve ser tomado cuidado ao produzir os dados de teste, geralmente
+     não disponíveis quando o aplicativo ainda não se encontra em produção.
+     Valores muito semelhantes, completamente aleatórios, ou inseridos
+     ordenadamente, distorcem as estatísticas em relação à distribuição
+     que os dados reais devem ter.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     Quando os índices não são usados, pode ser útil como teste forçar sua
+     utilização. Existem parâmetros em tempo de execução que podem desabilitar
+     vários tipos de planos (descritos no <xref linkend="runtime-config">).
+     Por exemplo, desabilitar varreduras seqüenciais
+     (<varname>enable_seqscan</varname>) e junções de laço-aninhado
+     (<varname>enable_nestloop</varname>), que são os planos mais básicos,
+     forçam o sistema a utilizar um plano diferente. Se o sistema ainda assim
+     escolher a varredura seqüencial ou a junção de laço-aninhado então existe,
+     provavelmente, algum problema mais fundamental devido ao qual o índice não
+     está sendo utilizado como, por exemplo, a condição da consulta não
+     corresponde ao índice (Qual tipo de consulta pode utilizar qual tipo de
+     índice é explicado nas seções anteriores).
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     Se forçar a utilização do índice não faz o índice ser usado, então existem
+     duas possibilidades: ou o sistema está correto e realmente a utilização do
+     índice não é apropriada, ou a estimativa de custo dos planos de comando não
+     estão refletindo a realidade. Portanto, deve ser medido o tempo da consulta
+     com e sem índices. O comando <command>EXPLAIN ANALYZE</command>
+     pode ser útil neste caso.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     Se for descoberto que as estimativas de custo estão erradas existem,
+     novamente, duas possibilidades. O custo total é calculado a partir do
+     custo por linha de cada nó do plano vezes a seletividade estimada do nó do
+     plano. Os custos dos nós do plano podem ser ajustados usando parâmetros em
+     tempo de execução (descritos no <xref linkend="runtime-config">).
+     A estimativa imprecisa da seletividade é devida a
+     estatísticas insuficientes. É possível melhorar esta situação ajustando
+     os parâmetros de captura de estatísticas (consulte o comando
+     <xref linkend="sql-altertable" endterm="sql-altertable-title">).
+    </para>
+
+    <para>
+     Se não for obtido sucesso no ajuste dos custos para ficarem mais
+     apropriados, então pode ser necessário o recurso de forçar a utilização do
+     índice explicitamente. Pode-se, também, desejar fazer contato com os
+     desenvolvedores do <productname>PostgreSQL</productname> para examinar este
+     problema.
+    </para>
+   </listitem>
+  </itemizedlist>
+ </sect1>
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

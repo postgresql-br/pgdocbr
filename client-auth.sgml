@@ -1,0 +1,1042 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/client-auth.sgml,v 1.70 2004/12/27 19:19:23 tgl Exp $
+-->
+
+<chapter id="client-authentication">
+ <title>Autenticação de clientes</title>
+
+ <indexterm zone="client-authentication">
+  <primary>autenticação do cliente</primary>
+ </indexterm>
+
+ <para>
+  Quando um aplicativo cliente se conecta ao servidor de banco de dados
+  especifica o nome de usuário do <productname>PostgreSQL</productname>
+  a ser usado na conexão, de forma semelhante à feita pelo usuário para acessar
+  o sistema operacional <systemitem class="osname">Unix</systemitem>.
+  Dentro do ambiente SQL, o nome de usuário do banco de dados determina os
+  privilégios de acesso aos objetos do banco de dados &mdash; Para obter mais
+  informações deve ser visto o <xref linkend="user-manag">. Portanto, é
+  essencial controlar como os usuários de banco de dados podem se conectar.
+ </para>
+
+ <para>
+  A <firstterm>autenticação</firstterm> é o processo pelo qual o
+  servidor de banco de dados estabelece a identidade do cliente e, por
+  extensão, determina se o aplicativo cliente (ou o usuário
+  executando o aplicativo cliente) tem permissão para se conectar com
+  o nome de usuário que foi informado.
+ </para>
+
+ <para>
+  O <productname>PostgreSQL</productname> possui vários métodos
+  diferentes para autenticação de clientes. O método utilizado para autenticar
+  uma determinada conexão cliente pode ser selecionado tomando por base o
+  endereço de hospedeiro (do cliente), o banco de dados ou o usuário.
+ </para>
+
+ <para>
+  Os nomes de usuário do <productname>PostgreSQL</productname> são logicamente
+  distintos dos nomes de usuário do sistema operacional onde o servidor executa.
+  Se todos os usuários de um determinado servidor de banco de dados também
+  possuem conta no sistema operacional do servidor, é razoável atribuir nomes
+  de usuário do banco de dados correspondendo aos nomes de usuário do sistema
+  operacional. Entretanto, um servidor que aceita conexões remotas pode possuir
+  muitos usuários de banco de dados que não possuem conta no sistema operacional
+  local e, nestes casos, a associação entre os nomes de usuário do banco de
+  dados e os nomes de usuário do sistema operacional não é necessária.
+ </para>
+
+ <sect1 id="auth-pg-hba-conf">
+  <title>O arquivo pg_hba.conf</title>
+
+  <indexterm zone="auth-pg-hba-conf">
+   <primary>pg_hba.conf</primary>
+  </indexterm>
+
+  <para>
+   A autenticação do cliente é controlada pelo arquivo que por tradição se chama
+   <filename>pg_hba.conf</filename> e é armazenado no diretório de dados do
+   agrupamento de bancos de dados.
+   <acronym>HBA</acronym> significa autenticação baseada no hospedeiro
+   (<literal>host-based authentication</literal>). É instalado um arquivo
+   <filename>pg_hba.conf</filename> padrão quando o diretório de dados
+   é inicializado pelo utilitário <command>initdb</command>.
+   Entretanto, é possível colocar o arquivo de configuração da autenticação em
+   outro local; consulte o parâmetro de configuração <xref linkend="guc-hba-file">.
+  </para>
+
+  <para>
+   O formato geral do arquivo <filename>pg_hba.conf</filename> é um conjunto de
+   registros, sendo um por linha. As linhas em branco são ignoradas, da mesma
+   forma que qualquer texto após o caractere de comentário <literal>#</literal>.
+   Um registro é formado por vários campos separados por espaços ou
+   tabulações. Os campos podem conter espaços em branco se o valor do campo
+   estiver entre aspas. Os registros não podem ocupar mais de uma linha.
+  </para>
+
+  <para>
+   Cada registro especifica um tipo de conexão, uma faixa de endereços de IP
+   de cliente (se for relevante para o tipo de conexão), um nome de banco de
+   dados, um nome de usuário e o método de autenticação a ser utilizado nas
+   conexões que correspondem a estes parâmetros. O primeiro registro com o tipo
+   de conexão, endereço do cliente, banco de dados solicitado e nome de usuário
+   que corresponder é utilizado para realizar a autenticação. Não existe
+   <literal>fall-through</literal> (procura exaustiva) ou
+   <literal>backup</literal>: se um registro for escolhido e a autenticação não
+   for bem-sucedida, os próximos registros não serão levados em consideração.
+   Se não houver correspondência com nenhum registro, então o acesso é negado.
+  </para>
+
+  <para>
+   O registro pode ter um dos sete formatos a seguir:
+<synopsis>
+local     <replaceable>banco_de_dados</replaceable> <replaceable>usuário</replaceable> <replaceable>método_de_autenticação</replaceable> <optional><replaceable>opção_de_autenticação</replaceable></optional>
+host      <replaceable>banco_de_dados</replaceable> <replaceable>usuário</replaceable> <replaceable>endereço_de_CIDR</replaceable> <replaceable>método_de_autenticação</replaceable> <optional><replaceable>opção_de_autenticação</replaceable></optional>
+hostssl   <replaceable>banco_de_dados</replaceable> <replaceable>usuário</replaceable> <replaceable>endereço_de_CIDR</replaceable> <replaceable>método_de_autenticação</replaceable> <optional><replaceable>opção_de_autenticação</replaceable></optional>
+hostnossl <replaceable>banco_de_dados</replaceable> <replaceable>usuário</replaceable> <replaceable>endereço_de_CIDR</replaceable> <replaceable>método_de_autenticação</replaceable> <optional><replaceable>opção_de_autenticação</replaceable></optional>
+host      <replaceable>banco_de_dados</replaceable> <replaceable>usuário</replaceable> <replaceable>endereço_de_IP</replaceable> <replaceable>máscara_de_IP</replaceable> <replaceable>método_de_autenticação</replaceable> <optional><replaceable>opção_de_autenticação</replaceable></optional>
+hostssl   <replaceable>banco_de_dados</replaceable> <replaceable>usuário</replaceable> <replaceable>endereço_de_IP</replaceable> <replaceable>máscara_de_IP</replaceable> <replaceable>método_de_autenticação</replaceable> <optional><replaceable>opção_de_autenticação</replaceable></optional>
+hostnossl <replaceable>banco_de_dados</replaceable> <replaceable>usuário</replaceable> <replaceable>endereço_de_IP</replaceable> <replaceable>máscara_de_IP</replaceable> <replaceable>método_de_autenticação</replaceable> <optional><replaceable>opção_de_autenticação</replaceable></optional>
+</synopsis>
+   O significado de cada campo está descrito abaixo:
+
+   <variablelist>
+    <varlistentry>
+     <term><literal>local</literal></term>
+     <listitem>
+      <para>
+       Este registro corresponde às tentativas de conexão feitas utilizando
+       soquete do domínio Unix. Sem um registro deste tipo não são permitidas
+       conexões através de soquete do domínio Unix.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>host</literal></term>
+     <listitem>
+      <para>
+       Este registro corresponde às tentativas de conexão feitas utilizando
+       o protocolo TCP/IP. Os registros <literal>host</literal> correspondem
+       tanto às conexões <acronym>SSL</acronym> (<literal>Secure Socket
+       Layer</literal>), quanto às não <acronym>SSL</acronym>.
+      </para>
+     <note>
+      <para>
+       Não serão possíveis conexões TCP/IP remotas, a menos que o servidor seja
+       inicializado com o valor apropriado para o parâmetro de configuração
+       <xref linkend="guc-listen-addresses">, uma vez que o comportamento
+       padrão é aceitar conexões TCP/IP apenas no endereço retornante
+       (<literal>loopback</literal>)
+       <systemitem class="systemname">localhost</systemitem>.
+      </para>
+     </note>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>hostssl</literal></term>
+     <listitem>
+      <para>
+       Este registro corresponde às tentativas de conexão feitas utilizando o
+       protocolo TCP/IP, mas somente quando a conexão é feita com a criptografia
+       <acronym>SSL</acronym>.
+      </para>
+
+      <para>
+       Para esta opção poder ser utilizada o servidor deve ter sido construído
+       com o suporte a <acronym>SSL</acronym> habilitado. Além disso, o
+       <acronym>SSL</acronym> deve ser habilitado na inicialização do servidor
+       através do parâmetro de configuração <xref linkend="guc-ssl">
+       (Para obter informações adicionais deve ser consultada a
+       <xref linkend="ssl-tcp">).
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>hostnossl</literal></term>
+     <listitem>
+      <para>
+       Este registro é o oposto lógico de <literal>hostssl</>:
+       só corresponde a tentativas de conexão feitas através do protocolo
+       TCP/IP que não utilizam <acronym>SSL</acronym>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>banco_de_dados</replaceable></term>
+     <listitem>
+      <para>
+       Especifica quais bancos de dados este registro corresponde. O valor
+       <literal>all</literal> especifica que corresponde a todos os bancos de
+       dados. O valor <literal>sameuser</literal> especifica que o registro
+       corresponde ao banco de dados com o mesmo nome do usuário fazendo o
+       pedido de conexão. O valor <literal>samegroup</literal> especifica
+       que o usuário deve ser membro do grupo com o mesmo nome do banco de dados
+       do pedido de conexão. Senão, é o nome de um banco de dados específico
+       do <productname>PostgreSQL</productname>. Podem ser fornecidos vários
+       nomes de banco de dados separados por vírgula. Pode ser especificado um
+       arquivo contendo nomes de banco de dados, precedendo o nome do arquivo
+       por <literal>@</literal>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>usuário</replaceable></term>
+     <listitem>
+      <para>
+       Especifica quais usuários do <productname>PostgreSQL</productname> este
+       registro corresponde. O valor <literal>all</literal> especifica que
+       corresponde a todos os usuários. Senão, é o nome de um usuário específico
+       do <productname>PostgreSQL</productname>. Podem ser fornecidos vários
+       nomes de usuário separados por vírgula. Podem ser especificados nomes de
+       grupo precedendo o nome do grupo por <literal>+</literal>. Pode ser
+       especificado um arquivo contendo nomes de usuário precedendo o nome do
+       arquivo por <literal>@</literal>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>endereço_de_CIDR</replaceable></term>
+     <listitem>
+      <para>
+       Especifica a faixa de endereços de IP da máquina cliente que este
+       registro corresponde. Contém um endereço de IP na notação padrão decimal
+       com pontos, e o comprimento da máscara de CIDR (Os endereços de IP
+       somente podem ser especificados numericamente, e não como domínios ou
+       nomes de hospedeiro). O comprimento da máscara indica o número de bits
+       de mais alta ordem que o endereço de IP do cliente deve corresponder. Os
+       bits à direita devem ser zero em um determinado endereço de IP. Não
+       pode haver espaços em branco entre os endereços de IP, a
+       <literal>/</literal> e o comprimento da máscara de CIDR.
+       <footnote>
+        <para>
+         <literal>Classless Internet Domain Routing</literal> &mdash;
+         O CIDR, definido pela RFC1519, elimina o sistema de classes que
+         determinava originalmente a parte de rede de um endereço IP. Como
+         a sub-rede, da qual é uma extensão direta, o CIDR conta com uma máscara
+         de rede explícita para definir o limite entre as partes de rede e de
+         hospedeiro de um endereço.
+         Exemplo: Comprimento: /20; Bits do hospedeiro: 12; Hospedeiros por
+         rede: 4096; Máscara de rede decimal: 255.255.240.0. Manual de
+         Administração do Sistema Unix - Evi Nemeth e outros - Bookman.
+         (N. do T.)
+        </para>
+       </footnote>
+      </para>
+
+      <para>
+       Um <replaceable>endereço_de_CIDR</replaceable> típico seria
+       <literal>172.20.143.89/32</literal> para um único hospedeiro, ou
+       <literal>172.20.143.0/24</literal> para uma rede.
+       Para especificar um único hospedeiro deve ser utilizada uma máscara de
+       CIDR igual a 32 para o IPv4, ou igual a 128 para o IPv6.
+      </para>
+
+      <para>
+       Um endereço especificado no formato IPv4 corresponde às conexões IPv6
+       que possuem o endereço correspondente como, por exemplo,
+       <literal>127.0.0.1</> corresponde ao endereço de IPv6
+       <literal>::ffff:127.0.0.1</>. Uma entrada especificada no formato IPv6
+       corresponde apenas às conexões IPv6, mesmo que represente um endereço
+       na faixa IPv4-em-IPv6. Deve ser observado que as entradas no formato
+       IPv6 serão rejeitadas se a biblioteca C do sistema não possuir suporte
+       a endereços IPv6.
+      </para>
+
+      <para>
+       Este campo se aplica apenas aos registros <literal>host</literal>,
+       <literal>hostssl</literal> e <literal>hostnossl</>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>endereço_de_IP</replaceable></term>
+     <term><replaceable>máscara_de_IP</replaceable></term>
+     <listitem>
+      <para>
+       Estes campos podem ser utilizados como uma alternativa à notação
+       <replaceable>endereço_de_CIDR</replaceable>. Em vez de especificar o
+       comprimento da máscara, a máscara é especificada como uma coluna em
+       separado. Por exemplo, <literal>255.0.0.0</> representa uma máscara de
+       CIDR para endereços de IPv4 com comprimento igual a 8, e
+       <literal>255.255.255.255</> representa uma máscara de CIDR com
+       comprimento igual a 32.
+      </para>
+
+      <para>
+       Estes campos se aplicam apenas aos registros <literal>host</literal>,
+       <literal>hostssl</literal> e <literal>hostnossl</>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>método_de_autenticação</replaceable></term>
+     <listitem>
+      <para>
+       Especifica o método de autenticação a ser utilizado para se conectar
+       através deste registro. Abaixo está mostrado um resumo das escolhas
+       possíveis; os detalhes podem ser encontrados na
+       <xref linkend="auth-methods">.
+
+       <variablelist>
+        <varlistentry>
+         <term><literal>trust</></term>
+         <listitem>
+         <para>
+          A conexão é permitida incondicionalmente. Este método permite a
+          qualquer um que possa se conectar ao servidor de banco de dados
+          <productname>PostgreSQL</productname> se autenticar como o usuário do
+          <productname>PostgreSQL</productname> que for desejado, sem
+          necessidade de senha.
+          Consulte a <xref linkend="auth-trust"> para obter detalhes.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>reject</></term>
+        <listitem>
+         <para>
+          A conexão é rejeitada incondicionalmente. É útil para
+          <quote>eliminar por filtragem</quote> certos hospedeiros de um grupo.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>md5</></term>
+        <listitem>
+         <para>
+          Requer que o cliente forneça uma senha criptografada pelo método
+          <literal>md5</literal> para autenticação.
+          Consulte a <xref linkend="auth-password"> para obter detalhes.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>crypt</></term>
+        <listitem>
+         <para>
+          Requer que o cliente forneça uma senha criptografada através de
+          <function>crypt()</> para autenticação.
+          Deve-se dar preferência ao método <literal>md5</literal> para os
+          clientes com versão 7.2 ou posterior, mas os clientes com versão
+          anterior a 7.2 somente suportam <literal>crypt</>.
+          Consulte a <xref linkend="auth-password"> para obter detalhes.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>password</></term>
+        <listitem>
+         <para>
+          Requer que o cliente forneça uma senha não criptografada para
+          autenticação.
+          Uma vez que a senha é enviada em texto puro pela rede, não deve ser
+          utilizado em redes não confiáveis.
+          Consulte a <xref linkend="auth-password"> para obter detalhes.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>krb4</></term>
+        <listitem>
+         <para>
+          É utilizado Kerberos V4 para autenticar o usuário. Somente disponível
+          para conexões TCP/IP. Consulte a <xref linkend="kerberos-auth"> para
+          obter detalhes.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>krb5</></term>
+        <listitem>
+         <para>
+          É utilizado Kerberos V5 para autenticar o usuário. Somente disponível
+          para conexões TCP/IP. Consulte a <xref linkend="kerberos-auth"> para
+          obter detalhes.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>ident</></term>
+        <listitem>
+         <para>
+          Obtém o nome de usuário do sistema operacional do cliente (para
+          conexões TCP/IP fazendo contato com o servidor de identificação no
+          cliente, para conexões locais obtendo a partir do sistema operacional)
+          e verifica se o usuário possui permissão para se conectar
+          como o usuário de banco de dados solicitado consultando o mapa
+          especificado após a palavra chave <literal>ident</literal>.
+          Consulte a <xref linkend="auth-ident"> para obter detalhes.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>pam</></term>
+        <listitem>
+         <para>
+          Autenticação utilizando o serviço <literal>Pluggable Authentication
+          Modules</literal> (PAM) fornecido pelo sistema operacional. Consulte a
+          <xref linkend="auth-pam"> para obter detalhes.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
+
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>opção_de_autenticação</replaceable></term>
+     <listitem>
+      <para>
+       O significado deste campo opcional depende do método de
+       autenticação escolhido, estando descrito na próxima seção.
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+  </para>
+
+  <para>
+   Os arquivos incluídos pela construção <literal>@</> são lidos como nomes de
+   listas, que podem ser separadas por espaços em branco ou vírgulas. Os
+   comentários são iniciados por <literal>#</literal>, como no arquivo
+   <filename>pg_hba.conf</filename>, sendo permitidas construções <literal>@</>
+   aninhadas. A menos que o nome do arquivo que segue a <literal>@</> seja um
+   caminho absoluto, é considerado como sendo relativo ao diretório que contém
+   o arquivo que faz referência.
+  </para>
+
+  <para>
+   Uma vez que os registros de <filename>pg_hba.conf</filename> são examinados
+   seqüencialmente a cada tentativa de conexão, a ordem dos registros possui
+   significado. Normalmente, os primeiros registros possuem parâmetros de
+   correspondência de conexão mais exigentes e métodos de autenticação menos
+   exigentes, enquanto os últimos registros possuem parâmetros de
+   correspondência menos exigentes e métodos de autenticação mais exigentes.
+   Por exemplo, pode-se desejar utilizar a autenticação <literal>trust</literal>
+   para conexões TCP/IP locais, mas requerer o uso de senha para conexões TCP/IP
+   remotas. Neste caso, o registro especificando a autenticação
+   <literal>trust</literal> para conexões a partir de 127.0.0.1 deve aparecer
+   antes do registro especificando autenticação por senha para uma
+   faixa mais ampla de endereços de IP de cliente permitidos.
+  </para>
+
+  <para>
+   O arquivo <filename>pg_hba.conf</filename> é lido durante a inicialização e
+   quando o processo servidor principal (<command>postmaster</>) recebe um sinal
+   <systemitem>SIGHUP</systemitem>.
+   <indexterm><primary>SIGHUP</primary></indexterm>
+   Se o arquivo for editado enquanto o sistema estiver ativo, será necessário
+   enviar um sinal para o <command>postmaster</> (utilizando
+   <literal>pg_ctl reload</> ou <literal>kill -HUP</>) para fazer com que o
+   arquivo seja lido novamente.
+  </para>
+
+  <para>
+   No <xref linkend="example-pg-hba.conf"> são mostrados alguns exemplos de
+   registros do arquivo <filename>pg_hba.conf</filename>. Para obter detalhes
+   sobre os diferentes métodos de autenticação deve ser consultada a próxima seção.
+  </para>
+
+   <example id="example-pg-hba.conf">
+    <title>Exemplo de registros do arquivo pg_hba.conf</title>
+<programlisting>
+# Permitir qualquer usuário do sistema local se conectar a qualquer banco
+# de dados sob qualquer nome de usuário utilizando os soquetes do domínio
+# Unix (o padrão para conexões locais).
+#
+# TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
+local   all         all                               trust
+
+# A mesma coisa utilizando conexões locais TCP/IP retornantes (loopback).
+#
+# TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
+host    all         all         127.0.0.1/32          trust
+
+# O mesmo que o exemplo anterior mas utilizando uma coluna em separado para
+# máscara de rede.
+#
+# TYPE  DATABASE    USER        IP-ADDRESS    IP-MASK             METHOD
+host    all         all         127.0.0.1     255.255.255.255     trust
+
+# Permitir qualquer usuário de qualquer hospedeiro com endereço de IP 192.168.93.x
+# se conectar ao banco de dados "template1" com o mesmo nome de usuário que "ident"
+# informa para a conexão (normalmente o nome de usuário do Unix).
+#
+# TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
+host    template1   all         192.168.93.0/24       ident sameuser
+
+# Permitir o usuário do hospedeiro 192.168.12.10 se conectar ao banco de dados
+# "template1" se a senha do usuário for fornecida corretamente.
+#
+# TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
+host    template1   all         192.168.12.10/32      md5
+
+# Na ausência das linhas "host" precedentes, estas duas linhas rejeitam todas
+# as conexões oriundas de 192.168.54.1 (uma vez que esta entrada será
+# correspondida primeiro), mas permite conexões Kerberos V de qualquer ponto
+# da Internet. A máscara zero significa que não é considerado nenhum bit do
+# endereço de IP do hospedeiro e, portanto, corresponde a qualquer hospedeiro.
+#
+# TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
+host    all         all         192.168.54.1/32       reject
+host    all         all         0.0.0.0/0             krb5
+
+# Permite os usuários dos hospedeiros 192.168.x.x se conectarem a qualquer
+# banco de dados se passarem na verificação de "ident". Se, por exemplo, "ident"
+# informar que o usuário é "oliveira" e este requerer se conectar como o usuário
+# do PostgreSQL "guest1", a conexão será permitida se houver uma entrada
+# em pg_ident.conf para o mapa "omicron" informando que "oliveira" pode se
+# conectar como "guest1".
+#
+# TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
+host    all         all         192.168.0.0/16        ident omicron
+
+# Se as linhas abaixo forem as únicas três linhas para conexão local, vão
+# permitir os usuários locais se conectarem somente aos seus próprios bancos de
+# dados (bancos de dados com o mesmo nome que seus nomes de usuário), exceto
+# para os administradores e membros do grupo "suporte" que podem se conectar a
+# todos os bancos de dados. O arquivo $PGDATA/admins contém a lista de nomes de
+# usuários. A senha é requerida em todos os casos.
+#
+# TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
+local   sameuser    all                               md5
+local   all         @admins                           md5
+local   all         +suporte                          md5
+
+# As duas últimas linhas acima podem ser combinadas em uma única linha:
+local   all         @admins,+suporte                  md5
+
+# A coluna banco de dados também pode utilizar listas e nomes de arquivos,
+# mas não grupos:
+local   db1,db2,@demodbs  all                         md5
+</programlisting>
+   </example>
+ </sect1>
+
+ <sect1 id="auth-methods">
+  <title>Métodos de autenticação</title>
+  <para>
+   Abaixo estão descritos com mais detalhes os métodos de autenticação.
+  </para>
+
+  <sect2 id="auth-trust">
+   <title>Autenticação de confiança</title>
+
+   <para>
+    Quando é especificada a autenticação <literal>trust</literal>,
+    o <productname>PostgreSQL</productname> assume que qualquer um que possa
+    se conectar ao servidor está autorizado a acessar o banco de dados como
+    qualquer usuário que seja especificado (incluindo o superusuário do banco
+    de dados).
+    É claro que as restrições especificadas para o usuário e para o banco de
+    dados ainda se aplicam.
+    Este método deve ser utilizado somente quando existe uma proteção adequada
+    no nível de sistema operacional para as conexões ao servidor.
+   </para>
+
+   <para>
+    A autenticação <literal>trust</literal> é apropriada e muito conveniente
+    para conexões locais em estações de trabalho com um único usuário.
+    Geralmente <emphasis>não</emphasis> é apropriada em um máquina multiusuária.
+    Entretanto, é possível utilizar <literal>trust</literal> mesmo em uma
+    máquina multiusuária, se for restringido o acesso ao arquivo de soquete do
+    domínio Unix do servidor utilizando permissões do sistema de arquivos.
+    Para fazer isto, deve ser definido o parâmetro de configuração
+    <varname>unix_socket_permissions</varname> (e, possivelmente,
+    <varname>unix_socket_group</varname>) conforme descrito na
+    <xref linkend="runtime-config-connection">. Também pode ser definido o
+    parâmetro de configuração <varname>unix_socket_directory</varname>
+    para colocar o arquivo de soquete em um diretório com restrição adequada.
+   </para>
+
+   <para>
+    Definir as permissões do sistema de arquivos somente serve para as conexões
+    através dos soquetes do Unix. As conexões locais TCP/IP não são restringidas
+    desta maneira; portanto, se for desejado utilizar permissões do sistema de
+    arquivos para segurança local, deve ser removida a linha
+    <literal>host ...  127.0.0.1 ...</literal> do arquivo
+    <filename>pg_hba.conf</filename>, ou mudá-la para que use um método
+    de autenticação diferente de <literal>trust</literal>.
+   </para>
+
+   <para>
+    A autenticação <literal>trust</literal> somente é adequada para as conexões
+    TCP/IP quando se confia em todos os usuários de todas as máquinas que podem
+    se conectar ao servidor de banco de dados pelas linhas do arquivo
+    <filename>pg_hba.conf</filename> que especificam <literal>trust</literal>.
+    Raramente faz sentido utilizar <literal>trust</literal> para conexões
+    TCP/IP, a não ser as oriundas de
+    <systemitem class="systemname">localhost</systemitem>
+    (<systemitem class="systemname">127.0.0.1</systemitem>).
+   </para>
+
+  </sect2>
+
+  <sect2 id="auth-password">
+   <title>Autenticação por senha</title>
+
+   <indexterm>
+    <primary>MD5</>
+   </indexterm>
+   <indexterm>
+    <primary>crypt</>
+   </indexterm>
+   <indexterm>
+    <primary>password</primary>
+    <secondary>autenticação</secondary>
+   </indexterm>
+
+   <para>
+    Os métodos de autenticação baseados em senha são <literal>md5</literal>,
+    <literal>crypt</literal> e <literal>password</literal>. Estes métodos operam
+    de forma semelhante, exceto com relação à forma como a senha é enviada
+    através da conexão, mas somente o método <literal>md5</> suporta senhas
+    criptografadas armazenadas no catálogo do sistema
+    <structname>pg_shadow</structname>; os outros dois métodos requerem que
+    sejam armazenadas senhas não criptografadas neste catálogo.
+   </para>
+
+   <para>
+    Se houver preocupação com relação aos ataques de <quote>farejamento</quote>
+    (<literal>sniffing</literal>) de senhas, então <literal>md5</literal> é o
+    método preferido, com <literal>crypt</literal> como a segunda opção se for
+    necessário suportar clientes pré-7.2. O método <literal>password</literal>
+    deve ser evitado, especialmente em conexões pela Internet aberta (a menos
+    que seja utilizado <acronym>SSL</acronym>, <acronym>SSH</acronym> ou
+    outro método de segurança para proteger a conexão).
+   </para>
+
+   <para>
+    As senhas de banco de dados do <productname>PostgreSQL</productname> são
+    distintas das senhas de usuário do sistema operacional. As senhas de todos
+    os usuários do banco de dados são armazenadas na tabela do catálogo do
+    sistema <literal>pg_shadow</literal>. As senhas podem ser gerenciadas
+    através dos comandos SQL
+    <xref linkend="sql-createuser" endterm="sql-createuser-title"> e
+    <xref linkend="sql-alteruser" endterm="sql-alteruser-title">; por exemplo,
+    <userinput>CREATE USER foo WITH PASSWORD 'segredo';</userinput>. Por padrão,
+    ou seja, se nenhuma senha for definida, é armazenado o valor nulo para a
+    senha e a autenticação da senha é sempre mal-sucedida para este usuário.
+   </para>
+
+  </sect2>
+
+  <sect2 id="kerberos-auth">
+   <title>Autenticação Kerberos</title>
+
+   <indexterm zone="kerberos-auth">
+    <primary>Kerberos</primary>
+   </indexterm>
+
+   <para>
+    <productname>Kerberos</productname> é um sistema de autenticação seguro,
+    padrão da indústria, adequado para computação distribuída em redes públicas.
+    A descrição do sistema <productname>Kerberos</productname>
+    está muito acima do escopo deste documento; de forma geral pode ser
+    bastante complexo (porém poderoso). As páginas <ulink
+    url="http://web.mit.edu/kerberos/">Kerberos: The Network Authentication
+    Protocol</ulink> e <ulink url="ftp://athena-dist.mit.edu">MIT Project
+    Athena</ulink> podem ser um bom ponto de partida para estudá-lo. Existem
+    diversas fontes de distribuição do <productname>Kerberos</productname>.
+   </para>
+
+   <para>
+    Embora o <productname>PostgreSQL</productname> suporte tanto o Kerberos 4
+    quanto o Kerberos 5, somente o Kerberos 5 é recomendado. O Kerberos 4 é
+    considerado inseguro, não sendo mais recomendado para uso geral.
+   </para>
+
+   <para>
+    Para o <productname>Kerberos</productname> poder ser utilizado, o seu
+    suporte deve ser habilitado em tempo de construção. Para obter mais
+    informações deve ser visto o <xref linkend="installation">.
+    São suportados tanto o Kerberos 4 quanto 5, mas pode ser suportada apenas
+    uma versão por uma construção.
+   </para>
+
+   <para>
+    O <productname>PostgreSQL</productname> opera como um serviço Kerberos
+    normal. O nome do serviço principal é
+    <literal><replaceable>nome_do_serviço</replaceable>/<replaceable>nome_do_hospedeiro</replaceable>@<replaceable>domínio</replaceable></literal>,
+    onde <replaceable>nome_do_serviço</replaceable> é <literal>postgres</literal>
+    (a menos que seja selecionado um nome de serviço diferente em tempo de
+    configuração utilizando
+    <literal>./configure --with-krb-srvnam=qualquer_coisa</literal>).
+    O <replaceable>nome_do_hospedeiro</replaceable> é o nome de hospedeiro da
+    máquina servidora totalmente qualificado.
+    O domínio (<literal>realm</literal>) do serviço principal é o domínio
+    preferido da máquina servidora.
+   </para>
+
+   <para>
+    Os principais
+    <footnote>
+     <para>
+      O Kerberos é um sistema de autenticação de terceiros confiável, cuja
+      finalidade principal é permitir pessoas e processos (conhecidos no
+      Kerberos como principais) provarem suas identidades de uma maneira
+      confiável através de redes não seguras. Em vez de transmitir as senhas
+      secretas em aberto, que podem ser interceptadas e lidas por pessoas não
+      autorizadas, os principais obtêm <literal>vouchers</literal>
+      (conhecidos como tíquetes) do Kerberos, utilizados para se autenticar.
+      <ulink url="http://www.net.berkeley.edu/kerberos/k5concepts.html">
+      Kerberos Concepts and Terms</ulink>. (N. do T.)
+     </para>
+    </footnote>
+    dos clientes devem ter seu nome de usuário do
+    <productname>PostgreSQL</productname> como primeiro componente como, por
+    exemplo, <literal>pgusername/outras_coisas@dominio</literal>.
+    Atualmente o domínio do cliente não é verificado pelo
+    <productname>PostgreSQL</productname>; portanto, estando habilitada a
+    autenticação entre domínios, então todo principal de qualquer domínio que
+    puder se comunicar com o que está sendo utilizado será aceito.
+   </para>
+
+   <para>
+    Certifique-se que o arquivo de chaves do servidor é legível (e
+    preferencialmente somente legível) pela conta do servidor
+    <productname>PostgreSQL</productname> (Consulte também a
+    <xref linkend="postgres-user">). O local do arquivo de chaves é
+    especificado pelo parâmetro de configuração em tempo de execução
+    <xref linkend="guc-krb-server-keyfile">
+    (Consulte também a <xref linkend="runtime-config">). O padrão é
+    <filename>/etc/srvtab</filename> se estiver sendo utilizado o Kerberos 4, e
+    <filename>/usr/local/pgsql/etc/krb5.keytab</filename> (o ou diretório
+    especificado como <varname>sysconfdir</varname> em tempo de construção)
+    no Kerberos 5.
+   </para>
+
+   <para>
+    Para gerar o arquivo <filename>keytab</filename> deve ser utilizado,
+    por exemplo (com a versão 5):
+<screen>
+<prompt>kadmin% </><userinput>ank -randkey postgres/server.my.domain.org</>
+<prompt>kadmin% </><userinput>ktadd -k krb5.keytab postgres/server.my.domain.org</>
+</screen>
+    Para obter detalhes deve ser lida a documentação do
+    <productname>Kerberos</productname>.
+   </para>
+
+   <para>
+    Ao se conectar ao banco de dados tenha certeza de possuir um tíquete para o
+    principal correspondendo ao nome de usuário do banco de dados. Como exemplo:
+    Para o nome de usuário do banco de dados <literal>cecilia</literal>, podem
+    ser utilizados tanto o principal <literal>cecilia@EXAMPLE.COM</literal>
+    quanto <literal>cecilia/users.example.com@EXAMPLE.COM</literal>
+    para se autenticar no servidor de banco de dados.
+   </para>
+
+   <para>
+    Se for utilizado no servidor Web <productname>Apache</productname> o módulo
+    <application>mod_auth_kerb</application> de
+    <ulink url="http://modauthkerb.sf.net">Kerberos Module for Apache</ulink>
+    e o <application>mod_perl</application>, pode ser utilizado
+    <literal>AuthType KerberosV5SaveCredentials</literal> com um script
+    <application>mod_perl</application>, proporcionando um acesso seguro
+    ao banco de dados através da Web, sem necessidade de senhas adicionais.
+   </para>
+
+  </sect2>
+
+  <sect2 id="auth-ident">
+   <title>Autenticação baseada no Ident</title>
+
+   <indexterm>
+    <primary>ident</primary>
+   </indexterm>
+
+   <para>
+    O método de autenticação <literal>ident</literal> funciona obtendo o nome
+    de usuário do sistema operacional do cliente, e determinando os nomes de
+    usuário do banco de dados permitidos utilizando um arquivo de mapa que
+    lista os pares de nomes de usuários correspondentes permitidos.
+    A determinação do nome de usuário do cliente é o ponto crítico da segurança,
+    funcionando de forma diferente dependendo do tipo de conexão.
+   </para>
+
+   <sect3 id="auth-ident-tcp-ip">
+    <title>Autenticação Ident através de TCP/IP</title>
+
+   <para>
+    O <quote>Protocolo de Identificação</quote> está descrito no
+    <citetitle>RFC 1413</citetitle>. Virtualmente todo sistema operacional
+    da família Unix é distribuído com um servidor <literal>ident</literal> que
+    atende a porta TCP 113 por padrão. A funcionalidade básica do servidor
+    <literal>ident</literal> é responder a perguntas como <quote>Que usuário
+    inicializou a conexão que sai pela sua porta <replaceable>X</replaceable> e
+    se conecta à minha porta <replaceable>Y</replaceable>?</quote>.
+    Uma vez que o <productname>PostgreSQL</productname> conhece tanto
+    <replaceable>X</replaceable> quanto <replaceable>Y</replaceable> quando a
+    conexão física é estabelecida, pode fazer a pergunta ao servidor
+    <literal>ident</literal> no hospedeiro do cliente se conectando e pode,
+    teoricamente, determinar o usuário do sistema operacional para uma
+    determinada conexão desta maneira.
+   </para>
+
+   <para>
+    O problema deste procedimento é que depende da integridade do cliente:
+    se a máquina cliente não for confiável ou estiver comprometida, alguém
+    querendo fazer um ataque pode executar algum programa na porta 113 e
+    retornar qualquer nome de usuário desejado. Este método de autenticação
+    é, portanto, apropriado apenas para redes fechadas onde toda máquina cliente
+    está sob controle rígido, e onde os administradores do sistema e do banco de
+    dados trabalham de forma integrada. Em outras palavras, é necessário confiar
+    na máquina executando o servidor <literal>ident</literal>.
+    Deve ser observada a advertência:
+    <blockquote>
+     <attribution>RFC 1413</attribution>
+     <para>
+      O Protocolo de Identificação não tem por objetivo ser um
+      protocolo de autorização ou de controle de acesso.
+     </para>
+    </blockquote>
+   </para>
+   </sect3>
+
+   <sect3 id="auth-ident-socket">
+    <title>Autenticação Ident através de soquetes locais</title>
+
+   <para>
+    Nos sistemas que possuem a opção <symbol>SO_PEERCRED</symbol>
+    <footnote>
+     <para>
+      <symbol>SO_PEERCRED</symbol> &mdash;
+      consulte <literal>man 7 socket</literal>. (N. do T.)
+     </para>
+    </footnote>
+    para os soquetes do domínio Unix (atualmente
+    <systemitem class="osname">Linux</systemitem>,
+    <systemitem class="osname">FreeBSD</systemitem>,
+    <systemitem class="osname">NetBSD</systemitem>,
+    <systemitem class="osname">OpenBSD</systemitem> e
+    <systemitem class="osname">BSD/OS</systemitem>), a autenticação
+    <literal>ident</literal> também pode ser aplicada para as conexões locais.
+    Neste caso nenhum risco à segurança é introduzido pela utilização da
+    autenticação <literal>ident</literal>; na verdade, esta é a escolha
+    preferida para as conexões locais nestes sistemas.
+   </para>
+
+    <para>
+     Em sistemas que não possuem a opção <symbol>SO_PEERCRED</symbol>, a
+     autenticação <literal>ident</literal> está disponível somente através das
+     conexões TCP/IP. Para superar este problema, é possível especificar o
+     endereço <systemitem class="systemname">127.0.0.1</systemitem> do
+     <systemitem class="systemname">localhost</systemitem>, e se conectar a
+     este endereço. Este método é tão confiável quanto o servidor
+     <literal>ident</literal> local.
+    </para>
+    </sect3>
+
+   <sect3 id="auth-ident-maps">
+    <title>Mapas de Ident</title>
+
+   <para>
+    Ao utilizar a autenticação baseada no <literal>ident</literal>, após
+    determinar o nome de usuário do sistema operacional que iniciou a conexão
+    o <productname>PostgreSQL</productname> verifica se este usuário pode
+    se conectar como o usuário de banco de dados que está sendo solicitado na
+    conexão. Isto é controlado pelo argumento do mapa de <literal>ident</literal>
+    que segue a palavra chave <literal>ident</literal> no arquivo
+    <filename>pg_hba.conf</filename>. Existe um mapa de <literal>ident</literal>
+    pré-definido chamado <literal>sameuser</literal>, que permite todo usuário
+    do sistema operacional se conectar como o usuário de banco de dados com o
+    mesmo nome (se este existir). Os outros mapas devem ser criados
+    manualmente.
+   </para>
+
+   <para>
+    Fora o <literal>sameuser</literal>, os mapas de <literal>ident</literal>
+    são definidos no arquivo de mapa de <literal>ident</literal> que,
+    por padrão, se chama <filename>pg_ident.conf</filename>
+    <indexterm><primary>pg_ident.conf</primary></indexterm>
+    e é armazenado no diretório de dados do agrupamento
+    (Entretanto, é possível colocar o arquivo de mapas outro lugar;
+    consulte o parâmetro de configuração <xref linkend="guc-ident-file">).
+    A forma geral das linhas do mapa de <literal>ident</literal> é:
+<synopsis>
+<replaceable>nome_do_mapa</> <replaceable>nome_de_usuário_do_ident</> <replaceable>nome_de_usuário_do_banco_de_dados</>
+</synopsis>
+    Os comentários e os espaços em branco são tratados da mesma maneira que no
+    arquivo <filename>pg_hba.conf</>. O <replaceable>nome_do_mapa</replaceable>
+    é um nome arbitrário a ser utilizado para fazer referência ao mapa em
+    <filename>pg_hba.conf</filename>. Os outros dois campos especificam qual
+    usuário do sistema operacional pode se conectar como qual usuário do banco
+    de dados. O mesmo <replaceable>nome_do_mapa</replaceable> pode ser utilizado
+    várias vezes para especificar mais mapeamentos de usuários dentro de
+    um único mapa. Não existe restrição com relação a quantos usuários do banco
+    de dados um determinado usuário do sistema operacional pode corresponder,
+    nem o contrário.
+   </para>
+
+  <para>
+   O arquivo <filename>pg_ident.conf</filename> é lido na inicialização e quando
+   o processo servidor principal (<command>postmaster</command>) recebe um sinal
+   <systemitem>SIGHUP</systemitem>.
+   <indexterm><primary>SIGHUP</primary></indexterm>
+   Se o arquivo for editado com o sistema ativo, será necessário enviar este
+   sinal para o <command>postmaster</command> (utilizando
+   <literal>pg_ctl reload</literal> ou <literal>kill -HUP</literal>)
+   para fazer o arquivo ser lido novamente.
+  </para>
+
+   <para>
+    Um arquivo <filename>pg_ident.conf</filename> que pode ser utilizado
+    em conjunto com o arquivo <filename>pg_hba.conf</filename> do
+    <xref linkend="example-pg-hba.conf"> está mostrado no
+    <xref linkend="example-pg-ident.conf">. Nesta configuração de exemplo,
+    qualquer usuário autenticado em uma máquina da rede 192.168 que não possua o
+    nome de usuário Unix <literal>oliveira</literal>, <literal>lia</literal> ou
+    <literal>andre</literal> não vai ter o acesso permitido. O usuário Unix
+    <literal>andre</literal> somente poderá acessar quando tentar se conectar
+    como o usuário do <productname>PostgreSQL</productname>
+    <literal>pacheco</literal>, e não como <literal>andre</literal> ou algum
+    outro. A usuária <literal>lia</literal> somente poderá se conectar como
+    <literal>lia</literal>. O usuário <literal>oliveira</literal> poderá se
+    conectar como o próprio <literal>oliveira</literal> ou como
+    <literal>guest1</literal>.
+   </para>
+
+   <example id="example-pg-ident.conf">
+    <title>Arquivo pg_ident.conf de exemplo</title>
+<programlisting>
+# MAPNAME     IDENT-USERNAME    PG-USERNAME
+
+omicron       oliveira          oliveira
+omicron       lia               lia
+# pacheco possui o nome de usuário andre nestas máquinas
+omicron       andre             pacheco
+# oliveira também pode se conectar como guest1
+omicron       oliveira          guest1
+</programlisting>
+   </example>
+   </sect3>
+  </sect2>
+
+  <sect2 id="auth-pam">
+   <title>Autenticação PAM</title>
+
+   <indexterm zone="auth-pam">
+    <primary>PAM</primary>
+   </indexterm>
+
+   <para>
+    Este método de autenticação opera de forma semelhante ao método
+    <literal>password</literal>, exceto por utilizar o mecanismo de autenticação
+    PAM (<literal>Pluggable Authentication Modules</literal>). O
+    nome padrão do serviço PAM é <literal>postgresql</literal>. É possível,
+    opcionalmente, fornecer um outro nome de serviço após a palavra chave
+    <literal>pam</literal> no arquivo <filename>pg_hba.conf</filename>.
+    Para obter informações adicionais sobre o PAM deve ser consultada a
+    <ulink url="http://www.kernel.org/pub/linux/libs/pam/">Página
+    <productname>Linux-PAM</productname></ulink> e a
+    <ulink url="http://www.sun.com/software/solaris/pam/">Documentação do PAM do
+    <systemitem class="osname">Solaris</systemitem></ulink>.
+   </para>
+  </sect2>
+ </sect1>
+
+  <sect1 id="client-authentication-problems">
+   <title>Problemas de autenticação</title>
+
+   <para>
+    Falhas de autenticação genuínas e problemas correlatos geralmente
+    se manifestam através de mensagens de erro como as que se seguem.
+   </para>
+
+   <para>
+<ProgramListing>
+FATAL:  no pg_hba.conf entry for host "123.123.123.123", user "andre", database "teste"
+</ProgramListing>
+
+    Tradução:
+
+<ProgramListing>
+FATAL:  nenhuma entrada em pg_hba.conf para o hospedeiro "123.123.123.123", usuário "andre", banco de dados "teste"
+</ProgramListing>
+
+    Esta é a mensagem mais provável de ocorrer quando o contato com o servidor
+    for bem-sucedido, mas este não desejar falar com o cliente. Como a própria
+    mensagem sugere, o servidor recusou o pedido de conexão porque não
+    encontrou uma entrada autorizando esta conexão no arquivo de configuração
+    <filename>pg_hba.conf</filename>.
+   </para>
+
+   <para>
+<ProgramListing>
+FATAL:  Password authentication failed for user "andre"
+</ProgramListing>
+
+    Tradução:
+
+<ProgramListing>
+FATAL:  A autenticação da senha para o usuário "andre" não foi bem-sucedida
+</ProgramListing>
+
+    As mensagens deste tipo indicam que o servidor foi contactado, e este deseja
+    se comunicar com o cliente, mas não até que se passe pelo método de
+    autorização especificado no arquivo <filename>pg_hba.conf</filename>.
+    Deve ser verificada a senha fornecida, ou verificado o programa Kerberos ou
+    <literal>ident</literal> se for mencionado algum destes tipos de
+    autenticação na mensagem de erro.
+   </para>
+
+   <para>
+<ProgramListing>
+FATAL:  user "andre" does not exist
+</ProgramListing>
+
+    Tradução:
+<ProgramListing>
+FATAL:  o usuário "andré" não existe
+</ProgramListing>
+
+    O nome de usuário indicado não foi encontrado.
+   </para>
+
+   <para>
+<ProgramListing>
+FATAL:  database "teste" does not exist
+</ProgramListing>
+
+    Tradução:
+
+<ProgramListing>
+FATAL:  o banco de dados "teste" não existe
+</ProgramListing>
+
+    Tentativa de conectar a um banco de dados que não existe. Deve ser observado
+    que se não for especificado o nome do banco de dados, por padrão é usado o
+    banco de dados com o mesmo nome do usuário, o que poder ser correto ou não.
+   </para>
+
+   <tip>
+   <para>
+    O <literal>log</literal> do servidor pode conter informações adicionais
+    sobre uma falha de autenticação do que o informado ao cliente.
+    Havendo incerteza sobre o motivo da falha, o <literal>log</literal> deve
+    ser verificado.
+   </para>
+   </tip>
+  </sect1>
+
+ </chapter>
+

@@ -1,0 +1,266 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_aggregate.sgml,v 1.31 2005/01/04 00:39:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATEAGGREGATE">
+ <refmeta>
+  <refentrytitle id="sql-createaggregate-title">CREATE AGGREGATE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE AGGREGATE</refname>
+  <refpurpose>cria uma função de agregação</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createaggregate">
+  <primary>CREATE AGGREGATE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE AGGREGATE <replaceable class="parameter">nome</replaceable> (
+    BASETYPE = <replaceable class="parameter">tipo_de_dado_da_entrada</replaceable>,
+    SFUNC = <replaceable class="parameter">função_de_transição_de_estado</replaceable>,
+    STYPE = <replaceable class="parameter">tipo_de_dado_do_estado</replaceable>
+    [ , FINALFUNC = <replaceable class="parameter">função_final</replaceable> ]
+    [ , INITCOND = <replaceable class="parameter">condição_inicial</replaceable> ]
+)
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE AGGREGATE</command> cria uma função de agregação.
+   Algumas funções de agregação básicas e comumente utilizadas estão
+   incluídas na distribuição; estão documentadas na <xref
+   linkend="functions-aggregate">. Se forem criados tipos novos, ou se for
+   necessária uma função de agregação não fornecida, então o comando
+   <command>CREATE AGGREGATE</command> pode ser utilizado para fornecer as
+   funcionalidades desejadas.
+  </para>
+
+  <para>
+   Se for fornecido o nome do esquema (por exemplo, <literal>CREATE AGGREGATE
+   meu_esquema.minha_agregacao ...</literal>) então a função de agregação é
+   criada no esquema especificado, senão é criada no esquema corrente.
+  </para>
+
+  <para>
+   Uma função de agregação é identificada pelo seu nome e tipo de dado de
+   entrada. Duas funções de agregação no mesmo esquema podem ter o mesmo nome se
+   operarem em tipos de dado de entrada diferentes. O nome e tipo de dado de
+   entrada de uma função de agregação também deve ser diferente do nome e
+   tipo(s) de dado de entrada de todas as funções comuns no mesmo esquema.
+  </para>
+
+  <para>
+   Uma função de agregação é composta por uma ou duas funções comuns:
+   uma função de transição de estado,
+   <replaceable class="PARAMETER">função_de_transição_de_estado</replaceable>,
+   e uma função opcional para a realização dos cálculos finais,
+   <replaceable class="PARAMETER">função_final</replaceable>.
+   Estas funções são utilizadas da seguinte forma:
+<programlisting>
+<replaceable class="parameter">função_de_transição_de_estado</replaceable>( estado_interno, próximo_item_de_dado ) ---> próximo_estado_interno
+<replaceable class="parameter">função_final</replaceable>( estado_interno ) ---> valor_da_agregação
+</programlisting>
+  </para>
+
+  <para>
+   O <productname>PostgreSQL</productname> cria uma variável temporária com o
+   tipo de dado <replaceable class="PARAMETER">tipo_de_dado_do_estado</replaceable>
+   para armazenar o estado interno corrente da agregação. Para cada item
+   de dado da entrada a função de transição de estado é chamada para calcular
+   o novo valor do estado interno. Após todos os dados terem sido processados,
+   a função final é chamada uma vez para calcular o valor retornado da
+   agregação. Não havendo nenhuma função final, então o valor do estado
+   final é retornado como estiver.
+  </para>
+
+  <para>
+   A função de agregação pode fornecer uma condição inicial, ou seja, um valor
+   inicial para o valor do estado interno. Este valor é especificado e
+   armazenado no banco de dados em uma coluna do tipo <type>text</type>, mas
+   deve possuir uma representação externa válida para uma constante do tipo de
+   dado do valor do estado.  Se não for fornecido, então o valor do estado
+   começa com nulo.
+  </para>
+
+  <para>
+   Se a função de transição de estado for declarada como <quote>strict</quote>,
+   então não poderá ser chamada com valores da entrada nulos.  Para este tipo de
+   função de transição, a execução da agregação se comporta da seguinte forma:
+   Valores da entrada nulos são ignorados (a função não é chamada e o valor do
+   estado anterior permanece); Se o valor do estado inicial for nulo, então o
+   primeiro valor da entrada que não for nulo substitui o valor do estado, e a
+   função de transição é chamada a partir do segundo valor da entrada que não
+   for nulo. Este procedimento é útil para implementar funções de agregação como
+   <function>max</function>. Deve ser observado que este comportamento somente
+   está disponível quando o
+   <replaceable class="PARAMETER">tipo_de_dado_do_estado</replaceable>
+   for o mesmo do
+   <replaceable class="PARAMETER">tipo_de_dado_da_entrada</replaceable>.
+   Quando estes tipos de dado forem diferentes, deverá ser fornecido um valor
+   não nulo para a condição inicial, ou utilizar uma função de transição que não
+   seja estrita.
+  </para>
+
+  <para>
+   Se a função de transição de estado não for estrita então será chamada,
+   incondicionalmente, para cada valor da entrada, devendo ser capaz de lidar
+   com entradas nulas e valores de transição nulos por si própria. Esta opção
+   permite ao autor da função de agregação ter pleno controle sobre o tratamento
+   dos valores nulos.
+  </para>
+
+  <para>
+   Se a função final for declarada como <quote>strict</quote>, então não será
+   chamada quando o valor do estado final for nulo; em vez disso, um resultado
+   nulo será retornado automaticamente (É claro que este é apenas o
+   comportamento normal de funções estritas).
+   A função final sempre tem a opção de retornar o valor nulo.
+   Por exemplo, a função final para <function>avg</function> retorna nulo quando
+   não há linhas de entrada.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema)
+      da função de agregação a ser criada.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">tipo_de_dado_da_entrada</replaceable></term>
+    <listitem>
+     <para>
+      O tipo do dado de entrada sobre o qual esta função de agregação opera.
+      Pode ser especificado como <literal>"ANY"</literal> para uma função de
+      agregação que não examina seus valores de entrada
+      (um exemplo é a função <function>count(*)</function>).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">função_de_transição_de_estado</replaceable></term>
+    <listitem>
+     <para>
+      O nome da função de transição de estado
+      a ser chamada para cada valor dos dados da entrada.
+      Normalmente esta função possui dois argumentos, o primeiro sendo do
+      tipo <replaceable class="PARAMETER">tipo_de_dado_do_estado</replaceable>
+      e o segundo do
+      tipo <replaceable class="PARAMETER">tipo_de_dado_da_entrada</replaceable>.
+      Outra possibilidade, para funções de agregação que não examinam seus
+      valores de entrada, é a função possuir apenas um argumento do
+      tipo <replaceable class="PARAMETER">tipo_de_dado_do_estado</replaceable>.
+      Em qualquer um dos casos a função deve retornar um valor do
+      tipo <replaceable class="PARAMETER">tipo_de_dado_do_estado</replaceable>.
+      Esta função recebe o valor do estado corrente e o item de dado da entrada
+      corrente e retorna o próximo valor do estado.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">tipo_de_dado_do_estado</replaceable></term>
+    <listitem>
+     <para>
+      O tipo de dado do valor do estado da agregação.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">função_final</replaceable></term>
+    <listitem>
+     <para>
+      O nome da função final chamada para calcular o resultado da agregação
+      após todos os dados da entrada terem sido examinados. A função
+      deve receber um único argumento do tipo
+      <replaceable class="PARAMETER">tipo_de_dado_do_estado</replaceable>.
+      O tipo de dado retornado pela agregação é definido pelo tipo retornado por
+      esta função. Se a <replaceable class="PARAMETER">função_final</replaceable>
+      não for especificada, então o valor do estado final é utilizado como sendo
+      o resultado da agregação, e o tipo retornado fica sendo o
+      <replaceable class="PARAMETER">tipo_de_dado_do_estado</replaceable>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">condição_inicial</replaceable></term>
+    <listitem>
+     <para>
+      A definição inicial do valor do estado. Deve ser uma constante
+      cadeia de caracteres na forma aceita pelo tipo de dado
+      <replaceable class="PARAMETER">tipo_de_dado_do_estado</replaceable>.
+      Se não for especificado, o valor do estado começa com nulo.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+
+  <para>
+   Os parâmetros para <command>CREATE AGGREGATE</command> podem
+   ser escritos em qualquer ordem, e não apenas na ordem mostrada acima.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Consulte a <xref linkend="xaggr">.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>CREATE AGGREGATE</command> é uma extensão do
+   <productname>PostgreSQL</productname> à linguagem. O padrão SQL
+   não inclui funções de agregação definidas pelo usuário.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-alteraggregate" endterm="sql-alteraggregate-title"></member>
+   <member><xref linkend="sql-dropaggregate" endterm="sql-dropaggregate-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

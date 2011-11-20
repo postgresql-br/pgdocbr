@@ -1,0 +1,287 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/alter_role.sgml,v 1.7 2006/09/16 00:30:16 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-ALTERROLE">
+ <refmeta>
+  <refentrytitle id="sql-alterrole-title">ALTER ROLE</refentrytitle>
+  <refmiscinfo>SQL - Instruções da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>ALTER ROLE</refname>
+  <refpurpose>altera um papel do banco de dados</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-alterrole">
+  <primary>ALTER ROLE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+ALTER ROLE <replaceable class="parameter">nome</replaceable> [ [ WITH ] <replaceable class="parameter">opção</replaceable> [ ... ] ]
+
+onde <replaceable class="parameter">opção</replaceable> pode ser:
+
+      SUPERUSER | NOSUPERUSER
+    | CREATEDB | NOCREATEDB
+    | CREATEROLE | NOCREATEROLE
+    | CREATEUSER | NOCREATEUSER
+    | INHERIT | NOINHERIT
+    | LOGIN | NOLOGIN
+    | CONNECTION LIMIT <replaceable class="parameter">limite_de_conexões</replaceable>
+    | [ ENCRYPTED | UNENCRYPTED ] PASSWORD '<replaceable class="parameter">senha</replaceable>'
+    | VALID UNTIL '<replaceable class="parameter">carimbo_do_tempo</replaceable>'
+
+ALTER ROLE <replaceable class="parameter">nome</replaceable> RENAME TO <replaceable>novo_nome</replaceable>
+
+ALTER ROLE <replaceable class="parameter">nome</replaceable> SET <replaceable>parâmetro_de_configuração</replaceable> { TO | = } { <replaceable>valor</replaceable> | DEFAULT }
+ALTER ROLE <replaceable class="parameter">nome</replaceable> RESET <replaceable>parâmetro_de_configuração</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>ALTER ROLE</command> altera os atributos de um papel do
+   <productname>PostgreSQL</productname>.
+  </para>
+
+  <para>
+   A primeira variante deste comando listada na sinopse permite alterar
+   muitos dos atributos do papel que podem ser especificados em
+   <xref linkend="sql-createrole" endterm="sql-createrole-title">,
+   e que deve ser consultado para obter mais informações
+   (São cobertos todos os atributos possíveis, exceto pelo fato de não haver
+   opções para adicionar ou remover membros; para isto deve ser utilizado
+   <xref linkend="SQL-GRANT" endterm="SQL-GRANT-title"> e
+   <xref linkend="SQL-REVOKE" endterm="SQL-REVOKE-title">).
+   Os atributos não mencionados no comando permanecem com suas definições
+   anteriores.
+   Os superusuários do banco de dados podem alterar qualquer uma destas
+   definições para qualquer papel.
+   Os papéis que possuem o privilégio <literal>CREATEROLE</> podem alterar
+   qualquer uma destas definições, mas somente para os papéis que não são
+   superusuário.
+   Nesta variante os papéis comuns somente podem alterar sua própria senha.
+  </para>
+
+  <para>
+   A segunda variante muda o nome do papel.
+   Os superusuários do banco de dados podem mudar o nome de qualquer papel.
+   Os papéis que possuem o privilégio <literal>CREATEROLE</> podem mudar o
+   nome de papéis que não são superusuário.
+   Não pode ser mudado o nome do usuário da sessão corrente (Caso seja
+   necessário, é preciso se conectar como um usuário diferente).
+   Como as senhas criptografadas com <literal>MD5</> utilizam o nome do papel
+   como sal criptográfico (<foreignphrase>cryptographic salt</foreignphrase>)
+   <footnote>
+    <para>
+     Em criptografia, sal consiste de bits aleatórios usados como uma das
+     entradas para a função de derivação da chave.
+     <ulink url="http://en.wikipedia.org/wiki/Salt_(cryptography)">
+     Salt (cryptography)</ulink>. (N. do T.)
+    </para>
+   </footnote>
+   , mudar o nome do papel limpa a sua senha caso esta esteja criptografada
+   com <literal>MD5</>.
+  </para>
+
+  <para>
+   A terceira e quarta variantes alteram o valor padrão para a sessão, da
+   variável de configuração do papel especificada.
+   Depois disso, sempre que o papel iniciar uma nova sessão o valor
+   especificado se tornará o valor padrão para a sessão, substituindo qualquer
+   definição presente no arquivo <filename>postgresql.conf</>, ou recebida
+   através da linha de comando do <xref linkend="app-postgres">
+   (Para um papel que não possua o privilégio de <literal>LOGIN</>, os valores
+   padrão para a sessão não possuem nenhum efeito).
+   Os papéis comuns podem alterar seus próprios valores padrão para a sessão.
+   Os superusuários podem alterar os valores padrão para a sessão de qualquer um.
+   Os papéis que possuem o privilégio <literal>CREATEROLE</> podem alterar o
+   valor padrão para papéis que não são superusuário.
+   Certas variáveis não podem ser definidas desta maneira, ou somente podem
+   ser definidas quando o comando é utilizado por um superusuário.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+    <variablelist>
+     <varlistentry>
+      <term><replaceable class="parameter">nome</replaceable></term>
+      <listitem>
+       <para>
+        O nome do papel cujos atributos estão sendo alterados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>SUPERUSER</literal></term>
+      <term><literal>NOSUPERUSER</literal></term>
+      <term><literal>CREATEDB</></term>
+      <term><literal>NOCREATEDB</></term>
+      <term><literal>CREATEROLE</literal></term>
+      <term><literal>NOCREATEROLE</literal></term>
+      <term><literal>CREATEUSER</literal></term>
+      <term><literal>NOCREATEUSER</literal></term>
+      <term><literal>INHERIT</literal></term>
+      <term><literal>NOINHERIT</literal></term>
+      <term><literal>LOGIN</literal></term>
+      <term><literal>NOLOGIN</literal></term>
+      <term><literal>CONNECTION LIMIT</literal> <replaceable class="parameter">limite_de_conexões</replaceable></term>
+      <term><literal>PASSWORD</> <replaceable class="parameter">senha</replaceable></term>
+      <term><literal>ENCRYPTED</></term>
+      <term><literal>UNENCRYPTED</></term>
+      <term><literal>VALID UNTIL</literal> '<replaceable class="parameter">carimbo_do_tempo</replaceable>'</term>
+      <listitem>
+       <para>
+        Estas cláusulas alteram os atributos originalmente definidos por
+        <xref linkend="SQL-CREATEROLE" endterm="SQL-CREATEROLE-title">,
+        que deve ser consultado para obter mais informações.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable>novo_nome</replaceable></term>
+      <listitem>
+       <para>
+        O novo nome do papel.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable>parâmetro_de_configuração</replaceable></term>
+      <term><replaceable>valor</replaceable></term>
+      <listitem>
+       <para>
+        Define o valor padrão para a sessão do parâmetro de configuração do
+        papel especificado, como sendo o valor fornecido.
+        Se <replaceable>valor</replaceable> for igual a
+        <literal>DEFAULT</literal> ou, de forma equivalente, se for utilizado
+        <literal>RESET</literal>, a definição da variável específica para o
+        papel é removida e, portanto, o papel passará a herdar a definição
+        padrão para todo o sistema nas novas sessões.
+        Deve ser utilizado <literal>RESET ALL</literal> para limpar todas as
+        definições específicas do papel.
+       </para>
+
+       <para>
+        Para obter mais informações sobre os nomes e valores de parâmetros
+        permitidos deve ser consultado
+        <xref linkend="sql-set" endterm="sql-set-title"> e o
+        <xref linkend="runtime-config">.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Deve ser utilizado
+   <xref linkend="SQL-CREATEROLE" endterm="SQL-CREATEROLE-title">
+   para adicionar novos papéis, e
+   <xref linkend="SQL-DROPROLE" endterm="SQL-DROPROLE-title">
+   para remover papéis.
+  </para>
+
+  <para>
+   O comando <command>ALTER ROLE</command> não pode mudar o status de
+   membro do papel, para isto devem ser utilizados os comandos
+   <xref linkend="SQL-GRANT" endterm="SQL-GRANT-title"> e
+   <xref linkend="SQL-REVOKE" endterm="SQL-REVOKE-title">.
+  </para>
+
+  <para>
+   Deve ser tomado cuidado ao se especificar uma senha não criptografada
+   neste comando.
+   A senha será transmitida para o servidor como texto limpo, também podendo
+   ficar registrada no histórico de comandos do cliente ou no registro do
+   servidor.
+   O <xref linkend="app-psql" endterm="app-psql-title"> contém o comando
+   <command>\password</command> que pode ser utilizado para alterar a senha do
+   papel com segurança.
+  </para>
+
+  <para>
+   Também é possível associar valor padrão para a sessão para um determinado
+   banco de dados, em vez de para um papel; consulte
+   <xref linkend="sql-alterdatabase" endterm="sql-alterdatabase-title">.
+   As definições específicas do papel substituem as definições específicas
+   do banco de dados, quando há conflito.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Mudar a senha do papel:
+
+<programlisting>
+ALTER ROLE joana WITH PASSWORD 'hu8jmn3';
+</programlisting>
+  </para>
+
+  <para>
+   Alterar a data de expiração da senha, especificando que a senha deverá
+   expirar ao meio dia de 4 de maio de 2015, utilizando a zona horária uma
+   hora à frente do <acronym>UTC</>:
+<programlisting>
+ALTER ROLE cris VALID UNTIL 'May 4 12:00:00 2015 +1';
+</programlisting>
+  </para>
+
+  <para>
+   Tornar a senha válida para sempre:
+<programlisting>
+ALTER ROLE fred VALID UNTIL 'infinity';
+</programlisting>
+  </para>
+
+  <para>
+   Dar ao papel a habilidade de criar outros papéis e novos bancos de dados:
+
+<programlisting>
+ALTER ROLE miriam CREATEROLE CREATEDB;
+</programlisting>
+  </para>
+
+  <para>
+   Dar ao papel uma definição diferente do padrão para o parâmetro
+   <xref linkend="guc-maintenance-work-mem">:
+
+<programlisting>
+ALTER ROLE abelha_operaria SET maintenance_work_mem = 100000;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>ALTER ROLE</command> é uma extensão do
+   <productname>PostgreSQL</productname>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createrole" endterm="sql-createrole-title"></member>
+   <member><xref linkend="sql-droprole" endterm="sql-droprole-title"></member>
+   <member><xref linkend="sql-set" endterm="sql-set-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

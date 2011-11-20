@@ -1,0 +1,65 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/pg_controldata.sgml,v 1.9 2007/01/31 23:26:04 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="APP-PGCONTROLDATA">
+ <refmeta>
+  <refentrytitle id="APP-PGCONTROLDATA-TITLE"><application>pg_controldata</application></refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Aplicação</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>pg_controldata</refname>
+  <refpurpose>mostra informações de controle de um agrupamento de bancos de dados <productname>PostgreSQL</productname></refpurpose>
+ </refnamediv>
+
+ <indexterm zone="app-pgcontroldata">
+  <primary>pg_controldata</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>pg_controldata</command>
+   <arg><replaceable class="parameter">diretório_de_dados</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="R1-APP-PGCONTROLDATA-1">
+  <title>Descrição</title>
+  <para>
+   O utilitário <command>pg_controldata</command> mostra informações
+   inicializadas durante a execução do <command>initdb</command>, tal como a
+   versão do catálogo e o idioma do servidor.
+   Mostra, também, informações sobre a escrita prévia do registro no
+   <literal>log</literal> (WAL) e o processamento dos pontos de controle
+   (<literal>checkpoint</literal>). Estas informações são globais do
+   agrupamento, e não específicas de um determinado banco de dados.
+  </para>
+
+  <para>
+   Este utilitário pode ser executado apenas pelo usuário que inicializou o
+   agrupamento, porque necessita de acesso de leitura para o diretório de dados.
+   O diretório de dados pode ser especificado na linha de comando,
+   ou pode ser usada a variável de ambiente <envar>PGDATA</envar>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Ambiente</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><envar>PGDATA</envar></term>
+
+    <listitem>
+     <para>
+      Local padrão do diretório de dados
+     </para>
+    </listitem>
+   </varlistentry>
+
+  </variablelist>
+ </refsect1>
+</refentry>

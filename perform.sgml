@@ -1,0 +1,880 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/perform.sgml,v 1.49 2004/12/23 23:07:38 tgl Exp $
+-->
+
+ <chapter id="performance-tips">
+  <title>Dicas de desempenho</title>
+
+  <indexterm zone="performance-tips">
+   <primary>desempenho</primary>
+  </indexterm>
+
+  <para>
+   O desempenho dos comandos pode ser afetado por vários motivos. Alguns destes
+   motivos podem ser tratados pelo usuário, enquanto outros são inerentes ao
+   projeto do sistema subjacente. Este capítulo fornece algumas dicas para
+   compreender e ajustar o desempenho do <productname>PostgreSQL</productname>.
+  </para>
+
+  <sect1 id="using-explain">
+   <title>Utilização do comando EXPLAIN</title>
+
+   <indexterm zone="using-explain">
+    <primary>EXPLAIN</primary>
+   </indexterm>
+
+   <indexterm zone="using-explain">
+    <primary>plano de comando</primary>
+   </indexterm>
+
+   <para>
+    O <productname>PostgreSQL</productname> concebe um <firstterm>plano de
+    comando</firstterm> para cada comando recebido. A escolha do plano correto,
+    correspondendo à estrutura do comando e às propriedades dos dados, é
+    absolutamente crítico para o bom desempenho. Pode ser utilizado o comando
+    <xref linkend="sql-explain" endterm="sql-explain-title"> para ver o plano
+    criado pelo sistema para qualquer comando. A leitura do plano é uma arte
+    que merece um tutorial extenso, o que este não é; porém, aqui são fornecidas
+    algumas informações básicas.
+   </para>
+
+   <para>
+    Os números apresentados atualmente pelo <command>EXPLAIN</command> são:
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       O custo de partida estimado (O tempo gasto antes de poder começar a
+       varrer a saída como, por exemplo, o tempo para fazer a classificação em
+       um nó de classificação).
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       O custo total estimado (Se todas as linhas fossem buscadas, o que pode
+       não acontecer: uma consulta contendo a cláusula <literal>LIMIT</literal>
+       pára antes de gastar o custo total, por exemplo).
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Número de linhas de saída estimado para este nó do plano (Novamente,
+       somente se for executado até o fim).
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Largura média estimada (em bytes) das linhas de saída deste
+       nó do plano.
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+
+   <para>
+    Os custos são medidos em termos de unidades de páginas de disco buscadas
+    (O esforço de CPU estimado é convertido em unidades de páginas de disco,
+    utilizando fatores estipulados altamente arbitrários. Se for desejado
+    realizar experiências com estes fatores, consulte a lista de parâmetros de
+    configuração em tempo de execução na
+    <xref linkend="runtime-config-query-constants">.)
+   </para>
+
+   <para>
+    É importante notar que o custo de um nó de nível mais alto inclui o custo de
+    todos os seus nós descendentes. Também é importante perceber que o custo
+    reflete apenas as coisas com as quais o planejador/otimizador se preocupa.
+    Em particular, o custo não considera o tempo gasto transmitindo as linhas do
+    resultado para o cliente, que pode ser o fator predominante no computo do
+    tempo total gasto, mas que o planejador ignora porque não pode mudá-lo
+    alterando o plano (Todo plano correto produz o mesmo conjunto de linhas,
+    assim se acredita).
+   </para>
+
+   <para>
+    Linhas de saída é um pouco enganador, porque <emphasis>não</emphasis> é o
+    número de linhas processadas/varridas pelo comando, geralmente é menos,
+    refletindo a seletividade estimada de todas as condições da cláusula
+    <literal>WHERE</literal> aplicadas a este nó. Idealmente, a estimativa de
+    linhas do nível superior estará próxima do número de linhas realmente
+    retornadas, atualizadas ou excluídas pelo comando.
+   </para>
+
+   <para>
+    Abaixo seguem alguns exemplos (utilizando o banco de dados de teste de
+    regressão após a execução do comando <literal>VACUUM ANALYZE</literal>, e os
+    códigos fonte de desenvolvimento da versão 7.3):
+
+<screen>
+<userinput>EXPLAIN SELECT * FROM tenk1;</userinput>
+
+<computeroutput>
+                         QUERY PLAN
+-------------------------------------------------------------
+ Seq Scan on tenk1  (cost=0.00..333.00 rows=10000 width=148)
+ </computeroutput>
+</screen>
+   </para>
+
+   <para>
+    Isto é tão direto quanto parece. Se for executado
+
+<programlisting>
+SELECT * FROM pg_class WHERE relname = 'tenk1';
+</programlisting>
+
+    será visto que <classname>tenk1</classname> ocupa 233 páginas de disco e
+    possui 10.000 linhas. Portanto, o custo é estimado em 233 páginas lidas,
+    definidas como custando 1.0 cada uma, mais 10.000 *
+    <xref linkend="guc-cpu-tuple-cost">
+    que é atualmente 0.01
+    (execute <command>SHOW cpu_tuple_cost</command> para ver)
+    (233 + 10.000 * 0,01 = 233 + 100 = 333 - N. do T.).
+   </para>
+
+   <para>
+    Agora a consulta será modificada para incluir uma condição
+    <literal>WHERE</literal>:
+
+<screen>
+<userinput>EXPLAIN SELECT * FROM tenk1 WHERE unique1 &lt; 1000;</userinput>
+
+<computeroutput>
+                         QUERY PLAN
+------------------------------------------------------------
+ Seq Scan on tenk1  (cost=0.00..358.00 rows=1033 width=148)
+   Filter: (unique1 &lt; 1000)
+</computeroutput>
+</screen>
+
+    A estimativa de linhas de saída diminuiu por causa da cláusula
+    <literal>WHERE</literal>. Entretanto, a varredura ainda precisa percorrer
+    todas as 10.000 linhas e, portanto, o custo não diminuiu; na verdade
+    aumentou um pouco, para refletir o tempo a mais de CPU gasto verificando
+    a condição <literal>WHERE</literal>.
+   </para>
+
+   <para>
+    O número verdadeiro de linhas que esta consulta deveria selecionar é 1.000,
+    mas a estimativa é somente aproximada. Se for tentado repetir esta
+    experiência, provavelmente será obtida uma estimativa ligeiramente diferente;
+    além disso, mudanças ocorrem após cada comando <command>ANALYZE</command>,
+    porque as estatísticas produzidas pelo <command>ANALYZE</command> são
+    obtidas a partir de amostras aleatórias na tabela.
+   </para>
+
+   <para>
+    Modificando-se a consulta para restringir mais ainda a condição
+
+<screen>
+<userinput>EXPLAIN SELECT * FROM tenk1 WHERE unique1 &lt; 50;</userinput>
+
+<computeroutput>
+                                   QUERY PLAN
+-------------------------------------------------------------------------------
+ Index Scan using tenk1_unique1 on tenk1  (cost=0.00..179.33 rows=49 width=148)
+   Index Cond: (unique1 &lt; 50)
+</computeroutput>
+</screen>
+
+    será visto que quando fazemos a condição <literal>WHERE</literal> seletiva
+    o bastante, o planejador decide, finalmente, que a varredura do índice tem
+    custo menor que a varredura seqüencial. Este plano necessita buscar apenas
+    50 linhas por causa do índice e, portanto, vence apesar do fato de cada
+    busca individual ser mais cara que a leitura de toda a página do disco
+    seqüencialmente.
+   </para>
+
+   <para>
+    Adição de outra condição à cláusula <literal>WHERE</literal>:
+
+<screen>
+<userinput>EXPLAIN SELECT * FROM tenk1 WHERE unique1 &lt; 50 AND stringu1 = 'xxx';</userinput>
+
+<computeroutput>
+                                  QUERY PLAN
+-------------------------------------------------------------------------------
+ Index Scan using tenk1_unique1 on tenk1  (cost=0.00..179.45 rows=1 width=148)
+   Index Cond: (unique1 &lt; 50)
+   Filter: (stringu1 = 'xxx'::name)
+</computeroutput>
+</screen>
+
+    A condição adicionada <literal>stringu1 = 'xxx'</literal> reduz a estimativa
+    de linhas de saída mas não o custo, porque deverá ser acessado o mesmo
+    conjunto de linhas. Deve ser observado que a cláusula
+    <literal>stringu1</literal> não pode ser aplicada como uma condição do
+    índice (porque o índice contém apenas a coluna <literal>unique1</literal>).
+    Em vez disto, é aplicada como um filtro nas linhas trazidas pelo índice.
+    Portanto, o custo na verdade sobe um pouco para refletir esta verificação
+    adicional.
+   </para>
+
+   <para>
+    A seguir é feita a junção de duas tabelas, utilizando as colunas sendo
+    discutidas:
+
+<screen>
+<userinput>EXPLAIN SELECT * FROM tenk1 t1, tenk2 t2 WHERE t1.unique1 &lt; 50 AND t1.unique2 = t2.unique2;</userinput>
+
+<computeroutput>
+                               QUERY PLAN
+----------------------------------------------------------------------------
+ Nested Loop  (cost=0.00..327.02 rows=49 width=296)
+   -&gt;  Index Scan using tenk1_unique1 on tenk1 t1
+                                      (cost=0.00..179.33 rows=49 width=148)
+         Index Cond: (unique1 &lt; 50)
+   -&gt;  Index Scan using tenk2_unique2 on tenk2 t2
+                                      (cost=0.00..3.01 rows=1 width=148)
+         Index Cond: ("outer".unique2 = t2.unique2)
+</computeroutput>
+</screen>
+   </para>
+
+   <para>
+    Nesta junção de laço aninhado a varredura externa é a mesma varredura de
+    índice vista no penúltimo exemplo e, portanto, seu custo e quantidade de
+    linhas são os mesmos, porque está sendo aplicada a cláusula
+    <literal>unique1 &lt; 50</literal> neste nó.
+    A cláusula <literal>t1.unique2 = t2.unique2</literal> ainda não é relevante
+    e, portanto, não afeta a quantidade de linhas da varredura externa.
+    Para a varredura interna, o valor de <literal>unique2</literal> da linha
+    da varredura externa corrente é vinculado à varredura interna do índice para
+    produzir uma condição de índice como
+    <literal>t2.unique2 = <replaceable>constante</replaceable></literal>.
+    Portanto, é obtido o mesmo plano e custo para a varredura interna que seria
+    obtido por, digamos,
+    <literal>EXPLAIN SELECT * FROM tenk2 WHERE unique2 = 42</literal>.
+    Os custos do nó do laço são então definidos tomando por base
+    o custo da varredura externa, mais uma repetição da varredura interna
+    para cada linha externa (49 * 3.01, neste caso), mais um pouco de
+    tempo de CPU para o processo de junção.
+   </para>
+
+   <para>
+    Neste exemplo, a quantidade de linhas de saída da junção é igual ao produto
+    da quantidade de linhas das duas varreduras, mas isto usualmente não é
+    verdade porque, em geral, podem existir cláusulas <literal>WHERE</literal>
+    fazendo menção às duas tabelas e, portanto, só podem ser aplicadas no ponto
+    de junção, e não às duas varreduras de entrada. Por exemplo, se fosse
+    adicionado <literal>WHERE ... AND t1.hundred &lt; t2.hundred</literal>,
+    faria diminuir a quantidade de linhas de saída do nó da junção,
+    mas não mudaria nenhuma das varreduras da entrada.
+   </para>
+
+   <para>
+    Uma forma de ver outros planos é forçar o planejador a não considerar a
+    estratégia que sairia vencedora, habilitando e desabilitando sinalizadores
+    de cada tipo de plano (Esta é uma ferramenta deselegante, mas útil.
+    Consulte também a <xref linkend="explicit-joins">).
+
+<screen>
+<userinput>
+SET enable_nestloop = off;
+EXPLAIN SELECT * FROM tenk1 t1, tenk2 t2 WHERE t1.unique1 &lt; 50 AND t1.unique2 = t2.unique2;
+</userinput>
+
+<computeroutput>
+                               QUERY PLAN
+--------------------------------------------------------------------------
+ Hash Join  (cost=179.45..563.06 rows=49 width=296)
+   Hash Cond: ("outer".unique2 = "inner".unique2)
+   -&gt;  Seq Scan on tenk2 t2  (cost=0.00..333.00 rows=10000 width=148)
+   -&gt;  Hash  (cost=179.33..179.33 rows=49 width=148)
+         -&gt;  Index Scan using tenk1_unique1 on tenk1 t1
+                                    (cost=0.00..179.33 rows=49 width=148)
+               Index Cond: (unique1 &lt; 50)
+</computeroutput>
+</screen>
+
+    Este plano propõe extrair as 50 linhas que interessam de
+    <classname>tenk1</classname>, usando a mesma varredura de índice anterior,
+    armazená-las para uso posterior em uma tabela de dispersão (<literal>hash
+    table</literal>) em memória e, então, fazer uma varredura seqüencial em
+    <classname>tenk2</classname> procurando possíveis correspondências na tabela
+    de dispersão para <literal>t1.unique2 = t2.unique2</literal> para
+    cada linha de <classname>tenk2</classname>.
+    O custo para ler <classname>tenk1</classname> e montar a tabela
+    de dispersão é inteiramente custo de partida para a junção
+    <literal>hash</literal>, porque não haverá nenhuma linha de saída até
+    começar a leitura de <classname>tenk2</classname>.
+    O tempo total estimado para a junção também inclui uma pesada carga de tempo
+    de CPU para verificar a tabela de dispersão 10.000 vezes.
+    Entretanto, deve ser observado que <emphasis>não</emphasis> está sendo
+    cobrado 10.000 * 179,33; a montagem da tabela de dispersão é
+    feita somente uma vez neste tipo de plano.
+   </para>
+
+   <para>
+    É possível verificar a precisão dos custos estimados pelo planejador
+    utilizando o comando <command>EXPLAIN ANALYZE</command>. Na verdade este
+    comando executa a consulta, e depois mostra o tempo real acumulado dentro
+    de cada nó do plano junto com os custos estimados que o comando
+    <command>EXPLAIN</command> simples mostraria.
+    Por exemplo, poderia ser obtido um resultado como este:
+
+<screen>
+<userinput>EXPLAIN ANALYZE SELECT * FROM tenk1 t1, tenk2 t2 WHERE t1.unique1 &lt; 50 AND t1.unique2 = t2.unique2;</userinput>
+
+<computeroutput>
+                                   QUERY PLAN
+-------------------------------------------------------------------------------
+ Nested Loop  (cost=0.00..327.02 rows=49 width=296)
+                                 (actual time=1.181..29.822 rows=50 loops=1)
+   -&gt;  Index Scan using tenk1_unique1 on tenk1 t1
+                  (cost=0.00..179.33 rows=49 width=148)
+                                 (actual time=0.630..8.917 rows=50 loops=1)
+         Index Cond: (unique1 &lt; 50)
+   -&gt;  Index Scan using tenk2_unique2 on tenk2 t2
+                  (cost=0.00..3.01 rows=1 width=148)
+                                 (actual time=0.295..0.324 rows=1 loops=50)
+         Index Cond: ("outer".unique2 = t2.unique2)
+ Total runtime: 31.604 ms
+</computeroutput>
+</screen>
+
+    Deve ser observado que os valores de <quote>actual time</quote> são em
+    milissegundos de tempo real, enquanto as estimativas de <quote>custo</quote>
+    (<literal>cost</literal>) são expressas em unidades arbitrárias de busca em
+    disco; portanto, não é provável haver correspondência. É nas relações que
+    se deve prestar atenção.
+   </para>
+
+   <para>
+    Em alguns planos de comando é possível que um nó de subplano seja executado
+    mais de uma vez. Por exemplo, a varredura de índice interna é executada uma
+    vez para cada linha externa no plano de laço aninhado acima. Nestes casos,
+    o valor <quote>loops</quote> (laços) expressa o número total de execuções
+    do nó, e os valores <literal>actual time</literal> (tempo real) e
+    <literal>rows</literal> (linhas) mostrados são valores médios por execução.
+    Isto é feito para tornar os números comparáveis com o modo como as
+    estimativas de custo são mostradas. Deve ser multiplicado pelo valor
+    <quote>loops</quote> para obter o tempo total realmente gasto no nó.
+   </para>
+
+   <para>
+    O <literal>Total runtime</literal> (tempo total de execução) mostrado pelo
+    <command>EXPLAIN ANALYZE</command> inclui os tempos de inicialização e de
+    finalização do executor, assim como o tempo gasto processando as linhas do
+    resultado. Não inclui os tempos de análise, reescrita  e planejamento.
+    Para um comando <command>SELECT</command>, o tempo total de execução
+    normalmente será apenas um pouco maior que o tempo total informado para o
+    nó do plano de nível mais alto. Para os comandos <command>INSERT</command>,
+    <command>UPDATE</command> e <command>DELETE</command> , o tempo total de
+    execução pode ser consideravelmente maior, porque inclui o tempo gasto
+    processando as linhas do resultado. Nestes comandos, o tempo para o nó
+    superior do plano é, essencialmente, o tempo gasto computando as novas
+    linhas e/ou localizando as linhas antigas, mas não inclui o tempo gasto
+    realizando as alterações.
+    O tempo gasto disparando os gatilhos, se houver algum, está fora do
+    nó superior do plano, sendo mostrado separadamente para cada gatilho.
+   </para>
+
+   <para>
+    Vale a pena notar que os resultados do comando <command>EXPLAIN</command>
+    não devem ser extrapolados para outras situações além da que está sendo
+    testada; por exemplo, não é possível supor que os resultados para uma tabela
+    pequena possam ser aplicados a uma tabela grande.
+    As estimativas de custo do planejador não são lineares e, portanto, podem
+    ser escolhidos planos diferentes para tabelas maiores ou menores.
+    Um exemplo extremo é o de uma tabela que ocupa uma única página em disco,
+    onde quase sempre vence o plano de varredura seqüencial, havendo índices
+    disponíveis ou não.
+    O planejador percebe que fará a leitura de uma página do disco para
+    processar a tabela em qualquer caso e, portanto, não faz sentido fazer
+    leituras de páginas adicionais para procurar em um índice.
+   </para>
+  </sect1>
+
+ <sect1 id="planner-stats">
+  <title>Estatísticas utilizadas pelo planejador</title>
+
+  <indexterm zone="planner-stats">
+   <primary>estatísticas</primary>
+   <secondary>do planejador</secondary>
+  </indexterm>
+
+  <para>
+   Conforme visto na seção anterior, o planejador de comandos precisa estimar
+   o número de linhas buscadas pelo comando para poder fazer boas escolhas dos
+   planos de comando. Esta seção fornece uma rápida visão das estatísticas
+   utilizadas pelo sistema para fazer estas estimativas.
+  </para>
+
+  <para>
+   Um dos componentes da estatística é o número total de entradas em cada tabela
+   e índice, assim como o número de blocos de disco ocupados por cada tabela e
+   índice. Esta informação é mantida nas colunas
+   <structfield>reltuples</structfield> e <structfield>relpages</structfield>
+   da tabela
+   <link linkend="catalog-pg-class"><structname>pg_class</structname></link>,
+   podendo ser vista utilizando consultas
+   semelhantes à mostrada abaixo:
+
+<screen>
+<userinput>SELECT relname, relkind, reltuples, relpages FROM pg_class WHERE relname LIKE 'tenk1%';</userinput>
+
+<computeroutput>
+    relname    | relkind | reltuples | relpages
+---------------+---------+-----------+----------
+ tenk1         | r       |     10000 |      233
+ tenk1_hundred | i       |     10000 |       30
+ tenk1_unique1 | i       |     10000 |       30
+ tenk1_unique2 | i       |     10000 |       30
+(4 linhas)
+</computeroutput>
+</screen>
+
+   Pode ser visto que <structname>tenk1</structname> contém 10.000 linhas,
+   assim como seus índices, mas que os índices são (sem surpresa) muito
+   menores que a tabela.
+  </para>
+
+  <para>
+   Por razões de eficiência, as colunas <structfield>reltuples</structfield>
+   e <structfield>relpages</structfield> não são atualizadas dinamicamente e,
+   portanto, usualmente contêm valores um pouco desatualizados.
+   São atualizadas pelos comandos <command>VACUUM</>, <command>ANALYZE</> e
+   uns poucos comandos de DDL como <command>CREATE INDEX</>.
+   Um comando <command>ANALYZE</> autônomo, ou seja, não fazendo parte do
+   <command>VACUUM</>, gera um valor aproximado para
+   <structfield>reltuples</structfield> uma vez que não lê todas as linhas da
+   tabela.
+   O planejador faz uma proporcionalidade dos valores encontrados em
+   <structname>pg_class</structname> para que correspondam ao tamanho
+   físico corrente da tabela, obtendo assim uma estimativa mais próxima.
+  </para>
+
+  <indexterm>
+   <primary>pg_statistic</primary>
+  </indexterm>
+
+  <para>
+   A maioria dos comandos busca apenas uma fração das linhas da tabela, porque
+   possuem cláusulas <literal>WHERE</literal> que restringem as linhas a serem
+   examinadas. Portanto, o planejador precisa fazer uma estimativa da
+   <firstterm>seletividade</firstterm> das cláusulas <literal>WHERE</literal>,
+   ou seja, a fração das linhas correspondendo a cada condição na cláusula
+   <literal>WHERE</literal>. A informação utilizada para esta tarefa é
+   armazenada no catálogo do sistema
+   <link linkend="catalog-pg-statistic"><structname>pg_statistic</structname></link>.
+   As entradas em <structname>pg_statistic</structname>
+   são atualizadas pelos comandos <command>ANALYZE</command> e
+   <command>VACUUM ANALYZE</command>, sendo sempre aproximadas, mesmo logo após
+   serem atualizadas.
+  </para>
+
+  <indexterm>
+   <primary>pg_stats</primary>
+  </indexterm>
+
+  <para>
+   Em vez de olhar diretamente em <structname>pg_statistic</structname>,
+   é melhor olhar sua visão <structname>pg_stats</structname> ao se
+   examinar as estatísticas manualmente.
+   A visão <structname>pg_stats</structname> foi projetada para ser lida mais
+   facilmente.
+   Além disso, <structname>pg_stats</structname> pode ser lida por todos,
+   enquanto <structname>pg_statistic</structname> somente pode ser lida pelos
+   superusuários (Isto impede que usuários não privilegiados aprendam algo sobre
+   o conteúdo das tabelas de outras pessoas a partir de suas estatísticas.
+   A visão <structname>pg_stats</structname> tem como restrição mostrar somente
+   informações sobre as tabelas que o usuário corrente pode ler).
+   Por exemplo, podemos executar:
+
+<screen>
+<userinput>SELECT attname, n_distinct, most_common_vals FROM pg_stats WHERE tablename = 'road';</userinput>
+
+<computeroutput>
+ attname | n_distinct |            most_common_vals
+---------+------------+---------------------------------------------
+ name    |  -0.467008 | {"I- 580                        Ramp", ... }
+ thepath |         20 | {"[(-122.089,37.71),(-122.0886,37.711)]"}
+(2 linhas)
+</computeroutput>
+
+/*
+ * onde ... representa:
+ * "I- 880                        Ramp",
+ * "Sp Railroad                       ",
+ * "I- 580                            ",
+ * "I- 680                        Ramp",
+ * "I- 80                         Ramp",
+ * "14th                          St  ",
+ * "5th                           St  ",
+ * "Mission                       Blvd",
+ * "I- 880                            "
+ */
+</screen>
+  </para>
+
+  <para>
+   A visão <structname>pg_stats</structname> está descrita detalhadamente na
+   <xref linkend="view-pg-stats">.
+  </para>
+
+  <para>
+   A quantidade de informação armazenada em
+   <structname>pg_statistic</structname>,
+   em particular o número máximo de entradas nas matrizes
+   <structfield>most_common_vals</structfield> e
+   <structfield>histogram_bounds</structfield>
+   para cada coluna, podem ser definidas coluna por coluna utilizando o comando
+   <command>ALTER TABLE SET STATISTICS</command>,
+   ou globalmente definindo a variável de configuração
+   <xref linkend="guc-default-statistics-target">.
+   Atualmente o limite padrão são 10 entradas.
+   Aumentar o limite pode permitir que o planejador faça estimativas mais
+   precisas, particularmente para colunas com distribuição irregular dos dados,
+   porém consumindo mais espaço na tabela <structname>pg_statistic</structname>
+   e um pouco mais de tempo para computar as estimativas.
+   Inversamente, um limite mais baixo pode ser apropriado para colunas com
+   distribuição dos dados simples.
+  </para>
+
+ </sect1>
+
+ <sect1 id="explicit-joins">
+  <title>Controle do planejador com cláusulas JOIN explícitas</title>
+
+  <indexterm zone="explicit-joins">
+   <primary>junção</primary>
+   <secondary>controle da ordem</secondary>
+  </indexterm>
+
+  <para>
+   É possível ter algum controle sobre o planejador de comandos utilizando a
+   sintaxe <literal>JOIN</literal> explícita. Para saber por que isto tem
+   importância, primeiro é necessário ter algum conhecimento.
+  </para>
+
+  <para>
+   Em uma consulta de junção simples, como
+<programlisting>
+SELECT * FROM a, b, c WHERE a.id = b.id AND b.ref = c.id;
+</programlisting>
+   o planejador está livre para fazer a junção das tabelas em qualquer ordem.
+   Por exemplo, pode gerar um plano de comando que faz a junção de A com B
+   utilizando a condição <literal>a.id = b.id</literal> do
+   <literal>WHERE</literal> e, depois, fazer a junção de C com a tabela juntada
+   utilizando a outra condição do <literal>WHERE</literal>.
+   Poderia, também, fazer a junção de B com C e depois juntar A ao resultado.
+   Ou, também, fazer a junção de A com C e depois juntar B, mas isto não seria
+   eficiente, uma vez que deveria ser produzido o produto Cartesiano completo
+   de A com C, porque não existe nenhuma condição aplicável na cláusula
+   <literal>WHERE</literal> que permita a otimização desta junção (Todas as
+   junções no executor do <productname>PostgreSQL</productname> acontecem entre
+   duas tabelas de entrada sendo, portanto, necessário construir o resultado a
+   partir de uma ou outra destas formas).
+   O ponto a ser destacado é que estas diferentes possibilidades de junção
+   produzem resultados semanticamente equivalentes, mas podem ter custos de
+   execução muito diferentes.
+   Portanto, o planejador explora todas as possibilidades tentando encontrar o
+   plano de consulta mais eficiente.
+  </para>
+
+  <para>
+   Quando uma consulta envolve apenas duas ou três tabelas não existem muitas
+   ordens de junção com que se preocupar. Porém, o número de ordens de junção
+   possíveis cresce exponencialmente quando o número de tabelas aumenta.
+   Acima de dez tabelas de entrada não é mais prático efetuar uma procura
+   exaustiva por todas as possibilidades, e mesmo para seis ou sete tabelas o
+   planejamento pode levar um longo tempo.
+   Quando existem muitas tabelas de entrada, o planejador do
+   <productname>PostgreSQL</productname> pode alternar da procura exaustiva
+   para a procura probabilística <firstterm>genética</firstterm> através de
+   um número limitado de possibilidades (O ponto de mudança é
+   definido pelo parâmetro em tempo de execução
+   <xref linkend="guc-geqo-threshold">).
+   A procura genética leva menos tempo, mas não encontra necessariamente
+   o melhor plano possível.
+  </para>
+
+  <para>
+   Quando a consulta envolve junções externas, o planejador tem muito menos
+   liberdade que com as junções puras (internas). Por exemplo, considere:
+<programlisting>
+SELECT * FROM a LEFT JOIN (b JOIN c ON (b.ref = c.id)) ON (a.id = b.id);
+</programlisting>
+   Embora as restrições desta consulta sejam superficialmente semelhantes às do
+   exemplo anterior as semânticas são diferentes, porque deve ser gerada uma
+   linha para cada linha de A que não possua linha correspondente na junção de
+   B com C. Portanto, o planejador não pode escolher a ordem de junção neste
+   caso: deve fazer a junção de B com C e depois juntar A ao resultado.
+   Portanto, esta consulta leva menos tempo para ser planejada que a consulta
+   anterior.
+  </para>
+
+  <para>
+   A sintaxe de junção interna explícita (<literal>INNER JOIN</literal>,
+   <literal>CROSS JOIN</literal> ou <literal>JOIN</literal> sem adornos)
+   é semanticamente idêntica a listar as relações de entrada na cláusula
+   <literal>FROM</literal>, portanto não precisa restringir a ordem de junção.
+   Ainda assim é possível instruir o planejador de comandos do
+   <productname>PostgreSQL</productname> para que trate os
+   <literal>JOIN</literal>s internos explícitos como restringindo a ordem de
+   junção. Por exemplo, estas três consultas são logicamente equivalentes:
+<programlisting>
+SELECT * FROM a, b, c WHERE a.id = b.id AND b.ref = c.id;
+SELECT * FROM a CROSS JOIN b CROSS JOIN c WHERE a.id = b.id AND b.ref = c.id;
+SELECT * FROM a JOIN (b JOIN c ON (b.ref = c.id)) ON (a.id = b.id);
+</programlisting>
+   Mas se dissermos ao planejador para que respeite a ordem do
+   <literal>JOIN</literal>, a segunda e a terceira consultas levam menos tempo
+   para serem planejadas que a primeira. Não vale a pena se preocupar com
+   este efeito para apenas três tabelas, mas pode ser de grande valia para
+   muitas tabelas.
+  </para>
+
+  <para>
+   Para obrigar o planejador seguir a ordem do <literal>JOIN</literal> para as
+   junções internas, deve ser definido o parâmetro em tempo de execução
+   <xref linkend="guc-join-collapse-limit">
+   como 1 (São mostrados abaixo outros valores possíveis).
+  </para>
+
+  <para>
+   Não é necessário restringir completamente a ordem de junção para diminuir
+   o tempo de procura, porque podem ser utilizados operadores
+   <literal>JOIN</literal> entre os itens da lista <literal>FROM</literal>
+   pura. Por exemplo,
+<programlisting>
+SELECT * FROM a CROSS JOIN b, c, d, e WHERE ...;
+</programlisting>
+   Com <varname>join_collapse_limit</varname> = 1 isto obriga o planejador a
+   fazer a junção de A com B antes de juntá-las às outras tabelas, mas não
+   restringe suas escolhas além disso. Neste exemplo, o número de ordens de
+   junção possíveis é reduzido por um fator de 5.
+  </para>
+
+  <para>
+   Restringir a procura do planejador desta maneira é uma técnica útil tanto
+   para reduzir o tempo de planejamento quanto para direcionar o planejador
+   para um bom plano de comando. Se o planejador escolher uma ordem de junção
+   ruim por padrão, é possível forçá-lo a escolher uma ordem melhor por meio da
+   sintaxe do <literal>JOIN</literal> &mdash; assumindo que se conheça uma
+   ordem melhor. Recomenda-se realizar experiências.
+  </para>
+
+  <para>
+   Uma questão intimamente relacionada, que afeta o tempo de planejamento, é o
+   colapso das subconsultas dentro da consulta ancestral. Por exemplo, considere
+<programlisting>
+SELECT *
+FROM x, y,
+    (SELECT * FROM a, b, c WHERE alguma_coisa) AS ss
+WHERE uma_outra_coisa;
+</programlisting>
+   Esta situação pode ocorrer quando se utiliza uma visão contendo uma junção;
+   a regra <literal>SELECT</literal> da visão é inserida no lugar da referência
+   à visão, produzindo uma consulta muito parecida com a mostrada acima.
+   Normalmente, o planejador tenta fazer o colapso da subconsulta dentro da
+   consulta externa, produzindo
+<programlisting>
+SELECT * FROM x, y, a, b, c WHERE alguma_coisa AND uma_outra_coisa;
+</programlisting>
+   Geralmente isto resulta em um plano melhor que planejar a subconsulta
+   separadamente (Por exemplo, as condições do <literal>WHERE</literal> externo
+   podem ser tais que a junção de X com A primeiro elimine muitas linhas de A
+   evitando, portanto, a necessidade de formar a saída lógica completa da
+   subconsulta). Mas ao mesmo tempo foi aumentado o tempo de planejamento;
+   agora temos um problema de junção de cinco vias no lugar de dois problemas
+   de junção de três vias separados. Devido ao crescimento exponencial do número
+   de possibilidades, isto faz uma grande diferença. O planejador tenta evitar
+   ficar preso a problemas de procura de junção grande não fazendo o colapso da
+   subconsulta se resultar em mais que <varname>from_collapse_limit</varname>
+   itens na cláusula <literal>FROM</literal> da consulta externa. É possível
+   equilibrar o tempo de planejamento versus a qualidade do plano ajustando
+   este parâmetro de tempo de execução para cima ou para baixo.
+  </para>
+
+  <para>
+   <xref linkend="guc-from-collapse-limit"> e
+   <xref linkend="guc-join-collapse-limit">
+   possuem nomes semelhantes porque fazem praticamente a mesma coisa: um
+   controla quando o planejador irá <quote>aplanar</quote>
+   (<literal>flatten out</literal>) as subconsultas, e o outro controla quando
+   serão aplanadas as junções internas explícitas.
+   Normalmente <varname>join_collapse_limit</varname> é definido igual a
+   <varname>from_collapse_limit</varname> (fazendo as junções explícitas e as
+   subconsultas agirem da mesma maneira), ou
+   <varname>join_collapse_limit</varname> é definido igual a 1
+   (se for desejado controlar a ordem de junção com junções explícitas).
+   Mas podem ser definidas com valores diferentes quando se tenta aprimorar o
+   equilíbrio entre o tempo de planejamento e o tempo de execução.
+  </para>
+ </sect1>
+
+ <sect1 id="populate">
+  <title>Carga dos dados no banco</title>
+
+  <para>
+   Pode ser necessário inserir uma grande quantidade de dados ao se fazer a
+   carga inicial do banco de dado. Esta seção contém algumas sugestões sobre
+   como tornar este processo tão eficiente quanto possível.
+  </para>
+
+  <sect2 id="disable-autocommit">
+   <title>Desabilitar a efetivação automática</title>
+
+   <indexterm>
+    <primary>auto-efetivação</primary>
+    <secondary>carga de dados volumosa</secondary>
+   </indexterm>
+
+   <para>
+    Desabilitar a efetivação automática (<literal>autocommit</literal>) e fazer
+    apenas uma efetivação no final (Em puro SQL, isto significa executar
+    <command>BEGIN</command> no começo e <command>COMMIT</command> no fim.
+    Algumas bibliotecas cliente podem fazer isto às escondidas e, neste caso,
+    é preciso ter certeza que a biblioteca só faz quando se deseja que seja
+    feito). Se permitirmos efetivar cada inserção separadamente, o
+    <productname>PostgreSQL</productname> terá muito trabalho para cada linha
+    inserida. Um benefício adicional de fazer todas as inserções em uma
+    transação, é que se a inserção de uma linha não for bem-sucedida, então
+    a inserção de todas as linhas feita até este ponto é desfeita, não sendo
+    necessário se preocupar com a carga parcial dos dados.
+   </para>
+  </sect2>
+
+  <sect2 id="populate-copy-from">
+   <title>Uso do COPY FROM</title>
+
+   <para>
+    Usar o comando <xref linkend="sql-copy" endterm="sql-copy-title"> para
+    carregar todas as linhas em um comando, em vez de usar uma série de
+    comandos <command>INSERT</command>. O comando <command>COPY</command>
+    é otimizado para carregar uma grande quantidade de linhas; é menos
+    flexível que o comando <command>INSERT</command>, mas ocasiona uma
+    sobrecarga significativamente menor para cargas de dados volumosas.
+    Uma vez que o comando <command>COPY</command> é um único comando,
+    não é necessário desabilitar a auto-efetivação se for utilizado
+    este método para carregar a tabela.
+   </para>
+
+   <para>
+    Se não for possível utilizar o comando <command>COPY</command>, pode
+    ser útil utilizar o comando
+    <xref linkend="sql-prepare" endterm="sql-prepare-title">
+    para criar comandos <command>INSERT</command> preparados, e depois usar
+    o comando <command>EXECUTE</command> tantas vezes quanto forem necessárias.
+    Isto evita a sobregarga de analisar e planejar o comando
+    <command>INSERT</command> repetidas vezes.
+   </para>
+
+   <para>
+    Deve-se notar que carregar uma grande quantidade de linhas utilizando o
+    comando <command>COPY</command> é quase sempre mais rápido que utilizando
+    o comando <command>INSERT</command>, mesmo que o comando
+    <command>PREPARE</> seja utilizado e sejam feitas várias inserções em lote
+    em uma única transação.
+   </para>
+  </sect2>
+
+  <sect2 id="populate-rm-indexes">
+   <title>Remoção dos índices</title>
+
+   <para>
+    Se estiver sendo carregada uma tabela recém criada, a maneira mais rápida é
+    criar a tabela, carregar os dados usando o <command>COPY</command> e,
+    depois, criar os índices necessários para a tabela.
+    Criar um índice sobre dados pré-existentes é mais rápido que atualizá-lo
+    de forma incremental durante a carga de cada linha.
+   </para>
+
+   <para>
+    Para aumentar uma tabela existente, pode-se remover o índice, carregar a
+    tabela e, depois, recriar o índice. É claro que o desempenho do banco de
+    dados para os outros usuários será afetado negativamente durante o tempo
+    que o índice não existir. Deve-se pensar duas vezes antes de remover um
+    índice único, porque a verificação de erro efetuada pela restrição de
+    unicidade não existirá enquanto o índice não tiver sido criado novamente.
+   </para>
+  </sect2>
+
+  <sect2 id="populate-work-mem">
+   <title>Aumento de maintenance_work_mem</title>
+
+   <para>
+    O aumento temporário da variável de configuração
+    <xref linkend="guc-maintenance-work-mem">
+    durante a carga de uma grande quantidade de dados pode ocasionar uma
+    melhora no desempenho. Isto se deve ao fato de quando o índice
+    <literal>B-tree</literal> é criado a partir do início, o conteúdo presente
+    na tabela precisa ser ordenado. Permitir o <literal>merge sort</literal>
+    <footnote>
+     <para>
+     <literal>merge sort</literal> &mdash; Um algoritmo de classificação que
+     divide os itens a serem classificados em dois grupos, classifica cada grupo
+     recursivamente e, depois, mescla os grupos em uma seqüência classificada
+     final.
+     <ulink url="http://www.nist.gov/dads/HTML/mergesort.html">National
+     Institute of Standards and Technology</ulink> (N. do T.)
+     </para>
+    </footnote>
+    utilizar mais memória significa que serão necessários menos passos de
+    mesclagem. Uma definição maior para <varname>maintenance_work_mem</varname>
+    também pode acelerar a validação de restrições de chave estrangeira.
+   </para>
+  </sect2>
+
+  <sect2 id="populate-checkpoint-segments">
+   <title>Aumento de checkpoint_segments</title>
+
+   <para>
+    O aumento temporário da variável de configuração
+    <xref linkend="guc-checkpoint-segments">
+    também pode tornar as cargas de dados volumosas mais rápidas.
+    Isto se deve ao fato de quando uma grande quantidade de dados é carregada
+    no <productname>PostgreSQL</productname>, isto pode fazer com que os pontos
+    de controle (<literal>checkpoints</literal>) ocorram com mais freqüência
+    que a freqüência normal de ponto de controle (especificada pela variável
+    de configuração <varname>checkpoint_timeout</varname>).
+    Sempre que ocorre um ponto de controle, todas as páginas sujas
+    (<literal>dirty pages</literal>) devem ser descarregadas no disco.
+    Aumentado-se <varname>checkpoint_segments</varname> temporariamente durante
+    uma carga volumosa, o número de pontos de controle necessários pode ser
+    menor.
+   </para>
+  </sect2>
+
+  <sect2 id="populate-analyze">
+   <title>Depois executar o comando ANALYZE</title>
+
+   <para>
+    Após se alterar significativamente a distribuição dos dados da tabela,
+    é recomendado executar o comando
+    <xref linkend="sql-analyze" endterm="sql-analyze-title">.
+    Isto inclui a carga de grande quantidade de dados na tabela.
+    A execução do comando <command>ANALYZE</command> (ou
+    <command>VACUUM ANALYZE</command>) garante que o planejador possuirá
+    estatísticas atualizadas sobre a tabela.
+    Sem estatísticas, ou com estatísticas obsoletas, o planejador pode
+    tomar decisões ineficientes durante o planejamento dos comandos,
+    ocasionando um desempenho fraco nas tabelas com estatísticas
+    imprecisas ou não existentes.
+   </para>
+  </sect2>
+  </sect1>
+
+ </chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

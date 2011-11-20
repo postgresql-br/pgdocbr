@@ -1,0 +1,171 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/ref/create_conversion.sgml,v 1.19 2007/01/31 23:26:03 momjian Exp $ -->
+
+<refentry id="SQL-CREATECONVERSION">
+ <refmeta>
+  <refentrytitle id="SQL-CREATECONVERSION-TITLE">CREATE CONVERSION</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE CONVERSION</refname>
+  <refpurpose>cria uma conversão de codificação</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createconversion">
+  <primary>CREATE CONVERSION</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE [ DEFAULT ] CONVERSION <replaceable>nome</replaceable>
+    FOR <replaceable>codificação_de_origem</replaceable> TO <replaceable>codificação_de_destino</replaceable> FROM <replaceable>nome_da_função</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="sql-createconversion-description">
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE CONVERSION</command> cria uma conversão de
+   codificação. Além disso, as conversões marcadas como
+   <literal>DEFAULT</literal> podem ser utilizadas para fazer a conversão
+   automática de codificação entre o cliente e o servidor. Para esta finalidade
+   devem ser criadas duas conversões: da codificação A para B
+   <emphasis>e</emphasis> da codificação B para A.
+ </para>
+
+  <para>
+   Para poder criar uma conversão é necessário possuir o privilégio
+   <literal>EXECUTE</literal> na função, e o privilégio
+   <literal>CREATE</literal> no esquema de destino.
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+   <variablelist>
+    <varlistentry>
+     <term><literal>DEFAULT</literal></term>
+
+     <listitem>
+      <para>
+       A cláusula <literal>DEFAULT</literal> indica que esta é a conversão
+       padrão para o caso particular destas codificações de origem e
+       de destino. Em um esquema deve existir apenas uma codificação padrão
+       para cada par de codificações.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>nome</replaceable></term>
+
+     <listitem>
+      <para>
+       O nome da conversão. O nome da conversão pode ser
+       qualificado pelo esquema. Caso não seja, a conversão é criada no
+       esquema corrente. O nome da conversão deve ser único no
+       esquema.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>codificação_de_origem</replaceable></term>
+
+     <listitem>
+      <para>
+       O nome da codificação de origem.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>codificação_de_destino</replaceable></term>
+
+     <listitem>
+      <para>
+       O nome da codificação de destino.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>nome_da_função</replaceable></term>
+
+     <listitem>
+      <para>
+       A função utilizada para realizar a conversão. O nome da função pode ser
+       qualificado pelo esquema. Caso não seja, a função é procurada no
+       caminho.
+      </para>
+
+      <para>
+       A função deve possuir a seguinte assinatura:
+
+<programlisting>
+funcao_de_conversao(
+    integer,  -- identificador da codificação de origem
+    integer,  -- identificador da codificação de destino
+    cstring,  -- cadeia de caracteres de origem (cadeia de caracteres C terminada por nulo)
+    internal, -- cadeia de caracteres de destino (cadeia de caracteres C terminada por nulo)
+    integer   -- comprimento da cadeia de caracteres de origem
+) RETURNS void;
+</programlisting>
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+ </refsect1>
+
+ <refsect1 id="sql-createconversion-notes">
+  <title>Observações</title>
+
+  <para>
+   Use o comando <command>DROP CONVERSION</command> para remover conversões
+   definidas pelo usuário.
+  </para>
+
+  <para>
+   Os privilégios necessários para criar conversão podem
+   ser alterados em uma versão futura.
+  </para>
+ </refsect1>
+
+ <refsect1 id="sql-createconversion-examples">
+  <title>Exemplos</title>
+
+  <para>
+   Para criar a conversão da codificação <literal>UTF8</literal> para
+   <literal>LATIN1</literal> utilizando <function>minha_funcao</function>:
+<programlisting>
+CREATE CONVERSION minha_conversao FOR 'UTF8' TO 'LATIN1' FROM minha_funcao;
+</programlisting>
+  </para>
+ </refsect1>
+
+
+ <refsect1 id="sql-createconversion-compat">
+  <title>Compatibilidade</title>
+
+  <para>
+    O comando <command>CREATE CONVERSION</command>
+    é uma extensão do <productname>PostgreSQL</productname>.
+    Não existe o comando <command>CREATE CONVERSION</command> no padrão SQL.
+  </para>
+ </refsect1>
+
+
+ <refsect1 id="sql-createconversion-seealso">
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-alterconversion" endterm="sql-alterconversion-title"></member>
+   <member><xref linkend="sql-createfunction" endterm="sql-createfunction-title"></member>
+   <member><xref linkend="sql-dropconversion" endterm="sql-dropconversion-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>

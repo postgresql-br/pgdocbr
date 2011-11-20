@@ -1,0 +1,787 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/copy.sgml,v 1.63 2005/01/04 00:39:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+
+<refentry id="SQL-COPY">
+ <refmeta>
+  <refentrytitle id="sql-copy-title">COPY</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>COPY</refname>
+  <refpurpose>copia dados entre um arquivo e uma tabela</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-copy">
+  <primary>COPY</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+COPY <replaceable class="parameter">nome_da_tabela</replaceable> [ ( <replaceable class="parameter">coluna</replaceable> [, ...] ) ]
+    FROM { '<replaceable class="parameter">nome_do_arquivo</replaceable>' | STDIN }
+    [ [ WITH ]
+          [ BINARY ]
+          [ OIDS ]
+          [ DELIMITER [ AS ] '<replaceable class="parameter">delimitador</replaceable>' ]
+          [ NULL [ AS ] '<replaceable class="parameter">cadeia_de_caracteres_nula</replaceable>' ]
+          [ CSV [ QUOTE [ AS ] '<replaceable class="parameter">citação</replaceable>' ]
+                [ ESCAPE [ AS ] '<replaceable class="parameter">escape</replaceable>' ]
+                [ FORCE NOT NULL <replaceable class="parameter">coluna</replaceable> [, ...] ]
+
+COPY <replaceable class="parameter">nome_da_tabela</replaceable> [ ( <replaceable class="parameter">coluna</replaceable> [, ...] ) ]
+    TO { '<replaceable class="parameter">nome_do_arquivo</replaceable>' | STDOUT }
+    [ [ WITH ]
+          [ BINARY ]
+          [ OIDS ]
+          [ DELIMITER [ AS ] '<replaceable class="parameter">delimitador</replaceable>' ]
+          [ NULL [ AS ] '<replaceable class="parameter">cadeia_de_caracteres_nula</replaceable>' ]
+          [ CSV [ QUOTE [ AS ] '<replaceable class="parameter">citação</replaceable>' ]
+                [ ESCAPE [ AS ] '<replaceable class="parameter">escape</replaceable>' ]
+                [ FORCE QUOTE <replaceable class="parameter">coluna</replaceable> [, ...] ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>COPY</command> copia dados entre tabelas do
+   <productname>PostgreSQL</productname> e arquivos
+   do sistema operacional. O comando <command>COPY TO</command> copia o conteúdo
+   de uma tabela <emphasis>para</emphasis> um arquivo, enquanto o comando
+   <command>COPY FROM</command> copia dados <emphasis>de</emphasis> um
+   arquivo para uma tabela (adicionando os dados aos já existentes na tabela).
+  </para>
+
+  <para>
+   Se uma lista de colunas for especificada, o comando <command>COPY</command>
+   somente copia os dados das colunas especificadas de/para o arquivo.
+   Havendo colunas na tabela que não estejam na lista de colunas,
+   o comando <command>COPY FROM</command> insere o valor padrão
+   destas colunas.
+  </para>
+
+  <para>
+   O comando <command>COPY</command> com um nome de arquivo instrui o
+   servidor <productname>PostgreSQL</productname> a ler ou escrever
+   diretamente no arquivo. O arquivo deve ser acessível ao servidor,
+   e o nome deve ser especificado sob o ponto de vista do servidor.
+   Quando <literal>STDIN</literal> ou <literal>STDOUT</literal> são
+   especificados, os dados são transmitidos através da conexão
+   entre o cliente e o servidor.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome_da_tabela</replaceable></term>
+    <listitem>
+     <para>
+      O nome de uma tabela existente (opcionalmente qualificado pelo esquema).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">coluna</replaceable></term>
+     <listitem>
+     <para>
+      A lista opcional das colunas a serem copiadas.
+      Se nenhuma lista for especificada, todas as colunas são utilizadas.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">nome_do_arquivo</replaceable></term>
+    <listitem>
+     <para>
+      O nome do caminho absoluto do arquivo de entrada ou de saída.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>STDIN</literal></term>
+    <listitem>
+     <para>
+      Especifica que a entrada vem do aplicativo cliente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>STDOUT</literal></term>
+    <listitem>
+     <para>
+      Especifica que a saída vai para o aplicativo cliente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>BINARY</literal></term>
+    <listitem>
+     <para>
+      Faz todos os dados serem armazenados ou lidos no formato binário, em vez
+      de texto. Não é possível especificar as opções <option>DELIMITER</option>,
+      <option>NULL</option> ou <option>CSV</option> no modo binário.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>OIDS</literal></term>
+    <listitem>
+     <para>
+      Especifica que deve ser copiado o identificador interno do objeto (OID) de
+      cada linha; é gerado um erro se <literal>OIDS</literal> for especificado
+      para uma tabela que não possua OIDs.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">delimitador</replaceable></term>
+    <listitem>
+     <para>
+      O caractere único que separa as colunas dentro de cada linha do arquivo.
+      O padrão é o caractere de tabulação no modo texto, e a vírgula no modo
+      <literal>CSV</literal>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">cadeia_de_caracteres_nula</replaceable></term>
+    <listitem>
+     <para>
+      A cadeia de caracteres que representa o valor nulo. O padrão é
+      <quote><literal>\N</literal></quote> (contrabarra-N) no modo texto, e um
+      valor vazio sem os caracteres de citação (aspas, por padrão) no modo
+      <literal>CSV</>. Pode-se preferir a cadeia de caracteres vazia, mesmo no
+      modo texto, se não for desejado fazer distinção entre nulos cadeias de
+      caracteres
+      vazias.
+     </para>
+
+     <note>
+      <para>
+       No <command>COPY FROM</command> qualquer item de dado correspondendo a
+       esta cadeia de caracteres é armazenado com o valor nulo e, portanto, deve
+       haver certeza que está sendo utilizada a mesma cadeia de caracteres
+       utilizada para fazer o <command>COPY TO</command>.
+      </para>
+     </note>
+
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>CSV</literal></term>
+    <listitem>
+     <para>
+      Seleciona o modo valor separado por vírgula (<literal>CSV</literal>).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">citação</replaceable></term>
+    <listitem>
+     <para>
+      Especifica o caractere de citação (<literal>quotation character</literal>)
+      no modo <literal>CSV</literal>. Aspas por padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">escape</replaceable></term>
+    <listitem>
+     <para>
+      Especifica o caractere que deve preceder o valor do caractere de dado
+      <literal>QUOTE</literal> no modo <literal>CSV</literal>.
+      O padrão é o mesmo valor de <literal>QUOTE</literal> (geralmente aspas).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>FORCE QUOTE</literal></term>
+    <listitem>
+     <para>
+      No modo <command>COPY TO</literal> do <literal>CSV</literal> força a utilização do
+      caractere de citação (aspas, por padrão) em todos os valores diferentes de
+      <literal>NULL</literal> em cada uma das colunas especificadas. A saída
+      <literal>NULL</literal> nunca é colocada entre os caracteres de citação.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>FORCE NOT NULL</literal></term>
+    <listitem>
+     <para>
+      No modo <command>COPY TO</literal> do <literal>CSV</literal> processa cada coluna
+      especificada como se estivesse entre os caracteres de citação (aspas, por
+      padrão) e, portanto, não sendo um valor <literal>NULL</literal>. Para a cadeia de
+      caracteres nula padrão no modo <literal>CSV</literal> (<literal>''</literal>), faz com
+      que os valores faltando sejam entrados como cadeias de caracteres de
+      comprimento zero.
+     </para>
+    </listitem>
+   </varlistentry>
+
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+   <para>
+    O comando <command>COPY</command> só pode ser utilizado em tabelas,
+    não podendo ser utilizado em visões.
+   </para>
+
+   <para>
+    A palavra chave <literal>BINARY</literal> faz todos os dados serem
+    armazenados/lidos no formato binário em vez de texto. É um pouco mais
+    rápido que o modo texto normal, mas o arquivo produzido no formato
+    binário é menos portável entre arquiteturas de máquinas e versões do
+    <productname>PostgreSQL</productname>.
+   </para>
+
+   <para>
+    É necessário possuir o privilégio de seleção na tabela cujos valores são
+    lidos pelo <command>COPY TO</command>, e o privilégio inserção na tabela
+    onde os valores são inseridos pelo <command>COPY FROM</command>.
+   </para>
+
+   <para>
+    Os arquivos declarados no comando <command>COPY</command> são lidos ou
+    escritos diretamente pelo servidor, e não pelo aplicativo cliente. Portanto,
+    devem residir, ou serem acessíveis, pela máquina servidora de banco de dados,
+    e não pela estação cliente. Os arquivos devem ser acessíveis e poderem ser
+    lidos ou escritos pelo usuário do <productname>PostgreSQL</productname> (o
+    ID do usuário sob o qual o servidor executa), e não pelo cliente. O
+    <command>COPY</command> com nome de arquivo só é permitido aos superusuários
+    do banco de dados, porque permite ler e escrever em qualquer arquivo que o
+    servidor possua privilégio de acesso.
+   </para>
+
+   <para>
+    Não confunda o comando <command>COPY</command> com a instrução
+    <command>\copy</command> do <application>psql</application>.
+    O <command>\copy</command> executa <command>COPY FROM STDIN</command>
+    ou <command>COPY TO STDOUT</command> e, portanto, lê/grava os dados
+    em um arquivo acessível ao cliente <application>psql</application>.
+    Por esta razão, a acessibilidade e os direitos de acesso ao arquivo
+    dependem do cliente, e não do servidor,
+    quando o <command>\copy</command> é utilizado.
+   </para>
+
+   <para>
+    Recomenda-se que o nome do arquivo utilizado no comando
+    <command>COPY</command> seja sempre especificado como um caminho absoluto,
+    o que é exigido pelo servidor no caso do <command>COPY TO</command>, mas
+    para o <command>COPY FROM</command> existe a opção de ler um arquivo
+    especificado pelo caminho relativo. O caminho é interpretado com relação ao
+    diretório de trabalho do processo servidor (algum lugar abaixo do diretório
+    de dados), e não relativo ao diretório de trabalho do cliente.
+   </para>
+
+   <para>
+    O comando <command>COPY FROM</command> chama os gatilhos e as restrições
+    de verificação da tabela de destino. Entretanto, não chama as regras.
+   </para>
+
+   <para>
+    A entrada e a saída do <command>COPY</command> são afetadas por
+    <varname>DateStyle</varname>. Para garantir a portabilidade com outras
+    instalações do <productname>PostgreSQL</productname>, que podem utilizar
+    definições para <varname>DateStyle</varname> diferentes do padrão,
+    <varname>DateStyle</varname> deve ser definida como <literal>ISO</literal> antes
+    de usar <command>COPY TO</command>.
+   </para>
+
+   <para>
+    O <command>COPY</command> pára de executar no primeiro erro, o que não deve
+    causar problemas no caso do <command>COPY TO</command>, mas a tabela de
+    destino já terá recebido as primeiras linhas no caso do
+    <command>COPY FROM</command>. Estas linhas não são visíveis nem acessíveis,
+    mas ainda assim ocupam espaço em disco, podendo causar o desperdício de
+    uma quantidade considerável de espaço em disco, se o erro ocorrer durante a
+    cópia de uma grande quantidade de dados. Deve ser executado o comando
+    <command>VACUUM</command> para recuperar o espaço desperdiçado.
+   </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Formatos dos arquivos</title>
+
+  <refsect2>
+   <title>Formato texto</title>
+
+   <para>
+    Quando o comando <command>COPY</command> é utilizado sem as opções
+    <literal>BINARY</literal> ou <literal>CSV</literal>,
+    os dados são lidos ou escritos em um arquivo texto com uma linha para cada
+    linha da tabela. As colunas de cada linha são separadas pelo
+    caractere delimitador. Os valores das colunas são cadeias de caracteres
+    geradas pela função de saída, ou aceitas pela função de entrada,
+    do tipo de dado de cada atributo. A cadeia de caracteres nula especificada
+    é utilizada no lugar das colunas que são nulas.
+    O comando <command>COPY FROM</command> produz um erro se alguma linha
+    do arquivo de entrada possuir mais, ou menos, colunas que o esperado.
+    Se <literal>OIDS</literal> for especificado, o OID é lido ou escrito como a
+    primeira coluna, antecedendo as colunas de dado do usuário.
+   </para>
+
+   <para>
+    O fim dos dados pode ser representado por uma única linha contendo apenas
+    contrabarra-ponto (<literal>\.</literal>). A marca de fim-de-dados não é
+    necessária ao ler de um arquivo, porque o fim-de-arquivo serve perfeitamente
+    bem; é necessária apenas ao copiar dados de/para aplicativos cliente quando
+    for utilizado um protocolo cliente anterior ao 3.0.
+   </para>
+
+   <para>
+    Caracteres contrabarra (<literal>\</literal>) podem ser utilizados nos dados
+    do comando <command>COPY</command> para evitar que caracteres dos dados
+    sejam interpretados como delimitadores de linha ou de coluna. Em particular,
+    os seguintes caracteres <emphasis>devem</emphasis> ser precedidos por uma
+    contrabarra se fizerem parte do valor de uma coluna: a própria contrabarra,
+    a nova-linha (LF), o retorno-do-carro (CR) e o caractere delimitador corrente.
+   </para>
+
+   <para>
+    A cadeia de caracteres nula é enviada pelo <command>COPY TO</command> sem
+    adição de contrabarras; inversamente, o <command>COPY FROM</command>
+    verifica a entrada com relação à cadeia de caracteres nula antes de remover
+    as contrabarras. Portanto, uma cadeia de caracteres nula como o
+    <literal>\N</literal> não pode ser confundida com o valor de dado
+    <literal>\N</literal> (que seria representado por <literal>\\N</literal>).
+   </para>
+
+   <para>
+    As seguintes seqüências especiais de contrabarra são reconhecidas pelo
+    comando <command>COPY FROM</command>:
+
+   <informaltable>
+    <tgroup cols="2">
+     <thead>
+      <row>
+       <entry>Seqüência</entry>
+       <entry>Representa</entry>
+      </row>
+     </thead>
+
+     <tbody>
+      <row>
+       <entry><literal>\b</literal></entry>
+       <entry>Retorna apagando (<literal>Backspace</literal>) (ASCII 8)</entry>
+      </row>
+      <row>
+       <entry><literal>\f</literal></entry>
+       <entry>Avanço do formulário (<literal>Form feed</literal>) (ASCII 12)</entry>
+      </row>
+      <row>
+       <entry><literal>\n</literal></entry>
+       <entry>Nova-linha (<literal>Newline</literal>) (ASCII 10)</entry>
+      </row>
+      <row>
+       <entry><literal>\r</literal></entry>
+       <entry>Retorno do carro (<literal>Carriage return</literal>) (ASCII 13)</entry>
+      </row>
+      <row>
+       <entry><literal>\t</literal></entry>
+       <entry>Tabulação (ASCII 9)</entry>
+      </row>
+      <row>
+       <entry><literal>\v</literal></entry>
+       <entry>Tabulação vertical (ASCII 11)</entry>
+      </row>
+      <row>
+       <entry><literal>\</literal><replaceable>dígitos</literal></entry>
+       <entry>A contrabarra seguida por um a três dígitos octais especifica
+       o caractere com este código numérico</entry>
+      </row>
+     </tbody>
+    </tgroup>
+   </informaltable>
+
+    Atualmente o <command>COPY TO</command> não produz seqüências do tipo
+    contrabarra dígitos-octais, mas utiliza as outras seqüências de contrabarra
+    listadas acima para estes caracteres de controle.
+   </para>
+
+   <para>
+    Qualquer outro caractere precedido por contrabarra que não tenha sido
+    mencionado na tabela acima é interpretado como representando a si próprio.
+    Entretanto, tome cuidado ao adicionar contrabarras desnecessariamente
+    uma vez que isto poderá, acidentalmente, produzir uma cadeia de caracteres
+    correspondendo à marca de fim-de-dados (<literal>\.</literal>), ou a cadeia
+    de caracteres nula (<literal>\N</literal> por padrão). Estas cadeias de
+    caracteres são reconhecidas antes de ocorrer qualquer outro processamento da
+    contrabarra.
+   </para>
+
+   <para>
+    É altamente recomendado que os aplicativos que geram dados para o
+    <command>COPY</command> convertam os caracteres de nova-linha e de
+    retorno-de-carro presentes nos dados nas seqüências <literal>\n</literal> e
+    <literal>\r</literal>, respectivamente. Atualmente é possível representar
+    retorno-de-carro nos dados por contrabarra e retorno-de-carro, e representar
+    nova-linha nos dados por contrabarra e nova-linha. Entretanto, estas
+    representações podem não ser aceitas nas versões futuras. São, também,
+    altamente vulneráveis à corrupção quando o arquivo do
+    <command>COPY</command> é transferido entre máquinas diferentes;
+    por exemplo, do Unix para o Windows, e vice-versa.
+   </para>
+
+   <para>
+    O comando <command>COPY TO</command> termina cada linha pelo caractere de
+    nova-linha (<quote><literal>\n</literal></quote>), no estilo
+    Unix. Os servidores executando no Microsoft Windows em vez disto
+    geram retorno-de-carro/nova-linha (<quote><literal>\r\n</literal></quote>),
+    mas somente no <command>COPY</command> para um arquivo no servidor;
+    para manter a consistência entre as plataformas,
+    <command>COPY TO STDOUT</command> sempre gera
+    <quote><literal>\n</literal></quote>,
+    independentemente da plataforma do servidor.
+    O comando <command>COPY FROM</command> pode tratar linhas terminando por
+    nova-linha, retorno-de-carro, ou retorno-de-carro/nova-linha. Para reduzir o
+    risco de erro devido a caracteres de nova-linha ou de retorno-de-carro sem
+    contrabarra que fazem parte dos dados, o <command>COPY FROM</command>
+    reclama se o final de todas as linhas de entrada não forem idênticos.
+   </para>
+  </refsect2>
+
+  <refsect2>
+   <title>Formato CSV</title>
+
+   <para>
+    Este formato é utilizado para importar e exportar arquivos no formato
+    Valor Separado por Vírgula
+    (<literal>Comma Separated Value &mdash; CSV</>)
+    usado por vários outros programas, como as planilhas eletrônicas.
+    Em vez de utilizar o escape padrão do modo texto do
+    <productname>PostgreSQL</productname>,
+    gera e reconhece o mecanismo de escape comum do CSV.
+   </para>
+
+   <para>
+    Em cada registro os valores são separados pelo caractere
+    <literal>DELIMITER</literal>. Se o valor contiver o caractere delimitador,
+    o caractere <literal>QUOTE</literal>, a cadeia de caracteres
+    <literal>NULL</literal>, um caractere de retorno-de-carro ou de nova-linha,
+    então todo o valor recebe como prefixo e sufixo o caractere
+    <literal>QUOTE</literal>, e qualquer ocorrência do caractere <literal>QUOTE</literal> ou
+    do caractere <literal>ESCAPE</literal> dentro do valor
+    é precedida pelo caractere de escape. Também pode ser utilizado
+    <literal>FORCE QUOTE</literal> para obrigar a colocar o caractere <literal>QUOTE</literal>
+    nos valores diferentes de <literal>NULL</literal> em determinadas colunas.
+   </para>
+
+   <para>
+    O formato <literal>CSV</literal> não possui uma forma padronizada para distinguir
+    entre o valor <literal>NULL</literal> e uma cadeia de caracteres vazia.
+    O <command>COPY</command> do <productname>PostgreSQL</productname> trata isto através de
+    citações (aspas). O valor <literal>NULL</literal> é escrito como <literal>NULL</literal>
+    sem caracteres de citação, enquanto o valor de dado correspondendo à cadeia
+    de caracteres <literal>NULL</literal> é escrito entre caracteres de citação.
+    Portanto, usando a configuração padrão, o valor <literal>NULL</literal> é escrito
+    como uma cadeia de caracteres vazia sem os caracteres de citação, enquanto
+    uma cadeia de caracteres vazia é escrita entre aspas (<literal>""</literal>).
+    A leitura dos valores segue regras semelhantes.
+    Pode ser utilizado <literal>FORCE NOT NULL</literal> para inibir na entrada
+    comparações de <literal>NULL</literal> para determinadas colunas.
+   </para>
+
+   <note>
+    <para>
+     O modo CSV tanto reconhece quanto gera arquivos CSV com valores entre
+     caracteres de citação contendo retorno-de-carro e nova-linha embutidos.
+     Portanto, os arquivos não são exatamente uma linha para cada linha da
+     tabela como nos arquivos do modo texto. Entretanto, o
+     <productname>PostgreSQL</productname> rejeita a entrada para o
+     <command>COPY</command> se houver embutida em algum campo uma seqüência
+     de caracteres de fim de linha que não corresponda à convenção de fim de
+     linha usada no próprio arquivo CSV.
+     Geralmente é mais seguro importar dados contendo caracteres de fim de linha
+     usando os formatos texto ou binário em vez do CSV.
+    </para>
+   </note>
+
+   <note>
+    <para>
+     Muitos programas produzem arquivos CSV estranhos e ocasionalmente maldosos;
+     portanto, este formato de arquivo é mais uma convenção do que um padrão.
+     Por isso, podem ser encontrados arquivos que não podem ser importados
+     utilizando este mecanismo, e o <command>COPY</command> pode produzir arquivos
+     que outros programas não consigam processar.
+    </para>
+   </note>
+
+  </refsect2>
+
+  <refsect2>
+   <title>Formato Binário</title>
+
+   <para>
+    O formato do arquivo usado pelo <command>COPY BINARY</command> mudou no
+    <application>PostgreSQL</application> 7.4. O novo formato consiste
+    em um cabeçalho do arquivo, zero ou mais tuplas contendo os dados das linhas,
+    e um rodapé do arquivo. Os cabeçalhos e os dados agora são enviados na ordem
+    de byte da rede.
+   </para>
+
+   <refsect3>
+    <title>Cabeçalho do Arquivo</title>
+
+    <para>
+     O cabeçalho do arquivo é formado por 15 bytes para campos fixos, seguidos
+     por uma área de extensão do cabeçalho de comprimento variável.
+     Os campos fixos são:
+
+    <variablelist>
+     <varlistentry>
+      <term>Assinatura</term>
+      <listitem>
+       <para>
+        A seqüência de 11 bytes <literal>PGCOPY\n\377\r\n\0</literal> &mdash;
+        observe que o byte zero é uma parte requerida da assinatura (A
+        assinatura foi projetada para permitir a fácil identificação de arquivos
+        corrompidos por uma transferência de dados não apropriada. Esta
+        assinatura é modificada por filtros de tradução de fim de linha, bytes
+        zero suprimidos, bits altos suprimidos, ou mudanças de paridade).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Campo de sinalizadores</term>
+      <listitem>
+       <para>
+        Inteiro de 32 bits máscara de bits, indicando aspectos importantes do
+        formato do arquivo. Os bits são numerados de 0 (<acronym>LSB</acronym>)
+        a 31 (<acronym>MSB</acronym>). Deve ser observado que este campo é
+        armazenado na ordem de bytes da rede (byte mais significativo primeiro),
+        assim como todos os campos inteiro utilizados no formato do arquivo.
+        Os bits 16-31 são reservados para indicar questões críticas do formato
+        do arquivo; a leitura deve ser interrompida se for encontrado neste
+        intervalo um bit definido não esperado. Os bits 0-15 são reservados para
+        sinalizar questões de formato anteriores-compatíveis; a leitura deve
+        simplesmente ignorar qualquer bit definido não esperado neste intervalo.
+        Atualmente somente está definido um bit sinalizador, os demais devem ser
+        zero:
+        <variablelist>
+         <varlistentry>
+          <term>Bit 16</term>
+          <listitem>
+           <para>
+            Se for 1, os OIDs estão incluídos nos dados; se for 0, não.
+           </para>
+          </listitem>
+         </varlistentry>
+        </variablelist>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>Comprimento da área de extensão do cabeçalho</term>
+      <listitem>
+       <para>
+        Inteiro de 32 bits, contendo o comprimento em bytes do restante do
+        cabeçalho, não se incluindo. Atualmente é igual a zero, e a primeira
+        tupla o segue imediatamente. Mudanças futuras no formato poderão
+        permitir dados adicionais estarem presentes no cabeçalho. A leitura deve
+        simplesmente pular qualquer dado na extensão do cabeçalho que não souber
+        o que fazer com o mesmo.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+    </para>
+
+    <para>
+     A área de extensão do cabeçalho foi concebida para conter uma seqüência de
+     blocos auto-identificadores. O campo de sinalizadores não tem por
+     finalidade informar aos leitores o que existe na área de extensão. O
+     projeto específico do conteúdo da extensão do cabeçalho foi deixado para
+     uma versão futura.
+    </para>
+
+    <para>
+     Este projeto permite tanto adições de cabeçalhos compatíveis com os
+     anteriores (adicionar blocos de extensão de cabeçalho, ou definir bits
+     sinalizadores de baixa-ordem), quanto mudanças não compatíveis com os
+     anteriores (definir bits sinalizadores de alta-ordem para sinalizar estas
+     mudanças, e adicionar dados de apoio à área de extensão se for necessário).
+    </para>
+   </refsect3>
+
+   <refsect3>
+    <title>Tuplas</title>
+    <para>
+     Cada tupla começa por um inteiro de 16 bits, que é o contador do número de
+     campos na tupla; atualmente todas as tuplas da tabela possuem o mesmo
+     contador, mas isto pode não ser verdade para sempre. Então, para cada campo
+     da tupla, existe a informação do comprimento com 32 bits, seguida por esta
+     quantidade de bytes de dados do campo; a informação do comprimento não se
+     inclui, podendo ser zero. Como caso especial, -1 informa o valor de um
+     campo nulo, e nenhum byte de valor vem a seguir.
+    </para>
+
+    <para>
+     Não existe nenhum enchimento de alinhamento ou qualquer outro dado
+     adicional entre os campos.
+    </para>
+
+    <para>
+     Atualmente é assumido que todos os valores dos dados em um arquivo
+     <command>COPY BINARY</command> estão no formato binário (código de
+     formatação um). É previsto que uma extensão futura poderá adicionar um
+     campo de cabeçalho permitindo que os códigos de formatação sejam
+     especificados por coluna.
+    </para>
+
+    <para>
+     Para determinar o formato binário apropriado para os dados da tupla
+     deve ser consultado o código fonte do <productname>PostgreSQL</productname>,
+     em particular as funções <function>*send</function> e
+     <function>*recv</function> para o tipo de dado de cada coluna (normalmente
+     estas funções se encontram no diretório <filename>src/backend/utils/adt/</filename> da distribuição do código fonte).
+    </para>
+
+    <para>
+     Se os OIDs forem incluídos no arquivo, o campo OID segue imediatamente a
+     informação contador do número de campos. É um campo normal, exceto que não
+     está incluído no contador do número de campos. Em particular possui uma
+     informação de comprimento &mdash; permitindo tratar OIDs de 4-bytes versus
+     8-bytes sem muita dificuldade e, também, permitindo os OIDs serem mostrados
+     como nulo se por acaso for desejado.
+    </para>
+   </refsect3>
+
+   <refsect3>
+    <title>Rodapé do Arquivo</title>
+
+    <para>
+     O rodapé do arquivo consiste de um inteiro de 16-bits contendo -1. É
+     facilmente distinguível do contador do número de campos da tupla.
+    </para>
+
+    <para>
+     A leitura deve relatar um erro se a informação contador do número de campos
+     não for -1 nem for o número esperado de colunas. Isto permite uma
+     verificação adicional com relação à perda de sincronização com os dados.
+    </para>
+   </refsect3>
+  </refsect2>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   O exemplo a seguir copia uma tabela para o cliente
+   utilizando a barra vertical (|) como delimitador de campo:
+<programlisting>
+COPY paises TO STDOUT WITH DELIMITER '|';
+</programlisting>
+  </para>
+
+  <para>
+   Para copiar os dados de um arquivo para a tabela <literal>paises</literal>:
+<programlisting>
+COPY paises FROM '/usr1/proj/bray/sql/dados_dos_paises';
+</programlisting>
+  </para>
+
+  <para>
+   Abaixo está mostrado um exemplo contendo dados apropriados para serem
+   copiados a partir da <literal>STDIN</literal>:
+<programlisting>
+AF      AFGHANISTAN
+AL      ALBANIA
+DZ      ALGERIA
+ZM      ZAMBIA
+ZW      ZIMBABWE
+</programlisting>
+   Deve ser observado que em cada linha o espaço em branco é, na verdade,
+   o caractere de tabulação.
+  </para>
+
+  <para>
+   Abaixo estão os mesmos dados escritos no formato binário.
+   Os dados mostrados foram filtrados utilizando o utilitário do
+   Unix <command>od -c</command>. A tabela possui três colunas:
+   a primeira é do tipo <type>char(2)</type>; a segunda é do tipo
+   <type>text</type>; a terceira é do tipo <type>integer</type>.
+   Todas as linhas possuem o valor nulo na terceira coluna.
+<programlisting>
+0000000   P   G   C   O   P   Y  \n 377  \r  \n  \0  \0  \0  \0  \0  \0
+0000020  \0  \0  \0  \0 003  \0  \0  \0 002   A   F  \0  \0  \0 013   A
+0000040   F   G   H   A   N   I   S   T   A   N 377 377 377 377  \0 003
+0000060  \0  \0  \0 002   A   L  \0  \0  \0 007   A   L   B   A   N   I
+0000100   A 377 377 377 377  \0 003  \0  \0  \0 002   D   Z  \0  \0  \0
+0000120 007   A   L   G   E   R   I   A 377 377 377 377  \0 003  \0  \0
+0000140  \0 002   Z   M  \0  \0  \0 006   Z   A   M   B   I   A 377 377
+0000160 377 377  \0 003  \0  \0  \0 002   Z   W  \0  \0  \0  \b   Z   I
+0000200   M   B   A   B   W   E 377 377 377 377 377 377
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Não existe o comando <command>COPY</command> no padrão SQL.
+  </para>
+
+  <para>
+   A sintaxe mostrada abaixo era utilizada nas versões do <productname>PostgreSQL</productname>
+   anteriores a 7.3, sendo ainda aceita:
+
+<synopsis>
+COPY [ BINARY ] <replaceable class="parameter">nome_da_tabela</replaceable> [ WITH OIDS ]
+    FROM { '<replaceable class="parameter">nome_do_arquivo</replaceable>' | STDIN }
+    [ [USING] DELIMITERS '<replaceable class="parameter">delimitador</replaceable>' ]
+    [ WITH NULL AS '<replaceable class="parameter">cadeia_de_caracteres_nula</replaceable>' ]
+
+COPY [ BINARY ] <replaceable class="parameter">nome_da_tabela</replaceable> [ WITH OIDS ]
+    TO { '<replaceable class="parameter">nome_do_arquivo</replaceable>' | STDOUT }
+    [ [USING] DELIMITERS '<replaceable class="parameter">delimitador</replaceable>' ]
+    [ WITH NULL AS '<replaceable class="parameter">cadeia_de_caracteres_nula</replaceable>' ]
+</synopsis>
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

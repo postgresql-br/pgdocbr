@@ -1,0 +1,549 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/pg_ctl-ref.sgml,v 1.30.4.1 2005/02/21 02:14:34 neilc Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="app-pg-ctl">
+ <refmeta>
+  <refentrytitle id="app-pg-ctl-title"><application>pg_ctl</application></refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Aplicação</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>pg_ctl</refname>
+  <refpurpose>inicia, pára ou reinicia o servidor <productname>PostgreSQL</productname></refpurpose>
+ </refnamediv>
+
+ <indexterm zone="app-pg-ctl">
+  <primary>pg_ctl</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>pg_ctl</command>
+   <arg choice="plain">start</arg>
+   <arg>-w</arg>
+   <arg>-s</arg>
+   <arg>-D <replaceable>diretório_de_dados</replaceable></arg>
+   <arg>-l <replaceable>nome_do_arquivo</replaceable></arg>
+   <arg>-o <replaceable>opções</replaceable></arg>
+   <arg>-p <replaceable>caminho</replaceable></arg>
+   <sbr>
+   <command>pg_ctl</command>
+   <arg choice="plain">stop</arg>
+   <arg>-W</arg>
+   <arg>-s</arg>
+   <arg>-D <replaceable>diretório_de_dados</replaceable></arg>
+   <arg>-m
+     <group choice="plain">
+       <arg>s[mart]</arg>
+       <arg>f[ast]</arg>
+       <arg>i[mmediate]</arg>
+     </group>
+   </arg>
+   <sbr>
+   <command>pg_ctl</command>
+   <arg choice="plain">restart</arg>
+   <arg>-w</arg>
+   <arg>-s</arg>
+   <arg>-D <replaceable>diretório_de_dados</replaceable></arg>
+   <arg>-m
+     <group choice="plain">
+       <arg>s[mart]</arg>
+       <arg>f[ast]</arg>
+       <arg>i[mmediate]</arg>
+     </group>
+   </arg>
+   <arg>-o <replaceable>opções</replaceable></arg>
+   <sbr>
+   <command>pg_ctl</command>
+   <arg choice="plain">reload</arg>
+   <arg>-s</arg>
+   <arg>-D <replaceable>diretório_de_dados</replaceable></arg>
+   <sbr>
+   <command>pg_ctl</command>
+   <arg choice="plain">status</arg>
+   <arg>-D <replaceable>diretório_de_dados</replaceable></arg>
+   <sbr>
+   <command>pg_ctl</command>
+   <arg choice="plain">kill</arg>
+   <arg><replaceable>nome_do_sinal</replaceable></arg>
+   <arg><replaceable>id_do_processo</replaceable></arg>
+   <sbr>
+   <command>pg_ctl</command>
+   <arg choice="plain">register</arg>
+   <arg>-N <replaceable>nome_do_serviço</replaceable></arg>
+   <arg>-U <replaceable>nome_do_usuário</replaceable></arg>
+   <arg>-P <replaceable>senha</replaceable></arg>
+   <arg>-D <replaceable>diretório_de_dados</replaceable></arg>
+   <arg>-w</arg>
+   <arg>-o <replaceable>opções</replaceable></arg>
+   <sbr>
+   <command>pg_ctl</command>
+   <arg choice="plain">unregister</arg>
+   <arg>-N <replaceable>nome_do_serviço</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+
+ <refsect1 id="app-pg-ctl-description">
+  <title>Descrição</title>
+  <para>
+   O <application>pg_ctl</application> é um utilitário
+   para iniciar, parar ou reiniciar o servidor
+   <productname>PostgreSQL</productname> (<xref linkend="app-postmaster">),
+   ou mostrar o status de um servidor ativo. Embora o servidor
+   possa ser iniciado manualmente, o
+   <application>pg_ctl</application> encapsula tarefas como
+   redirecionar a saída do <literal>log</literal>, desacoplar do
+   terminal e do grupo de processos de forma adequada,
+   além de fornecer opções convenientes para uma parada controlada.
+  </para>
+
+  <para>
+   No modo iniciar (<option>start</option>), é lançado um novo servidor.
+   O servidor é iniciado em segundo plano, e a entrada padrão é direcionada para
+   <filename>/dev/null</filename>.
+   A saída padrão e o erro padrão são ambos anexados ao arquivo de
+   <literal>log</literal> (se a opção <option>-l</option> for usada),
+   ou redirecionada para a saída padrão do <application>pg_ctl</application>
+   (não o erro padrão).
+   Se não for escolhido nenhum arquivo de <literal>log</literal>, a saída padrão
+   do <application>pg_ctl</application> deve ser redirecionada para um arquivo
+   ou enviada para outro processo (através de um <literal>pipe</literal>)
+   como, por exemplo, um programa de rotação de <literal>log</literal>, como o
+   <application>rotatelogs</application>, senão o <command>postmaster</command>
+   escreverá sua saída no terminal que o controla (do segundo plano), e não vai
+   deixar o grupo de processos da <literal>shell</literal>.
+  </para>
+
+  <para>
+   No modo parar (<option>stop</option>), o servidor que
+   está executando no diretório de dados especificado é parado.
+   Podem ser selecionados três métodos de parada diferentes pela
+   opção <option>-m</option>: O modo <quote>Smart</quote> (inteligente)
+   aguarda todos os clientes desconectarem. Este é o padrão.
+   O modo <quote>Fast</quote> (rápido) não aguarda os clientes desconectarem.
+   Todas as transações ativas são desfeitas (<literal>rollback</literal>),
+   os clientes são desconectados à força e, em seguida, o servidor
+   é parado. O modo <quote>Immediate</quote> (imediato) interrompe todos os
+   processos servidores sem uma parada limpa, provocando um
+   processamento de recuperação ao reiniciar.
+  </para>
+
+  <para>
+   O modo reiniciar (<option>restart</option>) executa uma parada seguida
+   por um início. Permite mudar as opções de linha de comando do
+   <command>postmaster</command>.
+  </para>
+
+  <para>
+   O modo recarregar (<option>reload</option>) simplesmente
+   envia o sinal <systemitem>SIGHUP</systemitem> para o processo
+   <command>postmaster</command>, fazendo este
+   ler novamente os arquivos de configuração
+   (<filename>postgresql.conf</filename>, <filename>pg_hba.conf</filename>,
+   etc.). Permite mudar as opções do arquivo de configuração que não
+   requerem um reinício completo para produzir efeito.
+  </para>
+
+  <para>
+   O modo <option>status</option> verifica se o servidor
+   está executando no diretório de dados especificado e,
+   se estiver, mostra o <acronym>PID</acronym> e as opções de linha
+   de comando usadas para chamá-lo.
+  </para>
+
+  <para>
+   O modo <option>kill</option> permite enviar um sinal para um determinado
+   processo. É particularmente útil no
+   <systemitem class="osname">Microsoft Windows</systemitem>
+   que não possui o comando <application>kill</application>. Deve ser utilizado
+   <literal>--help</literal> para ver a lista de nomes de sinais suportados.
+  </para>
+
+  <para>
+   O modo <option>register</option> permite registrar um serviço de sistema
+   no <productname>Microsoft Windows</productname>.
+  </para>
+
+  <para>
+   O modo <option>unregister</option> permite remover registro de um serviço de sistema
+   no <productname>Microsoft Windows</productname>, anteriormente registrado com o
+   comando <option>register</option>.
+  </para>
+ </refsect1>
+
+ <refsect1 id="app-pg-ctl-options">
+  <title>Opções</title>
+
+  <para>
+
+    <variablelist>
+     <varlistentry>
+      <term><option>-D <replaceable class="parameter">diretório_de_dados</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o local dos arquivos de banco de dados no sistema de
+        arquivos. Se for omitido, é usada a variável de ambiente
+        <envar>PGDATA</envar>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-l <replaceable class="parameter">nome_do_arquivo</replaceable></option></term>
+      <listitem>
+       <para>
+        Anexa a saída do <literal>log</literal> do servidor ao
+        <replaceable>nome_do_arquivo</replaceable>. Se o arquivo não existir
+        é criado. A <systemitem>umask</systemitem> é definida como 077 e,
+        portanto, o padrão é não permitir o acesso ao arquivo de
+        <literal>log</literal> pelos outros usuários.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-m <replaceable class="parameter">modo</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o modo de parada (<literal>shutdown</literal>).
+        O <replaceable>modo</replaceable> pode ser
+        <literal>smart</literal>, <literal>fast</literal> ou
+        <literal>immediate</literal>, ou a primeira letra de um desses três.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-o <replaceable class="parameter">opções</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica as opções a serem passadas diretamente para o comando
+        <command>postmaster</command>.
+       </para>
+       <para>
+        As opções são geralmente envoltas por apóstrofos (<literal>'</literal>)
+        ou aspas(<literal>"</literal>), para garantir que sejam passadas como um
+        grupo.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-p <replaceable class="parameter">caminho</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o local do arquivo executável <filename>postmaster</filename>.
+        Por padrão o executável <filename>postmaster</filename> é lido do mesmo
+        diretório do <application>pg_ctl</application> ou, caso não seja
+        bem-sucedido, do diretório de instalação especificado.
+        Não é necessário usar esta opção, a menos que esteja sendo feito algo
+        diferente do usual e recebendo mensagem de erro informando que o
+        executável do <filename>postmaster</filename> não foi encontrado.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-s</option></term>
+      <listitem>
+       <para>
+        Mostra somente os erros, sem mensagens informativas.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-w</option></term>
+      <listitem>
+       <para>
+        Aguarda o início ou a parada terminar. Expira em 60 segundos.
+        Este é o padrão para paradas. Uma parada bem-sucedida é indicada pela
+        remoção do arquivo do <acronym>PID</acronym>.
+        Para o início, a execução do comando <command>psql -l</command>
+        bem-sucedida indica sucesso.
+        O <command>pg_ctl</command> tenta utilizar a porta apropriada para o
+        <application>psql</application>.
+        Se a variável de ambiente  <envar>PGPORT</envar> existir, esta é usada.
+        Senão, será visto se a porta  está definida no arquivo
+        <filename>postgresql.conf</filename>.
+        Se nenhum destes dois for usado, será utilizada a porta padrão com a
+        qual o <productname>PostgreSQL</productname> foi compilado
+        (5432 por padrão).
+        Quando estiver aguardando, o <command>pg_ctl</command> retornará
+        um código de saída acurado baseado no sucesso do início ou da parada.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-W</option></term>
+      <listitem>
+       <para>
+        Não aguarda o início ou a parada terminar.
+        Este é o padrão para inícios e reinícios.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+ </refsect1>
+
+ <refsect1 id="app-pg-ctl-svcoptions">
+  <title>Windows options</title>
+  <para>
+   <variablelist>
+    <varlistentry>
+     <term><option>-N <replaceable class="parameter">nome_do_serviço</replaceable></option></term>
+     <listitem>
+      <para>
+	   Nome do serviço de sistema a ser registrado. O nome será utilizado
+	   como nome do serviço e nome exibido na lista de serviços.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>-P <replaceable class="parameter">senha</replaceable></option></term>
+     <listitem>
+      <para>
+	   Senha para o usuário iniciar o serviço.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>-U <replaceable class="parameter">nome_do_usuário</replaceable></option></term>
+     <listitem>
+      <para>
+	   Nome do usuário para o usuário iniciar o serviço. Para usuários do domínio, utilize o
+	   formato <literal>DOMÍNIO\nome_do_usuário</literal>.
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Ambiente</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><envar>PGDATA</envar></term>
+
+    <listitem>
+     <para>
+      Local padrão do diretório de dados.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><envar>PGPORT</envar></term>
+
+    <listitem>
+     <para>
+      Porta padrão para o <xref linkend="app-psql"> (usada pela opção -w).
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+
+  <para>
+   Para os demais consulte o <xref linkend="app-postmaster">.
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Arquivos</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><filename>postmaster.pid</filename></term>
+
+    <listitem>
+     <para>
+      A existência deste arquivo no diretório de dados é utilizada para ajudar o
+      <application>pg_ctl</application> a determinar se o servidor
+      está executando ou não.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><filename>postmaster.opts.default</filename></term>
+
+    <listitem>
+     <para>
+      Se existir este arquivo no diretório de dados, o
+      <application>pg_ctl</application> (no modo <option>start</option>)
+      passa o conteúdo deste arquivo como opções para o comando
+      <command>postmaster</command>, a menos que esteja substituído pela
+      opção <option>-o</option>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><filename>postmaster.opts</filename></term>
+
+    <listitem>
+     <para>
+      Se existir este arquivo no diretório de dados, o
+      <application>pg_ctl</application> (no modo <option>restart</option>)
+      passa o conteúdo deste arquivo como opções para o comando
+      <command>postmaster</command>, a menos que esteja substituído pela
+      opção <option>-o</option>. O conteúdo deste arquivo também é
+      mostrado no modo <option>status</option>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><filename>postgresql.conf</filename></term>
+
+    <listitem>
+     <para>
+      Este arquivo, localizado no diretório de dados, é analisado para descobrir
+      a porta apropriada a ser utilizada pelo <application>psql</application>
+      quando a opção <option>-w</option> é usada no modo <option>start</option>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+  </variablelist>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Aguardar o término do início não é uma operação bem definida, podendo não ser
+   bem-sucedida se o controle de acesso for configurado de modo que o cliente
+   local não possa se conectar sem intervenção manual (por exemplo, autenticação
+   por senha).
+  </para>
+ </refsect1>
+
+
+ <refsect1 id="R1-APP-PGCTL-2">
+  <title>Exemplos</title>
+
+  <refsect2 id="R2-APP-PGCTL-3">
+   <title>Iniciar o servidor</title>
+
+   <para>
+    Para iniciar o servidor:
+<screen>
+<prompt>$</prompt> <userinput>pg_ctl start</userinput>
+</screen>
+   </para>
+
+   <para>
+    Exemplo de iniciar o servidor bloqueando até o servidor estar pronto:
+<screen>
+<prompt>$</prompt> <userinput>pg_ctl -w start</userinput>
+</screen>
+   </para>
+
+   <para>
+    Para um servidor usando a porta 5433, e
+    executando sem <function>fsync</function>, deve ser usado:
+<screen>
+<prompt>$</prompt> <userinput>pg_ctl -o "-F -p 5433" start</userinput>
+</screen>
+   </para>
+  </refsect2>
+
+  <refsect2 id="R2-APP-PGCTL-4">
+   <title>Parar o servidor</title>
+   <para>
+<screen>
+<prompt>$</prompt> <userinput>pg_ctl stop</userinput>
+</screen>
+    pára o servidor. A chave <option>-m</option> permite
+    controlar <emphasis>como</emphasis> o servidor irá parar.
+   </para>
+  </refsect2>
+
+  <refsect2 id="R2-APP-PGCTL-5">
+   <title>Reiniciar o servidor</title>
+
+   <para>
+    Reiniciar o servidor praticamente equivale a parar o servidor e iniciá-lo
+    novamente, exceto que o <application>pg_ctl</application> salva e reutiliza
+    as opções de linha de comando passadas para a instância executando
+    anteriormente. Para reiniciar o servidor da forma mais simples possível:
+<screen>
+<prompt>$</prompt> <userinput>pg_ctl restart</userinput>
+</screen>
+   </para>
+
+   <para>
+    Para reiniciar o servidor aguardando o término da parada e da inicialização:
+<screen>
+<prompt>$</prompt> <userinput>pg_ctl -w restart</userinput>
+</screen>
+   </para>
+
+   <para>
+    Para reiniciar usando a porta 5433 e desabilitando o
+    <function>fsync</function> após o reinício:
+<screen>
+<prompt>$</prompt> <userinput>pg_ctl -o "-F -p 5433" restart</userinput>
+</screen>
+   </para>
+  </refsect2>
+
+  <refsect2 id="R2-APP-PGCTL-6">
+   <title>Mostrar o status do servidor</title>
+
+   <para>
+    Abaixo segue um exemplo da saída de status mostrada pelo
+    <application>pg_ctl</application>:
+<screen>
+<prompt>$</prompt> <userinput>pg_ctl status</userinput>
+<computeroutput>
+pg_ctl: postmaster is running (pid: 13718)
+Command line was:
+/usr/local/pgsql/bin/postmaster '-D' '/usr/local/pgsql/data' '-p' '5433' '-B' '128'
+</computeroutput>
+</screen>
+    Esta é a linha de comandos que seria usada no modo de reinício.
+   </para>
+  </refsect2>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <para>
+   <xref linkend="app-postmaster">
+  </para>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

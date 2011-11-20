@@ -1,0 +1,331 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_sequence.sgml,v 1.42 2004/11/27 21:27:07 petere Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATESEQUENCE">
+ <refmeta>
+  <refentrytitle id="sql-createsequence-title">CREATE SEQUENCE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE SEQUENCE</refname>
+  <refpurpose>cria um gerador de seqüência</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createsequence">
+  <primary>CREATE SEQUENCE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE [ TEMPORARY | TEMP ] SEQUENCE <replaceable class="parameter">nome</replaceable> [ INCREMENT [ BY ] <replaceable class="parameter">incremento</replaceable> ]
+    [ MINVALUE <replaceable class="parameter">valor_mínimo</replaceable> | NO MINVALUE ] [ MAXVALUE <replaceable class="parameter">valor_máximo</replaceable> | NO MAXVALUE ]
+    [ START [ WITH ] <replaceable class="parameter">início</replaceable> ] [ CACHE <replaceable class="parameter">cache</replaceable> ] [ [ NO ] CYCLE ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE SEQUENCE</command> cria um gerador
+   de números seqüenciais, que envolve a criação
+   e a inicialização de uma nova tabela especial com uma única linha
+   chamada <replaceable class="parameter">nome</replaceable>.
+   O usuário que executa o comando se torna o dono do gerador.
+  </para>
+
+  <para>
+   Se um nome de esquema for fornecido, então a seqüência é criada no esquema
+   especificado, senão é criada no esquema corrente. As seqüências temporárias
+   são criadas em um esquema especial e, portanto, o nome do esquema não pode
+   ser fornecido ao se criar uma seqüência temporária. O nome da seqüência deve
+   ser distinto do nome de qualquer outra seqüência, tabela, índice ou visão no
+   mesmo esquema.
+  </para>
+
+  <para>
+   Após a seqüência ser criada, podem ser utilizadas as funções
+   <function>nextval</function>,
+   <function>currval</function> e
+   <function>setval</function>
+   para operar na seqüência. Estas funções estão documentadas na
+   <xref linkend="functions-sequence">.
+  </para>
+
+  <para>
+   Embora não seja possível atualizar uma seqüência diretamente,
+   pode ser feita uma consulta como
+
+<programlisting>
+SELECT * FROM <replaceable>nome</replaceable>;
+</programlisting>
+
+   para examinar os parâmetros e o estado atual da seqüência. Em particular,
+   o campo <literal>last_value</literal> da seqüência mostra o último valor
+   atribuído para qualquer sessão (É claro que este valor pode estar obsoleto
+   no instante em que for exibido, se outras sessões estiverem chamando a função
+   <function>nextval</function>).
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><literal>TEMPORARY</literal> ou <literal>TEMP</literal></term>
+    <listitem>
+     <para>
+      Se for especificado, o objeto de seqüência é criado somente para esta sessão,
+      sendo automaticamente removido ao término da sessão.
+      Seqüências permanentes existentes não serão visíveis (na sessão)
+      enquanto existirem seqüências temporárias com o mesmo nome,
+      a não ser que sejam referenciadas por um nome qualificado pelo esquema.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) da seqüência a ser criada.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">incremento</replaceable></term>
+    <listitem>
+     <para>
+      A cláusula opcional <literal>INCREMENT BY
+      <replaceable class="parameter">incremento</replaceable></literal>
+      especifica o valor a ser adicionado ao valor corrente da seqüência para
+      gerar o novo valor.  Um valor positivo cria uma seqüência ascendente,
+      enquanto um valor negativo cria uma seqüência descendente.
+      O valor padrão é 1.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">valor_mínimo</replaceable></term>
+    <term><literal>NO MINVALUE</literal></term>
+    <listitem>
+     <para>
+      A cláusula opcional <option>MINVALUE
+      <replaceable class="parameter">valor_mínimo</replaceable></option>
+      determina o valor mínimo que a seqüência pode gerar. Se esta cláusula
+      não for fornecida, e se <option>NO MINVALUE</option> não for especificado,
+      então são utilizados os valores padrão. Os valores padrão são 1 e
+      -2<superscript>63</superscript>-1 para seqüências ascendentes e
+      descendentes, respectivamente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">valor_máximo</replaceable></term>
+    <term><literal>NO MAXVALUE</literal></term>
+    <listitem>
+     <para>
+      A cláusula opcional <literal>MAXVALUE
+      <replaceable class="parameter">valor_máximo</replaceable></literal>
+      determina o valor máximo que a seqüência pode gerar. Se esta cláusula
+      não for fornecida, e se <option>NO MAXVALUE</option> não for especificado,
+      então são utilizados os valores padrão. Os valores padrão são
+      2<superscript>63</superscript>-1 e -1 para seqüências ascendentes e
+      descendentes, respectivamente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">início</replaceable></term>
+    <listitem>
+     <para>
+      A cláusula opcional <literal>START WITH
+      <replaceable class="parameter">início</replaceable> </literal> permite a
+      seqüência iniciar com qualquer valor. O valor inicial padrão é o
+      <replaceable class="parameter">valor_mínimo</replaceable> para seqüências
+      ascendentes, e o <replaceable class="parameter">valor_máximo</replaceable>
+      para seqüências descendentes.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">cache</replaceable></term>
+    <listitem>
+     <para>
+      A cláusula opcional <literal>CACHE
+      <replaceable class="parameter">cache</replaceable></literal> especifica
+      quantos números da seqüência são previamente reservados e armazenados em
+      memória para acesso mais rápido. O valor mínimo é 1 (somente um valor
+      é gerado de cada vez, ou seja, sem <literal>cache</literal>),
+      e este também é o valor padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>CYCLE</literal></term>
+    <term><literal>NO CYCLE</literal></term>
+    <listitem>
+     <para>
+      A opção <literal>CYCLE</literal> permite uma seqüência
+      reiniciar quando atingir o
+      <replaceable class="parameter">valor_máximo</replaceable> ou o
+      <replaceable class="parameter">valor_mínimo</replaceable>,
+      respectivamente. Se o limite for atingido, o próximo número gerado será o
+      <replaceable class="parameter">valor_mínimo</replaceable> ou o
+      <replaceable class="parameter">valor_máximo</replaceable>, respectivamente.
+     </para>
+
+     <para>
+      Se <literal>NO CYCLE</literal> for especificado, toda chamada a
+      <function>nextval</function> após a seqüência ter atingido seu
+      valor máximo retorna um erro. Se nem
+      <literal>CYCLE</literal> nem <literal>NO CYCLE</literal> for
+      especificado, <literal>NO CYCLE</literal> é o padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Use o comando <command>DROP SEQUENCE</command> para remover uma seqüência.
+  </para>
+
+  <para>
+   As seqüências são baseadas na aritmética do tipo <type>bigint</type> e,
+   portanto, a faixa de valores não pode exceder a faixa de um número inteiro de
+   8 bytes (-9223372036854775808 a 9223372036854775807). Em algumas plataformas
+   mais antigas, pode não haver suporte do compilador para números inteiros de
+   8 bytes e, neste caso, as seqüências utilizam a aritmética do tipo
+   <type>integer</type> regular (faixa de valores de -2147483648 a +2147483647).
+  </para>
+
+  <para>
+   Se for utilizada uma definição de
+   <replaceable class="parameter">cache</replaceable> maior que um, para um
+   objeto de seqüência que será usado concorrentemente por várias sessões, podem
+   ser obtidos resultados não esperados. Cada sessão reserva e armazena valores
+   sucessivos da seqüência durante um acesso ao objeto de seqüência, e aumenta o
+   valor de <literal>last_value</literal> do objeto de seqüência da forma
+   apropriada. Então, as próximas
+   <replaceable class="parameter">cache</replaceable>-1 utilizações
+   de <function>nextval</function> nesta sessão simplesmente retornam os
+   valores reservados sem acessar o objeto de seqüência. Portanto, todos os
+   números alocados, mas não utilizados pela sessão, são perdidos quando a
+   sessão termina, produzindo <quote>buracos</quote> na
+   seqüência.
+  </para>
+
+  <para>
+   Além disso, embora se garanta que as várias sessões reservam valores
+   distintos da seqüência, os valores podem ser gerados fora de seqüência quando
+   são levadas em consideração todas as sessões. Por exemplo, definindo-se
+   <replaceable class="parameter">cache</replaceable> igual a 10, a sessão A
+   pode reservar os valores 1..10 e retornar <function>nextval</function>=1,
+   enquanto a sessão B pode reservar os valores 11..20 e retornar
+   <function>nextval</function>=11 antes da sessão A ter gerado
+   <literal>nextval</literal>=2. Portanto, com uma definição de
+   <replaceable class="parameter">cache</replaceable> igual a um
+   é seguro assumir que os valores de <function>nextval</function> são gerados
+   seqüencialmente; com uma definição de
+   <replaceable class="parameter">cache</replaceable> maior do que um
+   apenas pode-se assumir que os valores de <function>nextval</function> são
+   todos distintos, mas não que sejam gerados de forma inteiramente seqüencial.
+   Também, o valor <literal>last_value</literal> reflete o último valor
+   reservado por qualquer sessão, tenha ou não sido retornado por
+   <function>nextval</function>.
+  </para>
+
+  <para>
+   Outra consideração a ser feita é que a execução de
+   <function>setval</function> neste tipo de seqüência não será percebida pelas
+   outras sessões enquanto estas não utilizarem todos os valores reservados
+   guardados no <literal>cache</literal>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Criar uma seqüência ascendente chamada <literal>serial</literal>,
+   começando por 101:
+<programlisting>
+CREATE SEQUENCE serial START 101;
+</programlisting>
+  </para>
+
+  <para>
+   Selecionar o próximo valor desta seqüência:
+<programlisting>
+SELECT nextval('serial');
+
+ nextval
+---------
+     114
+</programlisting>
+  </para>
+
+  <para>
+   Utilizar esta seqüência no comando <command>INSERT</command>:
+<programlisting>
+INSERT INTO distribuidores VALUES (nextval('serial'), 'nada');
+</programlisting>
+  </para>
+
+  <para>
+   Atualizar o valor da seqüência após executar o comando
+   <command>COPY FROM</command>:
+<programlisting>
+BEGIN;
+COPY distribuidores FROM 'arquivo_de_entrada';
+SELECT setval('serial', max(id)) FROM distribuidores;
+END;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>CREATE SEQUENCE</command> está especificado no
+   <acronym>SQL:2003</acronym>. O <productname>PostgreSQL</productname> está em
+   conformidade com o padrão, com as seguintes exceções:
+   <itemizedlist>
+    <listitem><para>A expressão do padrão <literal>AS &lt;data type&gt;</literal> não é suportada.</para></listitem>
+    <listitem><para>A obtenção do próximo valor é feita usando a função <function>nextval()</function> em vez da expressão do padrão <command>NEXT VALUE FOR</command>.</para></listitem>
+   </itemizedlist>
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

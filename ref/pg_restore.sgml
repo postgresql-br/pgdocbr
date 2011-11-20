@@ -1,0 +1,652 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/ref/pg_restore.sgml,v 1.49.4.1 2005/01/23 00:37:56 momjian Exp $ -->
+
+<refentry id="APP-PGRESTORE">
+ <refmeta>
+  <refentrytitle>pg_restore</refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Aplicação</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>pg_restore</refname>
+
+  <refpurpose>
+   restaura um banco de dados do <productname>PostgreSQL</productname> a partir de um arquivo criado pelo pg_dump
+  </refpurpose>
+ </refnamediv>
+
+ <indexterm zone="app-pgrestore">
+  <primary>pg_restore</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>pg_restore</command>
+   <arg rep="repeat"><replaceable>opção</replaceable></arg>
+   <arg><replaceable>nome_da_cópia_de_segurança</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+
+ <refsect1 id="app-pgrestore-description">
+  <title>Descrição</title>
+
+  <para>
+   O <application>pg_restore</application> é um utilitário para restaurar um
+   banco de dados do <productname>PostgreSQL</productname>, a partir de uma
+   cópia de segurança criada pelo <xref linkend="app-pgdump"> em um dos formatos
+   não-texto-puro.
+   São executados os comandos necessários para reconstruir o banco de dados, no
+   estado em que este se encontrava na hora em que foi salvo.
+   Os arquivos de cópia de segurança também permitem ao
+   <application>pg_restore</application> selecionar o que será restaurado,
+   ou mesmo reordenar os itens antes de serem restaurados.
+   Os arquivos de cópia de segurança são projetados para serem portáveis entre
+   arquiteturas diferentes.
+  </para>
+
+  <para>
+   O <application>pg_restore</application> pode operar de dois modos: Se o
+   nome do banco de dados for especificado, a cópia de segurança é restaurada
+   diretamente no banco de dados (Os objetos grandes só podem ser restaurados
+   utilizando uma conexão direta com o banco de dados como esta).
+   Senão, é criado um script, no formato texto-puro, contendo os comandos SQL
+   necessários para reconstruir o banco de dados (escrito em um arquivo ou na
+   saída padrão), semelhante aos scripts criados pelo
+   <application>pg_dump</application>.
+   Algumas das opções que controlam a criação do script são, portanto, análogas
+   às opções do <application>pg_dump</application>.
+  </para>
+
+  <para>
+   Obviamente, o <application>pg_restore</application> não pode restaurar
+   informações que não estejam presentes no arquivo de cópia de segurança.
+   Por exemplo, se a cópia de segurança for gerada usando a opção
+   <quote>salvar dados como comandos <command>INSERT</command></quote>,
+   o <application>pg_restore</application> não poderá restaurar os dados
+   usando comandos <command>COPY</command>.
+  </para>
+ </refsect1>
+
+ <refsect1 id="app-pgrestore-options">
+  <title>Opções</title>
+
+   <para>
+    O <application>pg_restore</application> aceita os seguintes
+    argumentos de linha de comando.
+
+    <variablelist>
+     <varlistentry>
+      <term><replaceable class="parameter">nome_da_cópia_de_segurança</replaceable></term>
+      <listitem>
+       <para>
+       Especifica o local do arquivo de cópia de segurança a ser
+       restaurado. Se não for especificado, é usada a entrada padrão.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-a</option></term>
+      <term><option>--data-only</option></term>
+      <listitem>
+       <para>
+        Salva somente os dados, não salva o esquema (definições de dado).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-c</option></term>
+      <term><option>--clean</option></term>
+      <listitem>
+       <para>
+        Remove (<literal>drop</literal>) os objetos do banco de dados antes de
+        criá-los.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-C</option></term>
+      <term><option>--create</option></term>
+      <listitem>
+       <para>
+        Cria o banco de dados antes de restaurá-lo
+        (Quando esta opção é utilizada, o banco de dados especificado na opção
+        <option>-d</option> é usado apenas para executar o comando
+        <literal>CREATE DATABASE</literal> inicial. Todos os dados são
+        restaurados no banco de dados cujo nome aparece na cópia de segurança).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-d <replaceable class="parameter">nome_do_banco_de_dados</replaceable></option></term>
+      <term><option>--dbname=<replaceable class="parameter">nome_do_banco_de_dados</replaceable></option></term>
+      <listitem>
+       <para>
+        Conecta ao banco de dados
+        <replaceable class="parameter">nome_do_banco_de_dados</replaceable>
+        e restaura diretamente neste banco de dados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-e</option></term>
+      <term><option>--exit-on-error</option></term>
+      <listitem>
+       <para>
+        Termina se for encontrado um erro ao enviar os comandos SQL para o
+        banco de dados. O padrão é continuar e mostrar um contador de erros
+        ao término da restauração.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-f <replaceable>arquivo_de_saída</replaceable></option></term>
+      <term><option>--file=<replaceable>arquivo_de_saída</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o arquivo de saída para o script gerado, ou para conter a
+        listagem quando for utilizada a opção <option>-l</option>.
+        Por padrão a saída padrão.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-F <replaceable class="parameter">formato</replaceable></option></term>
+      <term><option>--format=<replaceable class="parameter">formato</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o formato do arquivo da cópia de segurança.
+        Não é necessário especificar o formato, porque o
+        <application>pg_restore</application> determina o formato
+        automaticamente. Se for especificado, pode ser um dos seguintes:
+
+       <variablelist>
+        <varlistentry>
+         <term><literal>t</literal></term>
+         <listitem>
+          <para>
+           A cópia de segurança é um arquivo <filename>tar</filename>.
+           Este formato de cópia de segurança permite reordenar e/ou excluir
+           elementos do esquema ao restaurar o banco de dados. Também
+           permite limitar quais dados são recarregados ao restaurar.
+          </para>
+         </listitem>
+        </varlistentry>
+
+        <varlistentry>
+         <term><literal>c</literal></term>
+         <listitem>
+          <para>
+           A cópia de segurança está no formato personalizado do
+           <application>pg_dump</application>. Este é o formato mais
+           flexível, porque permite reordenar a restauração dos
+           dados e dos elementos do esquema.
+           Também, este formato é comprimido por padrão.
+          </para>
+         </listitem>
+        </varlistentry>
+       </variablelist>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-i</option></term>
+      <term><option>--ignore-version</option></term>
+      <listitem>
+       <para>
+        Ignora a verificação da versão do banco de dados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-I <replaceable class="parameter">nome_do_índice</replaceable></option></term>
+      <term><option>--index=<replaceable class="parameter">nome_do_índice</replaceable></option></term>
+      <listitem>
+       <para>
+        Restaura apenas a definição do índice especificado.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-l</option></term>
+      <term><option>--list</option></term>
+      <listitem>
+       <para>
+        Lista o conteúdo da cópia de segurança.
+        A saída desta operação pode ser usada com a opção <option>-L</option>
+        para restringir e reordenar os itens a serem restaurados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-L <replaceable class="parameter">arquivo_da_listagem</replaceable></option></term>
+      <term><option>--use-list=<replaceable class="parameter">arquivo_da_listagem</replaceable></option></term>
+      <listitem>
+       <para>
+        Restaura apenas os elementos presentes no
+        <replaceable class="PARAMETER">arquivo_da_listagem</replaceable>,
+        e na ordem que aparecem neste arquivo. As linhas podem ser movidas
+        e, também, podem virar comentário colocando um <literal>;</literal>
+        no seu início (Veja os exemplos abaixo).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-O</option></term>
+      <term><option>--no-owner</option></term>
+      <listitem>
+       <para>
+        Não gera comandos para definir os donos dos objetos correspondendo aos
+        donos destes objetos no banco de dados de origem.
+        Por padrão, o <application>pg_restore</application> executa o comando
+        <command>ALTER OWNER</command> ou
+        <command>SET SESSION AUTHORIZATION</command>
+        para definir os donos dos elementos criados no esquema.
+        Estes comando não são bem-sucedidos a menos que a conexão inicial
+        com o banco de dados seja feita por um superusuário (ou o mesmo usuário
+        que possui todos os objetos presentes no script). Usando
+        a opção <option>-O</option>, pode ser utilizado qualquer nome de usuário
+        na conexão inicial, e este usuário será o dono de todos objetos criados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-P <replaceable class="parameter">nome_da_função(tipo_do_argumento [, ...])</replaceable></option></term>
+      <term><option>--function=<replaceable class="parameter">nome_da_função(tipo_do_argumento [, ...])</replaceable></option></term>
+      <listitem>
+       <para>
+        Restaura apenas a função especificada. Tome cuidado para escrever o nome
+        da função e os argumentos exatamente como estes aparecem na tabela de
+        conteúdo da cópia de segurança.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-R</option></term>
+      <term><option>--no-reconnect</option></term>
+      <listitem>
+       <para>
+        Esta opção está obsoleta, mas ainda é aceita para manter a
+        compatibilidade com as versões anteriores.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-s</option></term>
+      <term><option>--schema-only</option></term>
+      <listitem>
+       <para>
+        Restaura somente o esquema (definições de dados), não os dados.
+        Os valores das seqüências são reiniciados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-S <replaceable class="parameter">nome_de_usuário</replaceable></option></term>
+      <term><option>--superuser=<replaceable class="parameter">nome_de_usuário</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o nome de usuário do superusuário a ser usado para
+        desabilitar os gatilhos. Somente é relevante quando é usada a opção
+        <option>--disable-triggers</option>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-t <replaceable class="parameter">tabela</replaceable></option></term>
+      <term><option>--table=<replaceable class="parameter">tabela</replaceable></option></term>
+      <listitem>
+       <para>
+        Restaura apenas a definição e/ou dados da tabela especificada.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-T <replaceable class="parameter">gatilho</replaceable></option></term>
+      <term><option>--trigger=<replaceable class="parameter">gatilho</replaceable></option></term>
+      <listitem>
+       <para>
+        Restaura apenas o gatilho especificado.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-v</option></term>
+      <term><option>--verbose</option></term>
+      <listitem>
+       <para>
+        Especifica o modo verboso.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-x</option></term>
+      <term><option>--no-privileges</option></term>
+      <term><option>--no-acl</option></term>
+      <listitem>
+       <para>
+        Impede restaurar os privilégios de acessos (comandos GRANT/REVOKE).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-X use-set-session-authorization</option></term>
+      <term><option>--use-set-session-authorization</option></term>
+      <listitem>
+       <para>
+        Gera comandos SET SESSION AUTHORIZATION do padrão SQL, em vez dos
+        comandos OWNER TO. Isto torna a cópia de segurança mais compatível com o
+        padrão, mas dependendo da disposição dos objetos na cópia de segurança
+        pode não restaurar de forma apropriada.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-X disable-triggers</option></term>
+      <term><option>--disable-triggers</option></term>
+      <listitem>
+       <para>
+        Esta opção é relevante apenas quando se restaura somente os dados.
+        Faz com que o <application>pg_restore</application> execute comandos
+        para desabilitar, temporariamente, os gatilhos das tabelas de destino
+        enquanto os dados são recarregados.
+        Deve ser utilizado quando existem verificações de integridade
+        referencial, ou outros gatilhos nas tabelas, que não se deseja que
+        sejam chamados durante a recarga dos dados.
+       </para>
+
+       <para>
+        Atualmente, os comandos emitidos para a opção
+        <option>--disable-triggers</option> devem ser executados por
+        superusuários. Portanto, também deve ser especificado o nome de um
+        superusuário com a opção <option>-S</option> ou, de preferência,
+        executar, com cuidado, o script produzido como um superusuário.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+   </para>
+
+   <para>
+    O <application>pg_restore</application> também aceita os seguintes
+    argumentos de linha de comando para os parâmetros de conexão:
+
+    <variablelist>
+     <varlistentry>
+      <term><option>-h <replaceable class="parameter">máquina</replaceable></option></term>
+      <term><option>--host=<replaceable class="parameter">máquina</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o nome da máquina onde o servidor
+        está executando. Se o nome iniciar por uma barra (/) é usado
+        como o diretório do soquete do domínio Unix. O padrão é obter o nome a
+        partir da variável de ambiente <envar>PGHOST</envar>, se esta estiver
+        definida, senão tentar uma conexão pelo soquete do domínio Unix.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-p <replaceable class="parameter">porta</replaceable></option></term>
+      <term><option>--port=<replaceable class="parameter">porta</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica a porta TCP, ou a extensão de arquivo do soquete
+        do domínio Unix local, onde o servidor está atendendo as conexões.
+        O padrão é obter o valor a partir da variável de ambiente
+        <envar>PGPORT</envar>, se esta estiver definida, senão usar o valor
+        padrão compilado.
+        </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-U <replaceable>nome_de_usuário</replaceable></option></term>
+      <listitem>
+       <para>
+        Conectar como o usuário especificado.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-W</option></term>
+      <listitem>
+       <para>
+        Força a solicitação da senha, o que deve acontecer automaticamente
+        quando o servidor requer autenticação por senha.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Ambiente</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><envar>PGHOST</envar></term>
+    <term><envar>PGPORT</envar></term>
+    <term><envar>PGUSER</envar></term>
+
+    <listitem>
+     <para>
+      Parâmetros de conexão padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+
+ <refsect1 id="app-pgrestore-diagnostics">
+  <title>Diagnósticos</title>
+
+  <para>
+   Quando a conexão direta com o banco de dados é especificada usando a opção
+   <option>-d</option>, o <application>pg_restore</application>
+   executa internamente comandos <acronym>SQL</acronym>. Se acontecerem
+   problemas ao executar o <application>pg_restore</application>, deve-se ter
+   certeza que é possível selecionar informações no banco de dados
+   utilizando, por exemplo, o utilitário <xref linkend="app-psql">.
+  </para>
+ </refsect1>
+
+
+ <refsect1 id="app-pgrestore-notes">
+  <title>Observações</title>
+
+  <para>
+   Se o agrupamento de bancos de dados tiver alguma adição local ao banco de
+   dados <literal>template1</literal>, deve-se ter o cuidado de restaurar a
+   saída do <application>pg_restore</application> em um banco de dados
+   totalmente vazio; senão, podem acontecer erros devido à duplicidade
+   de definição dos objetos adicionados.
+   Para criar um banco de dados vazio, sem nenhuma adição local, deve-se fazê-lo
+   partir de <literal>template0</literal>, e não de <literal>template1</literal>
+   como, por exemplo:
+<programlisting>
+CREATE DATABASE foo WITH TEMPLATE template0;
+</programlisting>
+  </para>
+
+  <para>
+   As limitações do <application>pg_restore</application> estão descritas abaixo.
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Ao restaurar os dados em uma tabela pré-existente utilizando a opção
+      <option>--disable-triggers</option>, o <application>pg_restore</application>
+      emite comandos para desabilitar os gatilhos das tabelas do usuário antes
+      de inserir os dados, e comandos para reabilitá-los após os dados terem
+      sido inseridos. Se a restauração for interrompida antes do fim, os
+      catálogos do sistema podem ser deixados em um estado errado.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      O <application>pg_restore</application> não restaura objetos grandes para
+      uma única tabela. Se a cópia de segurança contém objetos grandes, então
+      todos os objetos grandes são restaurados.
+     </para>
+    </listitem>
+
+   </itemizedlist>
+  </para>
+
+  <para>
+   Consulte também a documentação do <xref linkend="app-pgdump">
+   para obter os detalhes de suas limitações.
+  </para>
+
+  <para>
+   Uma vez restaurado, é aconselhável executar o comando
+   <command>ANALYZE</command> em todas as tabelas restauradas para que o
+   otimizador possua estatísticas úteis.
+  </para>
+
+ </refsect1>
+
+
+ <refsect1 id="app-pgrestore-examples">
+  <title>Exemplos</title>
+
+  <para>
+   Para gerar uma cópia de segurança do banco de dados <literal>meu_bd</literal>,
+   que contém objetos grandes, em um arquivo <filename>tar</filename>:
+
+<screen>
+<prompt>$</prompt> <userinput>pg_dump -Ft -b meu_bd &gt; bd.tar</userinput>
+</screen>
+  </para>
+
+  <para>
+   Para restaurar este banco de dados (com os objetos grandes)
+   no banco de dados chamado <literal>novo_bd</literal>:
+
+<screen>
+<prompt>$</prompt> <userinput>pg_restore -d novo_bd bd.tar</userinput>
+</screen>
+  </para>
+
+  <para>
+   Para reordenar os itens do banco de dados, primeiro é necessário criar um
+   arquivo contendo a tabela de conteúdo (índice) da cópia de segurança:
+<screen>
+<prompt>$</prompt> <userinput>pg_restore -l copia_de_seguranca.arquivo &gt; copia_de_seguranca.list</userinput>
+</screen>
+   O arquivo de listagem consiste de um cabeçalho e uma linha para cada item
+   como, por exemplo,
+<programlisting>
+;
+; Archive created at Fri Jul 28 22:28:36 2000
+;     dbname: birds
+;     TOC Entries: 74
+;     Compression: 0
+;     Dump Version: 1.4-0
+;     Format: CUSTOM
+;
+;
+; Selected TOC Entries:
+;
+2; 145344 TABLE species postgres
+3; 145344 ACL species
+4; 145359 TABLE nt_header postgres
+5; 145359 ACL nt_header
+6; 145402 TABLE species_records postgres
+7; 145402 ACL species_records
+8; 145416 TABLE ss_old postgres
+9; 145416 ACL ss_old
+10; 145433 TABLE map_resolutions postgres
+11; 145433 ACL map_resolutions
+12; 145443 TABLE hs_old postgres
+13; 145443 ACL hs_old
+</programlisting>
+   Ponto-e-vírgula inicia um comentário, e os números no início das linhas
+   referem-se aos identificadores internos da cópia de segurança atribuídos
+   a cada item.
+  </para>
+
+  <para>
+   As linhas do arquivo podem ser transformadas em comentário,
+   excluídas e reordenadas. Por exemplo
+<programlisting>
+10; 145433 TABLE map_resolutions postgres
+;2; 145344 TABLE species postgres
+;4; 145359 TABLE nt_header postgres
+6; 145402 TABLE species_records postgres
+;8; 145416 TABLE ss_old postgres
+</programlisting>
+   poderia ser usado como entrada do <application>pg_restore</application>
+   e somente restauraria os itens 10 e 6, nesta ordem.
+<screen>
+<prompt>$</prompt> <userinput>pg_restore -L copia_de_seguranca.list copia_de_seguranca.arquivo</userinput>
+</screen>
+  </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Histórico</title>
+
+  <para>
+   O utilitário <application>pg_restore</application> apareceu pela primeira
+   vez no <productname>PostgreSQL</productname> 7.1.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="app-pgdump"></member>
+   <member><xref linkend="app-pg-dumpall"></member>
+   <member><xref linkend="app-psql"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

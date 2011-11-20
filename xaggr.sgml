@@ -1,0 +1,531 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/xaggr.sgml,v 1.33 2006/09/16 00:30:16 momjian Exp $ -->
+
+ <sect1 id="xaggr">
+  <title>Agregações definidas pelo usuário</title>
+
+  <indexterm zone="xaggr">
+   <primary>função de agregação</primary>
+   <secondary>definida pelo usuário</secondary>
+  </indexterm>
+
+  <para>
+   No <productname>PostgreSQL</productname> as funções de agregação são
+   expressas em termos de <firstterm>valor de estado</firstterm> e funções de
+   <firstterm>transição de estado</firstterm>, ou seja, uma agregação opera
+   utilizando um valor de estado que é atualizado na medida em que cada linha
+   de entrada sucessiva é processada.
+   Para definir uma nova função de agregação deve ser selecionado um tipo de
+   dado para o valor do estado, um valor inicial para o estado, e uma função
+   de transição de estado.
+   A função de transição de estado é apenas uma função comum, que também
+   poderia ser utilizada fora do contexto da agregação.
+   Também pode ser especificada uma <firstterm>função final</firstterm>, para
+   o caso do resultado desejado para a agregação ser diferente do dado mantido
+   no valor de estado.
+  </para>
+
+  <para>
+   Portanto, além dos tipos de dado do argumento e do resultado vistos pelo
+   usuário, existe também um tipo de dado para o valor de estado interno que
+   pode ser diferente tanto do tipo de dado do argumento, quanto do tipo de
+   dado do resultado.
+  </para>
+
+  <para>
+   Quando se define uma agregação que não utiliza uma função final, se tem uma
+   agregação que processa uma função totalizadora dos valores da coluna para
+   cada linha. <function>sum</function>  é um exemplo deste tipo de agregação.
+   <function>sum</function> começa em zero e sempre adiciona o valor da linha
+   corrente ao total sendo calculado. Por exemplo, se for desejado desenvolver
+   uma agregação <function>sum</function> que trabalhe com tipo de dado para
+   números complexos, somente será necessário adicionar uma função para este
+   tipo de dado. A definição da agregação poderia ser:
+
+<screen>
+<userinput>
+CREATE AGGREGATE sum (complex)
+(
+    sfunc = complex_add,
+    stype = complex,
+    initcond = '(0,0)'
+);
+
+SELECT sum(a) FROM test_complex;
+</userinput>
+
+<computeroutput>
+   sum
+-----------
+ (34,53.9)
+ </computeroutput>
+</screen>
+
+   (Deve ser observada a dependência na sobrecarga de função: existe mais de
+   uma agregação chamada <function>sum</>, mas o
+   <productname>PostgreSQL</productname> pode descobrir que tipo de soma se
+   aplica a uma coluna do tipo <type>complex</type>.)
+  </para>
+
+  <para>
+   A definição de <function>sum</function> acima retorna zero, a condição de
+   estado inicial, se não houver nenhum valor de entrada diferente de nulo.
+   Pode ser que neste caso se prefira retornar nulo em vez de zero &mdash; o
+   padrão <acronym>SQL</acronym> espera que a agregação <function>sum</function>
+   se comporte desta maneira.
+   Isto pode ser feito simplesmente omitindo a linha <literal>initcond</literal>
+   para que a condição de estado inicial seja nula.
+   Normalmente isto significaria que <literal>sfunc</literal> precisaria
+   verificar uma entrada tendo nulo na condição de estado, mas para
+   <function>sum</function>, e algumas outras agregações simples como
+   <function>max</function> e <function>min</function>, basta atribuir o
+   primeiro valor de entrada não nulo à variável de estado, e depois começar a
+   aplicar a função de transição a partir do segundo valor de entrada não nulo.
+   O <productname>PostgreSQL</productname> faz isto automaticamente quando a
+   condição inicial é nula, e a função de transição está marcada como
+   <quote>strict</quote> (ou seja, não é chamada para entradas nulas).
+  </para>
+
+  <para>
+   Outro ponto do comportamento padrão da função de transição <quote>strict</>
+   a ser ressaltado, é que o valor de estado anterior permanece inalterado
+   quando é encontrado um valor de entrada nulo. Portanto, os valores nulos
+   são ignorados. Se for desejado um comportamento diferente para os valores
+   nulos, a função de transição não deve ser definida como estrita, e deve ser
+   codificada testando entradas nulas e fazendo o que for necessário.
+  </para>
+
+  <para>
+   Um exemplo mais complexo de agregação é <function>avg</function> (média).
+   Requer dois elementos de estado de execução: a soma das entradas e o contador
+   do número de entradas. O resultado final é obtido pela divisão destas
+   quantidades. Usualmente a média é implementada utilizando uma matriz com
+   dois elementos para o valor de estado. Por exemplo, a implementação interna
+   de <function>avg(float8)</function> se parece com:
+
+<programlisting>
+CREATE AGGREGATE avg (float8)
+(
+    sfunc = float8_accum,
+    stype = float8[],
+    finalfunc = float8_avg,
+    initcond = '{0,0}'
+);
+</programlisting>
+  </para>
+
+  <para>
+   As funções de agregação podem utilizar funções de transição de estado e
+   funções finais polimórficas e, portanto, a mesma função pode ser utilizada
+   para implementar várias agregações.
+   Para obter informações sobre funções polimórficas deve ser consultada a
+   <xref linkend="extend-types-polymorphic">.
+   Indo um passo adiante, a própria função de agregação pode ser especificada
+   com tipos de entrada e tipo de estado polimórficos, permitindo que uma única
+   definição de agregação sirva para vários tipos de dado de entrada.
+   Abaixo está um exemplo de agregação polimórfica:
+
+<programlisting>
+CREATE AGGREGATE array_accum (anyelement)
+(
+    sfunc = array_append,
+    stype = anyarray,
+    initcond = '{}'
+);
+</programlisting>
+
+   Neste caso, o verdadeiro tipo de dado do estado, para qualquer chamada à
+   agregação, é o tipo de dado da matriz que possui os tipos de dado de
+   entrada reais como seus elementos.
+  </para>
+
+  <para>
+   Abaixo estão mostradas as saídas utilizando dois tipos de dado diferentes
+   como argumentos:
+
+<programlisting>
+<userinput>
+SELECT attrelid::regclass, array_accum(attname)
+    FROM pg_attribute
+    WHERE attnum &gt; 0 AND attrelid = 'pg_tablespace'::regclass
+    GROUP BY attrelid;
+</userinput>
+
+<computeroutput>
+   attrelid    |              array_accum
+---------------+---------------------------------------
+ pg_tablespace | {spcname,spcowner,spclocation,spcacl}
+(1 linha)
+</computeroutput>
+
+<userinput>
+SELECT attrelid::regclass, array_accum(atttypid)
+    FROM pg_attribute
+    WHERE attnum &gt; 0 AND attrelid = 'pg_tablespace'::regclass
+    GROUP BY attrelid;
+</userinput>
+
+<computeroutput>
+   attrelid    |   array_accum
+---------------+-----------------
+ pg_tablespace | {19,26,25,1034}
+(1 linha)
+</programlisting>
+  </para>
+
+  <para>
+   Uma função escrita na linguagem C pode detectar se está sendo chamada como
+   uma função de transição de agregação ou final verificando se foi passado um
+   nó <structname>AggState</> como o <quote>contexto</> da chamada da função,
+   por exemplo através de
+<programlisting>
+        if (fcinfo->context &amp;&amp; IsA(fcinfo->context, AggState))
+</programlisting>
+   Um motivo para que isto seja verificado é que, quando for verdade, a
+   primeira entrada deverá ser o valor de transição temporário podendo,
+   portanto, ser modificada no próprio local com segurança em vez de alocar
+   uma nova cópia (Este é o <emphasis>único</> caso onde é seguro que a
+   função modifique uma entrada passada por referência).
+   Para ver um exemplo consulte <literal>int8inc()</>.
+  </para>
+
+  <para>
+   Para obter mais detalhes deve ser visto o comando
+   <xref linkend="sql-createaggregate" endterm="sql-createaggregate-title">.
+  </para>
+
+  <sect2 id="xaggr-examples">
+
+   <sect2info>
+    <author>
+     <honorific>Sr.</honorific>
+     <firstname>Halley</firstname>
+     <surname>Pacheco de Oliveira</surname>
+     <affiliation>
+      <shortaffil>CMRJ</shortaffil>
+      <jobtitle>Analista de Sistemas</jobtitle>
+      <orgname>Câmara Municipal do Rio de Janeiro</orgname>
+      <orgdiv>Assessoria de Informática</orgdiv>
+      <address>
+       <street>Praça Floriano s/n 11 andar</street>
+       <city>Rio de Janeiro</city>
+       <state>RJ</state>
+       <country>Brasil</country>
+       <postcode>20031-050</postcode>
+       <phone>(5521) 3814-2241</phone>
+      </address>
+     </affiliation>
+    </author>
+    <date>2006-24-12</date>
+   </sect2info>
+
+   <title>Exemplos</title>
+   <note>
+    <para>
+     Seção escrita pelo tradutor, não fazendo parte do manual original.
+    </para>
+   </note>
+
+   <para>
+    Os exemplos de função de agregação mostrados nesta seção utilizam
+    os dados da tabela <structname>tbl_pessoas</structname> mostrada abaixo:
+   </para>
+
+<programlisting>
+CREATE TABLE tbl_pessoas (
+    id          SERIAL,
+    nome        TEXT,
+    sobrenome   TEXT,
+    sexo        CHAR(1),
+    altura_cm   INT
+);
+INSERT INTO tbl_pessoas VALUES (DEFAULT,'Ana','Maria','F',175);
+INSERT INTO tbl_pessoas VALUES (DEFAULT,'Manoel','Pacheco','M',168);
+INSERT INTO tbl_pessoas VALUES (DEFAULT,NULL,'Barbosa',NULL,NULL);
+INSERT INTO tbl_pessoas VALUES (DEFAULT,'Manoel','Oliveira','M',181);
+INSERT INTO tbl_pessoas VALUES (DEFAULT,'Ana','Fraga','F',165);
+INSERT INTO tbl_pessoas VALUES (DEFAULT,'Maria','Pereira','F',164);
+INSERT INTO tbl_pessoas VALUES (DEFAULT,'Manoel','Silva','M',153);
+\pset null '(nulo)'
+\pset border 2
+\pset title 'Tabela tbl_pessoas'
+SELECT * FROM tbl_pessoas;
+<computeroutput>
+               Tabela tbl_pessoas
++----+--------+-----------+--------+-----------+
+| id |  nome  | sobrenome |  sexo  | altura_cm |
++----+--------+-----------+--------+-----------+
+|  1 | Ana    | Maria     | F      |       175 |
+|  2 | Manoel | Pacheco   | M      |       168 |
+|  3 | (nulo) | Barbosa   | (nulo) |    (nulo) |
+|  4 | Manoel | Oliveira  | M      |       181 |
+|  5 | Ana    | Fraga     | F      |       165 |
+|  6 | Maria  | Pereira   | F      |       164 |
+|  7 | Manoel | Silva     | M      |       153 |
++----+--------+-----------+--------+-----------+
+(7 linhas)
+</computeroutput>
+</programlisting>
+
+   <example id="xaggr-agrega-texto">
+     <title>Função para agregar texto</title>
+
+     <para>
+      Neste exemplo é criada uma função de agregação que recebe como parâmetro
+      uma cadeia de caracteres, e gera como resultado uma linha contendo a
+      lista separada por ponto-e-vírgula das cadeias de caracteres pertencentes
+      a cada grupo.
+      Em seguida esta função é utilizada para colocar em uma linha a lista
+      separada por ponto-e-vírgula de todos os nomes e sobrenomes das pessoas
+      do sexo feminino presentes na tabela <structname>tbl_pessoas</structname>,
+      e em outra linha a mesma informação para as pessoas do sexo masculino.
+     </para>
+
+     <para>
+      Abaixo está mostrado o arquivo <filename>teste.sql</filename> utilizado
+      para criar e testar esta função de agregação:
+     </para>
+
+<programlisting>
+\set DateStyle 'ISO';
+CREATE OR REPLACE FUNCTION fun_estado_agrega_texto (text[], text) RETURNS text[] AS $$
+    SELECT array_append($1, $2);
+$$ LANGUAGE SQL STRICT;
+CREATE OR REPLACE FUNCTION fun_final_agrega_texto (text[]) RETURNS text AS $$
+    SELECT array_to_string($1, ';');
+$$ LANGUAGE SQL STRICT;
+CREATE AGGREGATE agrega_texto
+(
+    BASETYPE=text,
+    SFUNC = fun_estado_agrega_texto,
+    STYPE = text[],
+    FINALFUNC = fun_final_agrega_texto,
+    INITCOND = '{}'
+);
+\pset null '(nulo)'
+\pset border 2
+\pset title 'Tabela tbl_pessoas agrupada por sexo'
+SELECT sexo, agrega_texto(nome || ' ' || sobrenome) AS pessoas
+FROM tbl_pessoas
+GROUP BY sexo;
+</programlisting>
+
+     <para>
+      A seguir está mostrado o resultado do processamento do arquivo:
+     </para>
+
+<screen>
+<prompt>#</prompt> <userinput>psql -U teste -f teste.sql -o teste.out -q teste</userinput>
+<prompt>#</prompt> <userinput>cat teste.out</userinput>
+<computeroutput>
+          Tabela tbl_pessoas agrupada por sexo
++--------+---------------------------------------------+
+|  sexo  |                   pessoas                   |
++--------+---------------------------------------------+
+| (nulo) |                                             |
+| M      | Manoel Pacheco;Manoel Oliveira;Manoel Silva |
+| F      | Ana Maria;Ana Fraga;Maria Pereira           |
++--------+---------------------------------------------+
+(3 linhas)
+</computeroutput>
+</screen>
+   </example>
+
+   <example id="xaggr-agrega-texto-nova">
+     <title>Função para agregar texto com dois parâmetros</title>
+
+     <para>
+      Este exemplo é semelhante ao exemplo anterior, porém a função de agregação
+      recebe dois parâmetros cadeia de caracteres que são concatenados com um
+      espaço entre os mesmos, e utiliza a nova sintaxe para definir função de
+      agregação. Além disso, a nova consulta remove as linhas duplicadas e com
+      valor nulo para o campo sexo e ordena as linhas por sexo, nome e sobrenome.
+     </para>
+
+     <para>
+      Abaixo está mostrado o arquivo <filename>teste.sql</filename> utilizado
+      para criar e testar esta função de agregação:
+     </para>
+
+<programlisting>
+\set DateStyle 'ISO';
+CREATE OR REPLACE FUNCTION fun_estado_agrega_texto (text[], text, text) RETURNS text[] AS $$
+    SELECT array_append($1, $2 || ' ' || $3);
+$$ LANGUAGE SQL STRICT;
+CREATE OR REPLACE FUNCTION fun_final_agrega_texto (text[]) RETURNS text AS $$
+    SELECT array_to_string($1, ';');
+$$ LANGUAGE SQL STRICT;
+CREATE AGGREGATE agrega_texto (text, text)
+(
+    SFUNC = fun_estado_agrega_texto,
+    STYPE = text[],
+    FINALFUNC = fun_final_agrega_texto,
+    INITCOND = '{}'
+);
+\pset title 'Tabela tbl_pessoas agrupada por sexo'
+SELECT sexo, agrega_texto(nome,sobrenome) AS pessoas
+FROM (
+SELECT sexo, nome, sobrenome
+FROM tbl_pessoas
+WHERE NOT sexo IS NULL
+ORDER BY sexo, nome, sobrenome
+) AS tbl_pessoas_ordenada
+GROUP BY sexo;
+</programlisting>
+
+     <para>
+      A seguir está mostrado o resultado do processamento do arquivo:
+     </para>
+
+<screen>
+<prompt>#</prompt> <userinput>psql -h Kubuntu -U teste -f teste.sql -o teste.out -q teste</userinput>
+<prompt>#</prompt> <userinput>cat teste.out</userinput>
+<computeroutput>
+         Tabela tbl_pessoas agrupada por sexo
++------+---------------------------------------------+
+| sexo |                   pessoas                   |
++------+---------------------------------------------+
+| F    | Ana Fraga;Ana Maria;Maria Pereira           |
+| M    | Manoel Oliveira;Manoel Pacheco;Manoel Silva |
++------+---------------------------------------------+
+(2 linhas)
+</computeroutput>
+</screen>
+   </example>
+
+   <example id="xaggr-agrega-histograma">
+     <title>Função para gerar histograma</title>
+
+     <para>
+      Neste exemplo é criada uma função de agregação que recebe como
+      parâmetro o <literal>*</literal>, e retorna como resultado um
+      histograma contendo um <literal>*</literal> para cada ocorrência
+      do valor no grupo. Os valores nulos também são contados.
+      Em seguida esta função é utilizada para mostrar o histograma da
+      ocorrência dos nomes da tabela <structname>tbl_pessoas</structname>.
+     </para>
+
+     <para>
+      Abaixo está mostrado o arquivo <filename>teste_histograma.sql</filename>
+      utilizado para criar e testar esta função de agregação:
+     </para>
+
+<programlisting>
+\set DateStyle 'ISO';
+CREATE OR REPLACE FUNCTION fun_estado_agrega_histograma (text) RETURNS text AS $$
+    SELECT $1 || '*';
+$$ LANGUAGE SQL STRICT;
+CREATE AGGREGATE agrega_histograma(*)
+(
+    SFUNC = fun_estado_agrega_histograma,
+    STYPE = text,
+    INITCOND = ''
+);
+\pset null '(nulo)'
+\pset border 2
+\pset title 'Histograma dos nomes'
+SELECT nome, count(*) AS qtd, agrega_histograma(*) AS histograma
+FROM tbl_pessoas
+GROUP BY nome
+ORDER BY 2,1;
+</programlisting>
+
+     <para>
+      A seguir está mostrado o resultado do processamento do arquivo:
+     </para>
+
+<screen>
+<prompt>#</prompt> <userinput>psql -U teste -f teste_histograma.sql -o teste_histograma.out -q teste</userinput>
+<prompt>#</prompt> <userinput>cat teste_histograma.out</userinput>
+<computeroutput>
+    Histograma dos nomes
++--------+-----+------------+
+|  nome  | qtd | histograma |
++--------+-----+------------+
+| Maria  |   1 | *          |
+| (nulo) |   1 | *          |
+| Ana    |   2 | **         |
+| Manoel |   3 | ***        |
++--------+-----+------------+
+(4 linhas)
+</computeroutput>
+</screen>
+   </example>
+
+   <example id="xaggr-agrega-lista-inteiros">
+     <title>Função para listar inteiros</title>
+
+     <para>
+      Neste exemplo é criada uma função de agregação que recebe como
+      parâmetro um valor inteiro, e retorna como resultado uma lista
+      contendo os valores recebidos para cada ocorrência do valor no grupo.
+      Em seguida esta função é utilizada para mostrar a lista de alturas
+      das pessoas na tabela <structname>tbl_pessoas</structname> agrupadas
+      pelo sexo.
+      Também é utilizada a função <function>array_accum</function>, definida
+      anteriormente, para realizar a mesma consulta permitindo a comparação
+      dos resultados.
+     </para>
+
+     <para>
+      Abaixo está mostrado o arquivo <filename>teste_lista_inteiros.sql</filename>
+      utilizado para criar e testar esta função de agregação:
+     </para>
+
+<programlisting>
+CREATE OR REPLACE FUNCTION fun_estado_lista_inteiros (int[], int) RETURNS int[] AS $$
+    SELECT array_append($1, $2);
+$$ LANGUAGE SQL STRICT;
+CREATE OR REPLACE FUNCTION fun_final_lista_inteiros (int[]) RETURNS text AS $$
+    SELECT array_to_string($1, ';');
+$$ LANGUAGE SQL STRICT;
+CREATE AGGREGATE lista_inteiros(int)
+(
+    SFUNC = fun_estado_lista_inteiros,
+    STYPE = int[],
+    FINALFUNC = fun_final_lista_inteiros,
+    INITCOND = '{}'
+);
+\pset null '(nulo)'
+\pset border 2
+\pset title 'Função lista_inteiros()'
+SELECT sexo, lista_inteiros(altura_cm) AS alturas
+FROM tbl_pessoas
+GROUP BY sexo;
+\pset title 'Função array_accum()'
+SELECT sexo, array_accum(altura_cm) AS alturas
+FROM tbl_pessoas
+GROUP BY sexo;
+</programlisting>
+
+     <para>
+      A seguir está mostrado o resultado do processamento do arquivo:
+     </para>
+
+<screen>
+<prompt>#</prompt> <userinput>psql -h Kubuntu -U teste -f teste_lista_inteiros.sql -o teste_lista_inteiros.out -q teste</userinput>
+<prompt>#</prompt> <userinput>cat teste_lista_inteiros.out</userinput>
+<computeroutput>
+ Função lista_inteiros()
++--------+-------------+
+|  sexo  |   alturas   |
++--------+-------------+
+| (nulo) |             |
+| M      | 168;181;153 |
+| F      | 175;165;164 |
++--------+-------------+
+(3 linhas)
+
+   Função array_accum()
++--------+---------------+
+|  sexo  |    alturas    |
++--------+---------------+
+| (nulo) | {NULL}        |
+| M      | {168,181,153} |
+| F      | {175,165,164} |
++--------+---------------+
+(3 linhas)
+</computeroutput>
+</screen>
+   </example>
+  </sect2>
+ </sect1>

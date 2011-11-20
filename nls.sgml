@@ -1,0 +1,704 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/nls.sgml,v 1.10 2004/11/15 06:32:14 neilc Exp $
+-->
+
+<chapter id="nls">
+ <chapterinfo>
+  <author>
+   <firstname>Peter</firstname>
+   <surname>Eisentraut</surname>
+  </author>
+ </chapterinfo>
+
+ <title>Suporte a idioma nativo</title>
+
+ <sect1 id="nls-translator">
+  <title>Para o tradutor</title>
+
+  <para>
+   Os programas do <productname>PostgreSQL</productname> (servidor e cliente)
+   podem emitir as mensagens em seu idioma preferido &mdash; se as mensagens
+   tiverem sido traduzidas.
+   Criar e manter um conjunto de mensagens traduzidas requer ajuda de
+   pessoas que falem bem seu próprio idioma, e que desejem contribuir para o
+   trabalho do <productname>PostgreSQL</>.
+   De forma alguma é necessário ser um programador para realizar esta tarefa.
+   Esta seção explica como ajudar.
+  </para>
+
+  <sect2 id="nls-requirements">
+   <title>Requisitos</title>
+
+   <para>
+    Aqui não será julgado seu conhecimento do idioma &mdash; esta seção é sobre
+    ferramentas de software. Teoricamente só é necessário um editor de textos.
+    Mas isto se aplica somente ao caso improvável de não se desejar testar
+    as mensagens traduzidas. Ao configurar a árvore de fontes certifique-se
+    que a opção <option>--enable-nls</option> está sendo utilizada. Esta opção
+    também verifica a biblioteca <application>libintl</application> e o
+    programa <application>msgfmt</application>, que todo usuário final vai
+    necessitar de todo jeito. Para testar a tradução realizada, devem ser
+    seguidas as partes aplicáveis das instruções de instalação.
+    <footnote>
+     <para>
+      O <application>msgfmt</application> pode ser utilizado no
+      <systemitem class="osname">Windows</systemitem> descompactando
+      <ulink url="http://www.gimp.org/~tml/gimp/win32/gettext-runtime-0.13.1.zip">
+      gettext-runtime-0.13.1.zip</ulink>,
+      <ulink url="http://www.gimp.org/~tml/gimp/win32/gettext-tools-0.13.1.zip">
+      gettext-tools-0.13.1.zip</ulink> e
+      <ulink url="http://www.gimp.org/~tml/gimp/win32/libiconv-1.9.1.bin.woe32.zip">
+      GNU libiconv</ulink>, presentes na página
+      <ulink url="http://www.gimp.org/~tml/gimp/win32/downloads.html">GTK+ (not
+      GIMP) for Windows</ulink>, por exemplo em <filename>E:\gettext</filename>,
+      e depois colocando <filename>E:\gettext\bin</filename> no caminho de
+      procura, ou através do <ulink url="http://www.cygwin.com/">cygwin</ulink>
+      (N. do T.)
+     </para>
+    </footnote>
+   </para>
+
+   <para>
+    Se for desejado iniciar um novo trabalho de tradução, ou se for desejado
+    fazer uma mesclagem do catálogo de mensagens (descrita posteriormente),
+    serão necessários os programas <filename>xgettext</filename> e
+    <filename>msgmerge</filename>, respectivamente, em uma implementação
+    compatível com o GNU. Posteriormente isto será arrumado de tal forma que,
+    se for utilizado um pacote de distribuição do código fonte, não será
+    necessário utilizar <filename>xgettext</filename> (A partir do CVS ainda é
+    necessário). É recomendado o <application>GNU Gettext 0.10.36</application>
+    ou mais recente.
+   </para>
+
+   <para>
+    A implementação local do <literal>gettext</literal> vem com a sua
+    própria documentação. Provavelmente parte desta documentação está duplicada
+    no que se segue, mas para obter detalhes adicionais deve ser consultada
+    esta documentação local.
+   </para>
+  </sect2>
+
+  <sect2 id="nls-concepts">
+   <title>Conceitos</title>
+
+   <para>
+    Os pares de mensagens original em inglês e equivalente traduzida são
+    mantidos nos <firstterm>catálogos de mensagens</firstterm>.
+    Cada programa possui seu próprio catálogo (embora programas relacionados
+    possam compartilhar catálogos de mensagem), sendo um catálogo por idioma.
+    Existem dois formatos para os catálogos de mensagens:
+    O primeiro é o arquivo <quote>PO</quote>, significando
+    <quote>Objeto Portável</quote> (<literal>Portable Object</literal>),
+    que é um arquivo texto puro com sintaxe especial editado pelos tradutores.
+    O segundo é o arquivo <quote>MO</quote>, significando
+    <quote>Objeto de Máquina</quote> (<literal>Machine Object</literal>),
+    que é um arquivo binário gerado a partir do respectivo arquivo PO,
+    usado quando o programa internacionalizado é executado.
+    Os tradutores não lidam com arquivos MO; na verdade quase ninguém lida.
+   </para>
+
+   <para>
+    As extensões dos arquivos de catálogos de mensagens são, sem surpresa
+    alguma, <filename>.po</filename> ou <filename>.mo</filename>. O nome base
+    é o nome do programa que o arquivo acompanha, ou o idioma a que se destina,
+    dependendo da situação. Isto confunde um pouco. Por exemplo,
+    <filename>psql.mo</filename> (o arquivo MO do psql) ou
+    <filename>pt_BR.po</filename> (arquivo PO em português).
+   </para>
+
+   <para>
+    O formato dos arquivos PO está exemplificado abaixo:
+<programlisting>
+# comentário
+
+msgid "cadeia de caracteres original"
+msgstr "cadeia de caracteres traduzida"
+
+msgid "outra cadeia de caracteres original"
+msgstr "outra cadeia de caracteres traduzida"
+"as cadeias de caracteres podem ser quebradas desta forma"
+
+...
+</programlisting>
+    As linhas <literal>msgid</literal> são extraídas do código fonte do programa
+    (Não é necessário, mas esta é a forma mais usada).
+    As linhas <literal>msgstr</literal> são inicialmente vazias, e depois
+    preenchidas com cadeias de caracteres úteis pelo tradutor.
+    As cadeias de caracteres podem conter caracteres de escape no estilo C,
+    e podem ter várias linhas de continuação conforme mostrado acima
+    (A linha de continuação deve começar no início da linha).
+   </para>
+
+   <para>
+    O caractere <literal>#</literal> inicia um comentário. Se o caractere
+    <literal>#</literal> for seguido imediatamente por um espaço em branco,
+    então este é um comentário mantido pelo tradutor. Podem haver comentários
+    automáticos, que possuem um caractere diferente de espaço em branco logo
+    após o caractere <literal>#</literal>. Estes comentários são mantidos por
+    várias ferramentas que operam em arquivos PO, e têm por objetivo ajudar o
+    tradutor.
+<programlisting>
+#. comentário automático
+#: nome_do_arquivo.c:1023
+#, sinalizador, sinalizador
+</programlisting>
+    Os comentários no estilo <literal>#.</literal> são extraídos do código
+    fonte em que a mensagem é utilizada. Possivelmente o programador inseriu
+    informações para o tradutor, tal como o alinhamento esperado. O comentário
+    <literal>#:</literal> indica o local exato onde a mensagem é utilizada no
+    código fonte. O tradutor não precisa olhar o código fonte, mas pode olhar
+    se houver dúvidas sobre a tradução correta. Os comentários
+    <literal>#,</literal> contém sinalizadores que descrevem de alguma forma a
+    mensagem. Atualmente existem dois sinalizadores: <literal>fuzzy</literal>
+    é definido se a mensagem está possivelmente desatualizada devido a
+    alterações no fonte do programa. O tradutor pode verificar e talvez
+    remover o sinalizador <literal>fuzzy</literal>. Deve ser observado que as
+    mensagens sinalizadas como <literal>fuzzy</literal> não se tornam
+    disponíveis para os usuários finais. O outro sinalizador é
+    <literal>c-format</literal>, que indica que a mensagem é um modelo de
+    formato no estilo <function>printf</function>. Isto significa que a tradução
+    deve ser capaz de formatar a cadeia de caracteres com o mesmo número e tipo
+    de argumentos. Existem ferramentas que podem fazer a validação.
+    <footnote>
+     <para>
+      O <productname>KBabel</productname> faz a validação de catálogos PO
+      verificando, inclusive, os argumentos das mensagens com sinalizador
+      <literal>c-format</literal>. (N. do T.)
+     </para>
+    </footnote>
+    <footnote>
+     <para>
+      O <ulink url="http://www.poedit.org/">poEdit</ulink> é um editor de
+      catálogos PO que funciona tanto no <productname>Linux</productname>
+      quando no <systemitem class="osname">Windows</systemitem>. (N. do T.)
+     </para>
+    </footnote>
+   </para>
+  </sect2>
+
+  <sect2 id="nls-catalogs">
+   <title>Criação e manutenção de catálogos de mensagens</title>
+
+   <para>
+    Como fazer para criar um catálogo de mensagens <quote>em branco</quote>?
+    Primeiro, o diretório que contém o programa cujas mensagens se deseja
+    traduzir deve ser tornado o diretório corrente. Se existir o arquivo
+    <filename>nls.mk</filename>, então este programa está preparado para ser
+    traduzido.
+   </para>
+
+   <para>
+    Se já existirem alguns arquivos <filename>.po</filename>, então já foi
+    feito algum trabalho de tradução. Os arquivos se chamam
+    <filename><replaceable>idioma</replaceable>.po</filename>,
+    onde <replaceable>idioma</replaceable> é o código de duas letras
+    (minúsculas) especificado em <ulink
+    url="http://lcweb.loc.gov/standards/iso639-2/englangn.html">ISO
+    639-1</ulink> como, por exemplo, <filename>fr.po</filename> para Francês.
+    Se for necessário mais de um trabalho de tradução para o idioma,
+    então os arquivos podem se chamar
+    <filename><replaceable>idioma</replaceable>_<replaceable>região</replaceable>.po</filename>,
+    onde <replaceable>região</replaceable> é o código de duas letra (maiúsculas)
+    do país especificado em <ulink
+    url="http://www.din.de/gremien/nas/nabd/iso3166ma/codlstp1/en_listp1.html">ISO
+    3166-1</ulink> como, por exemplo, <filename>pt_BR.po</filename> para o
+    português do Brasil. Se for encontrado o idioma desejado, pode-se
+    simplesmente começar o trabalho a partir deste arquivo.
+   </para>
+
+   <para>
+    Se for necessário começar um novo trabalho de tradução, então primeiro
+    deve ser executado o comando
+<programlisting>
+gmake init-po
+</programlisting>
+    para criar o arquivo
+    <filename><replaceable>progname</replaceable>.pot</filename>.
+    (<filename>.pot</filename> para diferenciar dos arquivos PO que estão
+    <quote>em produção</quote>. O <literal>T</> significa
+    <quote>template</> (modelo)).
+    Este arquivo deve ser copiado para
+    <filename><replaceable>idioma</replaceable>.po</filename> e
+    editado. Para ficar conhecido que existe um novo idioma disponível, deve
+    ser editado o arquivo <filename>nls.mk</filename> e adicionado o código do
+    idioma (ou do idioma e da região), em uma linha parecida com a seguinte:
+<programlisting>
+AVAIL_LANGUAGES := cs de es fa fr hu it ko nb pt_BR ro ru sk sl sv tr zh_CN zh_TW
+</programlisting>
+    (Obviamente, podem estar presentes outros idiomas)
+   </para>
+
+   <para>
+    À medida que os programas e bibliotecas subjacentes são modificados, as
+    mensagens podem ser modificadas ou alteradas pelos programadores.
+    Neste caso não é necessário começar do zero. Em vez disso, deve ser
+    executado o comando
+<programlisting>
+gmake update-po
+</programlisting>
+    para criar um novo arquivo de catálogo de mensagens em branco (o arquivo
+    <literal>pot</literal> usado no começo), e mesclá-lo com os arquivos PO
+    existentes.
+    Se o algoritmo de mesclagem não tiver certeza sobre uma determinada
+    mensagem, esta é marcada como<quote>fuzzy</quote> conforme explicado acima.
+    No caso de algo ter dado realmente errado, o arquivo PO antigo
+    é salvo com a extensão <filename>.po.old</filename>.
+   </para>
+  </sect2>
+
+  <sect2 id="nls-edit-po">
+   <title>Edição dos arquivos PO</title>
+
+   <para>
+    Os arquivos PO podem ser editados usando um editor de textos comum.
+    O tradutor pode apenas mudar o texto entre as aspas após a diretiva
+    <literal>msgstr</literal>, adicionar comentários e alterar o sinalizador
+    <literal>fuzzy</literal>.
+    Existe um modo PO para o Emacs (o que não é surpresa), bastante útil.
+   </para>
+
+   <para>
+    Os arquivos PO não precisam ser totalmente preenchidos. O software retorna,
+    automaticamente, a cadeia de caracteres original se não houver nenhuma
+    tradução disponível (ou se a tradução estiver vazia). Não há problema em
+    submeter uma tradução incompleta para ser incluída na árvore de fontes;
+    isto abre espaço para outras pessoas darem continuidade ao trabalho.
+    Entretanto, estimulamos que seja dada prioridade à remoção das entradas
+    <literal>fuzzy</literal> após realizar a mesclagem. Lembre-se que as
+    entradas <literal>fuzzy</literal> não serão instaladas; servem apenas
+    como referência do que seria a tradução correta.
+   </para>
+
+   <para>
+    Abaixo seguem recomendações que devem ser lembradas ao editar as traduções:
+    <itemizedlist>
+     <listitem>
+      <para>
+       Se a mensagem original terminar por nova-linha, certifique-se que
+       a tradução também o faça. Igualmente para tabulações, etc.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Se a mensagem original for uma cadeia de caracteres no formato
+       <function>printf</>, a tradução também deve ser.
+       A tradução também deve ter os mesmos especificadores de formato
+       e na mesma ordem. Algumas vezes as regras ortográficas tornam isto
+       impossível ou esquisito.
+       Neste caso podem ser mudados os especificadores de formato como mostrado
+       abaixo:
+<programlisting>
+msgstr "Die Datei %2$s hat %1$u Zeichen."
+</programlisting>
+       Desta maneira o primeiro argumento vai, na verdade, utilizar o segundo
+       especificador de formato da lista. A seqüência
+       <literal><replaceable>dígitos</replaceable>$</literal> deve vir
+       imediatamente após sinal de <literal>%</literal>, antes de qualquer
+       outro manipulador de formato (Esta funcionalidade existe na família de
+       funções <function>printf</function>. Não é muito conhecida porque tem
+       pouca utilidade fora da internacionalização de mensagens).
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Se a cadeia de caracteres contiver erro de gramática, o erro deve ser
+       relatado (ou pode ser corrigido no código fonte do programa), e a cadeia
+       de caracteres traduzida normalmente. A cadeia de caracteres corrigida
+       pode ter sido mesclada quando os fontes do programa foram atualizados.
+       Se a cadeia de caracteres original contiver fatos equivocados, isto deve
+       ser relatado (ou pode ser corrigido), não devendo ser traduzida.
+       Em vez disso, a cadeia de caracteres pode ser marcada como comentário no
+       arquivo PO.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Devem ser mantidos o estilo e o tom da cadeia de caracteres original.
+       Especificamente, as mensagens que não são enunciados (<literal>não foi
+       possível abrir o arquivo %s</literal>) provavelmente não devem começar
+       por letra maiúscula (se o idioma fizer distinção entre maiúsculas e
+       minúsculas), ou terminar por um ponto (se o idioma utilizar pontuação).
+       Ler a <xref linkend="error-style-guide"> pode ajudar.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Se não for possível descobrir o significado da mensagem, ou se a
+       mensagem for ambígua, pode ser perguntado na lista de discussão dos
+       desenvolvedores o que a mensagem quer dizer.
+       É possível que os usuários finais que falam inglês também não entendam
+       a mensagem ou a considerem ambígua e, assim sendo, é bom melhorar a
+       mensagem.
+      </para>
+     </listitem>
+
+    </itemizedlist>
+   </para>
+  </sect2>
+
+  <sect2 id="nls-translator-examples">
+
+   <sect2info>
+    <author>
+     <firstname>Halley</firstname>
+     <surname>Pacheco de Oliveira</surname>
+     <affiliation>
+      <orgname>Câmara Municipal do Rio de Janeiro</orgname>
+      <orgdiv>Assessoria de Informática</orgdiv>
+      <address>
+       <city>Rio de Janeiro</city>
+       <country>Brasil</country>
+      </address>
+     </affiliation>
+    </author>
+    <date>2005-08-10</date>
+   </sect2info>
+
+   <title>Exemplos</title>
+
+   <note>
+    <para>
+     Seção escrita pelo tradutor, não fazendo parte do manual original.
+    </para>
+   </note>
+
+   <example id="nls-translator-example-psql">
+    <title>Personalização das mensagens traduzidas do psql</title>
+    <para>
+     Neste exemplo é mostrado como editar o arquivo
+     <filename>pt_BR.po</filename> que contém as mensagens do
+     <application>psql</application> traduzidas por Euler Taveira de Oliveira
+     (<email>euler@ufgnet.ufg.br</email>), fazer alguma personalização
+     porventura desejada e, por fim, gerar e colocar o arquivo binário
+     <filename>psql.mo</filename> em produção no
+     <systemitem class="osname">Fedora Core 3</systemitem> e no
+     <systemitem class="osname">Windows</systemitem>.
+    </para>
+
+    <orderedlist numeration="arabic">
+     <listitem>
+      <para>
+       Descobrir a versão do psql em uso atualmente.
+<screen>
+<prompt>$</prompt> <userinput>psql --version</userinput>
+<computeroutput>
+psql (PostgreSQL) 8.0.1
+contém suporte a edição em linha de comando
+</computeroutput>
+</screen>
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       Obter em
+       <ulink url="http://www.postgresql.org/ftp/source/v8.0.1/"></ulink>
+       o fonte do <productname>PostgreSQL</productname> correspondente à versão
+       do <application>psql</application>
+       (<filename>postgresql-8.0.1.tar.gz</filename>), colocando-o
+       no diretório <filename>/download</filename>, por exemplo.
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       Tornar o diretório <filename>/tmp</filename> o diretório corrente e
+       descompactar o fonte do PostgreSQL.
+<screen>
+<prompt>$</prompt> <userinput>cd /tmp</userinput>
+<prompt>$</prompt> <userinput>tar xzvf /download/postgresql-8.0.1.tar.gz</userinput>
+</screen>
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       Tornar o diretório de traduções do <application>psql</application>
+       o diretório corrente e salvar uma cópia do arquivo traduzido original.
+<screen>
+<prompt>$</prompt> <userinput>cd /tmp/postgresql-8.0.1/src/bin/psql/po/</userinput>
+<prompt>$</prompt> <userinput>cp pt_BR.po pt_BR.po.original</userinput>
+</screen>
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       Editar o arquivo pt_BR.po usando o <productname>gvim</productname>, o
+       <productname>jEdit</productname>, ou outro editor de textos qualquer,
+       mas de preferência o <productname>KBabel</productname>, que é
+       apropriado para traduzir arquivos PO e valida o arquivo traduzido.
+<screen>
+<prompt>$</prompt> <userinput>kbabel pt_BR.po</userinput>
+</screen>
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       Salvar o arquivo psql.mo original em produção.
+<screen>
+<prompt>$</prompt> <userinput>cp /usr/share/locale/pt_BR/LC_MESSAGES/psql.mo /usr/share/locale/pt_BR/LC_MESSAGES/psql.mo.original</userinput>
+</screen>
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       Gerar e colocar o arquivo binário <filename>psql.mo</filename> contendo
+       a tradução modificada em produção no <productname>Linux</productname>.
+<screen>
+<prompt>$</prompt> <userinput>msgfmt --statistics -v -c -o psql.mo pt_BR.po</userinput>
+<prompt>$</prompt> <userinput>mv psql.mo /usr/share/locale/pt_BR/LC_MESSAGES/psql.mo</userinput>
+</screen>
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       Para colocar o arquivo binário <filename>psql.mo</filename> gerado no
+       <productname>Linux</productname> em produção no
+       <systemitem class="osname">Windows</systemitem>, basta copiar este
+       arquivo para o diretório apropriado como, por exemplo,
+       <filename>C:\Arquivos&nbsp;de&nbsp;Programas\PostgreSQL\8.0\share\locale\pt_BR\LC_MESSAGES\psql.mo</filename>
+       ou
+       <filename>E:\Program&nbsp;Files\PostgreSQL\8.0\share\locale\pt_BR\LC_MESSAGES\psql.mo</filename>.
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       Para usar as mensagens traduzidas em uma versão do
+       <systemitem class="osname">Windows</systemitem> em inglês, basta
+       configurar o fonte como Lucida Console e definir a página de código e
+       idioma das mensagens no <literal>Command Prompt</literal>.
+<screen>
+<prompt>F:\Documents and Settings\Administrator&gt;</prompt><userinput>E:</userinput>
+<prompt>E:\&gt;</prompt><userinput>cd \Program Files\PostgreSQL\8.0\bin</userinput>
+<prompt>E:\Program Files\PostgreSQL\8.0\bin&gt;</prompt><userinput>chcp 1252</userinput>
+<computeroutput>
+Active code page: 1252
+</computeroutput>
+<prompt>E:\Program Files\PostgreSQL\8.0\bin&gt;</prompt><userinput>set LC_MESSAGES=pt_BR</userinput>
+<prompt>E:\Program Files\PostgreSQL\8.0\bin&gt;</prompt><userinput>psql --version</userinput>
+<computeroutput>
+psql (PostgreSQL) 8.0.1
+</computeroutput>
+<prompt>E:\Program Files\PostgreSQL\8.0\bin&gt;</prompt><userinput>psql -U postgres template1</userinput>
+</screen>
+      </para>
+     </listitem>
+    </orderedlist>
+    <para>
+     A personalização das mensagens traduzidas do <application>psql</application>
+     pode ser toda feita no <systemitem class="osname">Windows</systemitem>,
+     utilizando o <ulink url="www.winzip.com">Winzip</ulink> para descompactar
+     o arquivo <filename>postgresql-8.0.1.tar.gz</filename>, o
+     <ulink url="http://www.poedit.org/">poEdit</ulink> para editar o arquivo
+     <filename>pt_BR.po</filename>, e o <application>msgfmt</application> para
+     gerar o arquivo <filename>psql.mo</filename>, conforme explicado na nota.
+    </para>
+   </example>
+  </sect2>
+
+ </sect1>
+
+ <sect1 id="nls-programmer">
+  <title>Para o programador</title>
+
+  <sect2 id="nls-mechanics">
+   <title>Mecânica</title>
+
+  <para>
+   Esta seção descreve como implementar suporte a idioma nativo em um programa
+   ou biblioteca que faça parte da distribuição do <productname>PostgreSQL</>.
+   Atualmente somente se aplica a programas C.
+  </para>
+
+  <procedure>
+   <title>Adicionar suporte a idioma nativo ao programa</title>
+
+   <step>
+    <para>
+     O código abaixo deve ser inserido na seqüência de inicialização do programa:
+<programlisting>
+#ifdef ENABLE_NLS
+#include &lt;locale.h&gt;
+#endif
+
+...
+
+#ifdef ENABLE_NLS
+setlocale(LC_ALL, "");
+bindtextdomain("<replaceable>nome_do_programa</replaceable>", LOCALEDIR);
+textdomain("<replaceable>nome_do_programa</replaceable>");
+#endif
+</programlisting>
+     (Na verdade o <replaceable>nome_do_programa</replaceable> pode ser
+     escolhido livremente)
+    </para>
+   </step>
+
+   <step>
+    <para>
+     Sempre que for encontrada uma mensagem candidata a ser traduzida deve ser
+     inserida uma chamada a <function>gettext()</function>. Por exemplo,
+<programlisting>
+fprintf(stderr, "panic level %d\n", lvl);
+</programlisting>
+     deve ser alterada para
+<programlisting>
+fprintf(stderr, gettext("panic level %d\n"), lvl);
+</programlisting>
+     (<symbol>gettext</symbol> é definida como nenhuma operação se não for
+     configurado suporte a idioma nativo)
+    </para>
+
+    <para>
+     Isto tende a tornar o código confuso. Uma forma abreviada comum é:
+<programlisting>
+#define _(x) gettext(x)
+</programlisting>
+     Quando o programa faz grande parte da sua comunicação através de uma ou de
+     poucas funções, tal como <function>ereport()</function> no servidor,
+     existe uma outra solução possível. Neste caso faz-se a função
+     chamar <function>gettext</function> internamente para todas as cadeias
+     de caracteres.
+    </para>
+   </step>
+
+   <step>
+    <para>
+     O arquivo <filename>nls.mk</filename> deve ser adicionado ao diretório
+     com os fontes do programa. Este arquivo é lido como um
+     <literal>makefile</literal>. Devem ser feitas as seguintes atribuições de
+     variáveis:
+
+     <variablelist>
+      <varlistentry>
+       <term><varname>CATALOG_NAME</varname></term>
+
+       <listitem>
+        <para>
+         O nome do programa, conforme fornecido na chamada a
+         <function>textdomain()</function>.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term><varname>AVAIL_LANGUAGES</varname></term>
+
+       <listitem>
+        <para>
+         Lista das traduções existentes &mdash; inicialmente vazia.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term><varname>GETTEXT_FILES</varname></term>
+
+       <listitem>
+        <para>
+         Lista dos arquivos que contêm cadeias de caracteres traduzíveis,
+         ou seja, àquelas marcadas com <function>gettext</function> ou por uma
+         solução alternativa. No final esta lista acaba incluindo praticamente
+         todos os arquivos fonte do programa. Se esta lista ficar muito longa,
+         pode ser feito com que o primeiro <quote>arquivo</quote> seja um
+         <literal>+</literal>, e a segunda palavra seja um arquivo que contém
+         um nome de arquivo por linha.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term><varname>GETTEXT_TRIGGERS</varname></term>
+
+       <listitem>
+        <para>
+         As ferramentas que geram catálogos de mensagem para os tradutores
+         trabalharem precisam saber que chamadas de função contêm cadeias de
+         caracteres traduzíveis. Por padrão, só são conhecidas as chamadas a
+         <function>gettext()</function>. Se for utilizado <function>_</function>
+         ou outros identificadores estes devem ser listados aqui. Se a cadeia
+         de caracteres traduzível não for o primeiro argumento, o item deve
+         estar na forma <literal>func:2</literal> (para o segundo argumento).
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
+    </para>
+   </step>
+
+  </procedure>
+
+  <para>
+   O sistema de construção toma conta automaticamente da construção e da
+   instalação dos catálogos de mensagem.
+  </para>
+  </sect2>
+
+  <sect2 id="nls-guidelines">
+   <title>Guia para escrever mensagens</title>
+
+  <para>
+   Abaixo estão algumas diretrizes para escrever mensagens facilmente
+   traduzíveis.
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Não deve ser construídos enunciados em tempo de execução do tipo:
+<programlisting>
+printf("Files were %s.\n", flag ? "copied" : "removed");
+</programlisting>
+      A ordem das palavras na frase pode ser diferente em outro idioma.
+      Também, mesmo que seja chamado gettext() para cada fragmento, os
+      fragmentos separados podem não ficar com uma tradução boa.
+      É melhor duplicar um pequeno código para que cada mensagem traduzida
+      se torne um todo coerente. Somente devem ser inseridos no texto da
+      mensagem em tempo de execução números, nomes de arquivos, e variáveis em
+      tempo de execução deste tipo.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Por motivos semelhantes, o que vem a seguir também não funciona
+<programlisting>
+printf("copied %d file%s", n, n!=1 ? "s" : "");
+</programlisting>
+      porque assume uma regra de formação de plural. Se houver numeração
+      pode ser resolvido desta maneira
+<programlisting>
+if (n==1)
+    printf("copied 1 file");
+else
+    printf("copied %d files", n);
+</programlisting>
+      e depois ficar desapontado. Alguns idiomas possuem mais de duas formas,
+      com algumas regras peculiares. Pode ser encontrada uma solução para este
+      caso no futuro, mas no momento é melhor evitar este problema.
+      Pode ser escrito:
+<programlisting>
+printf("number of copied files: %d", n);
+</programlisting>
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Se for desejado comunicar algo ao tradutor, tal como a mensagem
+      deve se posicionar em relação a outras saídas, a ocorrência da
+      cadeia de caracteres deve ser precedida por um comentário que começa
+      por <literal>translator</literal>, como, por exemplo,
+<programlisting>
+/* translator: This message is not what it seems to be. */
+</programlisting>
+      Estes comentários são copiados para os arquivos de catálogo de mensagens
+      para que os tradutores possam vê-los.
+     </para>
+    </listitem>
+   </itemizedlist>
+  </para>
+  </sect2>
+ </sect1>
+
+</chapter>

@@ -1,0 +1,414 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/start.sgml,v 1.45 2007/06/21 10:43:09 petere Exp $ -->
+
+
+ <chapter id="tutorial-start">
+  <title>Início</title>
+
+  <sect1 id="tutorial-install">
+   <title>Instalação</title>
+
+   <para>
+    Para que se possa usar o <productname>PostgreSQL</productname> é
+    necessário instalá-lo, obviamente. É possível que o
+    <productname>PostgreSQL</productname> já esteja instalado na máquina, seja
+    porque está incluído na distribuição do sistema operacional,
+    ou porque o administrador do sistema fez a
+    instalação. Se este for o caso, devem ser obtidas informações na
+    documentação do sistema operacional, ou com o administrador do sistema,
+    sobre como acessar o <productname>PostgreSQL</productname>.
+   </para>
+
+   <para>
+    Não havendo certeza se o <productname>PostgreSQL</productname> está
+    disponível, ou se pode ser utilizado para seus experimentos, então você
+    mesmo poderá fazer a instalação. Proceder desta maneira não é difícil,
+    podendo ser um bom exercício. O <productname>PostgreSQL</productname> pode
+    ser instalado por qualquer usuário sem privilégios, porque não é necessário
+    nenhum acesso de superusuário (<systemitem>root</systemitem>).
+   </para>
+
+   <para>
+    Se for instalar o <productname>PostgreSQL</productname> por si próprio,
+    então leia o <xref linkend="installation"> para conhecer as instruções de
+    instalação, e depois retorne para este guia quando a instalação estiver
+    terminada. Certifique-se de seguir de perto a seção sobre a configuração
+    das variáveis de ambiente apropriadas.
+   </para>
+
+   <para>
+    Se o administrador do sistema não fez a configuração da maneira padrão,
+    talvez seja necessário algum trabalho adicional. Por exemplo, se a máquina
+    servidora de banco de dados for uma máquina remota, será necessário definir
+    a variável de ambiente <envar>PGHOST</envar> com o nome da máquina
+    servidora de banco de dados. Também, talvez tenha que ser definida a 
+	variável de ambiente <envar>PGPORT</envar>. A regra básica é esta: quando se
+    tenta iniciar um programa aplicativo e este informa que não está conseguindo
+    conectar com o banco de dados, deve ser consultado o administrador do
+    servidor ou, caso seja você mesmo, a documentação, para ter certeza que
+    o ambiente está configurado de maneira apropriada. Caso não tenha entendido
+    o parágrafo anterior então, por favor, leia a próxima seção.
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-arch">
+   <title>Fundamentos da arquitetura</title>
+
+   <para>
+    Antes de prosseguir, é necessário conhecer a arquitetura de sistema
+    básica do <productname>PostgreSQL</productname>. Compreender como as
+    partes do <productname>PostgreSQL</productname> interagem torna este
+    capítulo mais claro.
+   </para>
+
+   <para>
+    No jargão de banco de dados, o <productname>PostgreSQL</productname>
+    utiliza o modelo cliente-servidor.
+    Uma sessão do <productname>PostgreSQL</productname> consiste nos seguintes
+    processos (programas) cooperando entre si:
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       Um processo servidor, que gerencia os arquivos de banco de dados, recebe
+       conexões dos aplicativos cliente com o banco de dados, e executa ações no
+       banco de dados em nome dos clientes. O programa servidor de banco de
+       dados se chama <filename>postgres</filename>.
+       <indexterm><primary>programa postgres</primary></indexterm>
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       O aplicativo cliente do usuário (<literal>frontend</literal>) que deseja
+       executar operações de banco de dados. Os aplicativos cliente podem ter
+       naturezas muito diversas: o cliente pode ser uma ferramenta no modo
+       caractere, um aplicativo gráfico, um servidor Web que acessa o banco de
+       dados para mostrar páginas Web, ou uma ferramenta especializada para
+       manutenção do banco de dados. Alguns aplicativos cliente são fornecidos
+       na distribuição do <productname>PostgreSQL</productname>, sendo
+       a maioria desenvolvido pelos usuários.
+      </para>
+     </listitem>
+
+    </itemizedlist>
+   </para>
+
+   <para>
+    Como é típico em aplicações cliente-servidor, o cliente e o servidor podem
+    estar em máquinas diferentes. Neste caso se comunicam através de uma
+    conexão de rede TCP/IP. Deve-se ter isto em mente, porque arquivos que
+    podem ser acessados na máquina cliente podem não ser acessíveis pela
+    máquina servidora (ou somente podem ser acessados usando um nome de arquivo
+    diferente).
+   </para>
+
+   <para>
+    O servidor <productname>PostgreSQL</productname> pode tratar
+    várias conexões simultâneas de clientes. Para esta finalidade
+    é iniciado um novo processo (<literal>fork</literal>) para cada conexão.
+    Deste ponto em diante, o cliente e o novo processo servidor se comunicam
+    sem intervenção do processo <filename>postgres</filename> original.
+    Portanto, o <filename>postgres</filename> estará executando sempre
+    aguardando por novas conexões dos clientes, enquanto os clientes e seus
+    processos servidor associados surgem e desaparecem (obviamente tudo isso é
+    invisível para o usuário, sendo mencionado somente para ficar completo).
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-createdb">
+   <title>Criação de banco de dados</title>
+
+   <indexterm zone="tutorial-createdb">
+    <primary>banco de dados</primary>
+    <secondary>criação</secondary>
+   </indexterm>
+
+   <indexterm zone="tutorial-createdb">
+    <primary>programa createdb</primary>
+   </indexterm>
+
+   <para>
+    O primeiro teste para verificar se é possível acessar o servidor de banco
+    de dados é tentar criar um banco de dados. Um servidor
+    <productname>PostgreSQL</productname> pode gerenciar muitos bancos de dados.
+    Normalmente é utilizado um banco de dados em separado para cada projeto ou
+    para cada usuário.
+   </para>
+
+   <para>
+    Possivelmente, o administrador já criou um banco de dados para seu uso.
+    Ele deve ter dito qual é o nome do seu banco de dados.
+    Neste caso esta etapa pode ser omitida, indo-se direto
+    para a próxima seção.
+   </para>
+
+   <para>
+    Para criar um novo banco de dados, chamado
+    <literal>meu_bd</literal> neste exemplo, deve ser utilizado o comando:
+<screen>
+<prompt>$</prompt> <userinput>createdb meu_bd</userinput>
+</screen>
+    Se isso não produzir resposta então esta etapa foi bem sucedida,
+    podendo-se pular o restante da seção.
+   </para>
+
+   <para>
+    Se for mostrada uma mensagem semelhante a
+<screen>
+createdb: comando não encontrado
+</screen>
+    então o <productname>PostgreSQL</productname> não foi instalado da maneira
+    correta, ou não foi instalado, ou o caminho de procura não foi definido
+    corretamente. Tente executar o comando utilizando o caminho absoluto:
+<screen>
+<prompt>$</prompt> <userinput>/usr/local/pgsql/bin/createdb meu_bd</userinput>
+</screen>
+    O caminho na sua máquina pode ser diferente.
+    Fale com o administrador, ou verifique novamente as instruções de instalação
+    para corrigir a situação.
+   </para>
+
+   <para>
+    Outra resposta pode ser esta:
+<screen>
+createdb: could not connect to database postgres: could not connect to server: No such file or directory
+        Is the server running locally and accepting
+        connections on Unix domain socket "/tmp/.s.PGSQL.5432"?
+</screen>
+    Significando que o servidor não foi inicializado, ou que não foi
+    inicializado onde o <command>createdb</command> esperava que fosse.
+    Novamente, verifique as instruções de instalação ou consulte o administrador.
+   </para>
+
+   <para>
+    Outra resposta pode ser esta:
+<screen>
+createdb: could not connect to database postgres: FATAL:  role "joe" does not exist
+</screen>
+    onde é mencionado o seu próprio nome de login. Isto vai acontecer se o
+    administrador não tiver criado uma conta de usuário no
+    <productname>PostgreSQL</productname> para seu uso (As contas de usuário do
+    <productname>PostgreSQL</productname> são distintas das contas de usuário do sistema
+    operacional). Se você for o administrador, obtenha ajuda para criar contas
+    no <xref linkend="user-manag">. Será necessário se tornar o usuário do
+    sistema operacional que instalou o <productname>PostgreSQL</productname>
+    (geralmente <literal>postgres</literal>) para criar a primeira conta de
+    usuário. Também pode ter sido atribuído para você um nome de usuário do
+    <productname>PostgreSQL</productname> diferente do nome de usuário do sistema
+    operacional; neste caso, é necessário utilizar a chave <option>-U</option>,
+    ou definir a variável de ambiente <envar>PGUSER</envar>, para especificar o
+    nome de usuário do <productname>PostgreSQL</productname>.
+   </para>
+
+   <para>
+    Caso se possua uma conta de usuário, mas esta conta não possua o privilégio
+    necessário para criar bancos de dados, será exibida a seguinte mensagem:
+<screen>
+createdb: database creation failed: ERROR:  permission denied to create database
+</screen>
+    Nem todo usuário possui autorização para criar bancos de dados.
+    Se o <productname>PostgreSQL</productname> não permitir criar o banco de
+    dados, então o administrador deve conceder permissão para você criar
+    bancos de dados. Consulte o administrador caso isto ocorra.
+    Caso tenha instalado o <productname>PostgreSQL</productname> por si próprio,
+    então conecte usando a mesma conta de usuário utilizada para inicializar
+    o servidor, para as finalidades deste tutorial.
+
+    <footnote>
+     <para>
+      Uma explicação do motivo pelo qual isto funciona: Os nomes de usuário do
+      <productname>PostgreSQL</productname> são distintos das contas de usuário
+      do sistema operacional. Ao estabelecer a conexão com um banco de dados,
+      pode ser escolhido o nome do usuário do
+      <productname>PostgreSQL</productname> com o qual se deseja fazer a conexão;
+      Se isto não for feito, o padrão é utilizar um nome igual ao da conta atual
+      do sistema operacional. Como isto ocorre, sempre existirá uma conta de
+      usuário do <productname>PostgreSQL</productname> que possui o nome igual
+      ao do usuário do sistema operacional que inicializou o servidor;
+      acontece, também, que este usuário sempre tem permissão para criar banco
+      de dados. Em vez de conectar como este usuário, pode ser especificada a
+      opção <option>-U</option> para escolher o nome do
+      usuário do <productname>PostgreSQL</productname> com o qual se deseja
+      conectar.
+     </para>
+    </footnote>
+   </para>
+
+   <para>
+    Também podem ser criados bancos de dados com outros nomes.
+    O <productname>PostgreSQL</productname> permite a criação de qualquer
+    número de bancos de dados em uma instalação. Os nomes dos bancos de dados
+    devem ter o primeiro caractere alfabético, sendo limitados a um comprimento
+    de 63 caracteres. Uma escolha conveniente é criar o banco de dados com o
+    mesmo nome do usuário corrente. Muitas ferramentas assumem este nome de
+    banco de dados como sendo o nome padrão, evitando a necessidade de
+    digitá-lo. Para criar este banco de dados deve ser digitado simplesmente:
+<screen>
+<prompt>$</prompt> <userinput>createdb</userinput>
+</screen>
+   </para>
+
+   <para>
+    Caso não deseje mais utilizar o seu banco de dados, pode removê-lo.
+    Por exemplo, se você for o dono (criador) do banco de dados
+    <literal>meu_bd</literal>, poderá removê-lo utilizando o seguinte comando:
+<screen>
+<prompt>$</prompt> <userinput>dropdb meu_bd</userinput>
+</screen>
+    Para este comando o nome da conta não é utilizado como nome padrão
+    do banco de dados: o nome sempre deve ser especificado. Esta ação
+    remove fisicamente todos os arquivos associados ao banco de dados
+    não podendo ser desfeita, portanto esta operação somente deve ser feita
+    após um longo período de reflexão.
+   </para>
+
+   <para>
+    Podem ser encontradas informações adicionais sobre os comandos
+    <command>createdb</command> e <command>dropdb</command> em
+    <xref linkend="APP-CREATEDB"> e <xref linkend="APP-DROPDB">,
+    respectivamente.
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-accessdb">
+   <title>Acesso a banco de dados</title>
+
+   <indexterm zone="tutorial-accessdb">
+    <primary>programa psql</primary>
+   </indexterm>
+
+   <para>
+    Após o banco de dados ter sido criado, este pode ser acessado pela:
+
+    <itemizedlist spacing="compact" mark="bullet">
+     <listitem>
+      <para>
+       Execução do programa de terminal interativo do
+       <productname>PostgreSQL</productname> chamado
+       <application><firstterm>psql</firstterm></application>, que permite
+       entrar, editar e executar comandos <acronym>SQL</acronym> interativamente.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Utilização de uma ferramenta cliente gráfica existente como o
+       <application>PgAdmin</application>, ou de um pacote de automação de
+       escritórios com suporte a <acronym>ODBC</acronym> para criar e manusear
+       bancos de dados. Estas possibilidades não estão descritas neste tutorial.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Criação de aplicativos personalizados, usando um dos vários
+       vínculos com linguagens disponíveis. Estas possibilidades
+       são mostradas mais detalhadamente na <xref linkend="client-interfaces">.
+      </para>
+     </listitem>
+    </itemizedlist>
+
+    Você provavelmente vai desejar ativar o <command>psql</command> para executar
+    os exemplos deste tutorial. O <command>psql</command> pode ser ativado
+    para usar o banco de dados <literal>meu_bd</literal> digitando o comando:
+<screen>
+<prompt>$</prompt> <userinput>psql meu_bd</userinput>
+</screen>
+    Se o nome do banco de dados for omitido, então será usado o nome padrão
+    igual ao nome da conta do usuário. Isto já foi visto na seção anterior.
+   </para>
+
+   <para>
+    O <command>psql</command> saúda o usuário com a seguinte mensagem:
+<screen>
+Welcome to psql &version;, the PostgreSQL interactive terminal.
+ 
+Type:  \copyright for distribution terms
+       \h for help with SQL commands
+       \? for help with psql commands
+       \g or terminate with semicolon to execute query
+       \q to quit
+ 
+meu_bd=&gt;
+</screen>
+    <indexterm><primary>superusuário</primary></indexterm>
+    A última linha também pode ser
+<screen>
+meu_bd=#
+</screen>
+    significando que o usuário é um superusuário do banco de dados, acontecendo
+    geralmente quando se instala o <productname>PostgreSQL</productname>
+    por si próprio. Ser um superusuário significa não estar sujeito a
+    controles de acesso. Para as finalidades deste tutorial isto não
+    tem importância.
+   </para>
+
+   <para>
+    Caso aconteçam problemas ao inicializar o <command>psql</command>, então
+    retorne à seção anterior. Os diagnósticos do <command>psql</command> e do
+    <command>createdb</command> são semelhantes, e se um funcionou o outro
+    deve funcionar também.
+   </para>
+
+   <para>
+    A última linha exibida pelo <command>psql</command> é o
+    <literal>prompt</literal>, indicando que o <command>psql</command> está
+    lhe aguardando, e que você pode digitar comandos <acronym>SQL</acronym>
+    dentro do espaço de trabalho mantido pelo <command>psql</command>. Tente
+    estes comandos:
+    <indexterm><primary>versão</primary></indexterm>
+<screen>
+<prompt>meu_bd=&gt;</prompt> <userinput>SELECT version();</userinput>
+                            version
+----------------------------------------------------------------
+ PostgreSQL &version; on i586-pc-linux-gnu, compiled by GCC 2.96
+(1 linha)
+
+<prompt>meu_bd=&gt;</prompt> <userinput>SELECT current_date;</userinput>
+    date
+------------
+ 2002-08-31
+(1 linha)
+
+<prompt>meu_bd=&gt;</prompt> <userinput>SELECT 2 + 2;</userinput>
+ ?column?
+----------
+        4
+(1 linha)
+</screen>
+   </para>
+
+   <para>
+    O programa <command>psql</command> possui vários comandos internos
+    que não são comandos SQL. Eles começam pelo caractere de contrabarra,
+    <quote><literal>\</literal></quote>. Alguns destes comandos
+    são mostrados na mensagem de boas vindas. Por exemplo,
+    pode ser obtida ajuda sobre a sintaxe de vários comandos
+    <acronym>SQL</acronym> do <productname>PostgreSQL</productname>
+    digitando:
+<screen>
+<prompt>meu_bd=&gt;</prompt> <userinput>\h</userinput>
+</screen>
+   </para>
+
+   <para>
+    Para sair do <command>psql</command> digite
+<screen>
+<prompt>meu_bd=&gt;</prompt> <userinput>\q</userinput>
+</screen>
+    e o <command>psql</command> terminará retornando para o interpretador de
+    comandos (para conhecer outros comandos internos digite <literal>\?</literal>
+    no <literal>prompt</literal> do <command>psql</command>).
+    Todas as funcionalidades do <command>psql</command> estão documentadas em
+    <xref linkend="app-psql">. Se o <productname>PostgreSQL</productname>
+    tiver sido instalado corretamente, também pode-se digitar
+    <literal>man psql</literal> na linha de comando do sistema operacional para
+    ver a documentação. Neste tutorial não utilizaremos estas funcionalidades
+    explicitamente, mas use por si próprio quando julgar adequado.
+   </para>
+
+  </sect1>
+ </chapter>

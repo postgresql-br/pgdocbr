@@ -1,0 +1,126 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/unlisten.sgml,v 1.28 2006/09/16 00:30:20 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-UNLISTEN">
+ <refmeta>
+  <refentrytitle id="SQL-UNLISTEN-TITLE">UNLISTEN</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>UNLISTEN</refname>
+  <refpurpose>pára de ouvir uma notificação</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-unlisten">
+  <primary>UNLISTEN</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+UNLISTEN { <replaceable class="parameter">nome</replaceable> | * }
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>UNLISTEN</command> é utilizado para remover um registro
+   para eventos de <command>NOTIFY</command> existente.
+   O comando <command>UNLISTEN</command> cancela o registro existente
+   da sessão corrente do <productname>PostgreSQL</productname> como ouvinte da
+   notificação <replaceable class="PARAMETER">nome</replaceable>.
+   O curinga especial <literal>*</literal> cancela todos os
+   registros de ouvinte da sessão corrente.
+  </para>
+
+  <para>
+   O comando <xref endterm="sql-notify-title" linkend="sql-notify">
+   contém uma explicação mais extensa sobre a utilização dos comandos
+   <command>LISTEN</command> e <command>NOTIFY</command>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome da notificação (qualquer identificador).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>*</literal></term>
+    <listitem>
+     <para>
+      Todos os registros de ouvinte para esta sessão são limpos.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   É possível deixar de ouvir algo que não estava sendo ouvido;
+   não é mostrado nenhum erro ou advertência.
+  </para>
+
+  <para>
+   Ao final de cada sessão, o comando <command>UNLISTEN *</command>
+   é executado automaticamente.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para registrar:
+
+<programlisting>
+LISTEN virtual;
+NOTIFY virtual;
+Asynchronous notification "virtual" received from server process with PID 8448.
+</programlisting>
+  </para>
+
+  <para>
+   Após o comando <command>UNLISTEN</command> ter sido executado, os comandos
+   <command>NOTIFY</command> posteriores são ignorados:
+
+<programlisting>
+UNLISTEN virtual;
+NOTIFY virtual;
+-- não é recebido nenhum evento NOTIFY
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Não existe o comando <command>UNLISTEN</command> no padrão SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-listen" endterm="sql-listen-title"></member>
+   <member><xref linkend="sql-notify" endterm="sql-notify-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

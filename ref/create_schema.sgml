@@ -1,0 +1,209 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_schema.sgml,v 1.17 2005/01/04 00:39:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATESCHEMA">
+ <refmeta>
+  <refentrytitle id="sql-createschema-title">CREATE SCHEMA</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE SCHEMA</refname>
+  <refpurpose>cria um esquema</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createschema">
+  <primary>CREATE SCHEMA</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE SCHEMA <replaceable class="parameter">nome_do_esquema</replaceable> [ AUTHORIZATION <replaceable class="parameter">nome_do_usuário</replaceable> ] [ <replaceable class="parameter">elemento_do_esquema</replaceable> [ ... ] ]
+CREATE SCHEMA AUTHORIZATION <replaceable class="parameter">nome_do_usuário</replaceable> [ <replaceable class="parameter">elemento_do_esquema</replaceable> [ ... ] ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE SCHEMA</command>
+   cria um esquema no banco de dados corrente.
+   O nome do esquema deve ser distinto do nome de todos os outros
+   esquemas existentes no banco de dados corrente.
+  </para>
+
+  <para>
+   Um esquema é essencialmente um espaço de nomes:
+   contém objetos nomeados (tabelas, tipos de dado, funções e operadores)
+   cujos nomes podem ser iguais aos de outros objetos existentes em outros
+   esquemas. Os objetos nomeados são acessados <quote>qualificando</quote>
+   seus nomes usando o nome do esquema como prefixo, ou definindo um
+   caminho de procura que inclua os esquemas desejados. Os objetos não
+   qualificados são criados no esquema corrente (o primeiro do caminho de
+   procura, que pode ser determinado pela função <function>current_schema</function>).
+  </para>
+
+  <para>
+   Opcionalmente, o comando <command>CREATE SCHEMA</command> pode incluir
+   subcomandos para criar objetos no novo esquema. Estes subcomandos são
+   tratados, essencialmente, da mesma maneira como são tratados os comandos
+   isolados executados após a criação do esquema, exceto que, se a cláusula
+   <literal>AUTHORIZATION</literal> for usada, todos os objetos criados
+   pertencerão a este usuário.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+    <variablelist>
+     <varlistentry>
+      <term><replaceable class="parameter">nome_do_esquema</replaceable></term>
+      <listitem>
+       <para>
+        O nome do esquema a ser criado.
+        Se for omitido, o nome do usuário será usado como o nome do esquema.
+        O nome não pode começar por <literal>pg_</literal>,
+        porque estes nomes são reservados para os esquemas do sistema.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">nome_do_usuário</replaceable></term>
+      <listitem>
+       <para>
+        O nome do usuário que será o dono do esquema. Se for omitido,
+        será usado por padrão o usuário executando o comando. Somente os
+        superusuários podem criar esquemas pertencentes a outros usuários.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">elemento_do_esquema</replaceable></term>
+      <listitem>
+       <para>
+        Um comando SQL definindo um objeto a ser criado no esquema.
+        Atualmente, somente as cláusulas <command>CREATE TABLE</command>,
+        <command>CREATE VIEW</command>, <command>CREATE INDEX</command>,
+        <command>CREATE SEQUENCE</command>, <command>CREATE TRIGGER</command> e
+        <command>GRANT</command> são aceitas no comando <command>CREATE SCHEMA</command>.
+        Os outros tipos de objeto podem ser criados por comandos separados,
+        após o esquema ter sido criado.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Para criar um esquema, o usuário deve possuir o privilégio
+   <literal>CREATE</literal> no banco de dados corrente
+   (É claro que os superusuários não são afetados por esta exigência).
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Criar um esquema:
+<programlisting>
+CREATE SCHEMA meu_esquema;
+</programlisting>
+  </para>
+
+  <para>
+   Criar um esquema para o usuário <literal>antonio</literal>;
+   o esquema também se chamará <literal>antonio</literal>:
+<programlisting>
+CREATE SCHEMA AUTHORIZATION antonio;
+</programlisting>
+  </para>
+
+  <para>
+   Criar um esquema e criar uma tabela e uma visão nele:
+<programlisting>
+CREATE SCHEMA hollywood
+    CREATE TABLE filmes (titulo text, lancamento date, premios text[])
+    CREATE VIEW premiados AS
+        SELECT titulo, lancamento FROM filmes WHERE premios IS NOT NULL;
+</programlisting>
+   Deve ser observado que os subcomandos individuais não terminam por
+   ponto-e-vírgula.
+  </para>
+
+  <para>
+   Abaixo está mostrada uma forma equivalente para se obter o mesmo resultado:
+<programlisting>
+CREATE SCHEMA hollywood;
+CREATE TABLE hollywood.filmes (titulo text, lancamento date, premios text[])
+CREATE VIEW hollywood.premiados AS
+    SELECT titulo, lancamento FROM hollywood.filmes WHERE premios IS NOT NULL;
+</programlisting>
+  </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+    O padrão SQL permite a cláusula <literal>DEFAULT CHARACTER SET</literal>
+    no comando <command>CREATE SCHEMA</command>, bem como mais tipos
+    de subcomandos que os aceitos atualmente pelo
+    <productname>PostgreSQL</productname>.
+  </para>
+
+  <para>
+   O padrão SQL especifica que os subcomandos presentes em
+   <command>CREATE SCHEMA</command> podem estar em qualquer
+   ordem. A implementação atual do <productname>PostgreSQL</productname>
+   não trata todos os casos de referência à frente nos subcomandos;
+   alguma vezes pode ser necessário reordenar os subcomandos para evitar
+   referências à frente.
+  </para>
+
+  <para>
+    De acordo com o padrão SQL, o dono do esquema sempre possui todos os objetos
+    que este contém. O <productname>PostgreSQL</productname> permite que os
+    esquemas contenham objetos pertencentes a outros usuários. Isto só
+    acontece quando o dono do esquema concede o privilégio
+    <literal>CREATE</literal> em seu esquema para algum outro usuário.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-alterschema" endterm="sql-alterschema-title"></member>
+   <member><xref linkend="sql-dropschema" endterm="sql-dropschema-title"></member>
+ </simplelist>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

@@ -1,0 +1,148 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/set_role.sgml,v 1.3 2006/09/16 00:30:20 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-SET-ROLE">
+ <refmeta>
+  <refentrytitle id="sql-set-role-title">SET ROLE</refentrytitle>
+  <refmiscinfo>SQL - Instruções da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>SET ROLE</refname>
+  <refpurpose>define o identificador do usuário corrente da sessão corrente</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-set-role">
+  <primary>SET ROLE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+SET [ SESSION | LOCAL ] ROLE <replaceable class="parameter">nome_do_papel</replaceable>
+SET [ SESSION | LOCAL ] ROLE NONE
+RESET ROLE
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   Este comando define o identificador do usuário corrente no contexto da
+   sessão <acronym>SQL</acronym> corrente como sendo o
+   <replaceable class="parameter">nome_do_papel</replaceable>.
+   O nome do papel pode ser escrito como um identificador ou um literal
+   cadeia de caracteres.
+   Após a execução do comando <command>SET ROLE</>, as verificações de
+   permissão para os comandos <acronym>SQL</acronym> serão efetuadas como
+   se o papel especificado tivesse sido o papel que realizou originalmente
+   a conexão.
+  </para>
+
+  <para>
+   O <replaceable class="parameter">nome_do_papel</replaceable> especificado
+   deve ser um papel que o usuário da sessão corrente é membro
+   (Se o usuário da sessão for um superusuário poderá especificar
+   qualquer papel).
+  </para>
+
+  <para>
+   Os modificadores <literal>SESSION</literal> e <literal>LOCAL</literal>
+   atuam da mesma forma que no comando
+   <xref linkend="SQL-SET" endterm="SQL-SET-title"> comum.
+  </para>
+
+  <para>
+   As formas <literal>NONE</> e <literal>RESET</> redefinem o identificador
+   do usuário corrente como sendo o identificador do usuário da sessão
+   corrente.
+   Estas formas podem ser executadas por qualquer usuário.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Utilizando este comando é possível adicionar ou restringir os próprios
+   privilégios.
+   Se o papel do usuário da sessão possuir o atributo <literal>INHERITS</>,
+   então possuirá automaticamente todos os privilégios de todos os papéis
+   para os quais pode executar <command>SET ROLE</>;
+   neste caso, o comando <command>SET ROLE</> removerá todos os privilégios
+   atribuídos diretamente para o usuário da sessão e aos outros papéis dos
+   quais é membro, deixando apenas os privilégios disponíveis para o
+   papel especificado.
+   Por outro lado, se o papel do usuário da sessão possuir o atributo
+   <literal>NOINHERITS</>, o comando <command>SET ROLE</> removerá os
+   privilégios atribuídos diretamente para o usuário da sessão, e para o lugar
+   destes obterá todos os privilégios disponíveis para o papel especificado.
+  </para>
+
+  <para>
+   Em particular, quando um superusuário executa o comando <command>SET ROLE</>
+   especificando um papel que não é superusuário, perde seus privilégios de
+   superusuário.
+  </para>
+
+  <para>
+   O comando <command>SET ROLE</> possui efeitos comparáveis ao do comando
+   <xref linkend="sql-set-session-authorization"
+   endterm="sql-set-session-authorization-title">,
+   mas as verificações de privilégio envolvidas são bastante diferentes.
+   Além disso, o comando <command>SET SESSION AUTHORIZATION</> determina
+   quais papéis serão permitidos para os comandos <command>SET ROLE</>
+   posteriores, enquanto mudar papéis com o comando <command>SET ROLE</>
+   não muda o conjunto de papéis permitidos para um comando
+   <command>SET ROLE</> posterior.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+<programlisting>
+SELECT SESSION_USER, CURRENT_USER;
+
+ session_user | current_user
+--------------+--------------
+ pedro        | pedro
+
+SET ROLE 'paulo';
+
+SELECT SESSION_USER, CURRENT_USER;
+
+ session_user | current_user
+--------------+--------------
+ pedro        | paulo
+</programlisting>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O <productname>PostgreSQL</productname> permite a sintaxe
+   (<literal>"nome_do_papel"</literal>) para o identificador, enquanto
+   o padrão <acronym>SQL</acronym> requer que o nome do papel seja escrito
+   como um literal cadeia de caracteres.
+   O padrão <acronym>SQL</acronym> não permite este comando durante uma
+   transação;
+   O <productname>PostgreSQL</productname> não faz esta restrição, porque não
+   há razão para fazê-la.
+   Os modificadores <literal>SESSION</> e <literal>LOCAL</> são extensões do
+   <productname>PostgreSQL</productname>, assim como a sintaxe
+   <literal>RESET</>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-set-session-authorization" endterm="sql-set-session-authorization-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

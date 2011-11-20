@@ -1,0 +1,318 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/createdb.sgml,v 1.40 2004/06/18 21:47:23 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="APP-CREATEDB">
+ <refmeta>
+  <refentrytitle id="APP-CREATEDB-TITLE"><application>createdb</application></refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Aplicação</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>createdb</refname>
+  <refpurpose>cria um novo banco de dados do <productname>PostgreSQL</productname></refpurpose>
+ </refnamediv>
+
+ <indexterm zone="app-createdb">
+  <primary>programa createdb</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>createdb</command>
+   <arg rep="repeat"><replaceable>opção</replaceable></arg>
+   <arg><replaceable>nome_do_banco_de_dados</replaceable></arg>
+   <arg><replaceable>descrição</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+
+ <refsect1 id="R1-APP-CREATEDB-1">
+  <title>
+   Descrição
+  </title>
+  <para>
+   O <application>createdb</application> cria um banco de dados no
+   <productname>PostgreSQL</productname>.
+  </para>
+
+  <para>
+   Normalmente, o usuário do banco de dados que executa este comando se torna
+   o dono do novo banco de dados. Entretanto, pode ser especificado um dono
+   diferente por meio da opção <option>-O</option>, se o usuário que está
+   executando este comando tiver os privilégios apropriados.
+  </para>
+
+  <para>
+   O <application>createdb</application> é uma capa em torno do comando
+   <xref linkend="SQL-CREATEDATABASE" endterm="SQL-CREATEDATABASE-title">
+   do <acronym>SQL</acronym>.
+   Não existe diferença efetiva entre criar bancos de dados através deste
+   utilitário, ou através de outros métodos para acessar o servidor.
+  </para>
+
+ </refsect1>
+
+
+ <refsect1>
+  <title>Opções</title>
+
+  <para>
+   O <application>createdb</application> aceita os seguintes argumentos de
+   linha de comando:
+
+    <variablelist>
+     <varlistentry>
+      <term><replaceable class="parameter">nome_do_banco_de_dados</replaceable></term>
+      <listitem>
+       <para>
+        Especifica o nome do banco de dados a ser criado. O nome deve ser único
+        entre todos os bancos de dados do <productname>PostgreSQL</productname>
+        deste agrupamento. O padrão é criar o banco de dados com o mesmo nome do
+        usuário atual do sistema operacional.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">descrição</replaceable></term>
+      <listitem>
+       <para>
+        Especifica um comentário a ser associado
+        ao banco de dados recém criado.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-D <replaceable class="parameter">espaço_de_tabelas</replaceable></option></term>
+      <term><option>--tablespace <replaceable class="parameter">espaço_de_tabelas</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o espaço de tabelas padrão para o banco de dados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-e</option></term>
+      <term><option>--echo</option></term>
+      <listitem>
+       <para>
+        Mostra os comandos que o <application>createdb</application>
+        gera e envia para o servidor.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-E <replaceable class="parameter">codificação</replaceable></option></term>
+      <term><option>--encoding <replaceable class="parameter">codificação</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o esquema de codificação de caracteres a ser usado neste
+        banco de dados. Os conjuntos de caracteres suportados pelo servidor
+        <productname>PostgreSQL</productname> estão descritos na
+        <xref linkend="multibyte-charset-supported">.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-O <replaceable class="parameter">dono</replaceable></option></term>
+      <term><option>--owner <replaceable class="parameter">dono</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o usuário do banco de dados
+        que será o dono do novo banco de dados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-q</option></term>
+      <term><option>--quiet</option></term>
+      <listitem>
+       <para>
+        Não exibe resposta.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-T <replaceable class="parameter">modelo</replaceable></option></term>
+      <term><option>--template <replaceable class="parameter">modelo</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o banco de dados modelo,
+        a partir do qual este banco de dados será construído.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+
+   <para>
+    As opções <option>-D</option>, <option>-E</option>, <option>-O</option> e
+    <option>-T</option> correspondem às opções do comando
+    <xref linkend="SQL-CREATEDATABASE" endterm="SQL-CREATEDATABASE-title">
+    subjacente; consulte este comando para obter informações adicionais
+    sobre estas opções.
+   </para>
+
+   <para>
+    O <application>createdb</application> também aceita os seguintes
+    argumentos de linha de comando para os parâmetros de conexão:
+
+    <variablelist>
+     <varlistentry>
+      <term><option>-h <replaceable class="parameter">máquina</replaceable></option></term>
+      <term><option>--host <replaceable class="parameter">máquina</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o nome da máquina onde o servidor está
+        executando. Se o nome iniciar por uma barra (/), é usado
+        como o diretório do soquete do domínio Unix.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-p <replaceable class="parameter">porta</replaceable></option></term>
+      <term><option>--port <replaceable class="parameter">porta</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica a porta TCP, ou a extensão de arquivo do soquete do domínio
+        Unix local, onde o servidor está atendendo as conexões.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-U <replaceable class="parameter">nome_do_usuário</replaceable></option></term>
+      <term><option>--username <replaceable class="parameter">nome_do_usuário</replaceable></option></term>
+      <listitem>
+       <para>
+        Nome do usuário para conectar.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-W</option></term>
+      <term><option>--password</option></term>
+      <listitem>
+       <para>
+        Força a solicitação da senha.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+
+ </refsect1>
+
+
+ <refsect1>
+  <title>Ambiente</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><envar>PGDATABASE</envar></term>
+    <listitem>
+     <para>
+      Se estiver definido, o nome do banco de dados a ser criado, a menos que
+      o nome esteja definido na linha de comando.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><envar>PGHOST</envar></term>
+    <term><envar>PGPORT</envar></term>
+    <term><envar>PGUSER</envar></term>
+
+    <listitem>
+     <para>
+      Parâmetros de conexão padrão. <envar>PGUSER</envar> também
+      determina o nome do banco de dados a ser criado, se este não for
+      especificado na linha de comando ou por <envar>PGDATABASE</envar>.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Diagnósticos</title>
+
+  <para>
+   Havendo dificuldade, veja no comando <xref linkend="SQL-CREATEDATABASE"
+   endterm="sql-createdatabase-title"> e no <xref linkend="APP-PSQL">
+   a discussão dos problemas possíveis e as mensagens de erro.
+   O servidor de banco de dados deve estar executando na
+   máquina de destino. Também se aplicam todas as definições de conexão
+   padrão e as variáveis de ambiente utilizadas pela biblioteca cliente
+   <application>libpq</application>.
+  </para>
+
+ </refsect1>
+
+
+ <refsect1>
+  <title>Exemplos</title>
+
+   <para>
+    Para criar o banco de dados <literal>demo</literal>
+    usando o servidor de banco de dados padrão:
+<screen>
+<prompt>$ </prompt><userinput>createdb demo</userinput>
+<computeroutput>CREATE DATABASE</computeroutput>
+</screen>
+    A resposta é a mesma que teria sido recebida se fosse executado o comando
+    <command>CREATE DATABASE</command> do <acronym>SQL</acronym>.
+   </para>
+
+   <para>
+    Para criar o banco de dados <literal>demo</literal> usando o servidor na
+    máquina <literal>eden</literal>, a porta 5000, o esquema de codificação
+    <literal>LATIN1</literal> e vendo o comando subjacente:
+<screen>
+<prompt>$ </prompt><userinput>createdb -p 5000 -h eden -E LATIN1 -e demo</userinput>
+<computeroutput>CREATE DATABASE "demo" WITH ENCODING = 'LATIN1'</computeroutput>
+<computeroutput>CREATE DATABASE</computeroutput>
+</screen>
+   </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="app-dropdb"></member>
+   <member><xref linkend="sql-createdatabase" endterm="sql-createdatabase-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

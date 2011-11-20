@@ -1,0 +1,97 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/rollback.sgml,v 1.18 2004/08/01 17:32:13 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-ROLLBACK">
+ <refmeta>
+  <refentrytitle id="SQL-ROLLBACK-TITLE">ROLLBACK</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>ROLLBACK</refname>
+  <refpurpose>interrompe a transação corrente</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-rollback">
+  <primary>ROLLBACK</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+ROLLBACK [ WORK | TRANSACTION ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>ROLLBACK</command> desfaz a transação corrente,
+   fazendo com que todas as modificações realizadas por esta transação
+   sejam desconsideradas.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><literal>WORK</literal></term>
+    <term><literal>TRANSACTION</literal></term>
+    <listitem>
+     <para>
+      Palavras chave opcionais. Não produzem nenhum efeito.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Use o comando <xref linkend="SQL-COMMIT" endterm="SQL-COMMIT-TITLE">
+   para terminar uma transação bem-sucedida.
+  </para>
+
+  <para>
+   A utilização do <command>ROLLBACK</command> fora de uma transação não causa
+   nenhum problema, mas causa uma mensagem de advertência.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para anular todas as modificações:
+<programlisting>
+ROLLBACK;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O padrão SQL somente especifica as duas formas
+   <literal>ROLLBACK</literal> e <literal>ROLLBACK WORK</literal>.
+   Fora isso, este comando está em conformidade total.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-begin" endterm="sql-begin-title"></member>
+   <member><xref linkend="sql-commit" endterm="sql-commit-title"></member>
+   <member><xref linkend="sql-rollback-to" endterm="sql-rollback-to-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

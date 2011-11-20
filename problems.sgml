@@ -1,0 +1,395 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/problems.sgml,v 2.19.4.1 2005/01/30 21:31:57 tgl Exp $
+-->
+
+<sect1 id="bug-reporting">
+ <title>Guia para informar erros</title>
+
+ <para>
+  Quando for encontrado algum erro no <productname>PostgreSQL</productname>
+  desejamos ser informados. Seus relatórios de erro são importantes para tornar
+  o <productname>PostgreSQL</productname> mais confiável, porque mesmo o cuidado
+  mais extremo não pode garantir que todas as partes do
+  <productname>PostgreSQL</productname> funcionam em todas as plataformas
+  sob qualquer circunstância.
+ </para>
+
+ <para>
+  As sugestões abaixo têm por objetivo ajudá-lo a preparar relatórios de erro
+  que possam ser tratados de forma eficaz. Ninguém é obrigado a segui-las,
+  mas são feitas para serem vantajosas para todos.
+ </para>
+
+ <para>
+  Não podemos prometer corrigir todos os erros imediatamente. Se o erro for
+  óbvio, crítico, ou afetar muitos usuários, existe uma boa chance de alguém
+  investigá-lo. Pode acontecer, também, nós solicitarmos que você atualize para
+  uma nova versão, para ver se o erro também acontece na nova versão. Também
+  podemos decidir que o erro não poderá ser corrigido antes de ser feita uma
+  importante reescrita planejada ou, talvez, simplesmente esta correção seja
+  muito difícil e existem assuntos mais importantes na agenda. Se for necessária
+  ajuda imediata, deve ser levada em consideração a contratação de um suporte
+  comercial.
+ </para>
+
+ <sect2>
+  <title>Identificação de erros</title>
+
+  <para>
+   Antes de informar um erro, por favor leia e releia a documentação para
+   verificar se realmente pode ser feito o que está se tentando fazer.
+   Se não estiver claro na documentação se pode ou não ser feito, por favor
+   informe isto também; é uma falha na documentação.
+   Se for visto que o programa faz algo diferente do que está especificado
+   na documentação, isto também é um erro. Pode incluir, sem estar restrito,
+   as seguintes circunstâncias:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      O programa termina com um erro fatal, ou com uma mensagem de erro do
+      sistema operacional que aponta para um problema no programa (um exemplo
+      oposto seria uma mensagem de <quote>disco cheio</quote>,
+      porque o próprio usuário deve corrigir este problema).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      O programa produz uma saída errada para uma determinada entrada.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      O programa não aceita uma entrada válida (conforme definido na
+      documentação).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      O programa aceita uma entrada inválida sem enviar uma mensagem de erro.
+      Porém, tenha em mente que a sua idéia de entrada inválida pode ser a nossa
+      idéia de uma extensão, ou de compatibilidade com a prática tradicional.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Em uma plataforma suportada, a compilação, montagem ou instalação do
+      <productname>PostgreSQL</productname>, de acordo com as instruções, falha.
+     </para>
+    </listitem>
+   </itemizedlist>
+
+   Aqui <quote>programa</quote> se refere a qualquer executável, e não apenas
+   ao processo servidor.
+  </para>
+
+  <para>
+   Estar lento ou consumir muitos recursos não é necessariamente um erro. Leia a
+   documentação ou faça perguntas em uma lista de discussão pedindo ajuda para
+   ajustar seus aplicativos. Não agir em conformidade com o padrão
+   <acronym>SQL</acronym> também não é necessariamente um erro, a não ser que a
+   conformidade com a funcionalidade específica esteja explicitamente informada.
+  </para>
+
+  <para>
+   Antes de prosseguir, verifique a lista TODO (a fazer) e a FAQ para ver se o
+   erro já não é conhecido. Se você não conseguir decodificar a informação da
+   lista TODO, relate seu problema. O mínimo que podemos fazer é tornar a lista
+   TODO mais clara.
+  </para>
+ </sect2>
+
+ <sect2>
+  <title>O que informar</title>
+
+  <para>
+   O mais importante a ser lembrado sobre informar erros é declarar todos
+   os fatos, e somente os fatos. Não especule sobre o que você pensa que deu
+   errado, o que <quote>parece que deve ser feito</quote>, ou em que parte do
+   programa está o erro. Se não estiver familiarizado com a implementação
+   você provavelmente vai supor errado, e não vai nos ajudar nem um pouco.
+   E, mesmo que você esteja familiarizado, uma explicação educada é um grande
+   suplemento, mas não substitui os fatos. Se formos corrigir o erro, temos que
+   vê-lo acontecer primeiro. Informar meramente os fatos é relativamente direto
+   (provavelmente pode ser copiado e colado a partir da tela), mas geralmente
+   são deixados de fora detalhes importantes porque se pensou que não tinham
+   importância, ou que o relatório seria entendido de qualquer maneira.
+  </para>
+
+  <para>
+   Todo relatório de erro deve conter os seguintes itens:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      A seqüência exata dos passos, <emphasis>desde o início do
+      programa</emphasis>, necessários para reproduzir o problema. Isto deve
+      estar autocontido; não é suficiente enviar meramente o comando
+      <command>SELECT</command>, sem enviar os comandos
+      <command>CREATE TABLE</command> e <command>INSERT</command> que o
+      precederam, caso a saída dependa dos dados contidos nas tabelas. Não temos
+      tempo para realizar a engenharia reversa do esquema do seu banco de dados
+      e, se tivermos que criar nossos próprios dados, provavelmente não vamos
+      conseguir reproduzir o problema.
+     </para>
+
+     <para>
+      O melhor formato para um caso de teste, para problemas relacionados com
+      a linguagem SQL, é um arquivo mostrando o problema que possa ser executado
+      a partir do utilitário <application>psql</application> (certifique-se não
+      existir nada em seu arquivo de inicialização
+      <filename>~/.psqlrc</filename>). Um modo fácil de começar este arquivo é
+      usar o <application>pg_dump</application> para gerar as declarações da
+      tabela e dos dados necessários para montar o cenário, e depois adicionar
+      o comando problemático. Incentivamos você a minimizar o tamanho do
+      exemplo, mas isto não é absolutamente necessário.
+      Se o erro for reproduzível, nós o encontraremos de qualquer maneira.
+     </para>
+
+     <para>
+      Se o seu aplicativo utiliza alguma outra interface cliente, tal como o
+      <application>PHP</application>, então, por favor, tente isolar o comando
+      problemático. Provavelmente não iremos configurar um servidor Web para
+      reproduzir o seu problema. De qualquer maneira, lembre-se de fornecer os
+      arquivos de entrada exatos, e não suponha que o problema aconteça com
+      <quote>arquivos grandes</quote> ou <quote>bancos de dados de tamanho
+      médio</quote>, etc., porque estas informações são muito pouco precisas
+      para serem úteis.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      A saída recebida. Por favor, não diga que <quote>não funcionou</quote> ou
+      que <quote>deu pau</quote>. Se houver uma mensagem de erro mostre-a, mesmo
+      que você não a entenda. Se o programa terminar com um erro do sistema
+      operacional, diga qual. Se nada acontecer, informe. Mesmo que o resultado
+      do seu caso de teste seja o término anormal do programa, ou seja óbvio de
+      alguma outra forma, pode ser que não aconteça na nossa plataforma.
+      O mais fácil a ser feito é copiar a saída do terminal, se for possível.
+     </para>
+     <note>
+      <para>
+       Se estiver sendo informada uma mensagem de erro, por favor obtenha a
+       forma mais verbosa da mensagem. No <application>psql</application>
+       execute antes <literal>\set VERBOSITY verbose</literal>. Se a mensagem
+       estiver sendo extraída do <literal>log</literal> do servidor, defina o
+       parâmetro em tempo de execução <xref linkend="guc-log-error-verbosity">
+       como <literal>verbose</literal>, para serem registrados todos os detalhes.
+      </para>
+     </note>
+     <note>
+      <para>
+       No caso de erros fatais, a mensagem de erro informada pelo cliente pode
+       não conter toda a informação disponível. Por favor, olhe também a saída
+       do <literal>log</literal> do servidor de banco de dados. Se você não
+       mantém a saída do <literal>log</literal> do servidor, esta é uma boa
+       hora para começar.
+      </para>
+     </note>
+    </listitem>
+
+    <listitem>
+     <para>
+      A saída esperada é uma informação importante a ser declarada. Se for
+      escrito apenas <quote>Este comando produz esta saída</quote> ou
+      <quote>Isto não é o esperado</quote>, poderemos executar, olhar a saída,
+      e achar que está tudo correto, exatamente o que esperávamos que fosse.
+      Não devemos perder tempo decodificando a semântica exata por trás de seus
+      comandos. Abstenha-se, especialmente, de dizer meramente <quote>Isto não
+      é o que o SQL diz ou o que o Oracle faz</quote>. Pesquisar o comportamento
+      correto do <acronym>SQL</acronym> não é uma tarefa divertida, nem sabemos
+      como todos os outros bancos de dados relacionais existentes se comportam
+      (se o problema for o término anormal do programa, este item obviamente
+      pode ser omitido).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Todas as opções de linha de comando e outras opções de inicialização,
+      incluindo as variáveis de ambiente relevantes e os arquivos de
+      configuração que foram alterados em relação ao padrão. Novamente, forneça
+      a informação exata. Se estiver sendo utilizada uma distribuição
+      pré-configurada, que inicializa o servidor de banco de dados durante o
+      <literal>boot</literal>, deve-se tentar descobrir como isto é feito.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Qualquer coisa feita que seja diferente das instruções de instalação.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      A versão do <productname>PostgreSQL</productname>. Pode ser executado o
+      comando <literal>SELECT version();</literal> para descobrir a versão do
+      servidor ao qual se está conectado. A maioria dos programas executáveis
+      suportam a opção <option>--version</option>; pelo menos
+      <literal>postmaster --version</literal> e
+      <literal>psql --version</literal> devem funcionar.
+      Se a função ou as opções não existirem, então a versão sendo usada é
+      antiga o suficiente para merecer uma atualização. Se estiver sendo usada
+      uma versão pré-configurada, como RPMs, informe, incluindo qualquer
+      sub-versão que o pacote possa ter. Se estiver se referindo a um
+      instantâneo do CVS isto deve ser mencionado, incluindo a data e a hora.
+     </para>
+
+     <para>
+      Se a sua versão for anterior a &version;, quase certamente lhe pediremos
+      para atualizar. Existem muitas correções de erro e melhorias a cada nova
+      liberação e, portanto, é bem possível que o erro encontrado em uma versão
+      antiga do <productname>PostgreSQL</productname> já esteja corrigido.
+      Só podemos oferecer suporte limitado às instalações usando versões antigas
+      do <productname>PostgreSQL</productname>; se for desejado mais do que pode
+      ser fornecido, deve ser levado em consideração a contratação de um suporte
+      comercial.
+     </para>
+     <para>
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Informações da plataforma. Isto inclui o nome e a versão do <literal>kernel</literal>, a
+      biblioteca C, o processador e a memória. Na maioria dos casos é suficiente
+      informar o fornecedor e a versão, mas não se deve supor que todo mundo
+      sabe exatamente o que o
+      <quote><systemitem class="osname">Debian</systemitem></quote> contém,
+      ou que todo mundo use Pentium. Havendo problemas de instalação, então
+      também são necessárias informações sobre as ferramentas empregadas
+      (compilador, <application>make</application>, etc.).
+     </para>
+    </listitem>
+   </itemizedlist>
+
+   Não tenha medo que seu relatório de erro fique muito longo. Este é um fato
+   da vida. É melhor informar tudo da primeira vez do que termos que extrair
+   os fatos de você. Por outro lado, se seus arquivos de entrada são enormes,
+   é justo perguntar primeiro se alguém está interessado em vê-los.
+  </para>
+
+  <para>
+   Não perca seu tempo tentando descobrir que mudanças na entrada fazem o
+   problema desaparecer. Isto provavelmente não vai ajudar a solucionar o
+   problema. Se for visto que o erro não pode ser corrigido imediatamente, você
+   vai ter tempo para descobrir e compartilhar sua descoberta. Também,
+   novamente, não perca seu tempo adivinhando porque o erro existe, nós o
+   descobriremos em breve.
+  </para>
+
+  <para>
+   Ao escrever o relatório de erro, por favor escolha uma terminologia que não
+   confunda. O pacote de software em seu todo é chamado de
+   <quote>PostgreSQL</quote> e, algumas vezes, de <quote>Postgres</quote> para
+   encurtar. Se estiver se referindo especificamente ao processo servidor
+   mencione isto, não diga apenas <quote>o PostgreSQL caiu</quote>. A queda de
+   um único processo servidor é bem diferente da queda do processo pai
+   <quote>postmaster</quote>; por favor não diga <quote>o postmaster
+   caiu</quote> quando um único processo servidor caiu, nem o contrário.
+   Além disso os programas cliente, como o cliente interativo
+   <quote><application>psql</application></quote>, são completamente separados
+   do servidor. Por favor, tente especificar se o problema está no lado cliente
+   ou no lado servidor.
+  </para>
+ </sect2>
+
+ <sect2>
+  <title>Onde informar os erros</title>
+
+  <para>
+   De modo geral, envie relatórios de erro para a lista de discussão de
+   relatórios de erros em <email>pgsql-bugs@postgresql.org</email>.
+   É necessário utilizar um assunto descritivo para a mensagem de correio
+   eletrônico, talvez partes da própria mensagem de erro.
+  </para>
+
+  <para>
+   Outra forma é preencher o relatório de erro disponível no sítio do projeto
+   na Web em
+   <ulink url="http://www.postgresql.org/">http://www.postgresql.org/</ulink>.
+   Preencher o relatório de erro desta forma faz com que seja enviado para
+   a lista de discussão <email>pgsql-bugs@postgresql.org</email>.
+  </para>
+
+  <para>
+   Se o seu relatório de erro tem implicações de segurança e você prefereria
+   que isso não se tornasse imediatamente visível nos arquivos públicos, não envie-o
+   para <literal>pgsql-bugs</literal>. Problemas de segurança podem ser relatados
+   de maneira privada a <email>security@postgresql.org</email>.
+  </para>
+
+  <para>
+   Não envie o relatório de erro para nenhuma lista de discussão dos usuários,
+   tal como <email>pgsql-sql@postgresql.org</email> ou
+   <email>pgsql-general@postgresql.org</email>.
+   Estas listas de discussão são para responder as perguntas dos usuários, e
+   seus assinantes normalmente não desejam receber relatórios de erro.
+   Mais importante ainda, eles provavelmente não vão conseguir corrigir o erro.
+  </para>
+
+  <para>
+   Por favor, também <emphasis>não</emphasis> envie relatórios para a lista de
+   discussão dos desenvolvedores em <email>pgsql-hackers@postgresql.org</email>.
+   Esta lista é para discutir o desenvolvimento
+   do <productname>PostgreSQL</productname>, e gostamos de manter os relatórios
+   de erro em separado. Podemos decidir discutir seu relatório de erro em
+   <literal>pgsql-hackers</literal>, se o problema necessitar uma melhor
+   averiguação.
+  </para>
+
+  <para>
+   Se você tiver problema com a documentação, o melhor lugar para informar
+   é na lista de discussão da documentação em
+   <email>pgsql-docs@postgresql.org</email>.
+   Por favor seja específico sobre qual parte da documentação você não
+   está satisfeito.
+  </para>
+
+  <para>
+   Se seu erro for um problema de portabilidade em uma plataforma não suportada,
+   envie uma mensagem de correio eletrônico para
+   <email>pgsql-ports@postgresql.org</email>, para que nós (e você) possamos
+   trabalhar para portar o <productname>PostgreSQL</productname> para esta
+   plataforma.
+  </para>
+
+  <note>
+   <para>
+    Por causa da grande quantidade de <literal>spam</literal> na Internet,
+    todos os endereços de correio eletrônico acima são de listas de discussão
+    fechadas, ou seja, primeiro é necessário assinar a lista para depois poder
+    enviar mensagens (entretanto, não é necessário assinar nenhuma lista para
+    utilizar o formulário de relatório de erro da Web). Se você deseja enviar
+    uma mensagem de correio eletrônico, mas não deseja receber o tráfego da
+    lista, você pode subscrever e configurar sua opção de subscrição com
+    <literal>nomail</literal>. Para maiores informações envie uma mensagem para
+    <email>majordomo@postgresql.org</email> contendo apenas a palavra
+    <literal>help</literal> no corpo da mensagem.
+   </para>
+  </note>
+ </sect2>
+</sect1>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

@@ -1,0 +1,244 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/droplang.sgml,v 1.25 2003/11/29 19:51:38 pgsql Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="APP-DROPLANG">
+ <refmeta>
+  <refentrytitle id="APP-DROPLANG-TITLE"><application>droplang</application></refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Aplicação</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>droplang</refname>
+  <refpurpose>remove uma linguagem procedural do <productname>PostgreSQL</productname></refpurpose>
+ </refnamediv>
+
+ <indexterm zone="app-droplang">
+  <primary>programa droplang</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>droplang</command>
+   <arg rep="repeat"><replaceable>opção_de_conexão</replaceable></arg>
+   <arg choice="plain"><replaceable>nome_da_linguagem</replaceable></arg>
+   <arg><replaceable>nome_do_banco_de_dados</replaceable></arg>
+   <sbr>
+   <command>droplang</command>
+   <arg rep="repeat"><replaceable>opção_de_conexão</replaceable></arg>
+   <group choice="plain"><arg>--list</arg><arg>-l</arg></group>
+   <arg choice="plain"><replaceable>nome_do_banco_de_dados</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="R1-APP-DROPLANG-1">
+  <title>
+   Descrição
+  </title>
+
+  <para>
+   O <application>droplang</application> é um utilitário para remover, de um
+   banco de dados do <productname>PostgreSQL</productname>, uma linguagem de
+   programação existente.
+   O <application>droplang</application> pode remover qualquer linguagem
+   procedural, até mesmo as não fornecidas na distribuição do
+   <productname>PostgreSQL</productname>.
+  </para>
+  <para>
+   Embora as linguagens de programação do servidor possam ser removidas
+   diretamente usando vários comandos <acronym>SQL</acronym>, recomenda-se usar
+   o aplicativo <application>droplang</application>, porque este realiza várias
+   verificações, e é muito mais fácil usá-lo. Consulte o comando
+   <xref linkend="sql-droplanguage" endterm="sql-droplanguage-title">
+   para obter informações adicionais.
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Opções</title>
+
+   <para>
+    O <application>droplang</application> aceita os seguintes argumentos
+    de linha de comando:
+
+    <variablelist>
+     <varlistentry>
+      <term><replaceable class="parameter">nome_da_linguagem</replaceable></term>
+      <listitem>
+       <para>
+        Especifica o nome da linguagem de programação do servidor a ser removida.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option><optional>-d</optional> <replaceable class="parameter">nome_do_banco_de_dados</replaceable></option></term>
+      <term><option><optional>--dbname</optional> <replaceable class="parameter">nome_do_banco_de_dados</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica de qual banco de dados a linguagem deve ser removida.
+        O padrão é usar o banco de dados com o mesmo nome do
+        usuário corrente do sistema operacional.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-e</></term>
+      <term><option>--echo</></term>
+      <listitem>
+       <para>
+        Mostra os comandos SQL à medida que são executados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-l</option></term>
+      <term><option>--list</option></term>
+      <listitem>
+       <para>
+        Exibe a lista de linguagens instaladas no banco de dados de destino.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+   </para>
+
+   <para>
+    O <application>droplang</application> também aceita
+    os seguintes argumentos de linha de comando para os parâmetros de conexão:
+
+    <variablelist>
+     <varlistentry>
+      <term><option>-h <replaceable class="parameter">máquina</replaceable></option></term>
+      <term><option>--host <replaceable class="parameter">máquina</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica o nome da máquina
+        onde o servidor está executando. Se o nome
+        iniciar por uma barra (/), é usado
+        como o diretório do soquete do domínio Unix.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-p <replaceable class="parameter">porta</replaceable></option></term>
+      <term><option>--port <replaceable class="parameter">porta</replaceable></option></term>
+      <listitem>
+       <para>
+        Especifica a porta TCP, ou a extensão de arquivo do soquete do domínio
+        Unix local, onde o servidor está atendendo as conexões.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-U <replaceable class="parameter">nome_do_usuário</replaceable></option></term>
+      <term><option>--username <replaceable class="parameter">nome_do_usuário</replaceable></option></term>
+      <listitem>
+       <para>
+        Nome do usuário para conectar.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-W</option></term>
+      <term><option>--password</option></term>
+      <listitem>
+       <para>
+        Força a solicitação da senha.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+   </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Ambiente</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><envar>PGDATABASE</envar></term>
+    <term><envar>PGHOST</envar></term>
+    <term><envar>PGPORT</envar></term>
+    <term><envar>PGUSER</envar></term>
+
+    <listitem>
+     <para>
+      Parâmetros de conexão padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+
+ <refsect1>
+   <title>Diagnósticos</title>
+
+   <para>
+    As mensagens de erro são, em sua maioria, auto-explicativas. Se alguma não
+    for, execute o <application>droplang</application> com a opção
+    <option>--echo</option> e consulte o respectivo comando
+    <acronym>SQL</acronym> para obter detalhes.
+   </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Use <xref linkend="app-createlang"> para adicionar uma linguagem.
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Exemplos</title>
+
+   <para>
+    Para remover a linguagem <literal>pltcl</literal>:
+<screen>
+<prompt>$ </prompt><userinput>droplang pltcl template1</userinput>
+</screen>
+   </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="app-createlang"></member>
+   <member><xref linkend="sql-droplanguage" endterm="sql-droplanguage-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

@@ -1,0 +1,233 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/ecpg-ref.sgml,v 1.31 2006/09/16 00:30:18 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="APP-ECPG">
+ <refmeta>
+  <refentrytitle><application>ecpg</application></refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Aplicação</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname><application>ecpg</application></refname>
+  <refpurpose>pré-processador da linguagem SQL incorporada para a linguagem C</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="app-ecpg">
+  <primary>programa ecpg</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>ecpg</command>
+   <arg choice="opt" rep="repeat"><replaceable>opção</replaceable></arg>
+   <arg choice="plain" rep="repeat"><replaceable>arquivo</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+
+ <refsect1 id="APP-ECPG-description">
+  <title>Descrição</title>
+
+  <para>
+   O utilitário <command>ecpg</command> é o pré-processador da linguagem SQL
+   incorporada (<literal>embedded</literal>) para programas escritos na
+   linguagem C.
+   Converte programas C com declarações SQL incorporadas em código C normal,
+   substituindo as chamadas ao SQL por chamadas a funções especiais.
+   Os arquivos de saída podem, então, ser processados por qualquer cadeia de
+   ferramentas do compilador C.
+  </para>
+
+  <para>
+   O <command>ecpg</command> converte cada arquivo de entrada especificado na
+   linha de comando, no arquivo de saída C correspondente. De preferência, os
+   arquivos de entrada devem possuir a extensão <filename>.pgc</filename> e,
+   neste caso, a extensão é substituída por <filename>.c</filename> para
+   determinar o nome do arquivo de saída. Se a extensão do arquivo de
+   entrada não for  <filename>.pgc</filename>, então o nome do arquivo de
+   saída será gerado anexando <literal>.c</literal> ao nome completo do
+   arquivo de entrada. O nome do arquivo de saída pode ser especificado
+   por meio da opção <option>-o</option>.
+  </para>
+
+  <para>
+   Esta página de referência não descreve a linguagem SQL incorporada. Consulte
+   o <xref linkend="ecpg"> para obter informações adicionais sobre este tópico.
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Opções</title>
+
+  <para>
+   O <command>ecpg</command> aceita os seguintes argumentos de
+   linha de comando:
+
+   <variablelist>
+    <varlistentry>
+     <term><option>-c</option></term>
+     <listitem>
+      <para>
+       Gera, automaticamente, certos códigos C a partir do código SQL.
+       Atualmente funciona para <literal>EXEC SQL TYPE</literal>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>-C <replaceable>modo</replaceable></option></term>
+     <listitem>
+      <para>
+       Define o modo de compatibilidade. O <replaceable>modo</replaceable>
+       pode ser <literal>INFORMIX</literal> ou
+       <literal>INFORMIX_SE</literal>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>-D <replaceable>símbolo</replaceable></option></term>
+     <listitem>
+      <para>
+       Define um símbolo do pré-processador C.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>-i</option></term>
+     <listitem>
+      <para>
+       Analisa, também, os arquivos de inclusão do sistema.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>-I <replaceable class="parameter">diretório</replaceable></option></term>
+     <listitem>
+      <para>
+       Especifica um caminho de inclusão adicional, utilizado para encontrar
+       arquivos incluídos por meio de <literal>EXEC SQL INCLUDE</literal>.
+       Por padrão os seguintes: <filename>.</filename> (o diretório atual),
+       <filename>/usr/local/include</filename>, o
+       diretório de inclusão do <productname>PostgreSQL</productname>
+       definido em tempo de compilação
+       (por padrão <filename>/usr/local/pgsql/include</filename>) e
+       <filename>/usr/include</filename>, nesta ordem.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>-o <replaceable>arquivo_de_saída</replaceable></option></term>
+     <listitem>
+      <para>
+       Especifica que o <command>ecpg</command> deve escrever toda a sua
+       saída no <replaceable>arquivo_de_saída</replaceable> especificado.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>-r <replaceable>opção</replaceable></option></term>
+     <listitem>
+      <para>
+       Seleciona um comportamento em tempo de execução. Atualmente
+       <replaceable>opção</replaceable> pode ser apenas
+       <literal>no_indicator</literal>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>-t</option></term>
+     <listitem>
+      <para>
+       Ativa a auto-efetivação (<literal>auto-commit</literal>) das transações.
+       Neste modo, cada comando SQL é automaticamente efetivado, a não ser que
+       esteja dentro de um bloco de transação explícito.
+       No modo padrão, os comandos são efetivados somente quando é emitido
+       <command>EXEC SQL COMMIT</command>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>-v</option></term>
+     <listitem>
+      <para>
+       Mostra informações adicionais,
+       incluindo a versão e o caminho de inclusão.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>--help</option></term>
+     <listitem>
+      <para>
+       Mostra um breve resumo da utilização e depois termina.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><option>--version</option></term>
+     <listitem>
+      <para>
+       Mostra a informação da versão e depois termina.
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Ao compilar arquivos com o código C pré-processado, o compilador necessita
+   encontrar os arquivos de cabeçalho do <application>ECPG</application> no
+   diretório de inclusão do <productname>PostgreSQL</productname>. Portanto, é
+   necessário usar a opção <option>-I</option> ao chamar o compilador
+   (por exemplo, <literal>-I/usr/local/pgsql/include</literal>).
+  </para>
+
+  <para>
+   Os programas escritos em C com comandos SQL incorporados necessitam da
+   biblioteca <filename>libecpg</filename> para a ligação. Pode ser usado,
+   por exemplo, as opções do ligador
+   <literal>-L/usr/local/pgsql/lib -lecpg</literal>.
+  </para>
+
+  <para>
+   Os nomes destes diretórios, apropriados para a instalação,
+   podem ser descobertos utilizando o aplicativo
+   <xref linkend="app-pgconfig">.
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Havendo um arquivo fonte C chamado <filename>prog1.pgc</filename>,
+   com comandos SQL incorporados, pode ser criado um
+   programa executável utilizando a seguinte seqüência de comandos:
+<programlisting>
+ecpg prog1.pgc
+cc -I/usr/local/pgsql/include -c prog1.c
+cc -o prog1 prog1.o -L/usr/local/pgsql/lib -lecpg
+</programlisting>
+  </para>
+ </refsect1>
+
+</refentry>

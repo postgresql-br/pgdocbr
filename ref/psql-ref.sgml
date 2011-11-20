@@ -1,0 +1,2826 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/psql-ref.sgml,v 1.130.4.3 2005/02/11 04:19:18 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="APP-PSQL">
+  <refmeta>
+    <refentrytitle id="app-psql-title"><application>psql</application></refentrytitle>
+    <manvolnum>1</manvolnum>
+    <refmiscinfo>Aplicação</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname><application>psql</application></refname>
+    <refpurpose>
+      terminal interativo do <productname>PostgreSQL</productname>
+    </refpurpose>
+  </refnamediv>
+
+ <indexterm zone="app-psql">
+  <primary>psql</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>psql</command>
+   <arg rep="repeat"><replaceable class="parameter">opção</replaceable></arg>
+   <arg><replaceable class="parameter">nome_do_banco_de_dados</replaceable>
+   <arg><replaceable class="parameter">nome_do_usuário</replaceable></arg></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+    <para>
+     O <application>psql</application> é um cliente no modo terminal do
+     <productname>PostgreSQL</productname>. Permite digitar comandos
+     interativamente, submetê-los para o <productname>PostgreSQL</productname> e
+     ver os resultados. Como alternativa, a entrada pode vir de um arquivo.
+     Além disso, disponibiliza vários meta-comandos e diversas funcionalidades
+     semelhantes às do interpretador comandos
+     (<literal>shell</literal>) para facilitar a criação de scripts e
+     automatizar um grande número de tarefas.
+    </para>
+ </refsect1>
+
+ <refsect1 id="R1-APP-PSQL-3">
+  <title>Opções</title>
+
+  <variablelist>
+    <varlistentry>
+      <term><option>-a</option></term>
+      <term><option>--echo-all</option></term>
+      <listitem>
+      <para>
+        Envia todas as linhas de entrada para a saída padrão à medida que são
+        lidas. É mais útil para o processamento de scripts do que no modo
+        interativo. Equivale a definir a variável <varname>ECHO</varname> como
+        <literal>all</literal>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-A</option></term>
+      <term><option>--no-align</option></term>
+      <listitem>
+      <para>
+       Comuta para o modo de saída não alinhado
+       (De outra forma, o modo de saída padrão é o alinhado).
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-c <replaceable class="parameter">comando</replaceable></option></term>
+      <term><option>--command <replaceable class="parameter">comando</replaceable></option></term>
+      <listitem>
+      <para>
+       Especifica que o <application>psql</application> deve executar a cadeia
+       de caracteres <replaceable class="parameter">comando</replaceable> e, em
+       seguida, terminar. Útil em scripts do interpretador de comandos.
+      </para>
+      <para>
+       O <replaceable class="parameter">comando</replaceable> deve ser uma
+       cadeia de caracteres que possa ser integralmente analisada pelo servidor
+       (ou seja, não contém funcionalidades específicas do
+       <application>psql</application>), ou ser um único comando de contrabarra.
+       Portanto, não podem ser misturados comandos <acronym>SQL</acronym> com
+       meta-comandos do <application>psql</application>.
+       Para misturar, a cadeia de caracteres pode ser enviada para
+       o <application>psql</application> conforme mostrado a seguir:
+       <literal>echo "\x \\ select * from foo;" | psql</literal>.
+      </para>
+      <para>
+       Se a cadeia de caracteres do comando contiver vários comandos SQL, estes
+       serão processados em uma única transação, a menos que existam comandos
+       BEGIN/COMMIT explícitos incluídos na cadeia de caracteres para dividi-los
+       em várias transações. Este comportamento é diferente do comportamento
+       que ocorre quando a mesma cadeia de caracteres é introduzida na
+       entrada padrão do <application>psql</application>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-d <replaceable class="parameter">nome_do_banco_de_dados</replaceable></option></term>
+      <term><option>--dbname <replaceable class="parameter">nome_do_banco_de_dados</replaceable></option></term>
+      <listitem>
+      <para>
+       Especifica o nome do banco de dados a se conectar. Equivale a especificar
+       <replaceable class="parameter">nome_do_banco_de_dados</replaceable>
+       como o primeiro argumento não-opção na linha de comando.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-e</option></term>
+      <term><option>--echo-queries</option></term>
+      <listitem>
+      <para>
+       Copia todos os comandos SQL enviados para o servidor para a saída padrão
+       também. Equivale a definir a variável <varname>ECHO</varname>
+       como <literal>queries</literal>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-E</option></term>
+      <term><option>--echo-hidden</option></term>
+      <listitem>
+      <para>
+       Exibe os verdadeiros comandos gerados por <command>\d</command> e por
+       outros comandos de contrabarra. Pode ser usado para estudar as
+       operações internas do <application>psql</application>.
+       Equivale a definir a variável <varname>ECHO_HIDDEN</varname> dentro do
+       <application>psql</application>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-f <replaceable class="parameter">nome_do_arquivo</replaceable></option></term>
+      <term><option>--file <replaceable class="parameter">nome_do_arquivo</replaceable></option></term>
+      <listitem>
+      <para>
+       Usa o arquivo <replaceable class="parameter">nome_do_arquivo</replaceable>
+       como origem dos comandos, em vez de ler os comandos interativamente.
+       Após processar o arquivo, o <application>psql</application> termina.
+       Sob muitos aspectos equivale ao comando interno
+       <command>\i</command>.
+      </para>
+
+      <para>
+       Se o <replaceable>nome_do_arquivo</replaceable> for <literal>-</literal>
+       (hífen), então a entrada padrão é lida.
+      </para>
+
+      <para>
+       O uso desta opção é sutilmente diferente de escrever
+       <literal>psql &lt;
+       <replaceable class="parameter">nome_do_arquivo</replaceable></literal>.
+       De uma maneira geral, as duas formas fazem o esperado, mas o uso da
+       opção <literal>-f</literal> ativa algumas funcionalidades úteis, como
+       mensagens de erro com o número da linha.
+       Ao se usar esta opção existe, também, uma pequena chance de reduzir a
+       sobrecarga de inicialização.
+       Por outro lado, a utilização do redirecionamento da entrada na linha de
+       comando garante, teoricamente, que será produzida exatamente a mesma
+       saída que seria produzida se tudo fosse entrado à mão.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-F <replaceable class="parameter">separador</replaceable></option></term>
+      <term><option>--field-separator <replaceable class="parameter">separador</replaceable></option></term>
+      <listitem>
+      <para>
+       Usa o <replaceable class="parameter">separador</replaceable>
+       como separador de campos. Equivale a <literal>\pset fieldsep</literal>
+       ou ao comando <command>\f</command>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-h <replaceable class="parameter">nome_da_máquina</replaceable></option></term>
+      <term><option>--host <replaceable class="parameter">nome_da_máquina</replaceable></option></term>
+      <listitem>
+      <para>
+       Especifica o nome da máquina
+       onde o servidor está executando. Se o nome
+       iniciar por uma barra (/) é usado
+       como o diretório do soquete do domínio Unix.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-H</option></term>
+      <term><option>--html</option></term>
+      <listitem>
+      <para>
+       Ativa a saída tabular <acronym>HTML</acronym>. Equivale
+       a <literal>\pset format html</literal> ou ao comando
+       <command>\H</command>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-l</option></term>
+      <term><option>--list</option></term>
+      <listitem>
+      <para>
+       Mostra todos os bancos de dados disponíveis, e depois termina.
+       As outras opções, fora as de conexão, são ignoradas.
+       Semelhante ao comando interno <command>\list</command>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-o <replaceable class="parameter">nome_do_arquivo</replaceable></option></term>
+      <term><option>--output <replaceable class="parameter">nome_do_arquivo</replaceable></option></term>
+      <listitem>
+      <para>
+       Coloca a saída de todos os comandos no arquivo
+       <replaceable class="parameter">nome_do_arquivo</replaceable>.
+       Equivale ao comando <command>\o</command>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-p <replaceable class="parameter">porta</replaceable></option></term>
+      <term><option>--port <replaceable class="parameter">porta</replaceable></option></term>
+      <listitem>
+      <para>
+       Especifica a porta TCP, ou a extensão de arquivo do soquete
+       do domínio Unix local, onde o servidor está atendendo as conexões.
+       O padrão é obter o valor a partir da variável de ambiente
+       <envar>PGPORT</envar>, se esta estiver definida, senão usar o valor
+       padrão compilado (normalmente 5432).
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-P <replaceable class="parameter">atribuição</replaceable></option></term>
+      <term><option>--pset <replaceable class="parameter">atribuição</replaceable></option></term>
+      <listitem>
+      <para>
+       Permite especificar opções de exibição no estilo do
+       <command>\pset</command> pela linha de comando.
+       Deve ser observado que aqui o nome e o valor devem estar separados pelo
+       sinal de igual, em vez de espaço. Portanto, para definir o formato
+       de saída como LaTeX deve ser escrito <literal>-P format=latex</literal>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-q</option></term>
+      <term><option>--quiet</option></term>
+      <listitem>
+      <para>
+       Especifica que o <application>psql</application> deve trabalhar
+       em silêncio. Por padrão, são exibidas mensagens de boas-vindas
+       e várias outras mensagens informativas. Se esta opção for usada,
+       nada disso acontece. É útil em conjunto com a opção <option>-c</option>.
+       Dentro do <application>psql</application> é possível definir a variável
+       <envar>QUIET</envar> para obter o mesmo efeito.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-R <replaceable class="parameter">separador</replaceable></option></term>
+      <term><option>--record-separator <replaceable class="parameter">separador</replaceable></option></term>
+      <listitem>
+      <para>
+       Usa o <replaceable class="parameter">separador</replaceable>
+       como separador de registros.
+       Equivale ao comando <literal>\pset recordsep</literal>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-s</option></term>
+      <term><option>--single-step</option></term>
+      <listitem>
+      <para>
+       Executa no modo passo-único, significando que será solicitada
+       uma confirmação antes de cada comando ser enviado para o servidor,
+       com a opção de cancelar a execução. Usado para depurar scripts.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-S</option></term>
+      <term><option>--single-line</option></term>
+      <listitem>
+      <para>
+       Executa no modo linha-única, onde o caractere de nova-linha
+       termina o comando SQL, como o ponto-e-vírgula faz.
+      </para>
+
+      <note>
+      <para>
+       Este modo é fornecido para aqueles que insistem em usá-lo, mas sua
+       utilização não é incentivada. Em particular, se forem misturados
+       comandos <acronym>SQL</acronym> e meta-comandos na mesma linha,
+       a ordem de execução nem sempre será clara para o usuário inexperiente.
+      </para>
+      </note>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-t</option></term>
+      <term><option>--tuples-only</option></term>
+      <listitem>
+      <para>
+       Desabilita a exibição dos nomes das colunas, rodapés com
+       contadores de linhas do resultado, etc.
+       É equivalente ao comando <command>\t</command>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-T <replaceable class="parameter">opções_de_tabela</replaceable></option></term>
+      <term><option>--table-attr <replaceable class="parameter">opções_de_tabela</replaceable></option></term>
+      <listitem>
+      <para>
+       Permite especificar opções a serem colocadas dentro da
+       marca <sgmltag>table</sgmltag> do <acronym>HTML</acronym>.
+       Consulte <command>\pset</command> para obter detalhes.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-u</option></term>
+      <listitem>
+      <para>
+       Força o <application>psql</application> solicitar o
+       nome do usuário e a senha antes de conectar ao banco de dados.
+      </para>
+
+      <para>
+       Esta opção está obsoleta, porque é conceitualmente incorreta
+       (Solicitar um nome de usuário não padrão e solicitar uma
+       senha porque o servidor requer são realmente duas coisas
+       diferentes). Incentiva-se o uso das opções
+       <option>-U</option> e <option>-W</option> em seu lugar.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-U <replaceable class="parameter">nome_do_usuário</replaceable></option></term>
+      <term><option>--username <replaceable class="parameter">nome_do_usuário</replaceable></option></term>
+      <listitem>
+      <para>
+       Conecta ao banco de dados como o usuário
+       <replaceable class="parameter">nome_do_usuário</replaceable>
+       em vez do usuário padrão
+       (É necessário ter permissão para fazê-lo, é claro).
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-v <replaceable class="parameter">atribuição</replaceable></option></term>
+      <term><option>--set <replaceable class="parameter">atribuição</replaceable></option></term>
+      <term><option>--variable <replaceable class="parameter">atribuição</replaceable></option></term>
+      <listitem>
+      <para>
+       Realiza atribuição de variável, como o comando interno
+       <command>\set</command>.
+       Deve ser observado que na linha de comando é necessário separar o nome
+       e o valor, se houver, por um sinal de igual.
+       Para remover a definição de uma variável deve ser omitido o sinal de
+       igual.
+       Para apenas definir uma variável, sem um valor, o sinal de igual é usado
+       mas o valor é omitido.
+       Estas atribuições são feitas durante um estágio bem no princípio da
+       inicialização e, portanto, as variáveis reservadas para finalidades
+       internas podem ser sobrescritas posteriormente.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-V</option></term>
+      <term><option>--version</option></term>
+      <listitem>
+      <para>
+       Mostra a versão do <application>psql</application>, e depois termina.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-W</option></term>
+      <term><option>--password</option></term>
+      <listitem>
+      <para>
+       Força o <application>psql</application> solicitar a senha antes de
+       conectar ao banco de dados.
+      </para>
+
+      <para>
+      O <application>psql</application> deve solicitar, automaticamente, a
+      senha sempre que o servidor requerer autenticação por senha.
+      Como atualmente a detecção de solicitação de senha não é inteiramente
+      confiável, esta opção existe para obrigar a solicitação. Se a senha não
+      for solicitada, e o servidor requerer autenticação por senha,
+      a tentativa de conexão não será bem-sucedida.
+      </para>
+
+      <para>
+       Esta opção continuará definida por toda a sessão, mesmo que a conexão
+       com o banco de dados seja mudada pelo meta-comando
+       <command>\connect</command>.
+      </para>
+
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-x</option></term>
+      <term><option>--expanded</option></term>
+      <listitem>
+      <para>
+       Ativa o modo formatação de tabela estendido.
+       Equivale ao comando <command>\x</command>.
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-X,</option></term>
+      <term><option>--no-psqlrc</option></term>
+      <listitem>
+      <para>
+       Não lê o arquivo de inicialização (nem o arquivo
+       <filename>psqlrc</filename> global do sistema, nem o arquivo
+       <filename>~/.psqlrc</filename> do usuário).
+      </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry>
+      <term><option>-?</option></term>
+      <term><option>--help</option></term>
+      <listitem>
+      <para>
+       Mostra a ajuda sobre os argumentos de linha de
+       comando do <application>psql</application>, e depois termina.
+      </para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Status de saída</title>
+
+  <para>
+   O <application>psql</application> retorna para o interpretador de comandos:
+   0 se terminar normalmente;
+   1 se ocorrer erro fatal próprio (falta de memória, arquivo não encontrado);
+   2 se a conexão com o servidor teve problema e a sessão não é interativa;
+   3 se ocorrer erro no script e a variável <envar>ON_ERROR_STOP</envar>
+   estiver definida.
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Utilização</title>
+
+  <refsect2 id="R2-APP-PSQL-connecting">
+    <title>Conexão com o banco de dados</title>
+
+    <para>
+     O <application>psql</application> é um aplicativo cliente do
+     <productname>PostgreSQL</productname> comum.
+     Para conectar a um banco de dados é necessário saber o nome do banco de
+     dados, o nome da máquina, o número da porta do servidor e o nome do
+     usuário a ser usado para conectar.
+     O <application>psql</application> pode ser informado sobre estes parâmetros
+     por meio das opções de linha de comando <option>-d</option>,
+     <option>-h</option>, <option>-p</option> e <option>-U</option>,
+     respectivamente.
+     Se for encontrado um argumento que não pertence a nenhuma opção, este será
+     interpretado como o nome do banco de dados (ou o nome do usuário, se o nome
+     do banco de dados já tiver sido fornecido).
+     Nem todas estas opções são requeridas; existem padrões úteis.
+     Se for omitido o nome da máquina, então o
+     <application>psql</application> se conecta através do soquete do domínio
+     Unix ao servidor na máquina local.
+     O número padrão para a porta é determinado na compilação.
+     Uma vez que que o servidor de banco de dados usa o mesmo padrão, não é
+     necessário especificar a porta na maioria dos casos.
+     O nome de usuário padrão é o nome do usuário do Unix, como também é o
+     nome do banco de dados padrão.
+     Deve ser observado que não é possível se conectar a qualquer banco de dados
+     com qualquer nome de usuário.
+     O administrador de banco de dados deve informar as permissões de acesso
+     concedidas.
+    </para>
+
+    <para>
+     Quando os padrões não estão como o desejado, a digitação pode ser reduzida
+     definindo as variáveis de ambiente <envar>PGDATABASE</envar>,
+     <envar>PGHOST</envar>, <envar>PGPORT</envar> e/ou <envar>PGUSER</envar>
+     com os valores apropriados
+     (Para as demais variáveis de ambiente consulte a <xref linkend="libpq-envars">).
+     Também é conveniente criar o arquivo <filename>~/.pgpass</filename> para
+     evitar ter que digitar regularmente as senhas
+     Consulte a <xref linkend="libpq-pgpass"> para obter informações adicionais.
+    </para>
+
+    <para>
+     Se a conexão não puder ser estabelecida por algum motivo (por exemplo,
+     privilégios insuficientes, o servidor não está executando na máquina
+     de destino, etc.), o <application>psql</application> retorna uma mensagem
+     de erro e termina.
+    </para>
+  </refsect2>
+
+  <refsect2 id="R2-APP-PSQL-4">
+    <title>Entrando com comandos SQL</title>
+
+    <para>
+     No modo normal de operação, o <application>psql</application>
+     exibe um <literal>prompt</literal> com o nome do banco de
+     dados ao qual está conectado, seguido pela cadeia de caracteres
+     <literal>=&gt;</literal>. Por exemplo:
+<programlisting>
+$ <userinput>psql testdb</userinput>
+Bem-vindo ao psql &version;, o terminal interativo do PostgreSQL.
+
+Digite:  \copyright para mostrar a licença da distribuição
+         \h para ajuda nos comandos SQL
+         \? para ajuda nos comandos de contrabarra internos
+         \g ou finalizar com ponto-e-vírgula para executar o comando
+         \q para sair
+
+<prompt>testdb=&gt;</prompt>
+</programlisting>
+    </para>
+
+    <para>
+     No <literal>prompt</literal> o usuário pode digitar comandos
+     <acronym>SQL</acronym>.
+     Normalmente, as linhas de entrada são enviadas para o servidor quando
+     é encontrado o caractere ponto-e-vírgula, que termina o comando.
+     Um fim de linha não termina o comando.
+     Portanto, os comandos podem ser distribuídos por várias linhas para maior
+     clareza.
+     Se o comando for enviado e executado sem erro, o resultado do comando será
+     mostrado na tela.
+    </para>
+
+    <para>
+     Sempre que um comando é executado, o <application>psql</application>
+     também verifica eventos de notificação assíncronos gerados pelo
+     <xref linkend="SQL-LISTEN" endterm="SQL-LISTEN-title"> e
+     <xref linkend="SQL-NOTIFY" endterm="SQL-NOTIFY-title">.
+    </para>
+  </refsect2>
+
+  <refsect2>
+    <title>Meta-Comandos</title>
+
+    <para>
+     Qualquer texto digitado no <application>psql</application> começando por
+     uma contrabarra (\) (não entre apóstrofos, <literal>'</literal>)
+     é um meta-comando do <application>psql</application> processado
+     pelo próprio <application>psql</application>. Estes comandos ajudam a
+     tornar o <application>psql</application> mais útil para
+     administração e para scripts. Os meta-comandos são
+     geralmente chamados de comandos de barra ou de contrabarra.
+    </para>
+
+    <para>
+     O formato de um comando <application>psql</application> é a contrabarra,
+     seguida imediatamente por um verbo comando, e depois pelos argumentos.
+     Os argumentos são separados do verbo comando, e entre si,
+     por qualquer número de caracteres de espaço em branco.
+    </para>
+
+    <para>
+     Para incluir espaço em branco no argumento deve-se colocá-los
+     entre apóstrofos (<literal>'</literal>).
+     Para incluir um apóstrofo neste tipo de argumento, deve-se precedê-lo por
+     uma contrabarra.
+     Qualquer texto entre apóstrofos está sujeito às substituições no estilo C
+     para <literal>\n</literal> (nova-linha), <literal>\t</literal> (tabulação),
+     <literal>\</literal><replaceable>dígitos</replaceable>,
+     <literal>\0</literal><replaceable>dígitos</replaceable> e
+     <literal>\0x</literal><replaceable>dígitos</replaceable>
+     (o caractere com o código decimal, octal ou hexadecimal especificado).
+    </para>
+
+    <para>
+     Se um argumento (não entre apóstrofos) começar por dois-pontos
+     (<literal>:</literal>), será considerado como sendo uma variável do
+     <application>psql</application>, e o valor desta variável será usado como o argumento.
+    </para>
+
+    <para>
+     Os argumentos entre crases (<literal>`</literal>) são considerados
+     como sendo linhas de comando a serem passadas para o interpretador de
+     comandos.
+     A saída do comando (com o caractere de nova-linha final removido) é usada
+     como o valor do argumento.
+     As seqüências de escape (\) acima também se aplicam às crases.
+    </para>
+
+    <para>
+     Alguns comandos recebem como argumento um identificador
+     <acronym>SQL</acronym> como, por exemplo, o nome de uma tabela.
+     Estes argumentos seguem as regras de sintaxe do <acronym>SQL</acronym>:
+     as letras que não se encontram entre aspas (<literal>"</literal>) são
+     transformadas em minúsculas, enquanto as letras que se encontram entre
+     aspas ficam protegidas contra a transformação em minúsculas. As aspas
+     permitem, também, incorporar espaços em branco ao identificador.
+     Quando entre as aspas, um par de aspas é reduzido a uma única aspas
+     no nome resultante.
+     Por exemplo, <literal>FOO"BAR"BAZ</literal> é interpretado como
+     <literal>fooBARbaz</literal>, e <literal>"Um nome"" estranho"</literal>
+     se torna <literal>Um nome" estranho</literal>.
+    </para>
+
+    <para>
+     A análise dos argumentos pára quando é encontrada outra contrabarra
+     (não entre apóstrofos).
+     Esta é considerada como sendo o início de um novo meta-comando.
+     A seqüência especial <literal>\\</literal> (duas contrabarras) marca o fim
+     dos argumentos e a continuação da análise dos comandos
+     <acronym>SQL</acronym>, se existirem.
+     Desta forma, os comandos <acronym>SQL</acronym> e
+     <application>psql</application> podem ser livremente misturados na linha.
+     Mas em nenhum caso os argumentos de um meta-comando podem continuar após
+     o fim da linha.
+    </para>
+
+    <para>
+    Os seguintes meta-comandos estão definidos:
+
+    <variablelist>
+      <varlistentry>
+        <term><literal>\a</literal></term>
+        <listitem>
+        <para>
+         Se o formato corrente de saída de tabela for desalinhado, troca para
+         alinhado.
+         Se não for desalinhado, define como desalinhado.
+         Este comando é mantido para compatibilidade com as versões anteriores.
+         Veja em <command>\pset</command> uma solução mais geral.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term><literal>\cd [ <replaceable>diretório</replaceable> ]</literal></term>
+       <listitem>
+        <para>
+         Muda o diretório de trabalho corrente para
+         <replaceable>diretório</replaceable>. Sem argumento,
+         muda para o diretório <literal>home</literal> do usuário corrente.
+        </para>
+
+        <tip>
+         <para>
+          Para ver o diretório de trabalho corrente deve ser usado
+          <literal>\!pwd</literal>.
+         </para>
+        </tip>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>\C [ <replaceable class="parameter">título</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+         Define o título de todas as tabelas mostradas como resultado
+         de uma consulta, ou remove a definição deste título.
+         Este comando equivale a
+         <literal>\pset title <replaceable class="parameter">título</replaceable></literal>
+         (O nome deste comando deriva de <quote>caption</quote> (título), porque
+         anteriormente só era usado para definir título em uma tabela
+         <acronym>HTML</acronym>).
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>\connect</literal> (ou <literal>\c</literal>) <literal>[ <replaceable class="parameter">nome_do_banco_de_dados</replaceable> [ <replaceable class="parameter">nome_do_usuário</replaceable> ] ]</literal></term>
+        <listitem>
+        <para>
+         Estabelece a conexão com um banco de dados novo e/ou com um usuário
+         novo. A conexão anterior é fechada. Se o
+         <replaceable class="parameter">nome_do_banco_de_dados</replaceable> for
+         <literal>-</literal> (hífen), então é assumido o banco de dados corrente.
+        </para>
+
+        <para>
+         Se o <replaceable class="parameter">nome_do_usuário</replaceable>
+         for omitido, então o nome do usuário corrente é utilizado.</para>
+
+        <para>
+         Como regra especial, o <command>\connect</command> sem
+         nenhum argumento conecta ao banco de dados padrão com
+         o usuário padrão (da mesma forma que aconteceria se o
+         <application>psql</application> fosse iniciado sem argumentos).
+        </para>
+
+        <para>
+         Se a tentativa de conexão não for bem-sucedida (nome de usuário errado,
+         acesso negado, etc.), a conexão anterior será mantida se, e somente se,
+         o <application>psql</application> estiver no modo interativo.
+         Quando estiver executando um script não interativo, o processamento
+         será interrompido imediatamente com erro.
+         Esta distinção foi escolhida por ser mais conveniente para o usuário,
+         que digita menos, e como um mecanismo de segurança, impedindo os
+         scripts de atuarem acidentalmente no banco de dados errado.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>\copy <replaceable class="parameter">tabela</replaceable>
+        [ ( <replaceable class="parameter">lista_de_colunas</replaceable> ) ]
+        { <literal>from</literal> | <literal>to</literal> }
+        { <replaceable class="parameter">nome_do_arquivo</replaceable> | stdin | stdout | pstdin | pstdout }
+        [ with ]
+            [ oids ]
+            [ delimiter [ as ] '<replaceable class="parameter">caractere</replaceable>' ]
+            [ null [ as ] '<replaceable class="parameter">cadeia_de_caracteres</replaceable>' ]
+            [ csv [ quote [ as ] '<replaceable class="parameter">caractere</replaceable>' ]
+            [ escape [ as ] '<replaceable class="parameter">caractere</replaceable>' ]
+            [ force quote <replaceable class="parameter">lista_de_colunas</replaceable> ]
+            [ force not null <replaceable class="parameter">lista_de_colunas</replaceable> ] ]</literal>
+        </term>
+
+        <listitem>
+        <para>
+        Executa uma cópia pelo cliente. Esta é uma operação que executa o
+        comando	<xref linkend="SQL-COPY" endterm="SQL-COPY-title">
+        do  <acronym>SQL</acronym>, mas	em vez do servidor ler ou escrever no
+        arquivo especificado, o <application>psql</application> lê ou escreve no
+        arquivo e roteia os dados entre o servidor e o sistema de arquivos local.
+        Isto significa que a acessibilidade ao arquivo e os privilégios
+        são do usuário local, e não do servidor, e que
+        não há necessidade dos privilégios do superusuário.
+        </para>
+
+        <para>
+         A sintaxe deste comando é semelhante à sintaxe do comando
+         <command>COPY</command> do <acronym>SQL</acronym>
+         (Consulte sua descrição para obter detalhes). Deve ser observado que,
+         por isso, são aplicadas regras especiais de análise ao comando
+         <command>\copy</command>. Em particular, não se aplicam as regras de
+         substituição de variável e de escape de contrabarra (\).
+        </para>
+
+        <para>
+        <literal>\copy <replaceable class="parameter">tabela</replaceable> from
+        <replaceable class="parameter">stdin | stdout</replaceable></literal>
+        lê/escreve baseado na entrada e saída do comando, respectivamente.
+        Todas as linhas são lidas a partir da mesma fonte que emitiu o comando,
+        continuando até ser encontrado um <literal>\.</literal>, ou o fluxo
+        chegar ao <acronym>EOF</acronym>.
+        A saída é enviada para o mesmo local de saída do comando.
+        Para ler/escrever da entrada ou saída padrão do
+        <application>psql</application>, deve ser utilizado
+        <literal>pstdin</literal> or <literal>pstdout</literal>.
+        Esta opção é útil para carregar tabelas com dados contidos
+        dentro do arquivo de script SQL.
+        </para>
+
+        <tip>
+        <para>
+        Este operação não é tão eficiente quanto o comando
+        <command>COPY</command> do <acronym>SQL</acronym>, porque todos os dados
+        passam através da conexão cliente/servidor. Para uma grande quantidade
+        de dados, o comando <acronym>SQL</acronym> pode ser preferível.
+        </para>
+        </tip>
+
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>\copyright</literal></term>
+        <listitem>
+        <para>
+        Mostra os termos da distribuição e dos direitos autorais do
+        <application>PostgreSQL</application>.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>\d [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <term><literal>\d+ [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+
+        <listitem>
+        <para>
+        Para cada relação (tabela, visão, índice ou seqüência) correspondendo
+        ao <replaceable class="parameter">padrão</replaceable>, mostra todas as
+        colunas, seus tipos, o espaço de tabelas (se não for o padrão) e os
+        atributos especiais como <literal>NOT NULL</literal> ou valor padrão, se
+        houver. Os índices, restrições, regras e gatilhos associados também são
+        mostrados, assim como a definição da visão se a relação for uma visão
+        (A <quote>Correspondência com padrão</quote> é definida abaixo).
+        </para>
+
+        <para>
+        A forma <literal>\d+</literal> do comando é idêntica, exceto por mostrar
+        informações adicionais: são mostrados todos os comentários associados
+        às colunas da tabela, e também a presença de OIDs na tabela.
+        </para>
+
+        <note>
+        <para>
+        Se <command>\d</command> for utilizado sem o argumento
+        <replaceable class="parameter">padrão</replaceable>, torna-se
+        equivalente a <command>\dtvs</command>, mostrando a lista de
+        todas as tabelas, visões e seqüências. Isto é puramente uma
+        medida de conveniência.
+        </para>
+        </note>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>\da [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+
+        <listitem>
+        <para>
+        Lista todas as funções de agregação disponíveis, junto com o tipo de
+        dado com que operam. Se for especificado o
+        <replaceable class="parameter">padrão</replaceable>, somente são
+        mostradas as agregações cujos nomes correspondem ao padrão.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\db [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <term><literal>\db+ [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+
+        <listitem>
+        <para>
+        Lista todos os espaços de tabela disponíveis. Se for especificado o
+        <replaceable class="parameter">padrão</replaceable>, somente são
+        mostrados os espaços de tabela cujos nomes correspondem ao padrão.
+        Se for anexado <literal>+</literal> ao nome do comando, é listado
+        cada objeto juntamente com suas permissões associadas.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\dc [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Lista todas as conversões entre codificações de conjunto de caracteres
+        disponíveis. Se for especificado o
+        <replaceable class="parameter">padrão</replaceable>, somente são
+        mostradas as conversões cujos nomes correspondem ao padrão.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\dC</literal></term>
+        <listitem>
+        <para>
+        Mostra todas as conversões de tipo (<literal>cast</literal>) disponíveis.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\dd [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Mostra a descrição dos objetos cujos nomes correspondem ao <replaceable
+        class="parameter">padrão</replaceable>, ou todos os objetos visíveis
+        se nenhum argumento for especificado. Nos dois casos somente são
+        listados os objetos que possuem uma descrição (<quote>Objeto</quote>
+        compreende agregações, funções, operadores, tipos, relações [tabelas,
+        visões, índices, seqüências e objetos grandes],	regras e gatilhos).
+        Por exemplo:
+<screen>
+<prompt>=&gt;</prompt> <userinput>\dd version</userinput>
+<computeroutput>
+                     Object descriptions
+   Schema   |  Name   |  Object  |        Description
+------------+---------+----------+---------------------------
+ pg_catalog | version | function | PostgreSQL version string
+(1 linha)
+</computeroutput>
+</screen>
+        </para>
+
+        <para>
+        As descrições dos objetos podem ser criadas pelo comando
+        <xref linkend="sql-comment" endterm="sql-comment-title">
+        do <acronym>SQL</acronym>.
+       </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\dD [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Lista todos os domínios disponíveis. Se for especificado o
+        <replaceable class="parameter">padrão</replaceable>,
+        somente são mostrados os domínios cujos nomes correspondem ao padrão.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\df [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <term><literal>\df+ [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+
+        <listitem>
+        <para>
+        Lista as funções disponíveis, junto com o tipo de dado de
+        seus argumentos e do valor retornado. Se for especificado o
+        <replaceable class="parameter">padrão</replaceable>, somente são
+        mostradas as funções cujos nomes correspondem ao padrão.
+        Se for usada a forma <literal>\df+</literal>, são mostradas informações
+        adicionais sobre cada função, incluindo a linguagem e a descrição.
+        </para>
+
+        <note>
+        <para>
+        Para procurar por funções recebendo argumentos ou retornando valores
+        de um determinado tipo, deve ser utilizada a capacidade de procurar do
+        paginador, ou rolar através da saída do <literal>\df</literal>.
+        </para>
+
+        <para>
+        Para reduzir a desordem, o <literal>\df</literal> não mostra as funções
+        com tipo de dado I/O. Isto é implementado ignorando as
+        funções que recebem ou retornam o tipo <type>cstring</type>.
+        </para>
+        </note>
+
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\dg [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Lista todos os grupos de bancos de dados. Se for especificado o
+        <replaceable class="parameter">padrão</replaceable>, somente são
+        mostrados os grupos cujos nomes correspondem ao padrão.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\distvS [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+
+        <listitem>
+        <para>
+        Este não é, na verdade, o nome do comando: As letras
+        <literal>i</literal>, <literal>s</literal>, <literal>t</literal>,
+        <literal>v</literal>, <literal>S</literal> correspondem a índice,
+        seqüência, tabela, visão e tabela do sistema, respectivamente.
+        Pode ser especificada qualquer uma ou todas as letras, em qualquer
+        ordem, para obter a listagem de todos os objetos correspondentes.
+        A letra S restringe a listagem aos objetos do sistema; sem o
+        <literal>S</literal>, somente são mostrados os objetos que não são do
+        sistema. Se for anexado o caractere <literal>+</literal> ao nome do
+        comando, cada objeto é listado junto com sua descrição associada,
+        se houver.
+        </para>
+
+        <para>
+        Se for especificado o <replaceable class="parameter">padrão</replaceable>,
+        somente são mostrados os objetos cujos nomes correspondem ao padrão.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\dl</literal></term>
+        <listitem>
+        <para>
+        Este é um outro nome para <command>\lo_list</command>,
+        que mostra a lista dos objetos grandes.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\dn [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <term><literal>\dn+ [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+
+        <listitem>
+        <para>
+        Lista todos os esquemas (espaços de nomes) disponíveis. Se for
+        especificado o <replaceable class="parameter">padrão</replaceable>
+        (uma expressão regular), somente são mostrados os esquemas cujos nomes
+        correspondem ao padrão.
+        Os esquemas temporários não-locais são suprimidos.
+        Se for anexado o caractere <literal>+</literal> ao nome do comando,
+        cada objeto é listado junto com sua descrição e permissões associadas,
+        se houver.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\do [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Lista os operadores disponíveis junto com o tipo de seus operandos e do
+        valor retornado. Se for especificado o
+        <replaceable class="parameter">padrão</replaceable>,
+        somente são mostrados os operadores cujos nomes correspondem ao padrão.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\dp [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Produz uma lista contendo todas as tabelas, visões e seqüências
+        disponíveis, junto com seus privilégios de acesso associados. Se
+        for especificado o <replaceable class="parameter">padrão</replaceable>,
+        somente são mostradas as tabelas, visões e seqüências cujos nomes
+        correspondem ao padrão.
+        </para>
+
+        <para>
+        Os comandos <xref linkend="SQL-GRANT"> e <xref linkend="SQL-REVOKE">
+        são utilizados para definir os privilégios de acesso. Consulte o comando
+        <xref linkend="SQL-GRANT"> para obter informações adicionais.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\dT [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <term><literal>\dT+ [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Mostra todos os tipos de dado, ou somente aqueles que correspondem ao
+        <replaceable class="parameter">padrão</replaceable>. A forma do comando
+        <literal>\dT+</literal> mostra informações adicionais.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\du [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Lista todos os usuários do banco de dados, ou somente aqueles que
+        correspondem ao <replaceable class="parameter">padrão</replaceable>.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\edit</literal> (ou <literal>\e</literal>) <literal>[ <replaceable class="parameter">nome_do_arquivo</replaceable> ]</literal></term>
+
+        <listitem>
+        <para>
+        Se for especificado o
+        <replaceable class="parameter">nome_do_arquivo</replaceable>, o arquivo
+        é editado; após o fim da edição (fechar o editor), o conteúdo do arquivo
+        é copiado para o <literal>buffer</literal> de comando.
+        Se não for fornecido nenhum argumento, o <literal>buffer</literal> de
+        comando corrente é copiado para um arquivo temporário, que é editado de
+        forma idêntica.
+        </para>
+
+        <para>
+        O novo <literal>buffer</literal> de comando é então analisado novamente,
+        de acordo com as regras normais do <application>psql</application>, onde
+        todo o <literal>buffer</literal> é tratado como sendo uma única linha
+        (Portanto, não podem ser gerados scripts dessa forma. Use o comando
+        <command>\i</command> para isso). Significa também que, se o comando
+        terminar por (ou contiver) um ponto-e-vírgula, será executado
+        imediatamente. Se não contiver, apenas permanecerá aguardando no
+        <literal>buffer</literal> de comando.
+        </para>
+
+        <tip>
+        <para>
+        O <application>psql</application> procura nas variáveis de
+        ambiente <envar>PSQL_EDITOR</envar>, <envar>EDITOR</envar> e
+        <envar>VISUAL</envar> (nesta ordem) o editor a ser usado. Se nenhuma
+        delas estiver definida, então é usado <filename>/bin/vi</filename>
+        nos sistemas <systemitem class="osname">Unix</systemitem>, ou o
+        <filename>notepad.exe</filename> no
+        <systemitem class="osname">Windows</systemitem>.
+        </para>
+        </tip>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\echo <replaceable class="parameter">texto</replaceable> [ ... ]</literal></term>
+        <listitem>
+        <para>
+        Envia os argumentos para a saída padrão, separados por um espaço
+        e seguido por um caractere de nova-linha, o que pode ser útil para
+        intercalar informações na saída dos scripts. Por exemplo:
+<programlisting>
+<prompt>=&gt;</prompt> <userinput>\echo `date`</userinput>
+Tue Oct 26 21:40:57 CEST 1999
+</programlisting>
+        Se o primeiro argumento for <literal>-n</literal> (não entre apóstrofos)
+        não é enviado o caractere de nova-linha final.
+        </para>
+
+        <tip>
+        <para>
+        Se for usado o comando <command>\o</command> para redirecionar
+        a saída do comando, talvez seja preferível utilizar
+        <command>\qecho</command> em vez deste comando.
+        </para>
+        </tip>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\encoding [ <replaceable class="parameter">codificação</replaceable> ]</literal></term>
+
+        <listitem>
+        <para>
+        Define a codificação do conjunto de caracteres do cliente.
+        Sem argumento, este comando mostra a codificação corrente.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\f [ <replaceable class="parameter">cadeia_de_caracteres</replaceable> ]</literal></term>
+
+        <listitem>
+        <para>
+        Define o separador de campos para a saída de comando desalinhada.
+        O padrão é a barra vertical (<literal>|</literal>). Veja também
+        em <command>\pset</command> uma forma genérica para definir as
+        opções de saída.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\g</literal> [ { <replaceable class="parameter">nome_do_arquivo</replaceable> | <literal>|</literal><replaceable class="parameter">comando</replaceable> } ]</term>
+
+        <listitem>
+        <para>
+        Envia o <literal>buffer</literal> de entrada de comando corrente
+        para o servidor e, opcionalmente, armazena a saída do comando em
+        <replaceable class="parameter">nome_do_arquivo</replaceable>,
+        ou envia a saída para outro interpretador de comandos do Unix
+        executando o <replaceable class="parameter">comando</replaceable>.
+        Um <literal>\g</literal> puro e simples é virtualmente equivalente ao
+        ponto-e-vírgula.
+        Um <literal>\g</literal> com argumento é uma alternativa
+        <quote>de uma única vez</quote> para o comando <command>\o</command>.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>\help</literal> (ou <literal>\h</literal>) <literal>[ <replaceable class="parameter">comando</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Fornece ajuda de sintaxe para o comando <acronym>SQL</acronym>
+        especificado. Senão for especificado o
+        <replaceable class="parameter">comando</replaceable>, então o
+        <application>psql</application>	lista todos os comandos para os quais
+        existe ajuda de sintaxe disponível.
+        Se o <replaceable class="parameter">comando</replaceable>
+        for um asterisco (<quote>*</quote>), então é mostrada a ajuda de
+        sintaxe para todos os comandos <acronym>SQL</acronym>.
+        </para>
+
+        <note>
+        <para>
+        Para simplificar a digitação, os comandos compostos por várias
+        palavras não necessitam estar entre apóstrofos.
+        Portanto, pode ser digitado <userinput>\help alter table</userinput>.
+        </para>
+        </note>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\H</literal></term>
+        <listitem>
+        <para>
+        Habilita o formato de saída de comando <acronym>HTML</acronym>.
+        Se o formato <acronym>HTML</acronym> já estiver habilitado,
+        retorna ao formato de texto alinhado padrão.
+        Este comando existe por compatibilidade e comodidade, mas deve ser visto
+        em <command>\pset</command> as definições de outras opções de saída.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\i <replaceable class="parameter">nome_do_arquivo</replaceable></literal></term>
+        <listitem>
+        <para>
+        Lê a entrada no arquivo
+        <replaceable class="parameter">nome_do_arquivo</replaceable>,
+        e executa como se tivesse sido digitada pelo teclado.
+        </para>
+        <note>
+        <para>
+        Se for desejado ver as linhas na tela à medida que são lidas,
+        deve ser definida a variável
+        <varname>ECHO</varname> como <literal>all</literal>.
+        </para>
+        </note>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\l</literal> (ou <literal>\list</literal>)</term>
+        <term><literal>\l+</literal> (ou <literal>\list+</literal>)</term>
+        <listitem>
+        <para>
+        Lista o nome, dono e codificação do conjunto de caracteres de todos
+        os bancos de dados do servidor. Se for adicionado o caractere
+        <literal>+</literal> ao nome do comando, também são mostradas todas as
+        descrições dos bancos de dados.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\lo_export <replaceable class="parameter">loid</replaceable> <replaceable class="parameter">nome_do_arquivo</replaceable></literal></term>
+
+        <listitem>
+        <para>
+        Lê no banco de dados o objeto grande com <acronym>OID</acronym>
+        igual a <replaceable class="parameter">loid</replaceable>, e escreve em
+        <replaceable class="parameter">nome_do_arquivo</replaceable>.
+        Deve ser observado que isto é sutilmente diferente da função do servidor
+        <function>lo_export</function>, que atua com a permissão do usuário
+        como o qual o servidor de banco de dados está executando,
+        e no sistema de arquivos do servidor.
+        </para>
+        <tip>
+        <para>
+        Use <command>\lo_list</command> para descobrir
+        os <acronym>OID</acronym>s dos objetos grandes.
+        </para>
+        </tip>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\lo_import <replaceable class="parameter">nome_do_arquivo</replaceable> [ <replaceable class="parameter">comentário</replaceable> ]</literal></term>
+
+        <listitem>
+        <para>
+        Armazena o arquivo em um objeto grande do
+        <productname>PostgreSQL</productname>. Opcionalmente, associa o
+        comentário fornecido ao objeto. Exemplo:
+<programlisting>
+foo=&gt; <userinput>\lo_import '/home/peter/pictures/photo.xcf' 'uma fotografia minha'</userinput>
+lo_import 152801
+</programlisting>
+        A resposta indica que o objeto grande recebeu o identificador de
+        objeto 152801, que deve ser lembrado para acessar o objeto novamente.
+        Por esta razão, recomenda-se associar sempre um comentário inteligível
+        a cada objeto. Estes podem ser vistos utilizando o comando
+        <command>\lo_list</command>.
+        </para>
+
+        <para>
+        Deve ser observado que este comando é sutilmente diferente da função
+        <function>lo_import</function> do servidor, porque atua
+        como o usuário local no sistema de arquivos local, em vez
+        do usuário do servidor no sistema de arquivos do servidor.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>\lo_list</literal></term>
+        <listitem>
+        <para>
+        Mostra a lista de todos os objetos grandes
+        do <productname>PostgreSQL</productname> armazenados neste instante no
+        banco de dados, junto com os comentários fornecidos para os mesmos.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>\lo_unlink <replaceable class="parameter">loid</replaceable></literal></term>
+
+        <listitem>
+        <para>
+        Remove do banco de dados o objeto grande com o
+        <acronym>OID</acronym> igual a
+        <replaceable class="parameter">loid</replaceable>.
+        </para>
+
+        <tip>
+        <para>
+        Use <command>\lo_list</command> para descobrir os
+        <acronym>OID</acronym>s dos objetos grandes.
+        </para>
+        </tip>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\o</literal> [ {<replaceable class="parameter">nome_do_arquivo</replaceable> | <literal>|</literal><replaceable class="parameter">comando</replaceable>} ]</term>
+
+        <listitem>
+        <para>
+        Salva os resultados dos próximos comandos no arquivo
+        <replaceable class="parameter">nome_do_arquivo</replaceable>, ou envia
+        os próximos resultados para um outro interpretador de comandos do Unix
+        para executar o <replaceable class="parameter">comando</replaceable>.
+        Se não for especificado nenhum argumento, a saída do comando será
+        redefinida para a saída padrão.
+        </para>
+
+        <para>
+        Os <quote>resultados dos comandos</quote> incluem todas
+        as tabelas, respostas dos comandos e notificações recebidas
+        do servidor de banco de dados, assim como a saída de vários
+        comandos de contrabarra que consultam o banco de dados
+        (como o <command>\d</command>), mas não as mensagens de erro.
+        </para>
+
+        <tip>
+        <para>
+        Para intercalar saída de texto entre os resultados dos
+        comandos deve ser utilizado <command>\qecho</command>.
+        </para>
+        </tip>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\p</literal></term>
+        <listitem>
+        <para>
+        Envia o <literal>buffer</literal> de comando corrente para a saída padrão.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\pset <replaceable class="parameter">parâmetro</replaceable> [ <replaceable class="parameter">valor</replaceable> ]</literal></term>
+
+        <listitem>
+        <para>
+        Este comando define opções que afetam a saída das tabelas de resultado
+        dos comandos. O <replaceable class="parameter">parâmetro</replaceable>
+        indica qual opção será definida. A semântica do
+        <replaceable class="parameter">valor</replaceable> depende do parâmetro.
+        </para>
+
+        <para>
+        As opções de exibição ajustáveis são:
+        <variablelist>
+          <varlistentry>
+          <term><literal>format</literal></term>
+          <listitem>
+          <para>
+          Define o formato de saída como <literal>unaligned</literal>
+          (desalinhado), <literal>aligned</literal> (alinhado),
+          <literal>html</literal> ou <literal>latex</literal>. São permitidas
+          abreviações únicas (O que significa que basta uma letra).
+          </para>
+
+          <para>
+          O modo <quote>unaligned</quote> escreve todas as colunas de uma linha
+          em uma única linha, separadas pelo separador de campos ativo corrente.
+          Pretende-se com isso criar uma saída que sirva de entrada para outros
+          programas (separada por tabulação, vírgula, etc.).
+          O modo <quote>aligned</quote> é a saída de texto padrão, inteligível
+          e agradavelmente formatada.
+          Os modos <quote><acronym>HTML</acronym></quote> e <quote>LaTeX</quote>
+          produzem tabelas feitas para serem incluídas em documentos usando
+          a linguagem de marcação correspondente.
+          Não são documentos completos! (Isto não é tão problemático no
+          <acronym>HTML</acronym>, mas no LaTeX deve haver um invólucro
+          completo do documento).
+          </para>
+          </listitem>
+          </varlistentry>
+
+          <varlistentry>
+          <term><literal>border</literal></term>
+          <listitem>
+          <para>
+          O segundo argumento deve ser um número. Em geral, quanto maior o
+          número mais bordas e linhas a tabela terá, mas isto depende do
+          formato.
+          No modo <acronym>HTML</acronym> será traduzido diretamente para o
+          atributo <literal>border=...</literal>, nos demais modos só fazem
+          sentido os valores: 0 (sem borda); 1 (linhas divisórias internas); e
+          2 (moldura da tabela).
+          </para>
+          </listitem>
+          </varlistentry>
+
+          <varlistentry>
+          <term><literal>expanded</literal> (ou <literal>x</literal>)</term>
+          <listitem>
+          <para>
+          Alterna entre os formatos regular e expandido. Quando o
+          formato expandido está habilitado, todas as saídas possuem duas
+          colunas, com o nome da coluna à esquerda e o dado à
+          direita. Este modo é útil quando os dados não cabem na
+          tela no modo normal <quote>horizontal</quote>.
+          </para>
+
+          <para>
+          O modo expandido é suportado por todos os quatro formatos de saída.
+          </para>
+          </listitem>
+          </varlistentry>
+
+          <varlistentry>
+          <term><literal>null</literal></term>
+          <listitem>
+          <para>
+          O segundo argumento é a cadeia de caracteres a ser
+          mostrada sempre que a coluna for nula. O padrão é não
+          mostrar nada, que pode ser facilmente confundido com,
+          por exemplo, uma cadeia de caracteres vazia. Portanto,
+          pode-se preferir escrever <literal>\pset null '(nulo)'</literal>.
+          </para>
+          </listitem>
+          </varlistentry>
+
+          <varlistentry>
+          <term><literal>fieldsep</literal></term>
+          <listitem>
+          <para>
+          Especifica o separador de campos a ser utilizado no modo de saída
+          desalinhado.
+          Desta forma pode ser criada, por exemplo, uma saída separada por
+          tabulação ou por vírgula, que os outros programas podem preferir.
+          Para definir o caractere de tabulação como separador de campos deve
+          ser usado <literal>\pset fieldsep '\t'</literal>.
+          O separador de campos padrão é <literal>'|'</literal> (a barra vertical).
+          </para>
+          </listitem>
+          </varlistentry>
+
+          <varlistentry>
+          <term><literal>footer</literal></term>
+          <listitem>
+          <para>
+          Alterna a exibição do rodapé padrão <literal>(x linhas)</literal>.
+          </para>
+          </listitem>
+          </varlistentry>
+
+          <varlistentry>
+          <term><literal>recordsep</literal></term>
+          <listitem>
+          <para>
+          Especifica o separador de registro (linha) a ser usado no modo de
+          saída desalinhado. O padrão é o caractere de nova-linha.
+          </para>
+          </listitem>
+          </varlistentry>
+
+          <varlistentry>
+          <term><literal>tuples_only</literal> (ou <literal>t</literal>)</term>
+          <listitem>
+          <para>
+          Alterna entre mostrar somente as tuplas e mostrar tudo.
+          O modo mostrar tudo pode mostrar informações adicionais
+          como os cabeçalhos das colunas, títulos e vários rodapés.
+          No modo somente-tuplas são mostrados apenas os dados da tabela.
+          </para>
+          </listitem>
+          </varlistentry>
+
+          <varlistentry>
+          <term><literal>title [ <replaceable class="parameter">texto</replaceable> ]</literal></term>
+          <listitem>
+          <para>
+          Define o título das próximas tabelas mostradas.
+          Pode ser usado para colocar textos descritivos na saída.
+          Se não for fornecido nenhum argumento, o título é removido.
+          </para>
+          </listitem>
+          </varlistentry>
+
+          <varlistentry>
+          <term><literal>tableattr</literal> (ou <literal>T</literal>) <literal>[ <replaceable class="parameter">texto</replaceable> ]</literal></term>
+          <listitem>
+          <para>
+          Permite especificar qualquer atributo a ser colocado dentro da
+          marca <sgmltag>table</sgmltag> do <acronym>HTML</acronym>.
+          Estes atributos podem ser, por exemplo, <literal>cellpadding</literal>
+          ou <literal>bgcolor</literal>. Deve ser observado que, provavelmente,
+          não será desejado especificar <literal>border</literal> aqui, porque
+          isto já é tratado pelo <literal>\pset border</literal>.
+          </para>
+          </listitem>
+          </varlistentry>
+
+
+          <varlistentry>
+          <term><literal>pager</literal></term>
+          <listitem>
+          <para>
+          Controla o uso do paginador para comandos e para a saída da ajuda do
+          <application>psql</application>.
+          Se a variável de ambiente <envar>PAGER</envar> estiver definida,
+          a saída será enviada para o programa especificado, senão é utilizado o
+          padrão dependente da plataforma (como o <filename>more</filename>).
+          </para>
+
+          <para>
+          Quando o paginador está desabilitado, a paginação não é feita.
+          Quando o paginador está habilitado, a paginação é feita somente quando
+          for apropriado, ou seja, quando a saída é para um terminal e não cabe
+          na tela (O <application>psql</application> não realiza um trabalho
+          perfeito ao avaliar quando o paginador deve ser utilizado).
+          <literal>\pset pager</literal> habilita e desabilita o paginador.
+          O paginador também pode ser definido como <literal>always</literal>,
+          o que faz o paginador ser utilizado sempre.
+          </para>
+          </listitem>
+          </varlistentry>
+        </variablelist>
+        </para>
+
+        <para>
+        Ilustrações mostrando como se parecem estes formatos diferentes
+        podem ser vistas na seção <xref linkend="APP-PSQL-examples"
+        endterm="APP-PSQL-examples-title">.
+        </para>
+
+        <tip>
+        <para>
+        Existem vários comandos abreviados para o <command>\pset</command>. Veja
+        <command>\a</command>, <command>\C</command>, <command>\H</command>,
+        <command>\t</command>, <command>\T</command> e <command>\x</command>.
+        </para>
+        </tip>
+
+        <note>
+        <para>
+        É errado chamar o <command>\pset</command> sem argumentos.
+        No futuro, esta chamada deverá mostrar o status corrente
+        de todas as opções de exibição.
+        </para>
+        </note>
+
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\q</literal></term>
+        <listitem>
+        <para>
+        Sair do programa <application>psql</application>.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\qecho <replaceable class="parameter">texto</replaceable> [ ... ] </literal></term>
+        <listitem>
+        <para>
+        Este comando é idêntico a <command>\echo</command>,
+        exceto que toda a saída é escrita no canal de saída
+        de comando, conforme definido por <command>\o</command>.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\r</literal></term>
+        <listitem>
+        <para>
+        Redefine (limpa) o <literal>buffer</literal> de comando.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\s [ <replaceable class="parameter">nome_do_arquivo</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Mostra ou salva o histórico da linha de comando em
+        <replaceable class="parameter">nome_do_arquivo</replaceable>.
+        Se for omitido o
+        <replaceable class="parameter">nome_do_arquivo</replaceable>,
+        o histórico é escrito na saída padrão. Esta opção somente estará
+        disponível se o <application>psql</application> estiver	configurado
+        para usar a biblioteca <application>Readline</application> do
+        <acronym>GNU</acronym>.
+        </para>
+
+        <note>
+        <para>
+        Na versão corrente não é mais necessário salvar o histórico
+        de comandos, porque isso é feito automaticamente ao término do programa.
+        O histórico também é carregado, automaticamente, toda vez que o
+        <application>psql</application> inicia.
+        </para>
+        </note>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\set [ <replaceable class="parameter">nome</replaceable> [ <replaceable class="parameter">valor</replaceable> [ ... ] ] ]</literal></term>
+
+        <listitem>
+        <para>
+        Define a variável interna
+        <replaceable class="parameter">nome</replaceable> com o
+        <replaceable class="parameter">valor</replaceable> ou, se for fornecido
+        mais de um valor, com a concatenação de todos os valores.
+        Se não for fornecido o segundo argumento a variável somente é definida,
+        sem nenhum valor.
+        Para remover a definição da variável deve ser usado o comando
+        <command>\unset</command>.
+        </para>
+
+        <para>
+        Nomes de variáveis válidos podem conter letras, dígitos
+        e sublinhados (<literal>_</literal>). Consulte a seção
+        <xref linkend="APP-PSQL-variables" endterm="APP-PSQL-variables-title">
+        abaixo para obter detalhes.
+        </para>
+
+        <para>
+        Embora possa ser definida qualquer variável como qualquer coisa
+        desejada, o <application>psql</application> trata várias variáveis
+        como sendo especiais. Elas estão documentadas na seção sobre variáveis.
+        </para>
+
+        <note>
+        <para>
+        Este comando é totalmente distinto do comando
+        <xref linkend="SQL-SET" endterm="SQL-SET-title">
+        do <acronym>SQL</acronym>.
+        </para>
+        </note>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\t</literal></term>
+        <listitem>
+        <para>
+        Alterna a exibição do cabeçalho contendo o nome das colunas e do rodapé
+        contendo o número de linhas. Este comando equivale a
+        <literal>\pset tuples_only</literal>, sendo fornecido por conveniência.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\T <replaceable class="parameter">opções_de_tabela</replaceable></literal></term>
+        <listitem>
+        <para>
+        Permite especificar atributos a serem colocados na marca
+        <sgmltag>table</sgmltag> no modo de saída tabular
+        <acronym>HTML</acronym>. Este comando equivale a
+        <literal>\pset tableattr <replaceable
+        class="parameter">opções_de_tabela</replaceable></literal>.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+       <term><literal>\timing</literal></term>
+        <listitem>
+        <para>
+         Alterna a exibição de quanto tempo cada comando SQL demora,
+         em milissegundos.
+        </para>
+       </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\w</literal> {<replaceable class="parameter">nome_do_arquivo</replaceable> | <replaceable class="parameter">|comando</replaceable>}</term>
+        <listitem>
+        <para>
+        Escreve o <literal>buffer</literal> de comando corrente no arquivo
+        <replaceable class="parameter">nome_do_arquivo</replaceable>, ou envia
+        para o comando Unix <replaceable class="parameter">comando</replaceable>
+        através de um <literal>pipe</literal>.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\x</literal></term>
+        <listitem>
+        <para>
+        Alterna o modo de formatação de tabela estendido.
+        Como tal equivale a <literal>\pset expanded</literal>.
+       </para>
+       </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\z [ <replaceable class="parameter">padrão</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Produz uma lista contendo todas as tabelas, visões e seqüências
+        disponíveis, junto com seus privilégios de acesso associados. Se
+        for especificado o <replaceable class="parameter">padrão</replaceable>,
+        somente são mostradas as tabelas, visões e seqüências cujos nomes
+        correspondem ao padrão.
+        </para>
+
+        <para>
+        Os comandos <xref linkend="SQL-GRANT"> e <xref linkend="SQL-REVOKE">
+        são utilizados para definir os privilégios de acesso. Consulte o comando
+        <xref linkend="SQL-GRANT"> para obter informações adicionais.
+        </para>
+
+        <para>
+        Este comando é um outro nome para o comando <command>\dp</command>
+        (<quote>mostrar privilégios</quote>).
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\! [ <replaceable class="parameter">comando</replaceable> ]</literal></term>
+        <listitem>
+        <para>
+        Abre um outro interpretador de comandos do Unix, ou executa o comando
+        Unix <replaceable class="parameter">comando</replaceable>.
+        Os argumentos não são mais interpretados, sendo enviados
+        para o interpretador de comandos como estão.
+        </para>
+        </listitem>
+      </varlistentry>
+
+
+      <varlistentry>
+        <term><literal>\?</literal></term>
+        <listitem>
+        <para>
+        Mostra informação de ajuda para os comandos de contrabarra
+        (<quote>\</quote>).
+        </para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
+  </para>
+
+  <para>
+   Vários comandos <literal>\d</literal> aceitam como parâmetro um
+   <replaceable class="parameter">padrão</replaceable> para especificar os nomes
+   dos objetos a serem mostrados. O <literal>*</literal> significa
+   <quote>qualquer seqüência de caracteres</quote> e <literal>?</literal>
+   significa <quote>qualquer um único caractere</quote> (Esta notação é
+   semelhante a do padrão para nomes de arquivos do interpretador de comandos do
+   Unix). Os usuários avançados também podem utilizar a notação das expressões
+   regulares, como as classes de caracteres; por exemplo <literal>[0-9]</literal>
+   correspondendo a <quote>qualquer dígito</quote>.
+   Para fazer qualquer um desses caracteres de correspondência com padrão ser
+   interpretado literalmente, deve-se colocá-lo entre aspas.
+  </para>
+
+  <para>
+   Um padrão contendo um ponto (não entre aspas) é interpretado como um
+   padrão de nome de esquema seguido por um padrão de nome de objeto.
+   Por exemplo, <literal>\dt foo*.bar*</literal> mostra todas as tabelas nos esquemas
+   cujos nomes começam por <literal>foo</literal>, e cujos nomes de tabela começam por
+   <literal>bar</literal>. Se não houver nenhum ponto, então o padrão corresponde
+   apenas aos objetos visíveis no caminho de procura de esquemas corrente.
+  </para>
+
+  <para>
+   Sempre que o parâmetro <replaceable class="parameter">padrão</replaceable>
+   é omitido, o comando <literal>\d</literal> mostra todos os objetos visíveis
+   no caminho de procura de esquemas corrente. Para mostrar todos os objetos
+   do banco de dados, deve ser usado o padrão <literal>*.*</literal>.
+  </para>
+ </refsect2>
+
+ <refsect2>
+  <title>Funcionalidades avançadas</title>
+
+   <refsect3 id="APP-PSQL-variables">
+    <title id="APP-PSQL-variables-title">Variáveis</title>
+
+    <para>
+     O <application>psql</application> fornece uma funcionalidade de
+     substituição de variáveis semelhante a dos interpretadores de comando do
+     Unix. As variáveis são simplesmente pares nome/valor, onde o valor pode ser
+     qualquer cadeia de caracteres de qualquer comprimento. Para definir as
+     variáveis é utilizado o meta-comando do <application>psql</application>
+    <command>\set</command>:
+<programlisting>
+testdb=&gt; <userinput>\set foo bar</userinput>
+</programlisting>
+        define a variável <literal>foo</literal> com o valor
+        <literal>bar</literal>. Para acessar o conteúdo da variável
+        deve-se preceder seu nome por dois-pontos (<literal>:</literal>),
+        e usá-lo como argumento de qualquer comando de contrabarra:
+<programalisting>
+testdb=&gt; <userinput>\echo :foo</userinput>
+bar
+</programlisting>
+    </para>
+
+    <note>
+    <para>
+    Os argumentos do <command>\set</command> estão sujeitos às mesmas
+    regras de substituição de qualquer outro comando. Portanto, podem ser
+    construídas referências interessantes como
+    <literal>\set :foo 'something'</literal> e obter <quote>soft links</quote>
+    ou <quote>variáveis de variável</quote> do <productname>Perl</productname> e do
+    <productname><acronym>PHP</acronym></productname>, respectivamente.
+    Desafortunadamente (ou afortunadamente?), não existe nenhuma forma
+    de fazer algo útil com estas construções. Por outro lado,
+    <literal>\set bar :foo</literal> é uma forma perfeitamente válida de
+    copiar uma variável.
+    </para>
+    </note>
+
+    <para>
+    Se <command>\set</command> for chamado sem o segundo argumento, a variável é
+    definida com uma cadeia de caracteres vazia como valor. Para remover a definição
+    (ou excluir) a variável, deve ser utilizado o comando <command>\unset</command>.
+    </para>
+
+    <para>
+    Os nomes das variáveis internas do <application>psql</application>
+    podem ser formados por letras, números e sublinhados em qualquer ordem
+    e número. Algumas destas variáveis recebem tratamento especial pelo
+    <application>psql</application>. Denotam determinadas configurações de opção
+    que podem ser mudadas em tempo de execução alterando o valor da variável, ou
+    representam algum estado do aplicativo. Embora seja possível usar estas
+    variáveis para qualquer outra finalidade isto não é recomendado, porque o
+    comportamento do programa pode ficar muito estranho, muito rapidamente.
+    Por convenção, todas as variáveis com tratamento especial
+    possuem todas as letras maiúsculas (e possivelmente números e sublinhados).
+    Para garantir a máxima compatibilidade futura, evite usar estes
+    nomes de variáveis para as suas próprias finalidades. Abaixo segue
+    a lista de todas as variáveis com tratamento especial.
+   </para>
+
+    <variablelist>
+      <varlistentry>
+      <indexterm>
+       <primary>auto-efetivação</primary>
+       <secondary>psql</secondary>
+      </indexterm>
+        <term><varname>AUTOCOMMIT</varname></term>
+        <listitem>
+        <para>
+        Quando está <literal>on</literal> (o padrão), cada comando SQL é
+        automaticamente efetivado ao terminar bem-sucedido.
+        Neste modo, para adiar a efetivação deve ser entrado um comando SQL
+        <command>BEGIN</command> ou <command>START TRANSACTION</command>.
+        Quando está <literal>off</literal>, ou não definido, os comandos SQL
+        não são efetivados até ser emitido explicitamente o comando
+        <command>COMMIT</command> ou <command>END</command>.
+        O modo <quote>autocommit-off</quote> opera emitindo um comando
+        <command>BEGIN</command>, implícito, logo antes de qualquer comando que
+        não esteja dentro de um bloco de transação, e não seja o próprio
+        <command>BEGIN</command> ou outro comando de controle de transação,
+        nem um comando que não possa ser executado dentro de uma transação,
+        (como o <command>VACUUM</command>).
+        </para>
+
+        <note>
+        <para>
+         No modo <quote>autocommit-off</quote> toda transação que não for
+         bem-sucedida deve ser explicitamente abandonada entrando com
+         <command>ABORT</command> ou <command>ROLLBACK</command>.
+         Também tenha em mente que, se a sessão for terminada sem a
+         transação ser efetivada, o trabalho será perdido.
+        </para>
+        </note>
+
+        <note>
+        <para>
+         O modo <quote>autocommit-on</quote> é o comportamento tradicional do
+         <productname>PostgreSQL</productname>, mas o modo
+         <quote>autocommit-off</quote> é mais próximo da especificação SQL.
+         Se for preferido o modo <quote>autocommit-off</quote>, este pode
+         ser definido no arquivo <filename>psqlrc</filename> global do sistema,
+         ou no arquivo <filename>~/.psqlrc</filename> do usuário.
+        </para>
+        </note>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>DBNAME</varname></term>
+        <listitem>
+        <para>
+         O nome do banco de dados que se está conectado no momento.
+         Definida toda vez que é feita a conexão com um banco de dados
+         (inclusive na inicialização do programa), mas a definição pode ser
+         removida.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>ECHO</varname></term>
+        <listitem>
+        <para>
+        Se for definida como <quote><literal>all</literal></quote>, todas as
+        linhas entradas pelo teclado, ou do script, são escritas na saída
+        padrão antes de serem analisadas ou executadas.
+        Para selecionar este comportamento na inicialização do programa,
+        deve ser usada a chave <option>-a</option>.
+        Se for definida como <quote><literal>queries</literal></quote>,
+        o <application>psql</application> simplesmente mostra todos os comandos
+        à medida que são enviados para o servidor.
+        A chave para isto é <option>-e</option>.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>ECHO_HIDDEN</varname></term>
+        <listitem>
+        <para>
+        Quando esta variável está definida, e um comando de contrabarra consulta
+        o banco de dados, primeiro a consulta é mostrada.
+        Por este meio pode-se estudar a parte interna do
+        <productname>PostgreSQL</productname> e oferecer funcionalidades
+        semelhantes nos próprios programas (Para selecionar este comportamento na
+        inicialização do programa, deve ser usada a chave <option>-E</option>).
+        Se a variável for definida com o valor
+        <quote><literal>noexec</literal></quote> os comandos são apenas
+        mostrados, não são enviados para o servidor para serem executados.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>ENCODING</varname></term>
+        <listitem>
+        <para>
+        A codificação corrente do conjunto de caracteres do cliente.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>HISTCONTROL</varname></term>
+        <listitem>
+        <para>
+        Se esta variável estiver definida como
+        <quote><literal>ignorespace</literal></quote>, as linhas começando por
+        espaço não são guardadas na lista de histórico.
+        Se estiver definida como <quote><literal>ignoredups</literal></quote>,
+        as linhas idênticas à linha anterior do histórico não são guardadas.
+        O valor <quote><literal>ignoreboth</literal></quote> combina estas duas
+        opções.
+        Se não estiver definida, ou se estiver definida com um valor diferente
+        destes acima, todas as linhas lidas no modo interativo são guardadas na
+        lista de histórico.
+        </para>
+        <note>
+        <para>
+        Esta funcionalidade foi desavergonhadamente plagiada do
+        <application>Bash</application>.
+        </para>
+        </note>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>HISTSIZE</varname></term>
+        <listitem>
+        <para>
+        O número de comandos a serem guardados no histórico de comandos.
+        O valor padrão é 500.
+        </para>
+        <note>
+        <para>
+        Esta funcionalidade foi desavergonhadamente plagiada do
+        <application>Bash</application>.
+        </para>
+        </note>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>HOST</varname></term>
+        <listitem>
+        <para>
+        A máquina do servidor de banco de dados ao qual se está conectado.
+        Definida toda vez que se conecta com o banco de dados (inclusive na
+        inicialização do programa), mas a definição pode ser removida.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>IGNOREEOF</varname></term>
+        <listitem>
+        <para>
+        Se não estiver definida, o envio do caractere <acronym>EOF</acronym>
+        (geralmente <keycombo action="simul"><keycap>Control</keycap><keycap>D</keycap></keycombo>)
+        para uma sessão interativa do <application>psql</application> termina o
+        aplicativo. Se estiver definida com um valor numérico, é ignorada esta
+        quantidade de caracteres <acronym>EOF</acronym> antes do aplicativo
+        terminar. Se a variável estiver definida, mas não tiver um valor
+        numérico, o padrão é 10.
+        </para>
+        <note>
+        <para>
+        Esta funcionalidade foi desavergonhadamente plagiada do
+        <application>Bash</application>.
+        </para>
+        </note>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>LASTOID</varname></term>
+        <listitem>
+        <para>
+        O valor do último <literal>OID</literal> afetado, conforme retornado por
+        um comando <command>INSERT</command> ou <command>lo_insert</command>.
+        Somente há garantia desta variável ser válida até ser mostrado o
+        resultado do próximo comando <acronym>SQL</acronym>.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>ON_ERROR_STOP</varname></term>
+        <listitem>
+        <para>
+        Por padrão, se um script não-interativo encontrar algum erro,
+        como um comando <acronym>SQL</acronym> ou um meta-comando interno
+        mal formado, o processamento continua. Este tem sido o
+        comportamento tradicional do <application>psql</application>,
+        mas algumas vezes não é o desejado. Se esta variável estiver
+        definida, o processamento do script terminará imediatamente.
+        Se o script foi chamado por outro script este terminará
+        da mesma maneira. Se o script mais externo não foi chamado por
+        uma sessão interativa do <application>psql</application>,
+        mas usando a opção <option>-f</option>, o
+        <application>psql</application> retorna o código de erro 3, para
+        distinguir este caso das condições de erro fatal (código de erro 1).
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>PORT</varname></term>
+        <listitem>
+        <para>
+        A porta do servidor de banco de dados que se está conectado.
+        Definida toda vez que se conecta com o banco de dados (inclusive na
+        inicialização do programa), mas a definição pode ser removida.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>PROMPT1</varname></term>
+        <term><varname>PROMPT2</varname></term>
+        <term><varname>PROMPT3</varname></term>
+        <listitem>
+        <para>
+        Especificam como os <literal>prompts</literal> emitidos pelo
+        <application>psql</application> devem se parecer. Consulte
+        <xref linkend="APP-PSQL-prompting" endterm="APP-PSQL-prompting-title">
+        abaixo.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>QUIET</varname></term>
+        <listitem>
+        <para>
+        Esta variável equivale à opção de linha de
+        comando <option>-q</option>.
+        Provavelmente não tem muita utilidade no modo interativo.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>SINGLELINE</varname></term>
+        <listitem>
+        <para>
+        Esta variável equivale à opção de linha de comando
+        <option>-S</option>.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>SINGLESTEP</varname></term>
+        <listitem>
+        <para>
+        Esta variável equivale à opção de linha de comando
+        <option>-s</option>.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>USER</varname></term>
+        <listitem>
+        <para>
+        O usuário do banco de dados como o qual se está conectado.
+        Definida toda vez que é feita a conexão com um banco de dados (inclusive
+        na inicialização do programa), mas a definição pode ser removida.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><varname>VERBOSITY</varname></term>
+        <listitem>
+        <para>
+        Esta variável pode ser definida com os valores
+        <literal>default</literal>, <literal>verbose</literal> ou
+        <literal>terse</literal> (sucinto), para controlar a verbosidade
+        dos relatórios de erro.
+        </para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
+
+   </refsect3>
+
+   <refsect3>
+    <title>Interpolação <acronym>SQL</acronym></title>
+
+    <para>
+    Uma funcionalidade adicional útil das variáveis do
+    <application>psql</application> é poderem ser substituídas
+    (<quote>interpoladas</quote>) dentro de comandos
+    <acronym>SQL</acronym> regulares. Novamente a sintaxe é colocar
+    dois-pontos (<literal>:</literal>) como prefixo do nome da variável.
+<programlisting>
+testdb=&gt; <userinput>\set foo 'minha_tabela'</userinput>
+testdb=&gt; <userinput>SELECT * FROM :foo;</userinput>
+</programlisting>
+    faria então a consulta à tabela <literal>minha_tabela</literal>. O valor
+    da variável é copiado literalmente podendo, portanto, conter apóstrofos
+    não balanceados ou comandos de contrabarra. Deve-se ter certeza que faz
+    sentido onde é colocada. Não é realizada a interpolação de variáveis
+    dentro de entidades <acronym>SQL</acronym> entre aspas ou apóstrofos.
+    </para>
+
+    <para>
+    Uma aplicação comum desta funcionalidade é para fazer referência
+    nos comandos subseqüentes ao último <acronym>OID</acronym> inserido,
+    para construir um cenário de chave estrangeira. Outra utilização possível
+    deste mecanismo é para copiar o conteúdo de um arquivo para uma coluna de
+    uma tabela. Primeiro deve ser carregado o arquivo na variável,
+    e depois proceder conforme mostrado.
+<programlisting>
+testdb=&gt; <userinput>\set conteudo '\'' `cat meu_arquivo.txt` '\''</userinput>
+testdb=&gt; <userinput>INSERT INTO minha_tabela VALUES (:conteudo);</userinput>
+</programlisting>
+    Um problema possível com esta abordagem é que <filename>meu_arquivo.txt</filename>
+    pode conter apóstrofos, que devem ser precedidos por contrabarra para
+    não causarem erro de sintaxe quando a segunda linha for processada, o que
+    pode ser feito por meio do programa <command>sed</command>:
+<programlisting>
+testdb=&gt; <userinput>\set conteudo '\'' `sed -e "s/'/\\\\\\'/g" &lt; meu_arquivo.txt` '\''</userinput>
+</programlisting>
+    Deve ser observado o número correto de contabarras (6)! Isto funciona da
+    seguinte maneira: Após o <application>psql</application> ter analisado esta
+    linha, enviará <literal>sed -e "s/'/\\\'/g" &lt; meu_arquivo.txt</literal>
+    para o interpretador de comandos, que fará suas próprias atividades dentro
+    das aspas e executará o <filename>sed</filename> com os argumentos
+    <literal>-e</literal> e <literal>s/'/\\'/g</literal>. Quando o
+    <application>sed</application> fizer a análise substituirá as duas
+    contrabarras por uma única e, então, fará a substituição. Talvez em algum
+    ponto tenha se pensado ser ótimo todos os comandos Unix utilizarem o mesmo
+    caractere de escape (<literal>escape character</literal>). Isto tudo ainda
+    ignora o fato de ter que colocar contrabarra na frente de contrabarra
+    também, porque as constantes textos do <acronym>SQL</acronym>
+    também estão sujeitas a certas interpretações. Neste caso é melhor
+    preparar o arquivo externamente.
+    </para>
+
+    <para>
+    Uma vez que os dois-pontos podem aparecer legalmente nos comandos SQL,
+    a seguinte regra se aplica: a seqüência de caracteres <quote>:nome</quote>
+    não é modificada a menos que <quote>nome</quote> seja o nome de uma variável
+    atualmente definida. Sempre pode ser feito o escape dos
+    dois-pontos com uma contrabarra para protegê-lo da substituição (A sintaxe
+    dos dois-pontos para as variáveis é padrão <acronym>SQL</acronym> para
+    linguagens de comandos incorporados, tal como <application>ECPG</application>.
+    A sintaxe de dois-pontos para <quote>faixa de matriz</quote> e
+    <quote>conversão de tipo</quote> são extensões do
+    <productname>PostgreSQL</productname>, daí o conflito).
+    </para>
+
+   </refsect3>
+
+   <refsect3 id="APP-PSQL-prompting">
+    <title id="APP-PSQL-prompting-title">Prompt</title>
+
+    <para>
+    Os <literal>prompts</literal> emitidos pelo <application>psql</application>
+    podem ser personalizados conforme a preferência. As três variáveis
+    <envar>PROMPT1</envar>, <envar>PROMPT2</envar> e <envar>PROMPT3</envar>
+    contêm cadeias de caracteres e seqüências especiais de escape que descrevem
+    a aparência do <literal>prompt</literal>. O <literal>prompt</literal> 1 é o
+    <literal>prompt</literal> normal emitido quando o
+    <application>psql</application> solicita um novo comando.
+    O <literal>prompt</literal> 2 é emitido durante a entrada do comando quando
+    mais entrada é aguardada, porque o comando não foi terminado por um
+    ponto-e-vírgula, ou um apóstrofo não foi fechado.
+    O <literal>prompt</literal> 3 é emitido quando se executa o comando
+    <command>COPY</command> do <acronym>SQL</acronym>, e se espera que os
+    valores das linhas sejam digitados no terminal.
+    </para>
+
+    <para>
+    O valor da  variável de <literal>prompt</literal> selecionada é exibido
+    literalmente, exceto quando um sinal de percentagem (<literal>%</literal>)
+    é encontrado. Dependendo do caractere seguinte, certos outros textos
+    são colocados em seu lugar. As substituições definidas são:
+
+    <variablelist>
+      <varlistentry>
+        <term><literal>%M</literal></term>
+        <listitem>
+         <para>
+          O nome completo da máquina do servidor de banco de dados
+          (com o nome do domínio), ou <literal>[local]</literal> se
+          a conexão for através de um soquete do domínio Unix, ou
+          <literal>[local:<replaceable>/dir/nome</replaceable>]</literal>,
+          se o soquete do domínio Unix não estiver no local padrão
+          da compilação.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%m</literal></term>
+        <listitem>
+         <para>
+          O nome, truncado no primeiro ponto, da máquina do servidor de banco
+          de dados, ou <literal>[local]</literal> se a conexão for
+          através de um soquete do domínio Unix.
+         </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%&gt;</literal></term>
+        <listitem><para>O número da porta onde o servidor de banco de dados está atendendo.</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%n</literal></term>
+        <listitem>
+         <para>
+          O nome do usuário da sessão de banco de dados (A expansão deste
+          valor pode mudar durante a sessão de banco de dados como resultado
+          do comando <command>SET SESSION
+          AUTHORIZATION</command>.)
+         </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%/</literal></term>
+        <listitem><para>O nome do banco de dados corrente.</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%~</literal></term>
+        <listitem><para>Como <literal>%/</literal>, mas a saída será <quote>~</quote>
+        (til) se o banco de dados for o banco de dados padrão.</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%#</literal></term>
+        <listitem>
+         <para>
+          Se o usuário da sessão for um superusuário do banco de dados então um
+          <literal>#</literal>, senão <literal>&gt;</literal>
+          (A expansão deste valor pode mudar durante a sessão de banco de dados
+          como resultado do comando <command>SET SESSION
+          AUTHORIZATION</command>.)
+         </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%R</literal></term>
+        <listitem>
+        <para>
+        No <literal>prompt</literal> 1 normalmente <quote>=</quote>, mas
+        <quote>^</quote> se estiver no modo linha-única, e <quote>!</quote> se a
+        sessão estiver desconectada do banco de dados (o que pode acontecer se
+        <command>\connect</command> não for bem-sucedido).
+        No <literal>prompt</literal> 2 a seqüência é substituída por
+        <quote>-</quote>, <quote>*</quote>, apóstrofo, aspas ou
+        <quote>$</quote>, dependendo se o <application>psql</application>
+        está aguardando mais entrada devido ao comando não ter terminado ainda,
+        porque está dentro de um comentário <literal>/* ... */</literal>,
+        ou porque está dentro de uma cadeia de caracteres envolta por
+        apóstrofos, aspas ou cifrão.
+        No <literal>prompt</literal> 3 a seqüência não se transforma em nada.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%x</literal></term>
+        <listitem>
+        <para>
+        Status da transação: uma cadeia de caracteres vazia quando não estiver
+        dentro de um bloco de transação, ou <literal>*</literal> quando estiver
+        dentro de um bloco de transação, ou <literal>!</literal> quando estiver
+        em um bloco de transação que falhou, ou <literal>?</literal> quando o
+        estado da transação for indeterminado (por exemplo, porque não há conexão).
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%</literal><replaceable class="parameter">dígitos</replaceable></term>
+        <listitem>
+        <para>
+        O caractere com o código numérico indicado é substituído.
+        Se <replaceable class="parameter">dígitos</replaceable> começar
+        por <literal>0x</literal> os demais caracteres são
+        interpretados como hexadecimal; senão, se o primeiro dígito for
+        <literal>0</literal>, os dígitos são interpretados como octal;
+        senão os dígitos são lidos como um número decimal.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%:</literal><replaceable class="parameter">nome</replaceable><literal>:</literal></term>
+        <listitem>
+        <para>
+        O valor da variável do <application>psql</application>
+        <replaceable class="parameter">nome</replaceable>. Consulte a seção
+        <xref linkend="APP-PSQL-variables" endterm="APP-PSQL-variables-title">
+        para obter detalhes.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%`</literal><replaceable class="parameter">comando</replaceable><literal>`</literal></term>
+        <listitem>
+        <para>
+        A saída do <replaceable class="parameter">comando</replaceable>,
+        semelhante à substituição de <quote>crase</quote> normal.
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>%[</literal> ... <literal>%]</literal></term>
+        <listitem>
+         <para>
+         Os <literal>prompts</literal> podem conter caracteres de controle do
+         terminal como, por exemplo, para mudar a cor, fundo ou estilo do
+         <literal>prompt</literal>.
+         Para que as funcionalidades de edição de linha do
+         <application>Readline</application> funcionem de forma apropriada,
+         estes caracteres de controle não imprimíveis devem ser projetados
+         como invisíveis envolvendo-os por <literal>%[</literal> e
+         <literal>%]</literal>. Podem existir vários pares iguais a este dentro
+         do <literal>prompt</literal>.  Por exemplo,
+<programlisting>
+testdb=&gt; \set PROMPT1 '%[%033[1;33;40m%]%n@%/%R%[%033[0m%#%] '
+</programlisting>
+         resulta em um <literal>prompt</literal> negrito (<literal>1;</literal>)
+         amarelo-sobre-preto (<literal>33;40</literal>) em um terminal colorido
+         compatível com o VT100.
+        </para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
+
+    Para inserir um sinal de percentagem no <literal>prompt</literal>
+    deve ser escrito <literal>%%</literal>. Os <literal>prompts</literal> padrão
+    são <literal>'%/%R%# '</literal> para os <literal>prompts</literal> 1 e 2,
+    e <literal>'&gt;&gt; '</literal> para o <literal>prompt</literal> 3.
+    </para>
+
+    <note>
+    <para>
+    Esta funcionalidade foi desavergonhadamente plagiada do
+    <application>tcsh</application>.
+    </para>
+    </note>
+
+   </refsect3>
+
+   <refsect3>
+    <title>Edição da linha de comando</title>
+
+    <para>
+    O <application>psql</application> usa a biblioteca
+    <application>Readline</application> para fornecer uma recuperação e edição
+    de linha conveniente.
+    O histórico é salvo automaticamente quando o <application>psql</application>
+    termina, e é recarregado quando o <application>psql</application> inicia.
+    Completar com a tecla de tabulação também é suportado, embora a lógica do ato
+    de completar não pretenda ser a de um analisador <acronym>SQL</acronym>.
+    Se por algum motivo não se gostar de completar com tabulação, pode-se
+    desativar especificando isto no arquivo chamado <filename>.inputrc</filename>
+    no diretório <literal>home</literal> do usuário:
+<programlisting>
+$if psql
+set disable-completion on
+$endif
+</programlisting>
+    (Esta não é uma funcionalidade do <application>psql</application>,
+    mas sim do <application>Readline</application>.
+    Leia sua documentação para obter mais detalhes).
+    </para>
+   </refsect3>
+  </refsect2>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Ambiente</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><envar>PAGER</envar></term>
+
+    <listitem>
+     <para>
+      Se o resultado do comando não couber na tela, então é mostrado
+      por meio deste comando. Os valores típicos são
+      <literal>more</literal> e <literal>less</literal>. O padrão
+      depende da plataforma. O uso de um paginador pode ser
+      desabilitado por meio do comando <command>\pset</command>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><envar>PGDATABASE</envar></term>
+
+    <listitem>
+     <para>
+      Banco de dados padrão para conectar.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><envar>PGHOST</envar></term>
+    <term><envar>PGPORT</envar></term>
+    <term><envar>PGUSER</envar></term>
+
+    <listitem>
+     <para>
+      Parâmetros de conexão padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><envar>PSQL_EDITOR</envar></term>
+    <term><envar>EDITOR</envar></term>
+    <term><envar>VISUAL</envar></term>
+
+    <listitem>
+     <para>
+      Editor utilizado pelo comando <command>\e</command>. As variáveis são
+      examinadas na ordem listada; a primeira que estiver definida é utilizada.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><envar>SHELL</envar></term>
+
+    <listitem>
+     <para>
+      Comando executado pelo meta-comando <command>\!</command>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><envar>TMPDIR</envar></term>
+
+    <listitem>
+     <para>
+      Diretório para armazenar os arquivos temporários. O padrão é
+      <filename>/tmp</filename>.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Arquivos</title>
+
+  <itemizedlist>
+   <listitem>
+    <para>
+     Antes de iniciar, o <application>psql</application>
+     tenta ler e executar os comandos do arquivo global do sistema
+     <filename>psqlrc</filename>, e o arquivo do usuário
+     <filename>~/.psqlrc</filename>
+     (No <systemitem class="osname">Windows</systemitem>, o arquivo de
+     inicialização do usuário chama-se
+     <filename>%APPDATA%\postgresql\psqlrc.conf</filename>).
+     Veja em <filename><replaceable>PREFIX</replaceable>/share/psqlrc.sample</filename>
+     as informações sobre como definir o arquivo global do sistema.
+     Pode ser usado para configurar o cliente e o servidor conforme se deseje
+     (usando os comandos <command>\set</command> e <command>SET</command>).
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     Tanto o arquivo global do sistema, <filename>psqlrc</filename>, quanto o
+     arquivo do usuário, <filename>~/.psqlrc</filename>, podem ser tornados
+     específicos para uma versão anexando um hífen e o número da versão do
+     <productname>PostgreSQL</productname> como, por exemplo,
+     <filename>~/.psqlrc-&version;</filename>.
+     O arquivo correspondendo à versão específica terá preferência sobre o
+     arquivo que não é específico da versão.
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     O histórico de linha de comando é armazenado no arquivo
+     <filename>~/.psql_history</filename>, ou no arquivo
+     <filename>%APPDATA%\postgresql\psql_history</filename> no
+     <systemitem class="osname">Windows</systemitem>.
+    </para>
+   </listitem>
+  </itemizedlist>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Observações</title>
+
+    <itemizedlist>
+      <listitem>
+      <para>
+      Nas versões iniciais, o <application>psql</application> permitia o
+      primeiro argumento de um comando de contrabarra de uma única letra começar
+      logo após o comando, sem o espaço separador. Por motivo de compatibilidade
+      isto ainda é suportado de alguma forma, que não será explicada em detalhes
+      porque seu uso é desencorajado, mas se forem recebidas mensagens estranhas
+      tenha isso em mente.
+      Por exemplo
+<programlisting>
+testdb=&gt; <userinput>\foo</userinput>
+Field separator is "oo".
+</programlisting>
+</screen>
+      talvez não seja o esperado.
+      </para>
+      </listitem>
+
+      <listitem>
+      <para>
+      O <application>psql</application> somente trabalha adequadamente com
+      servidores da mesma versão. Isto não significa que outras combinações vão
+      falhar imediatamente, mas podem acontecer problemas sutis, e nem tão sutis.
+      Os comandos de contrabarra são os mais propensos a não serem bem-sucedidos
+      se o servidor for de uma versão diferente.
+      </para>
+      </listitem>
+
+    </itemizedlist>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Notas para os usuários do Windows</title>
+
+ <para>
+  O <application>psql</application> é construído como um
+  <quote>aplicativo console</quote>. Como as janelas console do
+  <systemitem class="osname">Windows</systemitem> utilizam uma página de código
+  diferente do restante do sistema, deve-se tomar um cuidado especial quando são
+  utilizados caracteres de 8 bits no <application>psql</application>.
+  Quando o <application>psql</application> detecta uma página de código da
+  console problemática, emite uma advertência na inicialização.
+  Para mudar a página de código da console são necessárias duas coisas:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Definir a página de código executando <userinput>cmd.exe /c chcp 1252</userinput>
+      (1252</ulink> é a página de código apropriada para o Português do Brasil;
+      se for necessário deve ser utilizado outro código de página).
+      Se estiver sendo utilizado o Cygwin, este comando pode ser colocado em
+      <filename>/etc/profile</filename>.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Definir a fonte da console como <quote>Lucida Console</quote>, porque a
+      fonte mapa de bits (<literal>raster</literal>)
+      não trabalha com páginas de código ANSI.
+     </para>
+    </listitem>
+   </itemizedlist>
+ </para>
+
+ </refsect1>
+
+
+ <refsect1 id="APP-PSQL-examples">
+  <title id="APP-PSQL-examples-title">Exemplos</title>
+
+  <para>
+  O primeiro exemplo mostra como distribuir um comando por várias linhas de
+  entrada. Deve ser observada a mudança do <literal>prompt</literal>:
+<programlisting>
+testdb=&gt; <userinput>CREATE TABLE minha_tabela (</userinput>
+testdb(&gt; <userinput>    primeiro integer not nul default 0,</userinput>
+testdb(&gt; <userinput>    segundo  text)</userinput>
+testdb-&gt; <userinput>;</userinput>
+CREATE TABLE
+</programlisting>
+  Abaixo está mostrada a definição da tabela:
+<programlisting>
+testdb=&gt; <userinput>\d minha_tabela</userinput>
+      Tabela "public.minha_tabela"
+  Coluna  |  Tipo   |   Modificadores
+----------+---------+--------------------
+ primeiro | integer | not null default 0
+ segundo  | text    |
+
+</programlisting>
+  Agora o <literal>prompt</literal> será mudado para algo mais interessante:
+<programlisting>
+testdb=&gt; <userinput>\set PROMPT1 '%n@%m %~%R%# '</userinput>
+peter@localhost testdb=&gt;
+</programlisting>
+  Assumindo que a tabela já esteja com dados e queremos vê-los:
+<programlisting>
+peter@localhost testdb=&gt; SELECT * FROM minha_tabela;
+ primeiro | segundo
+----------+---------
+        1 | UM
+        2 | DOIS
+        3 | TRÊS
+        4 | QUATRO
+(4 linhas)
+
+</programlisting>
+  As tabelas podem ser mostradas de forma diferente usando
+  o comando <command>\pset</command>:
+<programlisting>
+peter@localhost testdb=&gt; <userinput>\pset border 2</userinput>
+O estilo da borda é 2.
+peter@localhost testdb=&gt; <userinput>SELECT * FROM minha_tabela;</userinput>
++----------+---------+
+| primeiro | segundo |
++----------+---------+
+|        1 | UM      |
+|        2 | DOIS    |
+|        3 | TRÊS    |
+|        4 | QUATRO  |
++----------+---------+
+(4 linhas)
+
+peter@localhost testdb=&gt; <userinput>\pset border 0</userinput>
+O estilo da borda é 0.
+peter@localhost testdb=&gt; <userinput>SELECT * FROM minha_tabela;</userinput>
+primeiro segundo
+-------- -------
+       1 UM
+       2 DOIS
+       3 TRÊS
+       4 QUATRO
+(4 linhas)
+
+peter@localhost testdb=&gt; <userinput>\pset border 1</userinput>
+O estilo da borda é 1.
+peter@localhost testdb=&gt; <userinput>\pset format unaligned</userinput>
+O formato de saída é unaligned.
+peter@localhost testdb=&gt; <userinput>\pset fieldsep ','</userinput>
+O separador de campos é ",".
+peter@localhost testdb=&gt; <userinput>\pset tuples_only</userinput>
+Mostrando apenas tuplas.
+peter@localhost testdb=&gt; <userinput>SELECT primeiro, segundo FROM minha_tabela;</userinput>
+1,UM
+2,DOIS
+3,TRÊS
+4,QUATRO
+</programlisting>
+  Como alternativa, podem ser usados os comandos curtos:
+<programlisting>
+peter@localhost testdb=&gt; <userinput>\a \t \x</userinput>
+O formato de saída é aligned.
+Desabilitado mostrar somente tuplas.
+Habilitada a exibição expandida.
+peter@localhost testdb=&gt; <userinput>SELECT * FROM minha_tabela;</userinput>
+-[ RECORD 1 ]----
+primeiro | 1
+segundo  | UM
+-[ RECORD 2 ]----
+primeiro | 2
+segundo  | DOIS
+-[ RECORD 3 ]----
+primeiro | 3
+segundo  | TRÊS
+-[ RECORD 4 ]----
+primeiro | 4
+segundo  | QUATRO
+</programlisting>
+  </para>
+
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

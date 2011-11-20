@@ -1,0 +1,141 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/savepoint.sgml,v 1.4 2005/01/06 20:53:34 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-SAVEPOINT">
+ <refmeta>
+  <refentrytitle id="SQL-SAVEPOINT-TITLE">SAVEPOINT</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>SAVEPOINT</refname>
+  <refpurpose>define um novo ponto de salvamento dentro da transação corrente</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-savepoint">
+  <primary>SAVEPOINT</primary>
+ </indexterm>
+
+ <indexterm zone="sql-savepoint">
+  <primary>ponto de salvamento</primary>
+  <secondary>definir</secondary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+SAVEPOINT <replaceable>ponto_de_salvamento</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>SAVEPOINT</command> estabelece um novo
+   ponto de salvamento dentro da transação corrente.
+  </para>
+
+  <para>
+   O ponto de salvamento é uma marca especial dentro da transação que permite
+   desfazer todos os comandos executados após o seu estabelecimento, restaurando
+   o estado da transação ao que era quando o ponto de salvamento foi estabelecido.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable>ponto_de_salvamento</replaceable></term>
+    <listitem>
+     <para>
+      O nome a ser dado ao novo ponto de salvamento.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Deve ser utilizado o comando
+   <xref linkend="SQL-ROLLBACK-TO" endterm="SQL-ROLLBACK-TO-TITLE"> para
+   desfazer até o ponto de salvamento.
+   Deve ser utilizado o comando
+   <xref linkend="SQL-RELEASE-SAVEPOINT" endterm="SQL-RELEASE-SAVEPOINT-TITLE">
+   para destruir um ponto de salvamento, porém mantendo os efeitos dos
+   comandos executados após este ter sido estabelecido.
+  </para>
+
+  <para>
+   Os pontos de salvamento somente podem ser estabelecidos dentro de um
+   bloco de transação.
+   Podem haver vários pontos de salvamento definidos dentro de uma transação.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para estabelecer um ponto de salvamento e, posteriormente, desfazer o efeito
+   de todos os comandos executados após o seu estabelecimento:
+<programlisting>
+BEGIN;
+    INSERT INTO tabela1 VALUES (1);
+    SAVEPOINT meu_ponto_de_salvamento;
+    INSERT INTO tabela1 VALUES (2);
+    ROLLBACK TO SAVEPOINT meu_ponto_de_salvamento;
+    INSERT INTO tabela1 VALUES (3);
+COMMIT;
+</programlisting>
+   A transação acima insere os valores 1 e 3, mas não o 2.
+  </para>
+
+  <para>
+   Para estabelecer e, posteriormente, destruir um ponto de salvamento:
+<programlisting>
+BEGIN;
+    INSERT INTO tabela1 VALUES (3);
+    SAVEPOINT meu_ponto_de_salvamento;
+    INSERT INTO tabela1 VALUES (4);
+    RELEASE SAVEPOINT meu_ponto_de_salvamento;
+COMMIT;
+</programlisting>
+   A transação acima insere tanto o 3 quanto o 4.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O padrão SQL requer que um ponto de salvamento seja destruído, automaticamente,
+   quando é estabelecido um outro ponto de salvamento com o mesmo nome.
+   No <productname>PostgreSQL</productname> o ponto de salvamento é mantido, embora somente
+   o mais recente seja utilizado ao se desfazer ou liberar;
+   a liberação do ponto de salvamento mais novo torna o ponto de salvamento
+   mais antigo acessível novamente para os comandos
+   <command>ROLLBACK TO SAVEPOINT</command> e <command>RELEASE SAVEPOINT</command>.
+   Fora isso, o comando <command>SAVEPOINT</command> está em conformidade total
+   com o padrão SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-begin" endterm="sql-begin-title"></member>
+   <member><xref linkend="sql-commit" endterm="sql-commit-title"></member>
+   <member><xref linkend="sql-release-savepoint" endterm="sql-release-savepoint-title"></member>
+   <member><xref linkend="sql-rollback" endterm="sql-rollback-title"></member>
+   <member><xref linkend="sql-rollback-to" endterm="sql-rollback-to-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

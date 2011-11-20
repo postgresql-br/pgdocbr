@@ -1,0 +1,751 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/trigger.sgml,v 1.39 2004/12/30 03:13:56 tgl Exp $
+-->
+
+ <chapter id="triggers">
+  <title>Gatilhos</title>
+
+  <indexterm zone="triggers">
+   <primary>gatilho</primary>
+  </indexterm>
+
+  <para>
+   Este capítulo descreve como escrever funções de gatilho. As funções de
+   gatilho podem ser escritas na linguagem C, ou em uma das várias linguagens
+   procedurais disponíveis. No momento não é possível escrever funções de
+   gatilho na linguagem SQL.
+  </para>
+
+  <sect1 id="trigger-definition">
+   <title>Visão geral do comportamento dos gatilhos</title>
+
+   <para>
+    O gatilho pode ser definido para executar antes ou depois de uma operação de
+    <command>INSERT</command>, <command>UPDATE</command> ou
+    <command>DELETE</command>, tanto uma vez para cada linha modificada quanto
+    uma vez por instrução <acronym>SQL</acronym>.
+    Quando ocorre o evento do gatilho, a função de gatilho é chamada no momento
+    apropriado para tratar o evento.
+   </para>
+
+   <para>
+    A função de gatilho deve ser definida antes do gatilho ser criado.
+    A função de gatilho deve ser declarada como uma função que não recebe
+    argumentos e que retorna o tipo <literal>trigger</>
+    (A função de gatilho recebe sua entrada através de estruturas
+    <structname>TriggerData</> passadas especialmente para estas funções,
+    e não na forma comum de argumentos de função).
+   </para>
+
+   <para>
+    Tendo sido criada a função de gatilho adequada, o gatilho é estabelecido
+    através do comando
+    <xref linkend="sql-createtrigger" endterm="sql-createtrigger-title">.
+    A mesma função de gatilho pode ser utilizada por vários gatilhos.
+   </para>
+
+   <para>
+    Existem dois tipos de gatilhos: gatilhos-por-linha e gatilhos-por-instrução.
+    Em um gatilho-por-linha, a função é chamada uma vez para cada linha afetada
+    pela instrução que disparou o gatilho.
+    Em contraste, um gatilho-por-instrução é chamado somente uma vez quando a
+    instrução apropriada é executada, a despeito do número de linhas afetadas
+    pela instrução.
+    Em particular, uma instrução que não afeta nenhuma linha ainda assim
+    resulta na execução dos gatilhos-por-instrução aplicáveis.
+    Este dois tipos de gatilho são algumas vezes chamados de
+    <quote>gatilhos no nível-de-linha</quote> e
+    <quote>gatilhos no nível-de-instrução</quote>, respectivamente.
+   </para>
+
+   <para>
+    Os gatilhos no nível-de-instrução <quote>BEFORE</> (antes) naturalmente
+    disparam antes da instrução começar a fazer alguma coisa, enquanto os
+    gatilhos no nível-de-instrução <quote>AFTER</> (após) disparam bem no
+    final da instrução.
+    Os gatilhos no nível-de-linha <quote>BEFORE</> (antes) disparam logo antes
+    da operação em uma determinada linha, enquanto os gatilhos no nível-de-linha
+    <quote>AFTER</> (após) disparam no fim da instrução (mas antes dos gatilhos
+    no nível-de-instrução <quote>AFTER</>).
+   </para>
+
+   <para>
+    As funções de gatilho chamadas por gatilhos-por-instrução devem sempre
+    retornar <symbol>NULL</symbol>.
+    As funções de gatilho chamadas por gatilhos-por-linha podem retornar uma
+    linha da tabela (um valor do tipo <structname>HeapTuple</structname>) para
+    o executor da chamada, se assim o decidirem.
+    Os gatilhos no nível-de-linha disparados antes de uma operação possuem as
+    seguintes escolhas:
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       Podem retornar <symbol>NULL</> para saltar a operação para a linha
+       corrente. Isto instrui ao executor a não realizar a operação
+       no nível-de-linha que chamou o gatilho (a inserção ou a modificação de
+       uma determinada linha da tabela).
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Para os gatilhos de <command>INSERT</command> e <command>UPDATE</command>,
+       no nível-de-linha apenas, a linha retornada se torna a linha que será
+       inserida ou que substituirá a linha sendo atualizada. Isto permite à
+       função de gatilho modificar a linha sendo inserida ou atualizada.
+      </para>
+     </listitem>
+    </itemizedlist>
+
+    Um gatilho no nível-de-linha, que não pretenda causar nenhum destes
+    comportamentos, deve ter o cuidado de retornar como resultado a mesma linha
+    que recebeu (ou seja, a linha <varname>NEW</varname> para os gatilhos de
+    <command>INSERT</command> e <command>UPDATE</command>, e a linha
+    <varname>OLD</varname> para os gatilhos de <command>DELETE</command>).
+   </para>
+
+   <para>
+    O valor retornado é ignorado nos gatilhos no nível-de-linha disparados após
+    a operação e, portanto, podem muito bem retornar <symbol>NULL</>.
+   </para>
+
+   <para>
+    Se for definido mais de um gatilho para o mesmo evento na mesma relação, os
+    gatilhos são disparados pela ordem alfabética de seus nomes.
+    No caso dos gatilhos para antes, a linha possivelmente modificada
+    retornada por cada gatilho se torna a entrada do próximo gatilho.
+    Se algum dos gatilhos para antes retornar <symbol>NULL</>, a operação é
+    abandonada e os gatilhos seguintes não são disparados.
+   </para>
+
+   <para>
+    Tipicamente, os gatilhos no nível-de-linha que disparam antes são utilizados
+    para verificar ou modificar os dados que serão inseridos ou atualizados.
+    Por exemplo, um gatilho que dispara antes pode ser utilizado para inserir a
+    hora corrente em uma coluna do tipo <type>timestamp</type>, ou para
+    verificar se dois elementos da linha são consistentes.
+    Os gatilhos no nível-de-linha que disparam depois fazem mais sentido para
+    propagar as atualizações para outras tabelas, ou fazer verificação de
+    consistência com relação a outras tabelas.
+    O motivo desta divisão de trabalho é porque um gatilho que dispara depois
+    pode ter certeza de estar vendo o valor final da linha, enquanto um gatilho
+    que dispara antes não pode ter esta certeza; podem haver outros gatilhos
+    que disparam antes disparando após o mesmo. Se não houver nenhum motivo
+    específico para fazer um gatilho disparar antes ou depois, o gatilho
+    para antes é mais eficiente, uma vez que a informação sobre a operação
+    não precisa ser salva até o fim da instrução.
+   </para>
+
+   <para>
+    Se a função de gatilho executar comandos SQL, então estes comandos podem
+    disparar gatilhos novamente. Isto é conhecido como cascatear gatilhos.
+    Não existe limitação direta do número de níveis de cascateamento.
+    É possível que o cascateamento cause chamadas recursivas do mesmo gatilho;
+    por exemplo, um gatilho para <command>INSERT</command> pode executar um
+    comando que insere uma linha adicional na mesma tabela, fazendo com que o
+    gatilho para <command>INSERT</command> seja disparado novamente.
+    É responsabilidade do programador do gatilho evitar recursões infinitas
+    nestes casos.
+   </para>
+
+   <para>
+    Ao se definir um gatilho, podem ser especificados argumentos para o mesmo.
+    <indexterm>
+     <primary>gatilho</primary>
+     <secondary>argumentos para as funções de gatilho</secondary>
+    </indexterm>
+    A finalidade de se incluir argumentos na definição do gatilho é permitir
+    que gatilhos diferentes com requisitos semelhantes chamem a mesma função.
+    Por exemplo, pode existir uma função de gatilho generalizada que recebe
+    como argumentos dois nomes de colunas e coloca o usuário corrente em uma
+    e a data corrente em outra. Escrita de maneira apropriada, esta função
+    de gatilho se torna independente da tabela específica para a qual está
+    sendo utilizada. Portanto, a mesma função pode ser utilizada para eventos de
+    <command>INSERT</command> em qualquer tabela com colunas apropriadas, para
+    acompanhar automaticamente a criação de registros na tabela de transação,
+    por exemplo.
+    Também pode ser utilizada para acompanhar os eventos de última atualização,
+    se for definida em um gatilho de <command>UPDATE</command>.
+   </para>
+
+   <para>
+    Cada linguagem de programação que suporta gatilhos possui o seu próprio
+    método para tornar os dados de entrada do gatilho disponíveis para a função
+    de gatilho. Estes dados de entrada incluem o tipo de evento do gatilho
+    (ou seja, <command>INSERT</command> ou <command>UPDATE</command>), assim
+    como os argumentos listados em <command>CREATE TRIGGER</>.
+    Para um gatilho no nível-de-linha, os dados de entrada também incluem as
+    linhas <varname>NEW</varname> para os gatilhos de
+    <command>INSERT</command> e <command>UPDATE</command>, e/ou a linha
+    <varname>OLD</varname> para os gatilhos de <command>UPDATE</command> e
+    <command>DELETE</command>.
+    Atualmente não há maneira de examinar individualmente as linhas modificadas
+    pela instrução nos gatilhos no nível-de-instrução.
+   </para>
+
+  </sect1>
+
+  <sect1 id="trigger-datachanges">
+   <title>Visibilidade das mudanças nos dados</title>
+
+   <para>
+    Se forem executados comandos SQL na função de gatilho, e estes comandos
+    acessarem a tabela para a qual o gatilho se destina, então deve-se estar
+    ciente das regras de visibilidade dos dados, porque estas determinam
+    se estes comandos SQL enxergam as mudanças nos dados para os quais o gatilho
+    foi disparado. Em resumo:
+
+    <itemizedlist>
+
+     <listitem>
+      <para>
+       Os gatilhos no nível-de-instrução seguem regras simples de visibilidade:
+       nenhuma das modificações feitas pela instrução é enxergada pelos gatilhos
+       no nível-de-instrução chamados antes da instrução, enquanto todas as
+       modificações são enxergadas pelos gatilhos no nível-de-instrução que
+       disparam depois da instrução.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       As modificações nos dados (inserção, atualização e exclusão) causadoras
+       do disparo do gatilho, naturalmente <emphasis>não</emphasis> são
+       enxergadas pelos comandos SQL executados em um gatilho no nível-de-linha
+       que dispara antes, porque ainda não ocorreram.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Entretanto, os comandos SQL executados em um gatilho no nível-de-linha
+       para antes <emphasis>enxergam</emphasis> os efeitos das modificações nos
+       dados das linhas processadas anteriormente no mesmo comando externo.
+       Isto requer cautela, uma vez que a ordem destes eventos de modificação
+       geralmente não é previsível; um comando SQL que afeta várias linhas
+       pode atuar sobre as linhas em qualquer ordem.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Quando é disparado um gatilho no nível-de-linha para depois, todas as
+       modificações nos dados feitas pelo comando externo já estão completas,
+       sendo enxergadas pela função de gatilho chamada.
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+
+   <para>
+    Podem ser encontradas informações adicionais sobre as regras de visibilidade
+    dos dados na <xref linkend="spi-visibility">. O exemplo na
+    <xref linkend="trigger-example"> contém uma demonstração destas regras.
+   </para>
+  </sect1>
+
+  <sect1 id="trigger-interface">
+   <title>Gatilhos escritos em C</title>
+
+   <indexterm zone="trigger-interface">
+    <primary>gatilho</primary>
+    <secondary>em C</secondary>
+   </indexterm>
+
+   <para>
+    Esta seção descreve os detalhes de baixo nível da interface com a função de
+    gatilho. Estas informações somente são necessárias para se escrever funções
+    de gatilho em C. Se estiver sendo utilizada uma linguagem de nível mais
+    alto, então estes detalhes são tratados para você. A documentação de cada
+    linguagem procedural explica como escrever gatilhos nesta linguagem.
+   </para>
+
+   <para>
+    A função de gatilho deve utilizar a interface de gerência de função
+    <quote>versão 1</quote>.
+   </para>
+
+   <para>
+    Quando uma função é chamada pelo gerenciador de gatilho não é passado nenhum
+    argumento normal, mas é passado um ponteiro de <quote>contexto</quote>
+    apontando para a estrutura <structname>TriggerData</structname>. As funções
+    em C podem verificar se foram chamadas pelo gerenciador de gatilhos
+    executando a macro
+<programlisting>
+CALLED_AS_TRIGGER(fcinfo)
+</programlisting>
+    que expande para
+<programlisting>
+((fcinfo)->context != NULL && IsA((fcinfo)->context, TriggerData))
+</programlisting>
+    Se retornar verdade, então é seguro converter
+    <literal>fcinfo->context</literal> no tipo
+    <literal>TriggerData *</literal> e fazer uso da estrutura
+    <structname>TriggerData</structname> apontada. A função
+    <emphasis>não</emphasis> deve alterar a estrutura de
+    <structname>TriggerData</structname> ou de qualquer dado apontado por esta.
+   </para>
+
+   <para>
+    A <structname>struct TriggerData</structname> está definida em
+    <filename>commands/trigger.h</filename>:
+
+<programlisting>
+typedef struct TriggerData
+{
+    NodeTag       type;
+    TriggerEvent  tg_event;
+    Relation      tg_relation;
+    HeapTuple     tg_trigtuple;
+    HeapTuple     tg_newtuple;
+    Trigger      *tg_trigger;
+    Buffer        tg_trigtuplebuf;
+    Buffer        tg_newtuplebuf;
+} TriggerData;
+</programlisting>
+
+    onde os membros estão definidos conforme mostrado abaixo:
+
+    <variablelist>
+     <varlistentry>
+      <term><structfield>type</></term>
+      <listitem>
+       <para>
+        Sempre <literal>T_TriggerData</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><structfield>tg_event</></term>
+      <listitem>
+       <para>
+        Descreve o evento para o qual a função foi chamada. Podem ser utilizadas
+        as seguintes macros para examinar <literal>tg_event</literal>:
+
+        <variablelist>
+         <varlistentry>
+          <term><literal>TRIGGER_FIRED_BEFORE(tg_event)</literal></term>
+          <listitem>
+           <para>
+            Retorna verdade se o gatilho disparou antes da operação.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>TRIGGER_FIRED_AFTER(tg_event)</literal></term>
+          <listitem>
+           <para>
+            Retorna verdade se o gatilho disparou depois da operação.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>TRIGGER_FIRED_FOR_ROW(tg_event)</literal></term>
+          <listitem>
+           <para>
+            Retorna verdade se o gatilho disparou para um evento no
+            nível-de-linha.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>TRIGGER_FIRED_FOR_STATEMENT(tg_event)</literal></term>
+          <listitem>
+           <para>
+            Retorna verdade se o gatilho disparou para um evento no
+            nível-de-instrução.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>TRIGGER_FIRED_BY_INSERT(tg_event)</literal></term>
+          <listitem>
+           <para>
+            Retorna verdade se o gatilho foi disparado por um comando
+            <command>INSERT</command>.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>TRIGGER_FIRED_BY_UPDATE(tg_event)</literal></term>
+          <listitem>
+           <para>
+            Retorna verdade se o gatilho foi disparado por um comando
+            <command>UPDATE</command>.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>TRIGGER_FIRED_BY_DELETE(tg_event)</literal></term>
+          <listitem>
+           <para>
+            Retorna verdade se o gatilho foi disparado por um comando
+            <command>DELETE</command>.
+           </para>
+          </listitem>
+         </varlistentry>
+        </variablelist>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><structfield>tg_relation</></term>
+      <listitem>
+       <para>
+        Um ponteiro para a estrutura que descreve a relação para a qual o
+        gatilho foi disparado. Os detalhes sobre esta estrutura devem ser
+        procurados no arquivo <filename>utils/rel.h</filename>. Os itens mais
+        interessantes são <literal>tg_relation->rd_att</literal> (descritor das
+        tuplas da relação) e <literal>tg_relation->rd_rel->relname</literal>
+        (nome da relação; o tipo não é <type>char*</type>, e sim
+        <type>NameData</type>; deve ser utilizado
+        <literal>SPI_getrelname(tg_relation)</literal> para obter
+        <type>char*</type> se for necessário copiar o nome).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><structfield>tg_trigtuple</></term>
+      <listitem>
+       <para>
+        Ponteiro para a linha para a qual o gatilho foi disparado.
+        Esta é a linha sendo inserida, atualizada ou excluída.
+        Se este gatilho foi disparado por um <command>INSERT</command> ou
+        <command>DELETE</command>, então é o que deve ser retornado
+        pela função se não for desejado substituir a linha por outra
+        diferente (no caso do <command>INSERT</command>) ou saltar a operação.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><structfield>tg_newtuple</></term>
+      <listitem>
+       <para>
+        Ponteiro para a nova versão da linha, se o gatilho foi disparado
+        por um <command>UPDATE</command>, ou <symbol>NULL</symbol>, se
+        foi disparado por um <command>INSERT</command> ou
+        <command>DELETE</command>. É o que deve ser retornado pela função se o
+        evento for um <command>UPDATE</command> e não for desejado substituir
+        a linha por outra diferente ou saltar a operação.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><structfield>tg_trigger</></term>
+      <listitem>
+       <para>
+        Um ponteiro para a estrutura do tipo <structname>Trigger</structname>,
+        definida no arquivo <filename>utils/rel.h</filename>:
+
+<programlisting>
+typedef struct Trigger
+{
+    Oid         tgoid;
+    char       *tgname;
+    Oid         tgfoid;
+    int16       tgtype;
+    bool        tgenabled;
+    bool        tgisconstraint;
+    Oid         tgconstrrelid;
+    bool        tgdeferrable;
+    bool        tginitdeferred;
+    int16       tgnargs;
+    int16       tgattr[FUNC_MAX_ARGS];
+    char      **tgargs;
+} Trigger;
+</programlisting>
+
+       onde <structfield>tgname</structfield> é o nome do gatilho,
+       <structfield>tgnargs</structfield> é o número de argumentos em
+       <structfield>tgargs</structfield>, e <structfield>tgargs</structfield>
+       é uma matriz de ponteiros para os argumentos especificados na declaração
+       <command>CREATE TRIGGER</command>. Os outros membros são para uso interno
+       apenas.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><structfield>tg_trigtuplebuf</></term>
+      <listitem>
+       <para>
+        Um <literal>buffer</literal> contendo
+        <structfield>tg_trigtuple</structfield>,
+        ou <symbol>InvalidBuffer</symbol> se a tupla não existir ou não estiver
+        armazenada em um <literal>buffer</literal> de disco.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><structfield>tg_newtuplebuf</></term>
+      <listitem>
+       <para>
+        Um <literal>buffer</literal> contendo
+        <structfield>tg_newtuple</structfield>,
+        ou <symbol>InvalidBuffer</symbol> se a tupla não existir ou não estiver
+        armazenada em um <literal>buffer</literal> de disco.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+   </para>
+
+   <para>
+    Uma função de gatilho deve retornar um ponteiro para
+    <structname>HeapTuple</structname> ou um ponteiro <symbol>NULL</symbol>
+    (<emphasis>não</> um valor SQL nulo, ou seja, não se deve definir
+    <parameter>isNull</parameter> como verdade).
+    Deve-se tomar o cuidado de retornar
+    <structfield>tg_trigtuple</structfield> ou
+    <structfield>tg_newtuple</structfield>, conforme seja apropriado,
+    se não for desejado modificar a linha onde está sendo realizada a operação.
+   </para>
+  </sect1>
+
+  <sect1 id="trigger-example">
+   <title>Um exemplo completo</title>
+
+   <para>
+    Abaixo está mostrado um exemplo bem simples de uma função de gatilho escrita
+    em C (Podem ser encontrados na documentação das linguagens procedurais
+    exemplos de gatilhos escritos nestas linguagens procedurais).
+   </para>
+
+   <para>
+    A função <function>trigf</function> informa o número de linhas na tabela
+    <literal>ttest</literal>, e salta a operação se o comando tentar inserir um
+    valor nulo na coluna <literal>x</literal> (Portanto, o gatilho age como uma
+    restrição de não nulo, mas não interrompe a transação).
+   </para>
+
+   <para>
+    Primeiro, a definição da tabela:
+<programlisting>
+CREATE TABLE ttest (
+    x integer
+);
+</programlisting>
+   </para>
+
+   <para>
+    A seguir se encontra o código fonte da função de gatilho:
+<programlisting>
+#include "postgres.h"
+#include "executor/spi.h"       /* necessário para trabalhar com SPI */
+#include "commands/trigger.h"   /* ... e gatilhos */
+
+extern Datum trigf(PG_FUNCTION_ARGS);
+
+PG_FUNCTION_INFO_V1(trigf);
+
+Datum
+trigf(PG_FUNCTION_ARGS)
+{
+    TriggerData *trigdata = (TriggerData *) fcinfo->context;
+    TupleDesc   tupdesc;
+    HeapTuple   rettuple;
+    char       *when;
+    bool        checknull = false;
+    bool        isnull;
+    int         ret, i;
+
+    /* certificar-se que foi chamado como um gatilho */
+    if (!CALLED_AS_TRIGGER(fcinfo))
+        elog(ERROR, "trigf: não foi chamada por um gerenciador de gatilho");
+
+    /* tupla a ser retornada para o executor */
+    if (TRIGGER_FIRED_BY_UPDATE(trigdata->tg_event))
+        rettuple = trigdata->tg_newtuple;
+    else
+        rettuple = trigdata->tg_trigtuple;
+
+    /* verificar valores nulos */
+    if (!TRIGGER_FIRED_BY_DELETE(trigdata->tg_event)
+        && TRIGGER_FIRED_BEFORE(trigdata->tg_event))
+        checknull = true;
+
+    if (TRIGGER_FIRED_BEFORE(trigdata->tg_event))
+        when = "antes ";
+    else
+        when = "depois";
+
+    tupdesc = trigdata->tg_relation->rd_att;
+
+    /* conectar ao gerenciador de SPI */
+    if ((ret = SPI_connect()) < 0)
+        elog(INFO, "trigf (disparado %s): SPI_connect returned %d", when, ret);
+
+    /* obter o número de linhas na tabela */
+    ret = SPI_exec("SELECT count(*) FROM ttest", 0);
+
+    if (ret < 0)
+        elog(NOTICE, "trigf (disparado %s): SPI_exec retornou %d", when, ret);
+
+    /* count(*) retorna int8, deve-se ter cuidado ao converter */
+    i = DatumGetInt64(SPI_getbinval(SPI_tuptable->vals[0],
+                                    SPI_tuptable->tupdesc,
+                                    1,
+                                    &amp;isnull));
+
+    elog (INFO, "trigf (disparado %s): existem %d linhas em ttest", when, i);
+
+    SPI_finish();
+
+    if (checknull)
+    {
+        SPI_getbinval(rettuple, tupdesc, 1, &amp;isnull);
+        if (isnull)
+            rettuple = NULL;
+    }
+
+    return PointerGetDatum(rettuple);
+}
+</programlisting>
+   </para>
+
+   <para>
+    Após compilar o código fonte, a função e o gatilho são declarados:
+<programlisting>
+CREATE FUNCTION trigf() RETURNS trigger
+    AS '<replaceable>nome_do_arquivo</replaceable>'
+    LANGUAGE C;
+
+CREATE TRIGGER tbefore BEFORE INSERT OR UPDATE OR DELETE ON ttest
+    FOR EACH ROW EXECUTE PROCEDURE trigf();
+
+CREATE TRIGGER tafter AFTER INSERT OR UPDATE OR DELETE ON ttest
+    FOR EACH ROW EXECUTE PROCEDURE trigf();
+</programlisting>
+   </para>
+
+   <para>
+    Agora pode ser testada a operação do gatilho:
+<screen>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO ttest VALUES (NULL);</userinput>
+<computeroutput>
+INFO:  trigf (disparado antes): existem 0 linhas em ttest
+INSERT 0 0
+</computeroutput>
+
+-- Inserção saltada e gatilho AFTER não é disparado
+
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM ttest;</userinput>
+
+<computeroutput>
+ x
+---
+(0 linhas)
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>INSERT INTO ttest VALUES (1);</userinput>
+<computeroutput>
+INFO:  trigf (disparado antes ): existem 0 linhas em ttest
+INFO:  trigf (disparado depois): existem 1 linhas em ttest
+</computeroutput>
+                                         ^^^^^^^^
+             lembre-se do que foi dito sobre visibilidade.
+<computeroutput>INSERT 167793 1</computeroutput>
+<prompt>vac=&gt;</prompt> <userinput>SELECT * FROM ttest;</userinput>
+
+<computeroutput>
+ x
+---
+ 1
+(1 linha)
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>INSERT INTO ttest SELECT x * 2 FROM ttest;</userinput>
+<computeroutput>
+INFO:  trigf (disparado antes ): existem 1 linhas em ttest
+INFO:  trigf (disparado depois): existem 2 linhas em ttest
+</computeroutput>
+                                         ^^^^^^^^
+             lembre-se do que foi dito sobre visibilidade.
+<computeroutput>INSERT 167794 1</computeroutput>
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM ttest;</userinput>
+
+<computeroutput>
+ x
+---
+ 1
+ 2
+(2 linhas)
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>UPDATE ttest SET x = NULL WHERE x = 2;</userinput>
+<computeroutput>
+INFO:  trigf (disparado antes ): existem 2 linhas em ttest
+UPDATE 0
+</computeroutput>
+<prompt>=&gt;</prompt> <userinput>UPDATE ttest SET x = 4 WHERE x = 2;</userinput>
+<computeroutput>
+INFO:  trigf (disparado antes ): existem 2 linhas em ttest
+INFO:  trigf (disparado depois): existem 2 linhas em ttest
+UPDATE 1
+</computeroutput>
+<prompt>vac=&gt;</prompt> <userinput>SELECT * FROM ttest;</userinput>
+<computeroutput>
+ x
+---
+ 1
+ 4
+(2 linhas)
+</computeroutput>
+<prompt>=&gt;</prompt> <userinput>DELETE FROM ttest;</userinput>
+<computeroutput>
+INFO:  trigf (disparado antes ): existem 2 linhas em ttest
+INFO:  trigf (disparado depois): existem 1 linhas em ttest
+INFO:  trigf (disparado antes ): existem 1 linhas em ttest
+INFO:  trigf (disparado depois): existem 0 linhas em ttest
+</computeroutput>
+                                         ^^^^^^^^
+             lembre-se do que foi dito sobre visibilidade.
+<computeroutput>DELETE 2</computeroutput>
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM ttest;</userinput>
+<computeroutput>
+ x
+---
+(0 linhas)
+</computeroutput>
+</screen>
+
+   </para>
+
+   <para>
+    Existem exemplos mais complexos no arquivo
+    <filename>src/test/regress/regress.c</filename> e no diretório
+    <filename>contrib/spi</filename>.
+   </para>
+  </sect1>
+ </chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

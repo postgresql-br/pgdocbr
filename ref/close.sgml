@@ -1,0 +1,127 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/close.sgml,v 1.22 2005/01/04 00:39:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CLOSE">
+ <refmeta>
+  <refentrytitle id="SQL-CLOSE-TITLE">CLOSE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CLOSE</refname>
+  <refpurpose>fecha o cursor</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-close">
+  <primary>CLOSE</primary>
+ </indexterm>
+
+ <indexterm zone="sql-close">
+  <primary>cursor</primary>
+  <secondary>CLOSE</secondary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CLOSE <replaceable class="parameter">nome</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CLOSE</command> libera os recursos associados a
+   um cursor aberto. Após o cursor ser fechado, não é permitida nenhuma
+   operação posterior que o utilize. O cursor deve ser fechado quando não
+   for mais necessário.
+  </para>
+
+  <para>
+   Todo cursor aberto sem a cláusula <literal>HOLD</literal> é fechado
+   implicitamente quando a transação termina por um <xref linkend="sql-commit">
+   ou <xref linkend="sql-rollback">. O cursor aberto com a cláusula
+   <literal>HOLD</literal> é fechado implicitamente quando a transação em que
+   foi criado é interrompida através de <command>ROLLBACK</command>. Se a
+   transação que o criou for efetivada com sucesso, o cursor aberto com a
+   cláusula <literal>HOLD</literal> permanece aberto até o
+   <command>CLOSE</command> explícito ser executado, ou o cliente desconectar.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome do cursor aberto a ser fechado.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   O <productname>PostgreSQL</productname> não possui um comando
+   <command>OPEN</command> cursor explícito;
+   o cursor é considerado aberto ao ser declarado. Use o comando
+   <xref linkend="sql-declare" endterm="sql-declare-title">
+   para declarar o cursor.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Fechar o cursor <literal>cur_emp</literal>:
+<programlisting>
+CLOSE cur_emp;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>CLOSE</command> está em conformidade total com o padrão
+   SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-declare" endterm="sql-declare-title"></member>
+   <member><xref linkend="sql-fetch" endterm="sql-fetch-title"></member>
+   <member><xref linkend="sql-move" endterm="sql-move-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:t
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

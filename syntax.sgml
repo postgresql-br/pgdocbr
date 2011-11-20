@@ -1,0 +1,2090 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/syntax.sgml,v 1.99 2004/12/23 05:37:40 tgl Exp $
+-->
+
+<chapter id="sql-syntax">
+ <title>Sintaxe da linguagem SQL</title>
+
+ <indexterm zone="sql-syntax">
+  <primary>sintaxe</primary>
+  <secondary>SQL</secondary>
+ </indexterm>
+
+ <para>
+  Este capítulo descreve a sintaxe
+  <footnote>
+   <para>
+    sintaxe &mdash; do Lat. syntaxe &lt; Gr. sýntaxis, arranjo, disposição
+    &mdash; parte da estrutura gramatical de uma língua que contém as
+    regras relativas à combinação das palavras em unidades maiores (como as
+    orações), e as relações existentes entre as palavras dentro dessas unidades.
+    <ulink url="http://www.priberam.pt/dlpo/dlpo.aspx">PRIBERAM -
+    Língua Portuguesa On-Line</ulink>. (N. do T.)
+   </para>
+  </footnote>
+  da linguagem SQL, estabelecendo a base
+  para compreender os próximos capítulos que descrevem detalhadamente
+  como os comandos SQL são utilizados para definir e modificar os dados.
+ </para>
+
+ <para>
+  Aconselha-se aos usuários já familiarizados com a linguagem SQL a leitura
+  cuidadosa deste capítulo, porque existem várias regras e conceitos
+  implementados pelos bancos de dados SQL de forma inconsistente, ou
+  específicos do <productname>PostgreSQL</productname>.
+ </para>
+
+ <sect1 id="sql-syntax-lexical">
+  <title>Estrutura léxica</title>
+
+  <indexterm>
+   <primary>termo</primary>
+  </indexterm>
+
+  <para>
+   Uma entrada SQL é constituída por uma seqüência de
+   <firstterm>comandos</firstterm>. Um comando é composto por uma seqüência de
+   <firstterm>termos</firstterm> (<literal>tokens</literal>), terminada por um
+   ponto-e-vírgula (<quote>;</quote>). O fim do fluxo de entrada também termina
+   o comando. Quais termos são válidos depende da sintaxe particular de cada
+   comando.
+   <footnote>
+    <para>
+     léxico &mdash; do Gr. léxicon, relativo às palavras &mdash;
+     dicionário de línguas clássicas antigas;
+     dicionário abreviado;
+     conjunto dos vocábulos de uma língua;
+     dicionário dos vocábulos usados num domínio especializado (ciência, técnica).
+     <ulink url="http://www.priberam.pt/dlpo/dlpo.aspx">PRIBERAM -
+     Língua Portuguesa On-Line</ulink>. (N. do T.)
+    </para>
+   </footnote>
+  </para>
+
+  <para>
+   Um termo pode ser uma <firstterm>palavra chave</firstterm>,
+   um <firstterm>identificador</firstterm>, um <firstterm>identificador
+   entre aspas</firstterm>, um <firstterm>literal</firstterm> (ou
+   constante), ou um caractere especial. Geralmente os termos
+   são separados por espaço em branco (espaço, tabulação ou nova-linha),
+   mas não há necessidade se não houver ambigüidade (normalmente só acontece
+   quando um caractere especial está adjacente a um termo de outro tipo).
+  </para>
+
+  <para>
+   Além disso, podem existir <firstterm>comentários</firstterm> na
+   entrada SQL. Os comentários não são termos, na realidade são
+   equivalentes a espaço em branco.
+  </para>
+
+   <para>
+    Abaixo está mostrada uma entrada SQL válida (sintaticamente) para servir de
+    exemplo:
+<programlisting>
+SELECT * FROM MINHA_TABELA;
+UPDATE MINHA_TABELA SET A = 5;
+INSERT INTO MINHA_TABELA VALUES (3, 'oi você');
+</programlisting>
+    Esta é uma seqüência de três comandos, um por linha (embora isto não seja
+    requerido; pode haver mais de um comando na mesma linha, e
+    um único comando pode ocupar várias linhas).
+   </para>
+
+  <para>
+   A sintaxe do SQL não é muito coerente em relação a quais termos
+   identificam comandos e quais são operandos ou parâmetros. Geralmente os
+   primeiros termos são o nome do comando e, portanto, no exemplo mostrado acima
+   pode-se dizer que estão presentes os comandos <quote>SELECT</quote>,
+   <quote>UPDATE</quote> e <quote>INSERT</quote>. Entretanto, para
+   exemplificar, o comando <command>UPDATE</command> sempre requer que o termo
+   <token>SET</token> apareça em uma determinada posição, e esta forma
+   particular do comando <command>INSERT</command> também
+   requer a presença do termo <token>VALUES</token> para estar completa.
+   As regras precisas da sintaxe de cada comando estão descritas na
+   <xref linkend="reference">.
+  </para>
+
+  <sect2 id="sql-syntax-identifiers">
+   <title>Identificadores e palavras chave</title>
+
+   <indexterm zone="sql-syntax-identifiers">
+    <primary>identificador</primary>
+    <secondary>sintaxe de</secondary>
+   </indexterm>
+
+   <indexterm zone="sql-syntax-identifiers">
+    <primary>nome</primary>
+    <secondary>sintaxe de</secondary>
+   </indexterm>
+
+   <indexterm zone="sql-syntax-identifiers">
+    <primary>palavra chave</primary>
+    <secondary>sintaxe de</secondary>
+   </indexterm>
+
+   <para>
+    Os termos <token>SELECT</token>, <token>UPDATE</token> e
+    <token>VALUES</token> mostrados no exemplo acima são exemplos de
+    <firstterm>palavras chave</firstterm>, ou seja, palavras que possuem um
+    significado definido na linguagem SQL. Os termos
+    <token>MINHA_TABELA</token> e <token>A</token> são exemplos de
+    <firstterm>identificadores</firstterm>, os quais identificam nomes de
+    tabelas, colunas e outros objetos do banco de dados, dependendo do comando
+    onde são utilizados. Portanto, algumas vezes são simplesmente
+    chamados de <quote>nomes</quote>. As palavras chave e os identificadores
+    possuem a mesma estrutura léxica, significando que não é possível saber
+    se o termo é um identificador ou uma palavra chave sem conhecer a
+    linguagem. A relação completa das palavras chave pode ser encontrada no
+    <xref linkend="sql-keywords-appendix">.
+   </para>
+
+   <para>
+    Os identificadores e as palavras chave do SQL devem iniciar por uma letra
+    (<literal>a</literal>-<literal>z</literal> e, também, letras com diacrítico
+    <footnote>
+     <para>
+      diacrítico &mdash; do Gr. diakritikós, que se pode distinguir &mdash;
+      diz-se dos sinais gráficos com que se notam os caracteres alfabéticos
+      para lhe dar um valor especial.
+      <ulink url="http://www.priberam.pt/dlpo/dlpo.aspx">PRIBERAM -
+      Língua Portuguesa On-Line</ulink>. (N. do T.)
+     </para>
+    </footnote>
+    - áéç... - e letras não latinas), ou o caractere sublinhado
+    (<literal>_</literal>). Os demais caracteres de um identificador, ou
+    da palavra chave, podem ser letras, sublinhados, dígitos
+    (<literal>0</literal>-<literal>9</literal>) ou o cifrão
+    (<literal>$</literal>). Deve ser observado que, de acordo com o padrão SQL,
+    o cifrão não é permitido em identificadores e, portanto, pode tornar o
+    aplicativo menos portável.
+    O padrão SQL não irá definir palavra chave contendo dígitos, ou começando
+    ou terminando por sublinhado e, portanto, os identificadores com esta
+    forma estão a salvo contra possíveis conflitos com extensões futuras do
+    padrão.
+   </para>
+
+   <para>
+    <indexterm><primary>identificador</primary><secondary>comprimento</secondary></indexterm>
+    O sistema não utiliza mais que <symbol>NAMEDATALEN</symbol>-1
+    caracteres de um identificador; podem ser escritos nomes mais longos
+    nos comandos, mas são truncados. Por padrão
+    <symbol>NAMEDATALEN</symbol> é 64 e, portanto, o comprimento máximo de
+    um identificador é 63. Se este limite causar problema, pode ser aumentado
+    modificando a constante <symbol>NAMEDATALEN</symbol> no arquivo
+    <filename>src/include/postgres_ext.h</filename>).
+   </para>
+
+   <para>
+    <indexterm>
+     <primary>distinção entre letras maiúsculas e minúsculas</primary>
+     <secondary>nos comandos SQL</secondary>
+    </indexterm>
+    Os identificadores e as palavras chave não fazem distinção entre letras
+    maiúsculas e minúsculas. Portanto,
+<programlisting>
+UPDATE MINHA_TABELA SET A = 5;
+</programlisting>
+    pode ser escrito de forma equivalente como
+<programlisting>
+uPDaTE minha_tabela SeT a = 5;
+</programlisting>
+    Normalmente utiliza-se a convenção de escrever as
+    <emphasis>palavras chave em letras maiúsculas</emphasis> e os
+    <emphasis>nomes em letras minúsculas</emphasis>, como mostrado abaixo:
+<programlisting>
+UPDATE minha_tabela SET a = 5;
+</programlisting>
+   </para>
+
+   <para>
+    <indexterm>
+     <primary>aspas</primary>
+     <secondary>e identificadores</secondary>
+    </indexterm>
+    Existe um segundo tipo de identificador: o <firstterm>identificador
+    delimitado</firstterm> ou <firstterm>identificador entre
+    aspas</firstterm>, formado pela colocação de uma seqüência arbitrária
+    de caracteres entre aspas
+    (<literal>"</literal>). <!-- " font-lock mania --> Um identificador
+    delimitado é sempre um identificador, e nunca uma palavra chave. Portanto,
+    <literal>"select"</literal> pode ser usado para fazer referência a uma
+    tabela ou coluna chamada <quote>select</quote>, enquanto
+    <literal>select</literal> sem aspas sempre é uma palavra chave ocasionando,
+    por isso, um erro do analisador quando usado onde um nome de tabela
+    ou de coluna for esperado. O exemplo acima pode ser reescrito
+    utilizando identificadores entre aspas como mostrado abaixo:
+<programlisting>
+UPDATE "minha_tabela" SET "a" = 5;
+</programlisting>
+   </para>
+
+   <para>
+    Identificadores entre aspas podem conter qualquer caractere que não seja
+    a própria aspas (Para incluir uma aspas, devem ser escritas duas aspas).
+    Esta funcionalidade permite criar nomes de tabelas e de colunas que
+    não seriam possíveis de outra forma, como os contendo
+    espaços ou e-comercial (&amp;). O limite do comprimento ainda se aplica.
+   </para>
+
+   <para>
+    Colocar um identificador entre aspas torna diferente as letras maiúsculas
+    e minúsculas, enquanto as letras dos nomes não envoltos por aspas
+    são sempre convertidas em minúsculas. Por exemplo, os identificadores
+    <literal>FOO</literal>, <literal>foo</literal> e <literal>"foo"</literal>
+    são considerados o mesmo identificador pelo
+    <productname>PostgreSQL</productname>, mas <literal>"Foo"</literal>
+    e <literal>"FOO"</literal> são diferentes dos três primeiros
+    e entre si.
+    </para>
+    <para>
+    A transformação das letras dos nomes que não estão entre aspas em minúsculas
+    feita pelo <productname>PostgreSQL</productname> é incompatível com o padrão
+    SQL, que especifica a transformação em maiúsculas das letras dos nomes que
+    não estão entre aspas.
+    Portanto, <literal>foo</literal> deveria ser equivalente a
+    <literal>"FOO"</literal>, e não a <literal>"foo"</literal>, de acordo com o
+    padrão. Se for desejado desenvolver aplicativos portáveis, aconselha-se a
+    colocar o nome <emphasis>sempre</emphasis> entre aspas, ou
+    <emphasis>nunca</emphasis> entre aspas.
+   </para>
+
+   <example id="syntax-diacritic-letter-table-name">
+    <title>Utilização de letras acentuadas em nomes de tabelas</title>
+    <para>
+     Este exemplo tem por finalidade mostrar a utilização de letras acentuadas
+     nos nomes de tabelas. Deve ser observado o problema na conversão de letras
+     maiúscúlas e minúsculas acentuadas utilizando o idioma C.
+     <footnote>
+      <para>
+       Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+      </para>
+     </footnote>
+    </para>
+<screen>
+<prompt>=&gt;</prompt> <userinput>SELECT name, setting FROM pg_settings WHERE name LIKE 'lc%';</userinput>
+
+<computeroutput>
+    name     | setting
+-------------+---------
+ lc_collate  | C
+ lc_ctype    | C
+ lc_messages | C
+ lc_monetary | C
+ lc_numeric  | C
+ lc_time     | C
+(6 linhas)
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE AÇÃO(cod_ação int, nome_ação text);</userinput>
+
+<prompt>=&gt;</prompt> <userinput>\dt</userinput>
+
+<computeroutput>
+            Lista de relações
+ Esquema |   Nome    |  Tipo  |   Dono
+---------+-----------+--------+----------
+ public  | aÇÃo      | tabela | postgres
+ public  | teste_abc | tabela | postgres
+ public  | testeaabc | tabela | postgres
+(3 linhas)
+</computeroutput>
+
+-- No exemplo acima ÇÃ não foi convertido em minúsculas
+
+<prompt>=&gt;</prompt> <userinput>\dt AÇÃO</userinput>
+<computeroutput>
+Não foi encontrada nenhuma relação correspondente.
+</computeroutput>
+<prompt>=&gt;</prompt> <userinput>\dt ação</userinput>
+<computeroutput>
+Não foi encontrada nenhuma relação correspondente.
+</computeroutput>
+<prompt>=&gt;</prompt> <userinput>\dt "aÇÃo"</userinput>
+
+<computeroutput>
+         Lista de relações
+ Esquema | Nome |  Tipo  |   Dono
+---------+------+--------+----------
+ public  | aÇÃo | tabela | postgres
+(1 linha)
+</computeroutput>
+
+-- Os exemplos acima mostram que só aÇÃo entre aspas corresponde ao nome da tabela.
+
+-- Abaixo a tabela é criada com letras minúsculas.
+
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE ação(cod_ação int, nome_ação text);</userinput>
+
+<prompt>=&gt;</prompt> <userinput>\dt</userinput>
+
+<computeroutput>
+            Lista de relações
+ Esquema |   Nome    |  Tipo  |   Dono
+---------+-----------+--------+----------
+ public  | ação      | tabela | postgres
+ public  | teste_abc | tabela | postgres
+ public  | testeaabc | tabela | postgres
+(3 linhas)
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>\dt ação</userinput>
+
+<computeroutput>
+         Lista de relações
+ Esquema | Nome |  Tipo  |   Dono
+---------+------+--------+----------
+ public  | ação | tabela | postgres
+(1 linha)
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>\dt AÇÃO</userinput>
+
+<computeroutput>
+         Lista de relações
+ Esquema | Nome |  Tipo  |   Dono
+---------+------+--------+----------
+ public  | ação | tabela | postgres
+(1 linha)
+</computeroutput>
+
+-- Nos exemplos acima foram bem-sucedidas a utilização tanto de ação quanto de AÇÃO.
+
+<prompt>=&gt;</prompt> <userinput>INSERT INTO AÇÃO VALUES (1,'primeira ação');</userinput>
+<computeroutput>ERRO: a relação "aÇÃo" não existe</computeroutput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO ação VALUES (1,'primeira ação');</userinput>
+<computeroutput>INSERT 1665900 1</computeroutput>
+
+-- Nos exemplos acima só foi bem-sucedida a utilização de ação.
+
+-- Para todas as letras do nome ficarem maiúsculas estes devem
+-- ser escritos com letras maiúsculas e colocados entre aspas.
+
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE "AÇÃO"("COD_AÇÃO" int, "NOME_AÇÃO" text);</userinput>
+
+<prompt>=&gt;</prompt> <userinput>teste=# \dt</userinput>
+
+<computeroutput>
+            Lista de relações
+ Esquema |   Nome    |  Tipo  |   Dono
+---------+-----------+--------+----------
+ public  | AÇÃO      | tabela | postgres
+ public  | teste_abc | tabela | postgres
+ public  | testeaabc | tabela | postgres
+(3 linhas)
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>\dt "AÇÃO"</userinput>
+
+<computeroutput>
+         Lista de relações
+ Esquema | Nome |  Tipo  |   Dono
+---------+------+--------+----------
+ public  | AÇÃO | tabela | postgres
+(1 linha)
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>INSERT INTO "AÇÃO" ("COD_AÇÃO", "NOME_AÇÃO") VALUES (1,'primeira ação');</userinput>
+
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM "AÇÃO";</userinput>
+
+<computeroutput>
+ COD_AÇÃO |   NOME_AÇÃO
+----------+---------------
+        1 | primeira ação
+(1 linha)
+</computeroutput>
+</screen>
+   </example>
+
+  </sect2>
+
+  <sect2 id="sql-syntax-constants">
+   <title>Constantes</title>
+
+   <indexterm zone="sql-syntax-constants">
+    <primary>constante</primary>
+   </indexterm>
+
+   <para>
+    Existem três tipos de <firstterm>constante com tipo
+    implícito</firstterm> no <productname>PostgreSQL</productname>:
+    cadeias de caracteres, cadeias de bits e numéricas.
+    As constantes também podem ser especificadas com tipo explícito, o que
+    permite uma representação mais precisa, e um tratamento mais eficiente
+    por parte do sistema. Estas alternativas são mostradas nas próximas
+    subseções.
+   </para>
+
+   <sect3 id="sql-syntax-strings">
+    <title>Constantes do tipo cadeia de caracteres</title>
+
+    <indexterm zone="sql-syntax-strings">
+     <primary>cadeia de caracteres</primary>
+     <secondary>constante</secondary>
+    </indexterm>
+
+    <para>
+     <indexterm>
+      <primary>apóstrofo</primary>
+      <secondary>escape</secondary>
+     </indexterm>
+     Uma constante cadeia de caracteres no SQL é uma seqüência arbitrária de
+     caracteres envolta por apóstrofos (<literal>'</literal>) como, por exemplo,
+     <literal>'Esta é uma cadeia de caracteres'</literal>.
+     A forma de escrever um apóstrofo dentro de uma constante cadeia de
+     caracteres, em conformidade com o padrão SQL, é colocar dois apóstrofos
+     adjacentes como, por exemplo, <literal>'Maria D''Almeida'</literal>.
+     O <productname>PostgreSQL</productname> também permite utilizar a
+     contrabarra (<quote>\</quote>) como caractere de escape para colocar
+     apóstrofos dentro de cadeia de caracteres como, por exemplo,
+     <literal>'Maria D\'Almeida'</literal>.
+    </para>
+
+    <para>
+     Outra extensão do <productname>PostgreSQL</productname> é permitir a
+     utilização dos escapes de contrabarra no estilo da linguagem C:
+     <literal>\b</literal> para voltar apagando (<literal>backspace</literal>),
+     <literal>\f</literal> para avanço de formulário (<literal>form feed</literal>),
+     <literal>\n</literal> para nova-linha (<literal>newline</literal>),
+     <literal>\r</literal> para retorno do carro (<literal>carriage return</literal>),
+     <literal>\t</literal> para tabulação (<literal>tab</literal>) e
+     <literal>\<replaceable>xxx</replaceable></literal>,
+     onde <replaceable>xxx</replaceable> é um número octal, é o byte com o
+     código correspondente (É sua responsabilidade que as seqüências de byte
+     criadas sejam caracteres válidos no conjunto de codificação de caracteres
+     do servidor). Qualquer outro caractere vindo após a contrabarra é
+     interpretado literalmente. Portanto, para incluir uma contrabarra em uma
+     constante do tipo cadeia de caracteres devem ser escritas duas
+     contrabarras adjacentes.
+    </para>
+
+    <para>
+     O caractere com o código zero não pode estar presente em uma constante
+     cadeia de caracteres.
+    </para>
+
+    <para>
+     Duas constantes cadeia de caracteres separadas apenas por espaço em branco
+     com <emphasis>pelo menos um caractere de nova-linha</emphasis>, são
+     concatenadas e tratadas efetivamente como se a cadeia de caracteres
+     tivesse sido escrita em uma constante. Por exemplo:
+<programlisting>
+SELECT 'foo'
+'bar';
+</programlisting>
+     equivale a
+<programlisting>
+SELECT 'foobar';
+</programlisting>
+     mas
+<programlisting>
+SELECT 'foo'      'bar';
+</programlisting>
+     não é uma sintaxe válida (este comportamento, um tanto ao quanto esquisito,
+     é especificado no padrão <acronym>SQL</acronym>;
+     o <productname>PostgreSQL</productname> está seguindo o padrão).
+    </para>
+    <example id="syntax-continuation-line">
+     <title>Constantes cadeia de caracteres ocupando mais de uma linha</title>
+     <para>
+      Este exemplo tem por finalidade mostrar a utilização de uma constante
+      cadeia de caracteres ocupando mais de uma linha para inserir dados em
+      uma tabela. No <productname>Oracle</productname> e no
+      <productname>DB2</productname> há necessidade do operador de concatenação
+      <literal>||</literal>, enquanto no <productname>SQL Server</productname>
+      há necessidade do operador de concatenação <literal>+</literal>.
+      Só não houve necessidade do operador de concatenação no
+      <productname>PostgreSQL</productname>.
+      <footnote>
+       <para>
+        Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+       </para>
+      </footnote>
+     </para>
+     <para>
+      <productname>PostgreSQL &version;</productname>:
+     </para>
+<screen>
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE "AÇÃO"("COD_AÇÃO" int, "NOME_AÇÃO" text);</userinput>
+
+<prompt>=&gt;</prompt> <userinput>INSERT INTO "AÇÃO" ("COD_AÇÃO", "NOME_AÇÃO") VALUES (1,'um nome'</userinput>
+<prompt>(&gt;</prompt> <userinput>' de ação'</userinput>
+<prompt>(&gt;</prompt> <userinput>' muito longo');</userinput>
+
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM "AÇÃO";</userinput>
+
+<computeroutput>
+ COD_AÇÃO |          NOME_AÇÃO
+----------+-----------------------------
+        1 | um nome de ação muito longo
+(1 linha)
+</computeroutput>
+</screen>
+     <para>
+      <productname>SQL Server 2000</productname>:
+     </para>
+<screen>
+<userinput>
+CREATE TABLE "AÇÃO"("COD_AÇÃO" int, "NOME_AÇÃO" text)
+
+INSERT INTO "AÇÃO" ("COD_AÇÃO", "NOME_AÇÃO") VALUES (1,'um nome' +
+' de ação' +
+' muito longo')
+
+SELECT * FROM "AÇÃO"
+</userinput>
+
+<computeroutput>
+COD_AÇÃO    NOME_AÇÃO
+----------- ---------------------------
+1           um nome de ação muito longo
+(1 row(s) affected)
+</computeroutput>
+</screen>
+     <para>
+      <productname>Oracle 10g</productname>:
+     </para>
+<screen>
+<prompt>SQL&gt;</prompt> <userinput>CREATE TABLE "AÇÃO"("COD_AÇÃO" int, "NOME_AÇÃO" varchar2(32));</userinput>
+
+<prompt>SQL&gt;</prompt> <userinput>INSERT INTO "AÇÃO" ("COD_AÇÃO", "NOME_AÇÃO") VALUES (1,'um nome' ||</userinput>
+<prompt>  2 </prompt> <userinput>' de ação' ||</userinput>
+<prompt>  3 </prompt> <userinput>' muito longo');</userinput>
+
+<prompt>SQL&gt;</prompt> <userinput>SELECT * FROM "AÇÃO";</userinput>
+
+<computeroutput>
+  COD_AÇÃO NOME_AÇÃO
+---------- --------------------------------
+         1 um nome de ação muito longo
+</computeroutput>
+</screen>
+     <para>
+      <productname>DB2 8.1</productname>:
+     </para>
+<screen>
+<prompt>DB2SQL92&gt;</prompt> <userinput>CREATE TABLE "AÇÃO"("COD_AÇÃO" int, "NOME_AÇÃO" varchar(32));</userinput>
+<prompt>DB2SQL92&gt;</prompt> <userinput>INSERT INTO "AÇÃO" ("COD_AÇÃO", "NOME_AÇÃO") VALUES (1,'um nome' ||</userinput>
+<prompt>DB2SQL92&gt;</prompt> <userinput>' de ação' ||</userinput>
+<prompt>DB2SQL92&gt;</prompt> <userinput>' muito longo');</userinput>
+<prompt>DB2SQL92&gt;</prompt> <userinput>SELECT * FROM "AÇÃO";</userinput>
+
+<computeroutput>
+COD_AÇÃO     NOME_AÇÃO
+-----------------------------------------------
+          1  um nome de ação muito longo
+</computeroutput>
+</screen>
+   </example>
+   </sect3>
+
+   <sect3 id="sql-syntax-dollar-quoting">
+    <title>Constantes cadeia de caracteres delimitadas por cifrão</title>
+
+     <indexterm>
+      <primary>delimitação por cifrão</primary>
+     </indexterm>
+
+    <para>
+     Embora a sintaxe padrão para especificar constantes cadeia de caracteres
+     seja muitas vezes conveniente, quando a cadeia de caracteres desejada
+     contém vários apóstrofos ou contrabarras pode ser difícil compreendê-la,
+     uma vez que estes devem ser duplicados.
+     Para tornar o comando mais legível em uma situação como esta, o
+     <productname>PostgreSQL</productname> disponibiliza uma outra maneira para
+     escrever constantes cadeia de caracteres, chamada de <quote>delimitação
+     por cifrão</quote> (<literal>dollar quoting</literal>).
+     Uma constante cadeia de caracteres delimitada por cifrão é formada por um
+     cifrão (<literal>$</literal>), uma <quote>marca</quote> opcional
+     com zero ou mais caracteres, outro cifrão, uma seqüência arbitrária de
+     caracteres constituindo o conteúdo da cadeia de caracteres, o cifrão, a
+     mesma <quote>marca</quote> que iniciou esta delimitação por cifrão, e um
+     cifrão. Para exemplificar são mostradas abaixo duas formas diferentes de
+     especificar a cadeia de caracteres <quote>Maria D'Almeida</quote>
+     usando delimitação por cifrão:
+<programlisting>
+$$Maria D'Almeida$$
+$UmaMarca$Maria D'Almeida$UmaMarca$
+</programlisting>
+     Deve ser observado que, dentro da cadeia de caracteres delimitada por
+     cifrão, os apóstrofos podem ser utilizados sem necessidade de escape.
+     Na verdade, nenhum caractere dentro de uma cadeia de caracteres delimitada
+     por cifrão recebe escape: o conteúdo da cadeia de caracteres é sempre
+     escrito literalmente. As contrabarras não são caracteres especiais, nem
+     são os caracteres de cifrão, a menos que sejam parte da seqüência
+     correspondento a marca de abertura.
+    </para>
+
+    <para>
+     É possível aninhar constantes cadeias de caracteres delimitadas por cifrão
+     escolhendo marcas diferentes a cada nível de aninhamento. É utilizado com
+     mais freqüência ao escrever definições de funções. Por exemplo:
+<programlisting>
+$function$
+BEGIN
+    RETURN ($1 ~ $q$[\t\r\n\v\\]$q$);
+END;
+$function$
+</programlisting>
+     Aqui a seqüência <literal>$q$[\t\r\n\v\\]$q$</> representa o literal
+     cadeia de caracteres delimitada por cifrão <literal>[\t\r\n\v\\]</>,
+     que será reconhecido quando o corpo da função for executado pelo
+     <productname>PostgreSQL</>. Mas uma vez que a seqüência não corresponde
+     ao delimitador de cifrão externo <literal>$function$</>, são apenas
+     mais alguns caracteres dentro da constante no que diz respeito à cadeia
+     de caracteres externa.
+    </para>
+
+    <para>
+     A marca de uma cadeia de caracteres delimitada por cifrão, se houver,
+     segue as mesmas regras de um identificador não delimitado, exceto que
+     não pode conter o caractere cifrão. Nas marcas, letras maiúsculas e
+     minúsculas são diferentes e, portanto,
+     <literal>$marca$Conteúdo da cadeia de caracteres$marca$</literal>
+     está correto, mas
+     <literal>$MARCA$Conteúdo da cadeia de caracteres$marca$</literal>
+     não está.
+    </para>
+
+    <para>
+     Uma cadeia de caracteres delimitada por cifrão, vindo após uma palavra
+     chave ou um identificador, deve ser separada do mesmo por um espaço em
+     branco, senão o cifrão delimitador da cadeia de caracteres delimitada
+     por cifrão será considerado como parte do identificador que o precede.
+    </para>
+
+    <para>
+     A cadeia de caracteres delimitada por cifrão não faz parte do padrão SQL
+     mas é, muitas vezes, uma forma mais conveniente de escrever literais
+     cadeias de caracteres complicados do que a forma em conformidade com o
+     padrão usando apóstrofos. É particularmente útil para representar
+     constantes cadeias de caracteres dentro de outras constantes, geralmente
+     necessário na definição de funções em linguagens procedurais.
+     Com a sintaxe de apóstrofos, cada contrabarra no exemplo acima deveria ser
+     escrita como quatro contrabarras, que seriam reduzidas para duas
+     contrabarras na análise da constante cadeia de caracteres original e,
+     depois, para uma quando a constante cadeia de caracteres interna fosse
+     re-analisada durante a execução da função.
+    </para>
+   </sect3>
+
+   <sect3 id="sql-syntax-bit-strings">
+    <title>Constantes do tipo cadeia de bits</title>
+
+    <indexterm zone="sql-syntax-bit-strings">
+     <primary>cadeia de bits</primary>
+     <secondary>constante</secondary>
+    </indexterm>
+
+    <para>
+     Uma constante do tipo cadeia de bits se parece com uma constante do tipo
+     cadeia de caracteres contendo a letra <literal>B</literal> (maiúscula ou
+     minúscula) imediatamente antes do apóstrofo de abertura (sem espaços
+     separadores) como, por exemplo, <literal>B'1001'</literal>.
+     Os únicos caracteres permitidos dentro de uma constante do tipo cadeia de
+     bits são <literal>0</literal> e <literal>1</literal>.
+    </para>
+
+    <para>
+     Como forma alternativa, constantes do tipo cadeia de bits podem ser
+     especificadas usando a notação hexadecimal, colocando a letra
+     <literal>X</literal> (maiúscula ou minúscula) no início como, por exemplo,
+     <literal>X'1FF'</literal>. Esta notação equivale a uma constante do
+     tipo cadeia de bits contendo quatro dígitos binários para cada dígito
+     hexadecimal.
+    </para>
+
+    <para>
+     As duas formas de constantes do tipo cadeia de bits podem ocupar mais de
+     uma linha, da mesma forma que uma constante do tipo cadeia de caracteres.
+     A delimitação por cifrão não pode ser utilizada para o tipo cadeia de bits.
+    </para>
+   </sect3>
+
+   <sect3>
+    <title>Constantes numéricas</title>
+
+    <indexterm>
+     <primary>numérica</primary>
+     <secondary>constante</secondary>
+    </indexterm>
+
+    <para>
+     São aceitas constantes numéricas nas seguintes formas gerais:
+<synopsis>
+<replaceable>dígitos</replaceable>
+<replaceable>dígitos</replaceable>.<optional><replaceable>dígitos</replaceable></optional><optional>e<optional>+-</optional><replaceable>dígitos</replaceable></optional>
+<optional><replaceable>dígitos</replaceable></optional>.<replaceable>dígitos</replaceable><optional>e<optional>+-</optional><replaceable>dígitos</replaceable></optional>
+<replaceable>dígitos</replaceable>e<optional>+-</optional><replaceable>dígitos</replaceable>
+</synopsis>
+     onde <replaceable>dígitos</replaceable> são um ou mais dígitos decimais
+     (0 a 9). Deve haver pelo menos um dígito antes ou depois do ponto
+     decimal, se este for usado. Deve haver pelo menos um dígito após a
+     marca de expoente (<literal>e</literal>), caso esteja presente.
+     Não podem existir espaços ou outros caracteres incorporados à
+     constante. Deve ser observado que os sinais menos e mais que antecedem
+     a constante não são, na verdade, considerados parte da constante, e sim um
+     operador aplicado à constante.
+    </para>
+
+    <para>
+     Abaixo são mostrados alguns exemplos de constantes numéricas válidas:
+<literallayout>
+42
+3.5
+4.
+.001
+5e2
+1.925e-3
+</literallayout>
+    </para>
+
+    <para>
+     <indexterm><primary>inteiro</primary></indexterm>
+     <indexterm><primary>bigint</primary></indexterm>
+     <indexterm><primary>numérico</primary></indexterm>
+     Uma constante numérica não contendo o ponto decimal nem o
+     expoente é presumida, inicialmente, como sendo do tipo <type>integer</>,
+     se o seu valor for apropriado para o tipo <type>integer</type> (32 bits);
+     senão é presumida como sendo do tipo <type>bigint</>,
+     se o seu valor for apropriado para o tipo <type>bigint</type> (64 bits);
+     caso contrário, é assumida como sendo do tipo <type>numeric</type>. As
+     constantes que contêm pontos decimais e/ou expoentes são sempre
+     presumidas inicialmente como sendo do tipo <type>numeric</type>.
+    </para>
+
+    <para>
+     O tipo de dado atribuído inicialmente para a constante numérica é apenas
+     o ponto de partida para os algoritmos de resolução de tipo.
+     Na maioria dos casos, a constante é automaticamente convertida no tipo
+     mais apropriado conforme o contexto.
+     Quando for necessário, pode-se impor que o valor numérico seja
+     interpretado como sendo de um tipo de dado específico, definindo a
+     conversão a ser aplicada.
+     <indexterm><primary>conversão de tipo</primary></indexterm>
+     Por exemplo, pode-se impor que o valor numérico seja tratado como sendo
+     do tipo <type>real</type> (<type>float4</type>) escrevendo:
+
+<screen>
+<userinput>REAL '1.23'</userinput>  -- estilo cadeia de caracteres
+<userinput>1.23::REAL</userinput>   -- estilo PostgreSQL (histórico)
+</screen>
+
+     Na verdade estes são apenas casos especiais da notação
+     geral de conversão mostrada a seguir.
+    </para>
+   </sect3>
+
+   <sect3 id="sql-syntax-constants-generic">
+    <title>Constantes de outros tipos</title>
+
+    <indexterm>
+     <primary>tipo de dado</primary>
+     <secondary>constante</secondary>
+    </indexterm>
+
+    <para>
+     Pode ser declarada uma constante de um tipo <emphasis>arbitrário</emphasis>
+     utilizando uma das seguintes notações:
+<synopsis>
+<replaceable>tipo</replaceable> '<replaceable>cadeia de caracteres</replaceable>'
+'<replaceable>cadeia de caracteres</replaceable>'::<replaceable>tipo</replaceable>
+CAST ( '<replaceable>cadeia de caracteres</replaceable>' AS <replaceable>tipo</replaceable> )
+</synopsis>
+     O texto da constante cadeia de caracteres é passado para a rotina de
+     conversão da entrada para o tipo chamado <replaceable>tipo</replaceable>.
+     O resultado é uma constante do tipo indicado.
+     A conversão explícita de tipo pode ser omitida caso não haja ambigüidade
+     com relação ao tipo que a constante deva ter (por exemplo, quando é
+     atribuída diretamente para uma coluna de uma tabela), neste caso é
+     convertida automaticamente.
+    </para>
+
+    <para>
+     A constante cadeia de caracteres pode ser escrita utilizando tanto a
+     notação regular do padrão SQL quanto a delimitação por cifrão.
+    </para>
+
+    <para>
+     Também é possível especificar a conversão de tipo utilizando
+     a sintaxe semelhante à chamada de função
+<synopsis>
+<replaceable>nome_do_tipo</replaceable> ( '<replaceable>cadeia de caracteres</replaceable>' )
+</synopsis>
+     mas nem todos os nomes de tipo podem ser usados desta forma; consulte a
+     <xref linkend="sql-syntax-type-casts"> para obter informações adicionais.
+    </para>
+
+    <para>
+     As sintaxes <literal>::</literal>, <literal>CAST()</literal> e chamada de
+     função também podem ser utilizadas para especificar a conversão de tipo em
+     tempo de execução para expressões arbitrárias, conforme mostrado na
+     <xref linkend="sql-syntax-type-casts">.
+     Porém, a forma <replaceable>tipo</replaceable>
+     '<replaceable>cadeia de caracteres</replaceable>' somente pode ser
+     utilizada para especificar o tipo de uma constante literal.
+     Outra restrição com relação à sintaxe <replaceable>tipo</replaceable>
+     '<replaceable>cadeia de caracteres</replaceable>', é que não funciona em
+     tipo matriz (<literal>arrays</literal>); deve ser usado <literal>::</literal>
+     ou <literal>CAST()</literal> para especificar o tipo de uma constante matriz.
+    </para>
+   </sect3>
+  </sect2>
+
+  <sect2 id="sql-syntax-operators">
+   <title>Operadores</title>
+
+   <indexterm zone="sql-syntax-operators">
+    <primary>operador</primary>
+    <secondary>sintaxe</secondary>
+   </indexterm>
+
+   <para>
+    Um nome de operador é uma seqüência com até <symbol>NAMEDATALEN</symbol>-1
+    (por padrão 63) caracteres da seguinte lista:
+<literallayout>
++ - * / &lt; &gt; = ~ ! @ # % ^ &amp; | ` ?
+</literallayout>
+
+    Entretanto, existem algumas poucas restrições para os nomes de operadores:
+    <itemizedlist>
+     <listitem>
+      <para>
+       Não podem ocorrer as seqüências <literal>--</literal> e
+       <literal>/*</literal> em nenhuma posição no nome do operador,
+       porque são consideradas início de comentário.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Um nome de operador com vários caracteres não pode terminar por
+       <literal>+</literal> ou por <literal>-</literal>, a não ser que o nome
+       também contenha ao menos um dos seguintes caracteres:
+       <literal>~ ! @ # % ^ &amp; | ` ?</literal>.
+       Por exemplo, <literal>@-</literal> é um nome de operador permitido, mas
+       <literal>*-</literal> não é. Esta restrição permite ao
+       <productname>PostgreSQL</productname> analisar comandos em conformidade
+       com o padrão SQL sem requerer espaços entre os termos.
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+   <para>
+    Ao trabalhar com nomes de operadores fora do padrão SQL, normalmente é
+    necessário separar operadores adjacentes por espaço para evitar ambigüidade.
+    Por exemplo, se for definido um operador unário-esquerdo chamado
+    <literal>@</literal>, não poderá ser escrito <literal>X*@Y</literal>;
+    deverá ser escrito <literal>X* @Y</literal>, para garantir que o
+    <productname>PostgreSQL</productname> leia dois nomes de operadores
+    e não apenas um.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Caracteres especiais</title>
+
+  <para>
+   Alguns caracteres não alfanuméricos possuem significado especial
+   diferente de ser um operador. Os detalhes da utilização podem ser
+   encontrados nos locais onde a sintaxe do respectivo elemento
+   é descrita. Esta seção se destina apenas a informar a existência
+   e fazer um resumo das finalidades destes caracteres.
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      O caractere cifrão (<literal>$</literal>) seguido por dígitos é utilizado
+      para representar parâmetros posicionais no corpo da definição de uma
+      função ou declaração preparada.
+      Em outros contextos, o caractere cifrão pode ser parte de um identificador
+      ou de uma constante cadeia de caracteres delimitada por cifrão.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Os parênteses (<literal>()</literal>) possuem seu significado usual
+      de agrupar expressões e impor a precedência. Em alguns casos,
+      os parênteses são requeridos como parte da sintaxe fixada para
+      um determinado comando SQL.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Os colchetes (<literal>[]</literal>) são utilizados para selecionar
+      elementos da matriz. Consulte a <xref linkend="arrays"> para obter mais
+      informações sobre matrizes.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      As vírgulas (<literal>,</literal>) são utilizadas em algumas construções
+      sintáticas para separar elementos da lista.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      O ponto-e-vírgula (<literal>;</literal>) termina um comando SQL, não
+      podendo aparecer em nenhum lugar dentro do comando, exceto dentro de
+      constantes do tipo cadeia de caracteres ou identificadores entre aspas.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Os dois-pontos (<literal>:</literal>) são utilizados para selecionar
+      <quote>fatias</quote> de matrizes (consulte a <xref linkend="arrays">).
+      Em certos dialetos do SQL, como a linguagem SQL incorporada,
+      os dois-pontos são utilizados como prefixo dos nomes das variáveis.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      O asterisco (<literal>*</literal>) é utilizado em alguns contextos para
+      denotar todos os campos da linha de uma tabela ou de um valor composto.
+      Também possui um significado especial quando utlizado como argumento da
+      função de agregação <function>COUNT</function>.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      O ponto (<literal>.</literal>) é utilizado nas constantes numéricas,
+      e para separar os nomes de esquemas, tabelas e colunas.
+     </para>
+    </listitem>
+   </itemizedlist>
+
+   </para>
+  </sect2>
+
+  <sect2 id="sql-syntax-comments">
+   <title>Comentários</title>
+
+   <indexterm zone="sql-syntax-comments">
+    <primary>comentário</primary>
+    <secondary sortas="SQL">no SQL</secondary>
+   </indexterm>
+
+   <para>
+    Um comentário é uma seqüência arbitrária de caracteres começando por dois
+    hífens e prosseguindo até o fim da linha como, por exemplo:
+<screen>
+-- Este é um comentário em conformidade com o padrão SQL-92
+</screen>
+   </para>
+
+   <para>
+    Como alternativa, podem ser utilizados blocos de comentários no estilo C:
+<screen>
+/* comentário de várias linhas
+ * com aninhamento: /* bloco de comentário aninhado */
+ */
+</screen>
+    onde o comentário começa por <literal>/*</literal> e se estende até
+    encontrar a ocorrência correspondente de <literal>*/</literal>.
+    Estes blocos de comentários podem estar aninhados, conforme especificado no
+    padrão SQL, mas diferentemente da linguagem C, permitindo transformar em
+    comentário grandes blocos de código contendo blocos de comentários.
+    <footnote>
+     <para>
+      <productname>Oracle 9i</productname> &mdash; O manual não cita comentários
+      aninhados, mas experiências com o <productname>SQL*Plus</productname>
+      mostraram que não é possível aninhar comentários <literal>/*</literal>
+      dentro de comentários <literal>/*</literal>, mas que é possível colocar
+      comentários <literal>--</literal> dentro de comentários <literal>/*</literal>.
+      <ulink url="http://www.stanford.edu/dept/itss/docs/oracle/9i/server.920/a96540/sql_elements7a.htm">
+      Comments</ulink>. (N. do T.)
+     </para>
+    </footnote>
+    <footnote>
+     <para>
+      <productname>SQL Server 2000</productname> &mdash; O
+      <literal>Books Online</literal> só cita comentários <literal>--</literal>
+      dentro de comentários <literal>/*</literal>, mas experiências com o
+      <productname>Query Analyzer</productname> mostraram que é possível
+      aninhar comentários <literal>/*</literal> dentro de comentários
+      <literal>/*</literal>, mas a cor do comentário não fica correta.
+      (N. do T.)
+     </para>
+    </footnote>
+   </para>
+
+   <para>
+    Os comentários são removidos do fluxo de entrada antes de prosseguir
+    com a análise sintática, sendo substituídos por espaço em branco.
+   </para>
+  </sect2>
+
+  <sect2 id="sql-precedence">
+   <title>Precedência léxica</title>
+
+   <indexterm zone="sql-precedence">
+    <primary>operador</primary>
+    <secondary>precedência</secondary>
+   </indexterm>
+
+   <para>
+    A <xref linkend="sql-precedence-table"> mostra a precedência e a
+    associatividade dos operadores no <productname>PostgreSQL</productname>.
+    A maioria dos operadores possui a mesma precedência e associatividade esquerda.
+    A precedência e a associatividade dos operadores está codificada no analisador,
+    podendo ocasionar um comportamento contra-intuitivo; por exemplo, os operadores
+    booleanos <literal>&lt;</literal> e <literal>&gt;</literal> possuem uma
+    precedência diferente dos operadores booleanos <literal>&lt;=</literal> e
+    <literal>&gt;=</literal>.
+    Também, em alguns casos é necessário adicionar parênteses ao utilizar uma
+    combinação de operadores unários e binários.
+    Por exemplo,
+<programlisting>
+SELECT 5 ! - 6;
+</programlisting>
+   será analisado como
+<programlisting>
+SELECT 5 ! (- 6);
+</programlisting>
+    porque o analisador não possui a menor idéia &mdash; até ser tarde demais
+    &mdash; que o <token>!</token> é definido como operador unário-direito
+    (<literal>postfix</literal>), e não um operador binário colocado entre os
+    operandos (<literal>infix</literal>). Neste caso, para obter o comportamento
+    desejado deve ser escrito:
+<programlisting>
+SELECT (5 !) - 6;
+</programlisting>
+    Este é o preço a ser pago pela extensibilidade.
+   </para>
+
+   <table id="sql-precedence-table">
+    <title>Precedência dos operadores (decrescente)</title>
+
+    <tgroup cols="3">
+     <thead>
+      <row>
+       <entry>Operador/Elemento</entry>
+       <entry>Associatividade</entry>
+       <entry>Descrição</entry>
+      </row>
+     </thead>
+
+     <tbody>
+      <row>
+       <entry><token>.</token></entry>
+       <entry>esquerda</entry>
+       <entry>separador de nome de tabela/coluna</entry>
+      </row>
+
+      <row>
+       <entry><token>::</token></entry>
+       <entry>esquerda</entry>
+       <entry>conversão de tipo estilo <productname>PostgreSQL</productname></entry>
+      </row>
+
+      <row>
+       <entry><token>[</token> <token>]</token></entry>
+       <entry>esquerda</entry>
+       <entry>seleção de elemento de matriz</entry>
+      </row>
+
+      <row>
+       <entry><token>-</token></entry>
+       <entry>direita</entry>
+       <entry>menos unário</entry>
+      </row>
+
+      <row>
+       <entry><token>^</token></entry>
+       <entry>esquerda</entry>
+       <entry>exponenciação</entry>
+      </row>
+
+      <row>
+       <entry><token>*</token> <token>/</token> <token>%</token></entry>
+       <entry>esquerda</entry>
+       <entry>multiplicação, divisão, módulo</entry>
+      </row>
+
+      <row>
+       <entry><token>+</token> <token>-</token></entry>
+       <entry>esquerda</entry>
+       <entry>adição, subtração</entry>
+      </row>
+
+      <row>
+       <entry><token>IS</token></entry>
+       <entry></entry>
+       <entry><literal>IS TRUE</>, <literal>IS FALSE</>, <literal>IS UNKNOWN</>, <literal>IS NULL</></entry>
+      </row>
+
+      <row>
+       <entry><token>ISNULL</token></entry>
+       <entry></entry>
+       <entry>teste de nulo</entry>
+      </row>
+
+      <row>
+       <entry><token>NOTNULL</token></entry>
+       <entry></entry>
+       <entry>teste de não nulo</entry>
+      </row>
+
+      <row>
+       <entry>(qualquer outro)</entry>
+       <entry>esquerda</entry>
+       <entry>os demais operadores nativos e os definidos pelo usuário</entry>
+      </row>
+
+      <row>
+       <entry><token>IN</token></entry>
+       <entry></entry>
+       <entry>membro de um conjunto</entry>
+      </row>
+
+      <row>
+       <entry><token>BETWEEN</token></entry>
+       <entry></entry>
+       <entry>contido em um intervalo</entry>
+      </row>
+
+      <row>
+       <entry><token>OVERLAPS</token></entry>
+       <entry></entry>
+       <entry>sobreposição de intervalo de tempo</entry>
+      </row>
+
+      <row>
+       <entry><token>LIKE</token> <token>ILIKE</token> <token>SIMILAR</token></entry>
+       <entry></entry>
+       <entry>correspondência de padrão em cadeia de caracteres</entry>
+      </row>
+
+      <row>
+       <entry><token>&lt;</token> <token>&gt;</token></entry>
+       <entry></entry>
+       <entry>menor que, maior que</entry>
+      </row>
+
+      <row>
+       <entry><token>=</token></entry>
+       <entry>direita</entry>
+       <entry>igualdade, atribuição</entry>
+      </row>
+
+      <row>
+       <entry><token>NOT</token></entry>
+       <entry>direita</entry>
+       <entry>negação lógica</entry>
+      </row>
+
+      <row>
+       <entry><token>AND</token></entry>
+       <entry>esquerda</entry>
+       <entry>conjunção lógica</entry>
+      </row>
+
+      <row>
+       <entry><token>OR</token></entry>
+       <entry>esquerda</entry>
+       <entry>disjunção lógica</entry>
+      </row>
+     </tbody>
+    </tgroup>
+   </table>
+
+   <para>
+    Deve ser observado que as regras de precedência dos operadores também se
+    aplicam aos operadores definidos pelos usuários que possuem os mesmos nomes
+    dos operadores nativos mencionados acima. Por exemplo, se for definido pelo
+    usuário um operador <quote>+</quote> para algum tipo de dado personalizado,
+    este terá a mesma precedência do operador <quote>+</quote> nativo, não
+    importando o que faça.
+   </para>
+
+   <para>
+    Quando um nome de operador qualificado pelo esquema é utilizado na sintaxe
+    <literal>OPERATOR</literal> como, por exemplo, em
+<programlisting>
+SELECT 3 OPERATOR(pg_catalog.+) 4;
+</programlisting>
+    a construção <literal>OPERATOR</literal> é assumida como tendo a
+    precedência padrão mostrada na <xref linkend="sql-precedence-table">
+    para <quote>qualquer outro</quote> operador. Isto é sempre verdade, não
+    importando qual o nome do operador especificado dentro de
+    <literal>OPERATOR()</literal>.
+   </para>
+  </sect2>
+ </sect1>
+
+ <sect1 id="sql-expressions">
+  <title>Expressões de valor</title>
+
+  <indexterm zone="sql-expressions">
+   <primary>expressão</primary>
+   <secondary>sintaxe</secondary>
+  </indexterm>
+
+  <indexterm zone="sql-expressions">
+   <primary>expressão de valor</primary>
+  </indexterm>
+
+  <indexterm>
+   <primary>escalar</primary>
+   <see>expressão</see>
+  </indexterm>
+
+  <para>
+   As expressões de valor são utilizadas em diversos contextos, como
+   na lista de seleção do comando <command>SELECT</command>, como novos
+   valores das colunas nos comandos <command>INSERT</command> e
+   <command>UPDATE</command>, e na condição de procura em vários comandos.
+   Algumas vezes o resultado de uma expressão de valor é chamado de
+   <firstterm>escalar</firstterm>, para distingui-lo do resultado de uma
+   expressão de tabela (que é uma tabela). As expressões de valor são, portanto,
+   chamadas também de <firstterm>expressões escalares</firstterm> (ou
+   mesmo simplesmente de <firstterm>expressões</firstterm>). A sintaxe da
+   expressão permite o cálculo de valores a partir de partes primitivas
+   utilizando operações aritméticas, lógicas, de conjunto e outras.
+  </para>
+
+  <para>
+   A expressão de valor é uma das seguintes:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Um valor constante ou literal.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Uma referência a coluna.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Uma referência a parâmetro posicional, no corpo da definição de função
+      ou de comando preparado.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Uma expressão de índice.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Uma expressão de seleção de campo.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Uma chamada de operador.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Uma chamada de função.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Uma expressão de agregação.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Uma conversão de tipo.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Uma subconsulta escalar.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Um construtor de matriz.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Um construtor de linha.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Outra expressão de valor entre parênteses, útil para agrupar
+      subexpressões e mudar precedências.
+      <indexterm><primary>parênteses</primary></indexterm>
+     </para>
+    </listitem>
+   </itemizedlist>
+  </para>
+
+  <para>
+   Em acréscimo a esta lista, existem diversas construções que podem ser
+   classificadas como uma expressão, mas que não seguem qualquer regra geral
+   de sintaxe. Possuem, normalmente, a semântica de uma função ou de um
+   operador, sendo explicadas no local apropriado no <xref
+   linkend="functions">. Um exemplo é a cláusula <literal>IS NULL</literal>.
+  </para>
+
+  <para>
+   As constantes já foram mostradas na <xref linkend="sql-syntax-constants">.
+   As próximas seções discutem as demais opções.
+  </para>
+
+  <sect2>
+   <title>Referências a coluna</title>
+
+   <indexterm>
+    <primary>referência a coluna</primary>
+   </indexterm>
+
+   <para>
+    Uma coluna pode ser referenciada usando a forma
+<synopsis>
+<replaceable>correlação</replaceable>.<replaceable>nome_da_coluna</replaceable>
+</synopsis>
+   </para>
+
+   <para>
+    onde <replaceable>correlação</replaceable> é o nome de uma tabela
+    (possivelmente qualificado pelo nome do esquema), ou um aliás para a tabela
+    definido por meio da cláusula <literal>FROM</literal>, ou uma
+    das palavras chave <literal>NEW</literal> ou <literal>OLD</literal>
+    (<literal>NEW</literal> e <literal>OLD</literal> somente podem aparecer nas
+    regras de reescrita, enquanto os outros nomes de correlação podem ser usados
+    em qualquer declaração SQL). O nome da correlação e o ponto separador podem
+    ser omitidos, se o nome da coluna for único entre todas as tabelas
+    utilizadas no comando corrente. (Consulte também o <xref linkend="queries">.)
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Parâmetros posicionais</title>
+
+   <indexterm>
+    <primary>parâmetro</primary>
+    <secondary>sintaxe</secondary>
+   </indexterm>
+
+   <indexterm>
+    <primary>$</primary>
+   </indexterm>
+
+   <para>
+    É utilizada uma referência a um parâmetro posicional para indicar um valor
+    fornecido externamente a uma declaração SQL. Os parâmetros são utilizados
+    na definição de funções SQL e de comandos preparados. Algumas bibliotecas
+    cliente também suportam a especificação de valores de dados separado da
+    cadeia de caracteres do comando SQL e, nestes casos, os parâmetros são
+    utilizados para fazer referência a valores de dados fora de linha.
+    A forma de fazer referência a um parâmetro é:
+<synopsis>
+$<replaceable>number</replaceable>
+</synopsis>
+   </para>
+
+   <para>
+    Por exemplo, considere a definição da função
+    <function>dept</function> como sendo:
+
+<programlisting>
+CREATE FUNCTION dept(text) RETURNS dept
+    AS $$ SELECT * FROM dept WHERE nome = $1 $$
+    LANGUAGE SQL;
+</programlisting>
+
+    Neste caso, <literal>$1</literal> será substituído pelo
+    primeiro argumento da função quando esta for chamada.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Índices</title>
+
+   <indexterm>
+    <primary>indice</primary>
+   </indexterm>
+
+   <para>
+    Se uma expressão produzir um valor do tipo matriz, então um elemento
+    específico do valor matricial pode ser extraído escrevendo:
+<synopsis>
+<replaceable>expressão</replaceable>[<replaceable>índice</replaceable>]
+</synopsis>
+    e vários elementos adjacentes (uma <quote>fatia da matriz</quote>)
+    pode ser extraída escrevendo:
+<synopsis>
+<replaceable>expressão</replaceable>[<replaceable>índice_inferior</replaceable>:<replaceable>índice_superior</replaceable>]
+</synopsis>
+    (Neste caso, os colchetes <literal>[ ]</literal> devem aparecer literalmente).
+    Cada <replaceable>índice</replaceable> é por si só uma expressão,
+    que deve produzir um valor inteiro.
+   </para>
+
+   <para>
+    Geralmente a <replaceable>expressão</replaceable> matricial deve estar
+    entre parênteses, mas os parênteses podem ser omitidos quando a expressão
+    a ser indexada é apenas a referência a uma coluna ou um parâmetro
+    posicional. Podem ser concatenados vários índices quando a matriz
+    original for multidimensional.
+    Por exemplo:
+
+<programlisting>
+minha_tabela.matriz_coluna[4]
+minha_tabela.matriz_duas_dim[17][34]
+$1[10:42]
+(funcao_matriz(a,b))[42]
+</programlisting>
+
+    No último exemplo os parênteses são requeridos.
+    Consulte a <xref linkend="arrays"> para obter informações adicionais sobre
+    matrizes.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Escolha de campo</title>
+
+   <indexterm>
+    <primary>escolha de campo</primary>
+   </indexterm>
+
+   <para>
+    Se uma expressão produzir um valor do tipo composto (tipo linha), então
+    pode-se extrair um campo específico da linha escrevendo:
+<synopsis>
+<replaceable>expressão</replaceable>.<replaceable>nome_do_campo</replaceable>
+</synopsis>
+   </para>
+
+   <para>
+    Geralmente a <replaceable>expressão</replaceable> de linha deve estar entre
+    parênteses, mas os parênteses podem ser omitidos quando a expressão de
+    seleção for apenas uma referência a tabela ou um parâmetro posicional.
+    Por exemplo,
+
+<programlisting>
+minha_tabela.minha_coluna
+$1.alguma_coluna
+(funcao_de_linha(a,b)).col3
+</programlisting>
+
+    (Portanto, uma referência a coluna qualificada é, na verdade,
+    apenas um caso especial da sintaxe de seleção de campo).
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Chamadas de operador</title>
+
+   <indexterm>
+    <primary>operador</primary>
+    <secondary>chamada</secondary>
+   </indexterm>
+
+   <para>
+    Existem três sintaxes possíveis para chamada de operador:
+    <simplelist>
+     <member><replaceable>expressão</replaceable> <replaceable>operador</replaceable> <replaceable>expressão</replaceable> (operador binário-intermediário)</member>
+     <member><replaceable>operador</replaceable> <replaceable>expressão</replaceable> (operador unário-esquerdo)</member>
+     <member><replaceable>expressão</replaceable> <replaceable>operador</replaceable> (operador unário-direito)</member>
+    </simplelist>
+    onde o termo <replaceable>operador</replaceable> segue as regras de sintaxe
+    da <xref linkend="sql-syntax-operators">, ou é uma das palavras chave
+    <token>AND</token>, <token>OR</token> ou
+    <token>NOT</token>, ou é um nome de operador qualificado na forma:
+<synopsis>
+<literal>OPERATOR(</literal><replaceable>esquema</replaceable><literal>.</literal><replaceable>nome_do_operador</replaceable><literal>)</literal>
+</synopsis>
+    Quais são os operadores existentes, e se são
+    unários ou binários, depende de quais operadores foram
+    definidos pelo sistema e pelo usuário. O <xref linkend="functions">
+    descreve os operadores nativos.
+    <footnote>
+     <para>
+      <literal>binary infix operator</literal> &mdash;
+      foi traduzido como <quote>operador binário-intermediário</quote>, mas
+      poderia ter sido traduzido como <quote>operador binário infixo</quote>,
+      onde infixo significa <quote>afixo no meio de uma palavra</quote>, mas é
+      um termo pouco conhecido.
+      <ulink url="http://www.priberam.pt/dlpo/dlpo.aspx">PRIBERAM -
+      Língua Portuguesa On-Line</ulink>. (N. do T.)
+     </para>
+    </footnote>
+    <footnote>
+     <para>
+      <literal>unary prefix operator</literal> &mdash;
+      foi traduzido como <quote>operador unário-esquerdo</quote>. (N. do T.)
+     </para>
+    </footnote>
+    <footnote>
+     <para>
+      <literal>unary postfix operator</literal> &mdash;
+      foi traduzido como <quote>operador unário-direito</quote>. (N. do T.)
+     </para>
+    </footnote>
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Chamadas de função</title>
+
+   <indexterm>
+    <primary>função</primary>
+    <secondary>chamada</secondary>
+   </indexterm>
+
+   <para>
+    A sintaxe para chamada de função é o nome da função
+    (possivelmente qualificado pelo nome do esquema), seguido por sua
+    lista de argumentos entre parênteses:
+
+<synopsis>
+<replaceable>função</replaceable> (<optional><replaceable>expressão</replaceable> <optional>, <replaceable>expressão</replaceable> ... </optional></optional> )
+</synopsis>
+   </para>
+
+   <para>
+    Por exemplo, a função abaixo calcula a raiz quadrada de 2:
+<programlisting>
+sqrt(2)
+</programlisting>
+   </para>
+
+   <para>
+    A lista de funções nativas está no <xref linkend="functions">.
+    Podem ser adicionadas outras funções pelo usuário.
+   </para>
+  </sect2>
+
+  <sect2 id="syntax-aggregates">
+   <title>Funções de agregação</title>
+
+   <indexterm zone="syntax-aggregates">
+    <primary>função de agregação</primary>
+    <secondary>chamada</secondary>
+   </indexterm>
+
+   <para>
+    Uma <firstterm>expressão de agregação</firstterm> representa a aplicação de
+    uma função de agregação nas linhas selecionadas pela consulta.
+    Uma função de agregação reduz vários valores de entrada a um único valor de
+    saída, tal como a soma ou a média dos valores entrados.
+    A sintaxe da expressão de agregação é uma das seguintes:
+
+<synopsis>
+<replaceable>nome_da_agregação</replaceable> (<replaceable>expressão</replaceable>)
+<replaceable>nome_da_agregação</replaceable> (ALL <replaceable>expressão</replaceable>)
+<replaceable>nome_da_agregação</replaceable> (DISTINCT <replaceable>expressão</replaceable>)
+<replaceable>nome_da_agregação</replaceable> ( * )
+</synopsis>
+
+    onde <replaceable>nome_da_agregação</replaceable> é uma agregação
+    definida anteriormente (possivelmente qualificado pelo nome do esquema), e
+    <replaceable>expressão</replaceable> é qualquer expressão de valor que não
+    contenha uma expressão de agregação.
+   </para>
+
+   <para>
+    A primeira forma de expressão de agregação chama a função de agregação
+    para todas as linhas de entrada onde a expressão fornecida produz
+    um valor não nulo (na verdade, é decisão da função de agregação ignorar ou
+    não os valores nulos &mdash; porém, todas as funções padrão o fazem).
+    A segunda forma é idêntica à primeira, porque <literal>ALL</literal>
+    é o padrão.
+    A terceira forma chama a função de agregação para todos os valores distintos
+    não nulos da expressão, encontrados nas linhas de entrada.
+    A última forma chama a função de agregação uma vez para
+    cada linha de entrada independentemente do valor ser nulo ou não; como
+    nenhum valor específico de entrada é especificado, geralmente é útil apenas
+    para a função de agregação <function>count()</function>.
+   </para>
+
+   <para>
+    Por exemplo, <literal>count(*)</literal> retorna o número total de linhas
+    de entrada; <literal>count(f1)</literal> retorna o número de
+    linhas de entrada onde <literal>f1</literal> não é nulo;
+    <literal>count(distinct f1)</literal> retorna o número de
+    valores distintos não nulos de <literal>f1</literal>.
+   </para>
+
+   <para>
+    As funções de agregação predefinidas estão descritas na
+    <xref linkend="functions-aggregate">.
+    Podem ser adicionadas pelo usuário outras funções de agregação.
+   </para>
+
+   <para>
+    Uma expressão de agregação pode aparecer apenas na lista de resultados ou
+    na cláusula <literal>HAVING</literal> do comando <command>SELECT</command>.
+    Seu uso é proibido nas outras cláusulas, tal como <literal>WHERE</literal>,
+    porque estas cláusulas são avaliadas logicamente antes dos resultados
+    das agregações estarem formados.
+   </para>
+
+   <para>
+    Quando uma expressão de agregação aparece em uma subconsulta (consulte a
+    <xref linkend="sql-syntax-scalar-subqueries"> e a
+    <xref linkend="functions-subquery">), normalmente a agregação é avaliada a
+    partir das linhas da subconsulta. Porém ocorre uma exceção quando
+    o argumento da agregação contém apenas variáveis do nível externo:
+    a agregação então pertence ao nível externo mais próximo, sendo
+    avaliada a partir das linhas desta consulta. A expressão de agregação
+    como um todo é, então, uma referência externa para a subconsulta onde
+    aparece, agindo como uma constante em qualquer avaliação da subconsulta.
+    A restrição de aparecer apenas na lista de resultados ou na cláusula
+    <literal>HAVING</literal> se aplica com respeito ao nível da consulta que
+    a agregação pertence.
+   </para>
+  </sect2>
+
+  <sect2 id="sql-syntax-type-casts">
+   <title>Conversões de tipo</title>
+
+   <indexterm>
+    <primary>tipo de dado</primary>
+    <secondary>conversão de tipo</secondary>
+   </indexterm>
+
+   <indexterm>
+    <primary>conversão de tipo</primary>
+   </indexterm>
+
+   <para>
+    Uma conversão de tipo (<literal>type cast</literal>) especifica a conversão
+    de um tipo de dado em outro. O <productname>PostgreSQL</productname>
+    aceita duas sintaxes equivalentes para conversão de tipo:
+<synopsis>
+CAST ( <replaceable>expressão</replaceable> AS <replaceable>tipo</replaceable> )
+<replaceable>expressão</replaceable>::<replaceable>tipo</replaceable>
+</synopsis>
+    A sintaxe <literal>CAST</literal> está em conformidade com o padrão SQL;
+    a sintaxe <literal>::</literal> é uma utilização histórica do
+    <productname>PostgreSQL</productname>.
+   </para>
+
+   <para>
+    Quando a conversão é aplicada a uma expressão de valor de tipo conhecido,
+    representa uma conversão em tempo de execução. A conversão será bem sucedida
+    apenas se estiver disponível uma operação de conversão de tipo adequada.
+    Deve ser observado que isto é sutilmente diferente da utilização de
+    conversão com constantes, conforme mostrado na
+    <xref linkend="sql-syntax-constants-generic">.
+    Uma conversão aplicada a um literal cadeia de caracteres sem adornos
+    representa a atribuição inicial do tipo ao valor constante literal
+    <footnote>
+     <para>
+      <productname>Oracle</productname> &mdash;
+      Os termos literal e valor constante são sinônimos e referem a um valor
+      de dado fixo. Por exemplo, 'JACK', 'BLUE ISLAND' e '101' são todos
+      literais caractere; 5001 é um literal numérico. Literais caractere são
+      envoltos por apóstrofos, o que permite ao Oracle distingui-los dos
+      nomes dos objetos do esquema.
+      <ulink url="http://www.stanford.edu/dept/itss/docs/oracle/9i/server.920/a96540/sql_elements3a.htm">
+      Oracle9i SQL Reference - Literals</ulink> (N. do T.)
+     </para>
+    </footnote>
+    <footnote>
+     <para>
+      Cada tipo em Java possui <quote>literais</quote>, que são a maneira como os
+      valores constantes daquele tipo são escritos. Ken Arnold e James Gosling -
+      Programando em Java - Makron Books - 1997 (N. do T.)
+     </para>
+    </footnote>
+    e, portanto, será bem-sucedida para qualquer tipo (se o conteúdo do literal
+    cadeia de caracteres possuir uma sintaxe válida para servir de entrada para
+    o tipo de dado).
+   </para>
+
+   <para>
+    Geralmente a conversão explícita de tipo pode ser omitida quando não há
+    ambigüidade em relação ao tipo que a expressão de valor deve produzir
+    (por exemplo, quando é atribuída a uma coluna de tabela);
+    o sistema aplica automaticamente a conversão de tipo nestes casos.
+    Entretanto, a conversão automática de tipo é feita apenas para as
+    conversões marcadas nos catálogos do sistema como
+    <quote>OK para aplicar implicitamente</quote>.
+    As outras conversões devem ser chamadas por meio da sintaxe de conversão
+    explícita. Esta restrição tem por finalidade impedir que aconteçam
+    conversões surpreendentes aplicadas em silêncio.
+   </para>
+
+   <para>
+    Também é possível especificar uma conversão de tipo utilizando a
+    sintaxe na forma de função:
+<synopsis>
+<replaceable>nome_do_tipo</replaceable> ( <replaceable>expressão</replaceable> )
+</synopsis>
+    Entretanto, somente funciona para os tipos cujos nomes também são válidos
+    como nome de função. Por exemplo, <literal>double precision</literal> não
+    pode ser utilizado desta maneira, mas a forma equivalente
+    <literal>float8</literal> pode.
+    Também, os nomes <literal>interval</literal>, <literal>time</literal> e
+    <literal>timestamp</literal> somente podem ser utilizados desta maneira se
+    estiverem entre aspas, devido a conflitos sintáticos.
+    Portanto, o uso da sintaxe de conversão na forma de função pode ocasionar
+    inconsistências, devendo ser evitada em novos aplicativos.
+
+    (A sintaxe tipo chamada de função é, de fato, apenas uma chamada de função.
+    Quando é utilizada uma das duas sintaxes padrão de conversão para fazer
+    conversão em tempo de execução, internamente chama a função registrada para
+    realizar esta conversão. Por convenção, estas funções de conversão possuem
+    o mesmo nome de seu tipo de dado de saída e, portanto, a <quote>sintaxe tipo
+    função</quote> não é nada mais do que a chamada direta à função de conversão
+    subjacente. Como é óbvio, isto não é algo que um aplicativo portável possa
+    depender).
+   </para>
+  </sect2>
+
+  <sect2 id="sql-syntax-scalar-subqueries">
+   <title>Subconsultas escalares</title>
+
+   <indexterm>
+    <primary>subconsulta</primary>
+   </indexterm>
+
+   <para>
+    Uma subconsulta escalar é um comando <command>SELECT</command> comum, entre
+    parênteses, que retorna exatamente uma linha com uma coluna (consulte o
+    <xref linkend="queries"> para obter informações sobre como escrever
+    consultas). O comando <command>SELECT</command> é executado
+    e o único valor retornado é utilizado na expressão de valor envoltória.
+    É errado utilizar uma consulta que retorne mais de uma linha ou mais de uma
+    coluna como subconsulta escalar (porém, se durante uma determinada execução
+    a subconsulta não retornar nenhuma linha, não acontece nenhum erro:
+    o resultado escalar é assumido como nulo). A subconsulta pode fazer
+    referência a variáveis da consulta envoltória, as quais atuam como
+    constantes durante a avaliação da subconsulta. Veja, também, outras
+    expressões envolvendo subconsultas na <xref linkend="functions-subquery">.
+   </para>
+
+   <para>
+    Por exemplo, a consulta abaixo retorna a maior população de cidade
+    de cada estado:
+<programlisting>
+SELECT nome, (SELECT max(populacao) FROM cidades WHERE cidades.estado = estados.nome)
+    FROM estados;
+</programlisting>
+   </para>
+  </sect2>
+
+  <sect2 id="sql-syntax-array-constructors">
+   <title>Construtores de matriz</title>
+
+   <indexterm>
+    <primary>matriz</primary>
+    <secondary>construtor</secondary>
+   </indexterm>
+
+   <indexterm>
+    <primary>ARRAY</primary>
+   </indexterm>
+
+   <para>
+    Um construtor de matriz é uma expressão que constrói um valor matriz a
+    partir dos valores de seus elementos membros. Um construtor de matriz
+    simples é composto pela palavra chave <literal>ARRAY</literal>, um abre
+    colchetes <literal>[</literal>, uma ou mais expressões (separadas por
+    vírgula) para os valores dos elementos da matriz e, finalmente, um fecha
+    colchetes <literal>]</literal>.
+    Por exemplo,
+<programlisting>
+SELECT ARRAY[1,2,3+4];
+
+<computeroutput>
+  array
+---------
+ {1,2,7}
+(1 linha)
+</computeroutput>
+</programlisting>
+    O tipo de dado do elemento da matriz é o tipo comum das expressões membro,
+    determinado utilizando as mesmas regras das construções
+    <literal>UNION</literal> e <literal>CASE</literal> (consulte a
+    <xref linkend="typeconv-union-case">).
+   </para>
+
+   <para>
+    Os valores matriz multidimensional podem ser construídos aninhando
+    construtores de matriz.
+    Nos construtores internos, a palavra chave <literal>ARRAY</literal> pode
+    ser omitida. Por exemplo, estes dois comandos produzem o mesmo resultado:
+
+<programlisting>
+SELECT ARRAY[ARRAY[1,2], ARRAY[3,4]];
+
+<computeroutput>
+     array
+---------------
+ {{1,2},{3,4}}
+(1 linha)
+</computeroutput>
+
+SELECT ARRAY[[1,2],[3,4]];
+
+<computeroutput>
+     array
+---------------
+ {{1,2},{3,4}}
+(1 linha)
+</computeroutput>
+</programlisting>
+
+    Uma vez que as matrizes multidimensionais devem ser retangulares, os
+    construtores internos no mesmo nível devem produzir submatrizes com
+    dimensões idênticas.
+  </para>
+
+  <para>
+    Os elementos construtores de matriz multidimensional podem ser qualquer
+    coisa que produza uma matriz do tipo apropriado, e não apenas uma
+    construção sub-<literal>ARRAY</literal>.
+    Por exemplo:
+<programlisting>
+CREATE TABLE arr(f1 int[], f2 int[]);
+
+INSERT INTO arr VALUES (ARRAY[[1,2],[3,4]], ARRAY[[5,6],[7,8]]);
+
+SELECT ARRAY[f1, f2, '{{9,10},{11,12}}'::int[]] FROM arr;
+
+<computeroutput>
+                     array
+------------------------------------------------
+ {{{1,2},{3,4}},{{5,6},{7,8}},{{9,10},{11,12}}}
+(1 linha)
+</computeroutput>
+</programlisting>
+  </para>
+
+  <para>
+   Também é possível construir uma matriz a partir do resultado de uma
+   subconsulta. Nesta forma, o construtor de matriz é escrito com a
+   palavra chave <literal>ARRAY</literal> seguida por uma subconsulta entre
+   parênteses, e não entre colchetes. Por exemplo:
+<programlisting>
+SELECT ARRAY(SELECT oid FROM pg_proc WHERE proname LIKE 'bytea%');
+
+<computeroutput>
+                          ?column?
+-------------------------------------------------------------
+ {2011,1954,1948,1952,1951,1244,1950,2005,1949,1953,2006,31}
+(1 linha)
+</computeroutput>
+</programlisting>
+   A subconsulta deve retornar uma única coluna. A matriz
+   unidimensional produzida terá um elemento para cada linha
+   no resultado da subconsulta, com o tipo do elemento correspondendo
+   ao da coluna de saída da subconsulta.
+  </para>
+
+  <para>
+   O índice de um valor da matriz construído com <literal>ARRAY</literal>
+   sempre começa por um. Para obter informações adicionais sobre matrizes
+   consulte a <xref linkend="arrays">.
+  </para>
+
+  </sect2>
+
+  <sect2 id="sql-syntax-row-constructors">
+   <title>Construtores de linha</title>
+
+   <indexterm>
+    <primary>tipo composto</primary>
+    <secondary>construtor</secondary>
+   </indexterm>
+
+   <indexterm>
+    <primary>tipo linha</primary>
+    <secondary>construtor</secondary>
+   </indexterm>
+
+   <indexterm>
+    <primary>ROW</primary>
+   </indexterm>
+
+   <para>
+    Um construtor de linha é uma expressão que constrói um valor linha (também
+    chamado de valor composto) a partir de valores de seus campos membros.
+    Um construtor de linha é formado pela palavra chave <literal>ROW</literal>,
+    um abre parênteses, zero ou mais expressões (separadas por vírgula) para
+    os valores dos campos da linha e, finalmente, por um fecha parênteses.
+    Por exemplo:
+<programlisting>
+SELECT ROW(1,2.5,'isto é um teste');
+</programlisting>
+    A palavra chave <literal>ROW</> é opcional quando existe mais de uma
+    expressão na lista.
+   </para>
+
+   <para>
+    Por padrão, o valor criado através da expressão <literal>ROW</> é de um
+    tipo de registro anônimo. Se for necessário, pode ser convertido para um
+    tipo composto com nome &mdash; tanto o tipo de linha de uma tabela, ou um
+    tipo composto criado pelo comando <command>CREATE TYPE AS</command>.
+    Pode ser necessária uma conversão explícita para evitar ambigüidade.
+    Por exemplo:
+<programlisting>
+CREATE TABLE minha_tabela(f1 int, f2 float, f3 text);
+
+CREATE FUNCTION getf1(minha_tabela) RETURNS int AS 'SELECT $1.f1' LANGUAGE SQL;
+
+-- Não é necessária nenhuma conversão, porque só existe uma getf1()
+SELECT getf1(ROW(1,2.5,'isto é um teste'));
+
+<computeroutput>
+ getf1
+-------
+     1
+(1 linha)
+</computeroutput>
+
+CREATE TYPE meu_tipo_de_linha AS (f1 int, f2 text, f3 numeric);
+
+CREATE FUNCTION getf1(meu_tipo_de_linha) RETURNS int AS 'SELECT $1.f1' LANGUAGE SQL;
+
+-- Agora é necessária uma conversão para indicar a função a ser chamada:
+SELECT getf1(ROW(1,2.5,'isto é um teste'));
+<computeroutput>
+ERRO:  a função getf1(record) não é única
+</computeroutput>
+
+SELECT getf1(ROW(1,2.5,'isto é um teste')::minha_tabela);
+
+<computeroutput>
+ getf1
+-------
+     1
+(1 linha)
+</computeroutput>
+
+SELECT getf1(CAST(ROW(11,'isto é um teste',2.5) AS meu_tipo_de_linha));
+
+<computeroutput>
+ getf1
+-------
+    11
+(1 linha)
+</computeroutput>
+</programlisting>
+  </para>
+
+  <para>
+   Os construtores de linha podem ser utilizados para construir valores
+   compostos a serem armazenados em colunas de tabelas de tipo composto,
+   ou serem passados para funções que recebem parâmetros compostos.
+   Também é possível comparar dois valores linha ou testar uma linha com
+   <literal>IS NULL</> ou <literal>IS NOT NULL</> como, por exemplo:
+<programlisting>
+SELECT ROW(1,2.5,'isto é um teste') = ROW(1, 3, 'não é o mesmo');
+
+SELECT ROW(a, b, c) IS NOT NULL FROM tabela;
+</programlisting>
+   Para obter informações adicionais consulte a
+   <xref linkend="functions-comparisons">.
+   Os construtores de linha também podem ser utilizados conectados a
+   subconsultas conforme mostrado na <xref linkend="functions-subquery">.
+  </para>
+
+  </sect2>
+
+  <sect2 id="syntax-express-eval">
+   <title>Regras para avaliação de expressão</title>
+
+   <indexterm>
+    <primary>expressão</primary>
+    <secondary>ordem de avaliação</secondary>
+   </indexterm>
+
+   <para>
+    A ordem de avaliação das subexpressões não é definida. Em
+    particular, as entradas de um operador ou função não são necessariamente
+    avaliadas da esquerda para a direita, ou em qualquer outra ordem fixada.
+   </para>
+
+   <para>
+    Além disso, se o resultado da expressão puder ser determinado avaliando
+    apenas algumas de suas partes, então as outras subexpressões
+    podem nem ser avaliadas. Por exemplo, se for escrito
+<programlisting>
+SELECT true OR alguma_funcao();
+</programlisting>
+    então <literal>alguma_funcao()</literal> não será (provavelmente)
+    chamada. Este é o mesmo caso de quando é escrito
+<programlisting>
+SELECT alguma_funcao() OR true;
+</programlisting>
+    Deve ser observado que isto não é o mesmo que os
+    <quote>curtos circuitos</quote> esquerda para direita de operadores
+    booleanos encontrados em algumas linguagens de programação.
+   </para>
+
+   <para>
+    Como conseqüência, não é bom utilizar funções com efeitos colaterais
+    como parte de expressões complexas. É particularmente perigoso confiar
+    em efeitos colaterais, ou na ordem de avaliação nas cláusulas
+    <literal>WHERE</literal> e <literal>HAVING</literal>, porque estas cláusulas
+    são extensamente reprocessadas como parte do desenvolvimento do plano de
+    execução. As expressões booleanas (combinações de
+    <literal>AND</literal>/<literal>OR</literal>/<literal>NOT</literal>) nestas
+    cláusulas podem ser reorganizadas em qualquer forma permitida pelas leis da
+    álgebra booleana.
+   </para>
+
+   <para>
+    Quando for essencial obrigar a ordem de avaliação, pode ser utilizada uma
+    construção <literal>CASE</literal>
+    (consulte a <xref linkend="functions-conditional">).
+    Por exemplo, esta é uma forma não confiável para tentar evitar uma divisão
+    por zero na cláusula <literal>WHERE</literal>:
+<programlisting>
+SELECT ... WHERE x &lt;&gt; 0 AND y/x &gt; 1.5;
+</programlisting>
+    Mas esta forma é segura:
+<programlisting>
+SELECT ... WHERE CASE WHEN x &lt;&gt; 0 THEN y/x &gt; 1.5 ELSE false END;
+</programlisting>
+    A construção <literal>CASE</literal> utilizada desta forma impede as
+    tentativas de otimização devendo, portanto, ser utilizada apenas quando
+    for necessário (Neste exemplo em particular, sem dúvida seria melhor evitar
+    o problema escrevendo <literal>y &gt; 1.5*x</literal>).
+   </para>
+  </sect2>
+ </sect1>
+
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

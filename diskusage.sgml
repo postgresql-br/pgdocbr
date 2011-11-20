@@ -1,0 +1,275 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/diskusage.sgml,v 1.14 2005/01/10 00:04:38 tgl Exp $
+-->
+
+<chapter id="diskusage">
+ <title>Monitoramento da utilização de disco</title>
+
+ <para>
+  Este capítulo discute como monitorar a utilização de disco por um sistema
+  de banco de dados <productname>PostgreSQL</productname>.
+ </para>
+
+ <sect1 id="disk-usage">
+  <title>Determinação da utilização de disco</title>
+
+  <indexterm zone="disk-usage">
+   <primary>utilização de disco</primary>
+  </indexterm>
+
+  <para>
+   Cada tabela possui um arquivo em disco <literal>heap</literal> primário, onde
+   a maior parte dos dados são armazenados. Se a tabela possuir alguma coluna
+   com valor potencialmente longo, também existirá um arquivo
+   <acronym>TOAST</> associado à tabela, utilizado para armazenar os valores
+   muito longos para caber confortavelmente na tabela principal (consulte a
+   <xref linkend="storage-toast">). Haverá um índice para a tabela
+   <acronym>TOAST</>, caso esta esteja presente. Também podem haver índices
+   associados à tabela base. Cada tabela e índice é armazenado em um arquivo
+   em disco separado &mdash; possivelmente mais de um arquivo, se o arquivo
+   exceder um gigabyte. As convenções para atribuir nomes a estes arquivos
+   estão descritas na <xref linkend="storage-file-layout">.
+  </para>
+
+  <para>
+   O espaço em disco pode ser monitorado a partir de três lugares: do
+   <application>psql</application> utilizando as informações do
+   <command>VACUUM</command>, do <application>psql</application> utilizando as
+   ferramentas presentes em <filename>contrib/dbsize</>, e da linha de comando
+   utilizando as ferramentas presentes em <filename>contrib/oid2name</filename>.
+   Utilizando o <application>psql</application> em um banco de dados onde o
+   comando <command>VACUUM</command> ou <command>ANALYZE</command> foi executado
+   recentemente, podem ser efetuadas consultas para ver a utilização do espaço
+   em disco de qualquer tabela:
+<screen>
+<prompt>cep=#</prompt> <userinput>VACUUM ANALYZE;</userinput>
+<computeroutput>VACUUM</computeroutput>
+
+<prompt>cep=#</prompt> <userinput>SELECT relname, relfilenode, relpages</userinput>
+<prompt>cep-#</prompt> <userinput>FROM pg_class</userinput>
+<prompt>cep-#</prompt> <userinput>WHERE relname LIKE 'tbl_cep_%'</userinput>
+<prompt>cep-#</prompt> <userinput>ORDER BY relname;</userinput>
+
+<computeroutput>
+     relname      | relfilenode | relpages
+------------------+-------------+----------
+ tbl_cep_ac       |       17145 |       12
+ tbl_cep_al       |       17148 |       63
+ tbl_cep_am       |       17151 |       91
+ tbl_cep_ap       |       17154 |        9
+ tbl_cep_ba       |       17157 |      260
+ tbl_cep_ce       |       17163 |      216
+ tbl_cep_df       |       17166 |      289
+ tbl_cep_es       |       17169 |      218
+ tbl_cep_especial |       17229 |      213
+ tbl_cep_go       |       17172 |      316
+ tbl_cep_ma       |       17175 |       67
+ tbl_cep_mg       |       17178 |      763
+ tbl_cep_mrj      |       17181 |      300
+ tbl_cep_ms       |       17184 |      129
+ tbl_cep_mt       |       17233 |      112
+ tbl_cep_pa       |       17187 |      139
+ tbl_cep_pb       |       17190 |      105
+ tbl_cep_pe       |       17193 |      450
+ tbl_cep_pi       |       17196 |       41
+ tbl_cep_pr       |       17199 |      482
+ tbl_cep_rj       |       17202 |      842
+ tbl_cep_rn       |       17205 |       94
+ tbl_cep_ro       |       17208 |       34
+ tbl_cep_rr       |       17211 |       13
+ tbl_cep_rs       |       17214 |      401
+ tbl_cep_sc       |       17217 |      245
+ tbl_cep_se       |       17220 |       34
+ tbl_cep_sp       |       17223 |     2755
+ tbl_cep_to       |       17226 |       46
+ tbl_cep_uf       |       17231 |        1
+(30 linhas)
+</computeroutput>
+</screen>
+   Cada página possui, normalmente, 8 kilobytes (Lembre-se, <literal>relpages</>
+   somente é atualizado por <command>VACUUM</>, <command>ANALYZE</> e uns
+   poucos comandos de DDL como <command>CREATE INDEX</>). O valor de
+   <structfield>relfilenode</> possui interesse caso se deseje examinar
+   diretamente o arquivo em disco da tabela.
+  </para>
+
+  <para>
+   Para ver o espaço utilizado pelas tabelas <acronym>TOAST</acronym> deve ser
+   utilizada uma consulta como a mostrada abaixo:
+<screen>
+-- Ver as tabelas TOAST da tabela pg_rewrite
+<prompt>cep=#</prompt> <userinput> SELECT relname, relpages</userinput>
+<prompt>cep-#</prompt> <userinput>     FROM pg_class,</userinput>
+<prompt>cep-#</prompt> <userinput>          (SELECT reltoastrelid FROM pg_class</userinput>
+<prompt>cep(#</prompt> <userinput>           WHERE relname = 'pg_rewrite') ss</userinput>
+<prompt>cep-#</prompt> <userinput>     WHERE oid = ss.reltoastrelid</userinput>
+<prompt>cep-#</prompt> <userinput>        OR oid = (SELECT reltoastidxid FROM pg_class</userinput>
+<prompt>cep(#</prompt> <userinput>                  WHERE oid = ss.reltoastrelid)</userinput>
+<prompt>cep-#</prompt> <userinput>     ORDER BY relname;</userinput>
+
+<computeroutput>
+       relname        | relpages
+----------------------+----------
+ pg_toast_16410       |       14
+ pg_toast_16410_index |        2
+(2 linhas)
+</computeroutput>
+</screen>
+  </para>
+
+  <para>
+   Os tamanhos dos índices também podem ser facilmente exibidos:
+<screen>
+<prompt>cep=#</prompt> <userinput>ALTER TABLE tbl_cep_sp ADD PRIMARY KEY (cep);</userinput>
+<computeroutput>
+NOTICE:  ALTER TABLE / ADD PRIMARY KEY will create implicit index "tbl_cep_sp_pkey"
+         for table "tbl_cep_sp"
+ALTER TABLE
+</computeroutput>
+
+<prompt>cep=#</prompt> <userinput>SELECT c2.relname, c2.relpages</userinput>
+<prompt>cep-#</prompt> <userinput>     FROM pg_class c, pg_class c2, pg_index i</userinput>
+<prompt>cep-#</prompt> <userinput>     WHERE c.relname = 'tbl_cep_sp'</userinput>
+<prompt>cep-#</prompt> <userinput>         AND c.oid = i.indrelid</userinput>
+<prompt>cep-#</prompt> <userinput>         AND c2.oid = i.indexrelid</userinput>
+<prompt>cep-#</prompt> <userinput>     ORDER BY c2.relname;</userinput>
+
+<computeroutput>
+     relname     | relpages
+-----------------+----------
+ tbl_cep_sp_pkey |      619
+(1 linha)
+</computeroutput>
+
+-- Verificar se relpages foi atualizada na criação do índice
+
+<prompt>cep=#</prompt> <userinput>VACUUM FULL ANALYZE;</userinput>
+<computeroutput>VACUUM</computeroutput>
+
+<prompt>cep=#</prompt> <userinput>SELECT c2.relname, c2.relpages</userinput>
+<prompt>cep-#</prompt> <userinput>     FROM pg_class c, pg_class c2, pg_index i</userinput>
+<prompt>cep-#</prompt> <userinput>     WHERE c.relname = 'tbl_cep_sp'</userinput>
+<prompt>cep-#</prompt> <userinput>         AND c.oid = i.indrelid</userinput>
+<prompt>cep-#</prompt> <userinput>         AND c2.oid = i.indexrelid</userinput>
+<prompt>cep-#</prompt> <userinput>     ORDER BY c2.relname;</userinput>
+
+<computeroutput>
+     relname     | relpages
+-----------------+----------
+ tbl_cep_sp_pkey |      619
+(1 linha)
+</computeroutput>
+
+-- O valor de relpages não mudou após VACUUM FULL ANALYZE
+</screen>
+  </para>
+
+  <para>
+   Utilizando a consulta abaixo, é fácil descobrir quais são as quatro maiores
+   tabelas e índices:
+<screen>
+<prompt>cep=#</prompt> <userinput>SELECT relname, relpages</userinput>
+<prompt>cep-#</prompt> <userinput>     FROM pg_class</userinput>
+<prompt>cep-#</prompt> <userinput>     ORDER BY relpages DESC</userinput>
+<prompt>cep-#</prompt> <userinput>     LIMIT 4;</userinput>
+
+<computeroutput>
+     relname     | relpages
+-----------------+----------
+ tbl_cep_sp      |     2754
+ tbl_cep_rj      |      841
+ tbl_cep_mg      |      762
+ tbl_cep_sp_pkey |      619
+(4 linhas)
+</computeroutput>
+
+-- Como pode ser visto, VACUUM FULL ANALYZE diminuiu uma página
+-- de tbl_cep_sp após VACUUM ANALYZE (2755 para 2754).
+</screen>
+  </para>
+
+  <para>
+   Calcular o número de páginas da tabela <classname>tbl_cep_sp</classname>
+   através das informações do sistema de arquivos, utilizando o nome de arquivo
+   presente em <structfield>relfilenode</> (N. do T.):
+<screen>
+<prompt>$</prompt> <userinput>locate 17223 | grep /var/lib/pgsql/data/base/</userinput>
+<computeroutput>/var/lib/pgsql/data/base/17142/17223</computeroutput>
+<prompt>$</prompt> <userinput>ls -l /var/lib/pgsql/data/base/17142/17223</userinput>
+<computeroutput>-rw-------  1 postgres postgres 22560768 Jul 28 07:44 /var/lib/pgsql/data/base/17142/17223</computeroutput>
+<prompt>$</prompt> <userinput>expr 22560768 / 8 / 1024</userinput>
+<computeroutput>2754</computeroutput>
+</screen>
+   Como cada página possui 8 kilobytes, dividindo-se o tamanho do arquivo
+   igual a 22.560.768 bytes por 8 e por 1024 chega-se a um número de páginas
+   igual a 2754, o mesmo informado pela consulta.
+  </para>
+
+  <para>
+   A ferramenta <filename>contrib/dbsize</filename> carrega funções no banco de
+   dados que permitem descobrir o tamanho da tabela ou do banco de dados a
+   partir do <application>psql</application> sem necessidade do
+   <command>VACUUM</command> ou do <command>ANALYZE</command>.
+  </para>
+
+  <para>
+   Para mostrar a utilização de disco também pode ser utilizada a ferramenta
+   <filename>contrib/oid2name</filename>.
+   Veja exemplo em <filename>README.oid2name</filename> neste diretório.
+   Inclui um script que mostra utilização de disco para cada banco de dados.
+  </para>
+ </sect1>
+
+ <sect1 id="disk-full">
+  <title>Falha de disco cheio</title>
+
+  <para>
+   A tarefa mais importante de monitoramento de disco do administrador de banco
+   de dados é garantir que o disco não vai ficar cheio. Um disco de dados cheio
+   não resulta em corrupção dos dados, mas pode impedir que ocorram atividades
+   úteis. Se o disco que contém os arquivos do WAL ficar cheio, pode acontecer
+   do servidor de banco de dados entrar na condição de pânico e encerrar a
+   execução.
+  </para>
+
+  <para>
+   Se não for possível liberar espaço adicional no disco removendo outros
+   arquivos, podem ser movidos alguns arquivos do banco de dados para outros
+   sistemas de arquivos utilizando espaços de tabelas. Para obter mais
+   informações sobre este assunto deve ser consultada a
+   <xref linkend="manage-ag-tablespaces">.
+  </para>
+
+  <tip>
+   <para>
+    Alguns sistemas de arquivos têm desempenho degradado quando estão
+    praticamente cheios, portanto não se deve esperar o disco ficar cheio para
+    agir.
+   </para>
+  </tip>
+
+  <para>
+   Se o sistema possuir cotas de disco por usuário, então naturalmente o banco
+   de dados estará sujeito a cota atribuída para o usuário sob o qual o sistema
+   de banco de dados executa. Exceder a cota ocasiona os mesmos malefícios de
+   ficar totalmente sem espaço.
+  </para>
+ </sect1>
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

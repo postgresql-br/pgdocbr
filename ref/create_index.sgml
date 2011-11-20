@@ -1,0 +1,329 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_index.sgml,v 1.51 2005/01/04 00:39:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATEINDEX">
+ <refmeta>
+  <refentrytitle id="sql-createindex-title">CREATE INDEX</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE INDEX</refname>
+  <refpurpose>cria um índice</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createindex">
+  <primary>CREATE INDEX</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE [ UNIQUE ] INDEX <replaceable class="parameter">nome_do_índice</replaceable> ON <replaceable class="parameter">tabela</replaceable> [ USING <replaceable class="parameter">método</replaceable> ]
+    ( { <replaceable class="parameter">coluna</replaceable> | ( <replaceable class="parameter">expressão</replaceable> ) } [ <replaceable class="parameter">classe_de_operadores</replaceable> ] [, ...] )
+    [ TABLESPACE <replaceable class="parameter">espaço_de_tabelas</replaceable> ]
+    [ WHERE <replaceable class="parameter">predicado</replaceable> ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE INDEX</command> constrói o índice
+   <replaceable class="parameter">nome_do_índice</replaceable> na tabela
+   especificada. Os índices são utilizados, principalmente, para melhorar o
+   desempenho do banco de dados (embora a utilização não apropriada cause uma
+   degradação de desempenho).
+  </para>
+
+  <para>
+   Os campos chave para o índice são especificados como nomes de coluna ou,
+   também, como expressões escritas entre parênteses.
+   Podem ser especificados vários campos, se o método de índice suportar
+   índices multicolunas.
+  </para>
+
+  <para>
+   O campo de um índice pode ser uma expressão computada a partir dos valores de
+   uma ou mais colunas da linha da tabela. Esta funcionalidade pode ser
+   utilizada para obter acesso rápido aos dados baseado em alguma transformação
+   dos dados básicos. Por exemplo, um índice computado como
+   <literal>upper(col)</literal> permite a cláusula
+   <literal>WHERE upper(col) = 'JIM'</literal> utilizar um índice.
+  </para>
+
+  <para>
+   O <application>PostgreSQL</application> fornece os métodos de índice
+   <literal>B-tree</literal>, <literal>R-tree</literal>, <literal>hash</literal>
+   e <literal>GiST</literal>. O método de índice <literal>B-tree</literal> é uma
+   implementação das <literal>B-trees</literal> de alta concorrência de
+   Lehman-Yao.
+   O método de índice <literal>R-tree</literal> implementa
+   <literal>R-trees</literal> padrão utilizando o algoritmo de divisão
+   quadrática (<literal>quadratic split</literal>) de Guttman.
+   O método de índice <literal>hash</literal> é uma
+   implementação do <literal>hash</literal> linear de Litwin.
+   Os usuários também podem definir seus próprios métodos de índice,
+   mas é muito complicado.
+  </para>
+
+  <para>
+    Quando a cláusula <literal>WHERE</literal> está presente, um
+    <firstterm>índice parcial</firstterm> é criado. Um índice parcial é um
+    índice contendo entradas apenas para uma parte da tabela, geralmente uma
+    parte mais útil para indexar que o restante da tabela. Por exemplo, havendo
+    uma tabela contendo tanto pedidos faturados quanto não faturados, onde os
+    pedidos não faturados ocupam uma pequena parte da tabela, mas que é a parte
+    mais usada, o desempenho pode ser melhorado criando um índice apenas para
+    esta parte da tabela. Outra aplicação possível é utilizar a cláusula
+    <literal>WHERE</literal> junto com <literal>UNIQUE</literal> para impor a
+    unicidade de um subconjunto dos dados da tabela.
+    Consulte a <xref linkend="indexes-partial"> para obter informações adicionais.
+  </para>
+
+  <para>
+    A expressão utilizada na cláusula <literal>WHERE</literal> pode referenciar
+    apenas as colunas da tabela subjacente, mas pode usar todas as colunas,
+    e não apenas as que estão sendo indexadas. Atualmente não são permitidas
+    subconsultas e expressões de agregação na cláusula <literal>WHERE</literal>.
+    As mesmas restrições se aplicam aos campos do índice que são expressões.
+  </para>
+
+  <para>
+   Todas as funções e operadores utilizados na definição do índice devem ser
+   <quote>imutáveis</quote> (<literal>immutable</literal>), ou seja, seus
+   resultados devem depender somente de seus argumentos, e nunca de uma
+   influência externa (como o conteúdo de outra tabela ou a hora atual). Esta
+   restrição garante que o comportamento do índice é bem definido. Para utilizar
+   uma função definida pelo usuário na expressão do índice ou na cláusula
+   <literal>WHERE</literal>, a função deve ser marcada como
+   <literal>IMMUTABLE</literal> na sua criação.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+    <variablelist>
+     <varlistentry>
+      <term><literal>UNIQUE</literal></term>
+      <listitem>
+       <para>
+        Faz o sistema verificar valores duplicados na tabela quando o índice é
+        criado, se existirem dados, e toda vez que forem adicionados dados. A
+        tentativa de inserir ou de atualizar dados que resultem em uma entrada
+        duplicada gera um erro.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">nome_do_índice</replaceable></term>
+      <listitem>
+       <para>
+        O nome do índice a ser criado. O nome do esquema não pode ser incluído
+        aqui; o índice é sempre criado no mesmo esquema da tabela que este
+        pertence.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">tabela</replaceable></term>
+      <listitem>
+       <para>
+        O nome (opcionalmente qualificado pelo esquema) da tabela a ser indexada.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">método</replaceable></term>
+      <listitem>
+       <para>
+        O nome do método a ser utilizado pelo índice. Pode ser escolhido entre
+        <literal>btree</literal>, <literal>hash</literal>,
+        <literal>rtree</literal> e <literal>gist</literal>. O método
+        padrão é <literal>btree</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">coluna</replaceable></term>
+      <listitem>
+       <para>
+        O nome de uma coluna da tabela.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">expressão</replaceable></term>
+      <listitem>
+       <para>
+        Uma expressão baseada em uma ou mais colunas da tabela. A
+        expressão geralmente deve ser escrita entre parênteses,
+        conforme mostrado na sintaxe. Entretanto, os parênteses podem ser
+        omitidos se a expressão tiver a forma de uma chamada de função.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">classe_de_operadores</replaceable></term>
+      <listitem>
+       <para>
+        O nome de uma classe de operadores. Veja os detalhes abaixo.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">espaço_de_tabelas</replaceable></term>
+      <listitem>
+       <para>
+        O espaço de tabelas onde o índice será criado. Se não for especificado,
+        será utilizado o <xref linkend="guc-default-tablespace">, ou o espaço de
+        tabelas padrão do banco de dados se <varname>default_tablespace</varname>
+        for uma cadeia de caracteres vazia.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">predicado</replaceable></term>
+      <listitem>
+       <para>
+        A expressão de restrição para o índice parcial.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Consulte o <xref linkend="indexes"> para obter informações sobre quando os
+   índices podem ser utilizados, quando não são utilizados, e em quais situações
+   particulares podem ser úteis.
+  </para>
+
+  <para>
+   Atualmente somente os métodos de índice <literal>B-tree</literal> e
+   <literal>Gist</literal> suportam índices com mais de uma coluna. Por padrão
+   podem ser especificadas até 32 colunas (este limite pode ser alterado na
+   geração do <productname>PostgreSQL</productname>). Também atualmente
+   somente <literal>B-tree</literal> suporta índices únicos.
+  </para>
+
+  <para>
+   Uma <firstterm>classe de operadores</firstterm> pode ser especificada para
+   cada coluna de um índice. A classe de operadores identifica os operadores a
+   serem utilizados pelo índice para esta coluna. Por exemplo, um índice
+   <literal>B-tree</literal> sobre inteiros de quatro bytes usaria a classe
+   <literal>int4_ops</literal>; esta classe de operadores inclui funções de
+   comparação para inteiros de quatro bytes. Na prática, a classe de operadores
+   padrão para o tipo de dado da coluna é normalmente suficiente. O ponto
+   principal em haver classes de operadores é que, para alguns tipos de dado,
+   pode haver mais de uma ordenação que faça sentido. Por exemplo, pode-se
+   desejar classificar o tipo de dado do número complexo tanto pelo valor
+   absoluto quanto pela parte real, o que pode ser feito definindo duas classes
+   de operadores para o tipo de dado e, então, selecionando a classe apropriada
+   na construção do índice. Mais informações sobre classes de operadores estão
+   na <xref linkend="indexes-opclass"> e na <xref linkend="xindex">.
+  </para>
+
+  <para>
+   Deve ser utilizado o comando
+   <xref linkend="sql-dropindex" endterm="sql-dropindex-title">
+   para remover um índice.
+  </para>
+
+  <para>
+   Por padrão não é utilizado índice para a cláusula
+   <literal>IS NULL</literal>. Nesta situação a melhor forma para utilizar índice é
+   criar um índice parcial usando o predicado <literal>IS NULL</literal>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para criar um índice <literal>B-tree</literal> para a coluna
+   <literal>titulo</literal> na tabela <literal>filmes</literal>:
+<programlisting>
+CREATE UNIQUE INDEX unq_titulo ON filmes (titulo);
+</programlisting>
+  </para>
+
+  <para>
+   Para criar um índice para a coluna <literal>codigo</literal> da tabela
+   <literal>filmes</literal> e fazer o índice residir no espaço de tabelas
+   <literal>espaco_indices</literal>:
+<programlisting>
+CREATE INDEX idx_codigo ON filmes(codigo) TABLESPACE espaco_indices;
+</programlisting>
+  </para>
+
+<!--
+<comment>
+Is this example correct?
+</comment>
+  <para>
+   To create a R-tree index on a point attribute so that we
+   can efficiently use box operators on the result of the
+   conversion function:
+  </para>
+<programlisting>
+CREATE INDEX pointloc
+    ON points USING RTREE (point2box(location) box_ops);
+SELECT * FROM points
+    WHERE point2box(points.pointloc) = boxes.box;
+</programlisting>
+-->
+
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>CREATE INDEX</command> é uma extensão do
+   <productname>PostgreSQL</productname> à linguagem.
+   O padrão SQL não trata de índices.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-alterindex" endterm="sql-alterindex-title"></member>
+   <member><xref linkend="sql-dropindex" endterm="sql-dropindex-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

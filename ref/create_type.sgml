@@ -1,0 +1,579 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_type.sgml,v 1.54 2005/01/04 00:39:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATETYPE">
+ <refmeta>
+  <refentrytitle id="sql-createtype-title">CREATE TYPE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE TYPE</refname>
+  <refpurpose>cria um tipo de dado</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createtype">
+  <primary>CREATE TYPE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE TYPE <replaceable class="parameter">nome</replaceable> AS
+    ( <replaceable class="parameter">nome_do_atributo</replaceable> <replaceable class="parameter">tipo_de_dado</replaceable> [, ... ] )
+
+CREATE TYPE <replaceable class="parameter">nome</replaceable> (
+    INPUT = <replaceable class="parameter">função_de_entrada</replaceable>,
+    OUTPUT = <replaceable class="parameter">função_de_saída</replaceable>
+    [ , RECEIVE = <replaceable class="parameter">função_de_recepção</replaceable> ]
+    [ , SEND = <replaceable class="parameter">função_de_envio</replaceable> ]
+    [ , ANALYZE = <replaceable class="parameter">função_de_análise</replaceable> ]
+    [ , INTERNALLENGTH = { <replaceable class="parameter">comprimento_interno</replaceable> | VARIABLE } ]
+    [ , PASSEDBYVALUE ]
+    [ , ALIGNMENT = <replaceable class="parameter">alinhamento</replaceable> ]
+    [ , STORAGE = <replaceable class="parameter">armazenamento</replaceable> ]
+    [ , DEFAULT = <replaceable class="parameter">padrão</replaceable> ]
+    [ , ELEMENT = <replaceable class="parameter">elemento</replaceable> ]
+    [ , DELIMITER = <replaceable class="parameter">delimitador</replaceable> ]
+)
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE TYPE</command> registra um novo tipo de dado
+   para uso no banco de dados corrente. O usuário que define o tipo se
+   torna o seu dono.
+  </para>
+
+  <para>
+   Se o nome do esquema for fornecido, então o tipo será criado no esquema
+   especificado, senão será criado no esquema corrente.
+   O nome do tipo deve ser distinto do nome de qualquer tipo
+   ou domínio existente no mesmo esquema (como as tabelas possuem
+   tipos de dado associados, o nome do tipo também deve ser
+   distinto do nome de qualquer tabela existente no mesmo esquema).
+  </para>
+
+  <refsect2>
+   <title>Tipos Compostos</title>
+
+  <para>
+   A primeira forma de <command>CREATE TYPE</command> cria um tipo composto.
+   O tipo composto é especificado por uma lista de nomes de atributo e tipos de
+   dado. É essencialmente a mesma coisa que o tipo de uma linha de tabela,
+   mas o uso de <command>CREATE TYPE</command> evita a necessidade de criar uma
+   tabela real quando tudo o que se deseja é apenas definir um tipo. Um tipo
+   composto autônomo é útil como argumento ou tipo retornado por uma função.
+  </para>
+  </refsect2>
+
+  <refsect2>
+   <title>Tipos Base</title>
+
+  <para>
+   A segunda forma do comando <command>CREATE TYPE</command> cria um novo tipo
+   base (tipo escalar). Os parâmetros podem estar em qualquer ordem, e não
+   apenas na ordem mostrada acima, e a maior parte é opcional. Requer o registro
+   de duas ou mais funções (utilizando <command>CREATE FUNCTION</command>) antes
+   de definir o tipo. As funções de suporte
+   <replaceable class="parameter">função_de_entrada</replaceable> e
+   <replaceable class="parameter">função_de_saída</replaceable>
+   são requeridas, enquanto as funções
+   <replaceable class="parameter">função_de_recepção</replaceable>,
+   <replaceable class="parameter">função_de_envio</replaceable> e
+   <replaceable class="parameter">função_de_análise</replaceable>
+   são opcionais. Geralmente estas funções precisam ser codificadas em C
+   ou em outra linguagem de baixo nível.
+  </para>
+
+  <para>
+   A <replaceable class="parameter">função_de_entrada</replaceable> converte a
+   representação textual externa do tipo na representação interna utilizada
+   pelos operadores e funções definidos para o tipo.
+   A <replaceable class="parameter">função_de_saída</replaceable> realiza a
+   transformação inversa. A função de entrada pode ser declarada como recebendo
+   um argumento do tipo <type>cstring</type>, ou recebendo três argumentos dos
+   tipos <type>cstring</type>, <type>oid</type> e <type>integer</type>.
+   O primeiro argumento é o texto de entrada como uma cadeia de caracteres C, o
+   segundo argumento é o OID do tipo do elemento no caso de ser um tipo matriz
+   (ou o próprio OID do tipo para tipos compostos),
+   e o terceiro é o <literal>typmod</literal> da coluna de destino,
+   se for conhecido (será passado -1 se não for conhecido).
+   A função de entrada deve retornar um valor do próprio tipo de dado.
+   A função de saída pode ser declarada como recebendo um argumento do novo tipo
+   de dado, ou como recebendo dois argumentos dos quais o segundo é do tipo
+   <type>oid</type>.
+   O segundo argumento é novamente o OID do tipo do elemento da matriz para
+   tipos matriz, ou o OID do tipo para tipos compostos.
+   A função de saída deve retornar o tipo <type>cstring</type>.
+  </para>
+
+  <para>
+   A <replaceable class="parameter">função_de_recepção</replaceable> opcional
+   converte a representação binária externa do tipo para a representação
+   interna. Se esta função não for fornecida, o tipo não pode
+   participar de entrada binária. A representação binária deve ser escolhida
+   para ser de baixo custo converter para a forma interna, e ao mesmo tempo
+   razoavelmente portável (Por exemplo, os tipos de dado inteiro padrão utilizam
+   a ordem de byte de rede como sendo a representação binária externa, enquanto
+   a representação interna está na ordem de byte nativa da máquina). A função
+   de recepção deve realizar uma verificação adequada para garantir que o valor
+   seja válido.
+   A função de recepção pode ser declarada como recebendo um argumento do tipo
+   <type>internal</type>, ou dois argumentos dos tipos <type>internal</type>
+   e <type>oid</type>. Deve retornar um valor do próprio tipo de dado
+   (O primeiro argumento é um ponteiro para o <literal>buffer</literal>
+   <type>StringInfo</type>, que armazena a cadeia de bytes recebida; o segundo
+   argumento opcional é o OID do tipo do elemento no caso de ser um tipo matriz,
+   ou o próprio OID do tipo para um tipo composto.
+   Da mesma maneira, a
+   <replaceable class="parameter">função_de_envio</replaceable> opcional
+   converte da representação interna para a representação binária externa.
+   Se esta função não for fornecida, o tipo não pode participar de saída
+   binária. A função de envio pode ser declarada como recebendo um argumento do
+   novo tipo de dado, ou como recebendo dois argumentos dos quais o segundo é do
+   tipo <type>oid</type>. O segundo argumento é novamente o OID do tipo do
+   elemento da matriz para tipos matriz, ou o OID do tipo para tipos compostos.
+   A função de envio deve retornar o tipo <type>bytea</type>.
+  </para>
+
+  <para>
+   Neste ponto podemos estar querendo saber como as funções de entrada e de
+   saída podem ser declaradas possuindo resultados ou argumentos do novo tipo,
+   se devem ser criadas antes que o novo tipo possa ser criado. A resposta é que
+   a função de entrada deve ser criada primeiro, depois a função de saída (e as
+   funções binárias de entrada e de saída, se for desejado) e, finalmente, o
+   tipo de dado. O <productname>PostgreSQL</productname> vê primeiro o nome do
+   novo tipo de dado como tipo retornado pela função de entrada, e cria um
+   tipo de <quote>abrigo</quote>, que é simplesmente uma entrada no catálogo do
+   sistema, e vincula a definição da função de entrada ao tipo de abrigo.
+   Da mesma maneira, as outras funções são vinculadas ao (agora já  existente)
+   tipo de abrigo. Por último, o comando <command>CREATE TYPE</command>
+   substitui a entrada de abrigo com a definição completa do tipo, e o novo tipo
+   poderá ser usado.
+  </para>
+
+  <para>
+   A <replaceable class="parameter">função_de_análise</replaceable> opcional
+   realiza a coleta de estatísticas específicas do tipo, para as colunas com
+   este tipo de dado.
+   Por padrão, o comando <command>ANALYZE</command> tenta obter as estatísticas usando
+   os operadores <quote>igual</quote> e <quote>menor-que</quote> do tipo, se houver uma
+   classe de operadores <literal>b-tree</literal> padrão para o tipo.
+   Para os tipos não escalares, este comportamento provavelmente não será
+   adequado e, portanto, pode ser substituído especificando-se uma função
+   de análise personalizada.
+   Esta função deve ser declarada como recebendo um único argumento do tipo
+   <type>internal</type>, e retornando um resultado do tipo <type>boolean</type>.
+   A API detalhada para a função de análise está descrita em
+   <filename>src/include/commands/vacuum.h</filename>.
+  </para>
+
+  <para>
+   Enquanto os detalhes da representação interna do novo tipo são conhecidos
+   somente pelas funções de entrada e de saída e por outras funções criadas pelo
+   usuário para trabalhar com o tipo, existem várias propriedades da
+   representação interna que devem ser declaradas para o
+   <productname>PostgreSQL</productname>. A mais importante destas é o
+   <replaceable class="parameter">comprimento_interno</replaceable>.
+   Os tipos de dado base podem ser de comprimento fixo e, neste caso, o
+   <replaceable class="parameter">comprimento_interno</replaceable> é um
+   inteiro positivo, ou de comprimento variável, indicado pela definição do
+   <replaceable class="parameter">comprimento_interno</replaceable>
+   como <literal>VARIABLE</literal> (Internamente isto é representado
+   definindo <literal>typlen</literal> como -1). A representação interna de
+   todos os tipos de comprimento variável devem começar por um inteiro de
+   4 bytes fornecendo o comprimento total deste valor do tipo.
+  </para>
+
+  <para>
+   O sinalizador opcional <literal>PASSEDBYVALUE</literal> indica que
+   os valores deste tipo de dado são passados por valor,
+   e não por referência. Não é possível passar por valor tipos cuja
+   representação interna seja maior do que o tamanho do tipo <type>Datum</type>
+   (4 bytes na maioria das máquinas, e 8 bytes em poucas).
+  </para>
+
+  <para>
+   O parâmetro <replaceable class="parameter">alinhamento</replaceable>
+   especifica o alinhamento de armazenamento requerido por este tipo de dado.
+   Os valores permitidos igualam-se ao alinhamento nas fronteiras de 1, 2, 4 ou
+   8 bytes. Deve ser observado que os tipos de comprimento variável devem ter um
+   alinhamento de pelo menos 4, porque contêm, necessariamente,
+   um <type>int4</type> como seu primeiro componente.
+  </para>
+
+  <para>
+   O parâmetro <replaceable class="parameter">armazenamento</replaceable>
+   permite selecionar estratégias de armazenamento para tipos de dado de
+   comprimento variável (somente é permitido <literal>plain</literal> para os
+   tipos de comprimento fixo).
+   <literal>plain</literal> especifica que os dados deste tipo são sempre
+   armazenado em-linha e não comprimidos.
+   <literal>extended</literal> especifica que primeiro o sistema
+   tentará comprimir um valor de dado longo e, depois, movê-lo para fora
+   da linha da tabela principal se ainda permanecerem muito longo.
+   <literal>external</literal> permite mover os valores para fora da tabela
+   principal, mas o sistema não tentará comprimi-los.
+   <literal>main</literal> permite a compressão, mas desencoraja mover o
+   valor para fora da tabela principal (os itens de dado com esta estratégia de
+   armazenamento só são movidos para fora da tabela principal se não houver
+   outra maneira de fazer a linha caber, mas têm mais preferência para serem
+   mantidos na tabela principal do que os itens <literal>extended</literal> e
+   <literal>external</literal>).
+  </para>
+
+  <para>
+   Pode ser especificado um valor padrão, quando se deseja que as colunas
+   com este tipo de dado tenham como padrão algo diferente do valor nulo.
+   O valor padrão é especificado pela palavra chave <literal>DEFAULT</literal>;
+   este padrão pode ser substituído por uma cláusula <literal>DEFAULT</literal>
+   explícita anexada a uma determinada coluna.
+  </para>
+
+  <para>
+   Para indicar que o tipo é uma matriz, deve ser especificado o tipo dos
+   elementos da matriz utilizando a palavra chave <literal>ELEMENT</literal>.
+   Por exemplo, para definir uma matriz de inteiros de 4 bytes
+   (<type>int4</type>), deve ser especificado <literal>ELEMENT = int4</literal>.
+   Mais detalhes sobre tipos matriz são mostrados abaixo.
+  </para>
+
+  <para>
+   Para indicar o delimitador a ser usado entre os valores na representação
+   externa das matrizes deste tipo, pode-se definir
+   <replaceable class="parameter">delimitador</replaceable>
+   como um caractere específico. O delimitador padrão é a vírgula
+   (<literal>,</literal>). Deve ser observado que o delimitador está associado
+   com o tipo do elemento da matriz, e não com a própria matriz.
+  </para>
+
+  </refsect2>
+
+  <refsect2>
+   <title>Tipos matriz</title>
+
+   <para>
+    Sempre que um tipo de dado base definido pelo usuário é criado, o
+    <productname>PostgreSQL</productname> cria automaticamente um tipo matriz
+    (<literal>array</literal>) associado, cujo nome consiste no nome do tipo
+    base prefixado pelo caractere sublinhado. O analisador compreende esta
+    convenção de nome, e traduz as solicitações para colunas do tipo
+    <literal>foo[]</literal> em solicitações para o tipo <literal>_foo</literal>.
+    O tipo matriz criado implicitamente é de comprimento variável e usa
+    as funções de entrada e saída nativas <literal>array_in</literal> e
+    <literal>array_out</literal>.
+   </para>
+
+   <para>
+    Pode ser perguntado, com razão, por que existe a opção
+    <option>ELEMENT</option> se o sistema produz o tipo matriz correto
+    automaticamente. O único caso onde é útil utilizar <option>ELEMENT</option>
+    é quando se constrói um tipo de comprimento fixo que é internamente uma
+    matriz de componentes idênticos, e deseja-se que estes componentes sejam
+    acessados diretamente por índices, além de qualquer outra operação que se
+    planeje fornecer para este tipo como um todo. Por exemplo, o tipo
+    <type>name</type> permite que os elementos <type>char</type> que o
+    constituem sejam acessados desta forma. Um tipo <type>point</type> 2-D pode
+    permitir que os dois números que o compõe sejam acessados como
+    <literal>point[0]</literal> e <literal>point[1]</literal>.
+    Deve ser observado que esta praticidade somente funciona em tipos de
+    comprimento fixo cuja forma interna seja exatamente uma seqüência de campos
+    idênticos de comprimento fixo.
+    Para permitir o uso de índices, um tipo de comprimento variável deve possuir
+    a representação interna generalizada usada por <literal>array_in</literal> e
+    <literal>array_out</literal>.
+    Por razões históricas (ou seja, claramente errado mas muito tarde para mudar)
+    os índices dos tipos matriz de comprimento fixo começam por zero,
+    em vez de começar por um como no caso matrizes de comprimento variável.
+   </para>
+  </refsect2>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) do tipo a ser criado.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">nome_do_atributo</replaceable></term>
+    <listitem>
+     <para>
+      O nome de um atributo (coluna) para o tipo composto.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">tipo_de_dado</replaceable></term>
+    <listitem>
+     <para>
+      O nome de um tipo de dado existente que será uma coluna
+      do tipo composto.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">função_de_entrada</replaceable></term>
+    <listitem>
+     <para>
+      O nome da função que converte os dados da forma textual externa
+      para a forma interna.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">função_de_saída</replaceable></term>
+    <listitem>
+     <para>
+      O nome da função que converte os dados da forma interna do tipo para
+      a forma textual externa.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">função_de_recepção</replaceable></term>
+    <listitem>
+     <para>
+      O nome da função que converte os dados da forma binária externa do tipo
+      para a forma interna.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">função_de_envio</replaceable></term>
+    <listitem>
+     <para>
+      O nome da função que converte os dados da forma interna do tipo
+      para a forma binária externa.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">função_de_análise</replaceable></term>
+    <listitem>
+     <para>
+      O nome da função que realiza as análises estatísticas para o
+      tipo de dado.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">comprimento_interno</replaceable></term>
+    <listitem>
+     <para>
+      Uma constante numérica que especifica o comprimento em bytes da
+      representação interna do novo tipo. O padrão é assumir como sendo de
+      comprimento variável.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">alinhamento</replaceable></term>
+    <listitem>
+     <para>
+      O alinhamento de armazenamento requerido por este tipo de dado.
+      Se for especificado, deve ser <literal>char</literal>,
+      <literal>int2</literal>, <literal>int4</literal> ou
+      <literal>double</literal>; o padrão é <literal>int4</literal>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">armazenamento</replaceable></term>
+    <listitem>
+     <para>
+      A estratégia de armazenamento para este tipo de dado. Se for especificado,
+      deve ser <literal>plain</literal>, <literal>external</literal>,
+      <literal>extended</literal> ou <literal>main</literal>;
+      o padrão é <literal>plain</literal>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">padrão</replaceable></term>
+    <listitem>
+     <para>
+      O valor padrão para este tipo de dado. Se for omitido,
+      o padrão é nulo.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">elemento</replaceable></term>
+    <listitem>
+     <para>
+      O tipo sendo criado é uma matriz (<literal>array</literal>); especifica
+      o tipo dos elementos da matriz.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">delimitador</replaceable></term>
+    <listitem>
+     <para>
+      O caractere delimitador a ser usado entre os valores nas
+      matrizes (<literal>arrays</literal>) feitas deste tipo.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1 id="SQL-CREATETYPE-notes">
+  <title>Observações</title>
+
+  <para>
+   Os nomes de tipo definidos pelo usuário não podem começar pelo caractere
+   sublinhado (<literal>_</literal>), e só podem ter 62 caracteres de
+   comprimento (ou, de modo geral, <symbol>NAMEDATALEN-2</symbol>,
+   em vez dos <symbol>NAMEDATALEN-1</symbol> caracteres permitidos para os
+   outros nomes).
+   Os nomes de tipo começados por sublinhado são reservados
+   para os nomes de tipo matriz criados internamente.
+  </para>
+
+  <para>
+   Nas versões do <productname>PostgreSQL</productname> anteriores a 7.3, era
+   costume evitar criar um tipo <quote>abrigo</quote> substituindo as
+   referências à frente da função para o nome do tipo usando o pseudotipo
+   <type>opaque</type>. Os argumentos e resultados <type>cstring</type> também
+   tinham que ser declarados como <type>opaque</type> antes da versão 7.3.
+   Para permitir a carga de cópias de segurança antigas, o comando
+   <command>CREATE TYPE</command> aceita funções declaradas como retornando
+   <type>opaque</type>, mas mostra uma mensagem e
+   muda a declaração da função para usar o tipo correto.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Este exemplo cria um tipo composto e o utiliza na definição
+   de uma função:
+<programlisting>
+CREATE TYPE compfoo AS (f1 int, f2 text);
+
+CREATE FUNCTION getfoo() RETURNS SETOF compfoo AS $$
+    SELECT fooid, fooname FROM foo
+$$ LANGUAGE SQL;
+</programlisting>
+  </para>
+
+  <para>
+   Este exemplo cria o tipo de dado base <type>box</type> e, em seguida,
+   o utiliza na definição da tabela:
+<programlisting>
+CREATE TYPE box (
+    INTERNALLENGTH = 16,
+    INPUT = my_box_in_function,
+    OUTPUT = my_box_out_function
+);
+
+CREATE TABLE myboxes (
+    id integer,
+    description box
+);
+</programlisting>
+  </para>
+
+  <para>
+   Se a estrutura interna de <type>box</type> fosse uma matriz
+   de quatro elementos <type>float4</type>, poderia ter sido usado
+<programlisting>
+CREATE TYPE box (
+    INTERNALLENGTH = 16,
+    INPUT = my_box_in_function,
+    OUTPUT = my_box_out_function,
+    ELEMENT = float4
+);
+</programlisting>
+   o que permitiria acessar o valor de um componente de <literal>box</literal>
+   através de índice. Fora isso, o tipo se comporta do mesmo modo que o anterior.
+  </para>
+
+  <para>
+   Este exemplo cria um tipo objeto grande e o utiliza na
+   definição de uma tabela:
+<programlisting>
+CREATE TYPE bigobj (
+    INPUT = lo_filein, OUTPUT = lo_fileout,
+    INTERNALLENGTH = VARIABLE
+);
+CREATE TABLE big_objs (
+    id integer,
+    obj bigobj
+);
+</programlisting>
+  </para>
+
+  <para>
+   Outros exemplos, incluindo funções de entrada e de saída,
+   podem ser encontrados no <xref linkend="xtypes">.
+  </para>
+ </refsect1>
+
+ <refsect1 id="SQL-CREATETYPE-compatibility">
+  <title>Compatibilidade</title>
+
+  <para>
+   Este comando <command>CREATE TYPE</command> é uma extensão do
+   <productname>PostgreSQL</productname>. Existe um comando
+   <command>CREATE TYPE</command> no SQL:1999 e posterior que é
+   bastante diferente nos detalhes.
+  </para>
+ </refsect1>
+
+ <refsect1 id="SQL-CREATETYPE-see-also">
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createfunction" endterm="sql-createfunction-title"></member>
+   <member><xref linkend="sql-droptype" endterm="sql-droptype-title"></member>
+   <member><xref linkend="sql-altertype" endterm="sql-altertype-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>
+
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

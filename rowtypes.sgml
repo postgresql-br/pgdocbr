@@ -1,0 +1,360 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/rowtypes.sgml,v 2.4 2004/12/23 05:37:40 tgl Exp $ -->
+
+<sect1 id="rowtypes">
+ <title>Tipos compostos</title>
+
+ <indexterm>
+  <primary>tipo composto</primary>
+ </indexterm>
+
+ <indexterm>
+  <primary>tipo linha</primary>
+ </indexterm>
+
+ <para>
+  O <firstterm>tipo composto</> descreve a estrutura de uma linha ou registro;
+  essencialmente, é apenas uma lista de nomes de campos com seus tipos de dado.
+  O <productname>PostgreSQL</productname> permite que os valores de tipo
+  composto sejam utilizados de muitas maneiras idênticas às que os tipos simples
+  podem ser ser utilizados. Por exemplo, uma coluna de uma tabela pode ser
+  declarada como sendo de um tipo composto.
+ </para>
+
+ <sect2>
+  <title>Declaração de tipos compostos</title>
+
+ <para>
+  Abaixo seguem dois exemplos simples definindo tipos compostos:
+<programlisting>
+CREATE TYPE complexo AS (
+    r       double precision,
+    i       double precision
+);
+
+CREATE TYPE catalogo AS (
+    nome            text,
+    id_fornecedor   integer,
+    preco           numeric
+);
+</programlisting>
+  A sintaxe pode ser comparada a do comando <command>CREATE TABLE</>, exceto
+  que somente podem ser especificados os nomes e tipos dos campos; atualmente
+  não pode ser incluída nenhuma restrição (como <literal>NOT NULL</>).
+  Deve ser observado que a palavra chave <literal>AS</> é essencial;
+  sem esta, o sistema imagina que está lidando com um tipo bem diferente de
+  comando <command>CREATE TYPE</>, e mostra erros de sintaxe bem estranhos.
+ </para>
+
+ <para>
+  Após definir os tipos, estes podem ser utilizados para criar tabelas:
+
+<programlisting>
+CREATE TABLE estoque (
+    item     catalogo,
+    contador integer
+);
+
+INSERT INTO estoque VALUES (ROW('dados de pano', 42, 1.99), 1000);
+</programlisting>
+
+  ou funções:
+
+<programlisting>
+CREATE FUNCTION preco_quantidade(catalogo, integer) RETURNS numeric
+AS 'SELECT $1.preco * $2' LANGUAGE SQL;
+
+SELECT preco_quantidade(item, 10) FROM estoque;
+</programlisting>
+
+ </para>
+
+ <para>
+  Sempre que uma tabela é criada também é criado, automaticamente, um tipo
+  composto com o mesmo nome da tabela para representar o tipo linha da
+  tabela.
+  <footnote>
+   <para>
+    As linhas da tabela possuem um tipo, chamado <quote>tipo linha</quote>;
+    todas as linhas da tabela possuem o mesmo tipo linha, que também é o tipo
+    linha da tabela.
+   </para>
+   <para>
+    Um tipo linha é uma seqüência de um ou mais pares (nome de campo, tipo de
+    dado), conhecido como campos. O valor do tipo linha consiste de um valor
+    para cada um de seus campos.
+   </para>
+   <para>
+    (ISO-ANSI Working Draft) Framework (SQL/Framework), August 2003,
+    ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+   </para>
+  </footnote>
+  Por exemplo, se tivéssemos declarado
+<programlisting>
+CREATE TABLE catalogo (
+    nome            text,
+    id_fornecedor   integer REFERENCES fornecedores,
+    preco           numeric CHECK (preco > 0)
+);
+</programlisting>
+  teria sido criado como subproduto o mesmo tipo composto
+  <literal>catalogo</> mostrado acima, podendo ser utilizado conforme
+  mostrado anteriormente. Entretanto, deve ser observada uma restrição
+  importante da implementação corrente: uma vez que não há nenhuma restrição
+  associada ao tipo composto, a restrição mostrada na definição da tabela
+  <emphasis>não se aplica</> aos valores do tipo composto fora da tabela
+  (Uma forma parcial de evitar este problema é utilizar tipos domínios
+  como membros dos tipos compostos).
+ </para>
+ </sect2>
+
+ <sect2>
+  <title>Entrada de valor composto</title>
+
+  <indexterm>
+   <primary>tipo composto</primary>
+   <secondary>constante</secondary>
+  </indexterm>
+
+  <para>
+   Para escrever um valor composto como uma constante literal, os valores
+   do campo devem ser envoltos por parênteses e separados por vírgulas.
+   Podem ser colocadas aspas em torno de qualquer valor do campo, sendo
+   obrigatório se o valor contiver vírgulas ou parênteses (Abaixo são mostrados
+   mais detalhes). Portanto, o formato geral de uma constante composta
+   é o seguinte:
+<synopsis>
+'( <replaceable>val1</replaceable> , <replaceable>val2</replaceable> , ... )'
+</synopsis>
+   Por exemplo,
+<programlisting>
+'("dados de pano",42,1.99)'
+</programlisting>
+   é um valor válido para o tipo <literal>catalogo</> definido acima.
+   Para tornar o campo nulo, não deve ser escrito nenhum caractere na sua
+   posição na lista. Por exemplo, esta constante especifica um terceiro campo
+   nulo:
+<programlisting>
+'("dados de pano",42,)'
+</programlisting>
+   Se, em vez de nulo, for desejada uma cadeia de caracteres vazia,
+   devem ser escritas duas aspas:
+<programlisting>
+'("",42,)'
+</programlisting>
+   Neste caso, o primeiro campo é uma cadeia de caracteres vazia não-nula,
+   e o terceiro campo é nulo.
+  </para>
+
+  <para>
+   (Estas constantes são, na verdade, apenas um caso especial do tipo genérico
+   de constantes mostrado na <xref linkend="sql-syntax-constants-generic">.
+   Inicialmente, a constante é tratada como uma cadeia de caracteres e passada
+   para a rotina de conversão de entrada de tipo composto
+   (Pode ser necessária uma especificação explícita do tipo).
+  </para>
+
+ <para>
+  Também pode ser utilizada a sintaxe da expressão <literal>ROW</literal> para
+  construir valores compostos. Na maioria dos casos, esta sintaxe é bem mais
+  simples que a sintaxe do literal cadeia de caracteres, uma vez que não é
+  necessário se preocupar com várias camadas de aspas. Este método já
+  foi utilizado acima:
+<programlisting>
+ROW('dados de pano', 42, 1.99)
+ROW('', 42, NULL)
+</programlisting>
+  Desde que haja mais de um campo na expressão, a palavra chave ROW se torna
+  opcional, permitindo simplificar como:
+<programlisting>
+('dados de pano', 42, 1.99)
+('', 42, NULL)
+</programlisting>
+  A sintaxe da expressão <literal>ROW</> é mostrada com mais detalhes
+  na <xref linkend="sql-syntax-row-constructors">.
+ </para>
+ </sect2>
+
+ <sect2>
+  <title>Acesso aos tipos compostos</title>
+
+ <para>
+  Para acessar um campo de uma coluna composta deve ser escrito um ponto e o
+  nome do campo, como se faz ao selecionar um campo de uma tabela.
+  Na verdade, é tão parecido com selecionar um campo de uma tabela que,
+  geralmente, é necessário utilizar parênteses para não confundir o analisador.
+  Por exemplo, selecionar alguns subcampos da tabela exemplo
+  <literal>estoque</> usando algo como
+
+<programlisting>
+SELECT item.nome FROM estoque WHERE item.preco > 9.99;
+</programlisting>
+
+  não funciona, porque o nome <literal>item</> é assumido como sendo o
+  nome da tabela, e não o nome do campo, pelas regras de sintaxe do SQL.
+  Devendo, então, ser escrito como mostrado abaixo
+
+<programlisting>
+SELECT (item).nome FROM estoque WHERE (item).preco > 9.99;
+</programlisting>
+
+  ou desta forma, se também for necessário utilizar o nome da tabela
+  (por exemplo, numa consulta com várias tabela):
+
+<programlisting>
+SELECT (estoque.item).nome FROM estoque WHERE (estoque.item).preco > 9.99;
+</programlisting>
+
+  Agora, como o objeto entre parênteses é interpretado corretamente como uma
+  referência à coluna <literal>item</>, é possível selecionar um
+  subcampo da mesma.
+ </para>
+
+ <para>
+  Ocorrem problemas de sintaxe semelhantes sempre que é selecionado um campo
+  de um valor composto. Por exemplo, para selecionar apenas um campo do
+  resultado de uma função que retorna um valor composto, é necessário escrever
+  algo como:
+
+<programlisting>
+SELECT (minha_funcao(...)).campo FROM ...
+</programlisting>
+
+  Sem os parênteses extra, provoca um erro de sintaxe.
+ </para>
+ </sect2>
+
+ <sect2>
+  <title>Modificação de tipos compostos</title>
+
+ <para>
+  Abaixo estão mostrados alguns exemplos da sintaxe apropriada para inserir
+  e atualizar colunas compostas.
+  Primeiro, são inseridas e atualizadas colunas inteiras:
+
+<programlisting>
+INSERT INTO minha_tabela (coluna_complexa) VALUES((1.1,2.2));
+
+UPDATE minha_tabela SET coluna_complexa = ROW(1.1,2.2) WHERE ...;
+</programlisting>
+
+  O primeiro exemplo omite <literal>ROW</>, enquanto o segundo exemplo não;
+  pode ser feito de qualquer uma destas maneiras.
+ </para>
+
+ <para>
+  Os subcampos de uma coluna composta podem ser atualizados individualmente:
+
+<programlisting>
+UPDATE minha_tabela SET coluna_complexa.r = (coluna_complexa).r + 1 WHERE ...;
+</programlisting>
+
+  Deve ser observado que não é necessário (e, na verdade, não se pode)
+  colocar parênteses em torno do nome da coluna que aparece logo após a
+  cláusula <literal>SET</>, mas são necessários parênteses ao se fazer
+  referência à mesma coluna na expressão à direita do sinal de igual.
+ </para>
+
+ <para>
+  Também podem ser especificados subcampos como destino do <command>INSERT</>:
+
+<programlisting>
+INSERT INTO minha_tabela (coluna_complexa.r, coluna_complexa.i) VALUES(1.1, 2.2);
+</programlisting>
+
+  Caso não tivéssemos fornecido valores para todos os subcampos da coluna,
+  os demais subcampos seriam preenchidos com o valor nulo.
+ </para>
+ </sect2>
+
+ <sect2>
+  <title>Sintaxe de entrada e saída dos tipos compostos</title>
+
+  <para>
+   A representação textual externa do valor composto é formada por itens que
+   são interpretados de acordo com as regras individuais de conversão de entrada
+   e saída do tipo de dado do campo, mais os adornos que indicam a estrutura
+   composta.
+   Os adornos são formados por parênteses (<literal>(</> e <literal>)</>) em
+   torno de todo o valor, mais vírgulas (<literal>,</>) entre itens adjacentes.
+   Os espaços em branco fora dos parênteses são ignorados, mas dentro dos
+   parênteses são considerados parte do valor do campo, podendo ou não serem
+   significativos dependendo das regras de conversão de entrada para o tipo
+   de dado do campo.
+   Por exemplo, em
+<programlisting>
+'(  42)'
+</programlisting>
+   o espaço em branco é ignorado se o tipo do campo for inteiro,
+   mas não é ignorado se o tipo do campo for texto.
+  </para>
+
+  <para>
+   Como mostrado anteriormente, ao se escrever um valor composto podem
+   ser escritas aspas envolvendo qualquer valor individual de campo.
+   Isto <emphasis>deve</> ser feito se o valor do campo puder, de alguma
+   forma, confundir o analisador de valores compostos.
+   Em particular, os campos contendo parênteses, vírgulas, aspas ou contrabarras
+   devem estar entre aspas (Além disso, um par de aspas dentro de um valor de
+   campo envolto por aspas é assumido como representando o caractere aspas, de
+   maneira análoga à regra para os apóstrofos nas cadeias de caracteres
+   literais do SQL).
+   Como alternativa, pode ser utilizado o escape de contrabarra para proteger
+   todos os caracteres dos dados que, de outra forma, seriam assumidos como
+   fazendo parte da sintaxe do tipo composto.
+  </para>
+
+  <para>
+   Um valor de campo inteiramente vazio (nenhum caractere entre as vírgulas ou
+   parênteses) representa o valor nulo. Para escrever um valor que seja
+   uma cadeia de caracteres vazia, e não o valor nulo, deve ser escrito
+   <literal>""</>.
+  </para>
+
+  <para>
+   A rotina de saída do tipo composto coloca aspas em torno dos valores dos
+   campos caso estes sejam cadeias de caracteres vazias, ou contenham
+   parêntese, vírgulas, aspas, contrabarras ou espaços em branco
+   (Fazer isto para os espaços em branco não é essencial, mas melhora a
+   legibilidade). Aspas e contrabarras incorporadas aos valores dos campos
+   são duplicadas.
+  </para>
+
+ <note>
+  <para>
+   Deve ser lembrado que, o que se escreve em um comando SQL, é interpretado
+   primeiro como um literal cadeia de caracteres e, depois, como um tipo
+   composto. Isto duplica o número de contrabarras necessárias. Por exemplo,
+   para inserir um campo do tipo <type>text</type> contendo uma contrabarra e
+   uma aspas em um valor composto, deve ser escrito:
+<programlisting>
+INSERT ... VALUES ('("\\"\\\\")');
+</programlisting>
+   O processador de literais cadeias de caracteres remove um nível de
+   contrabarras, portanto o que chega ao analisador de valor composto se parece
+   com <literal>("\"\\")</literal>. Por sua vez, a cadeia de caracteres
+   introduzida na rotina de entrada do tipo de dado <type>text</type> se torna
+   <literal>"\</literal> (Se estivéssemos
+   trabalhando com um tipo de dado cuja rotina de entrada também tratasse as
+   contrabarras de forma especial como, por exemplo, <type>bytea</type>, seriam
+   necessárias oito contrabarras no comando para obter uma contrabarra
+   armazenada no campo composto).
+   Pode ser utilizada a delimitação por cifrão
+   (<literal>dollar quoting</literal>) (consulte a
+   <xref linkend="sql-syntax-dollar-quoting">) para evitar a necessidade
+   de duplicar as contrabarras.
+  </para>
+ </note>
+
+ <tip>
+  <para>
+   Ao se escrever valores compostos nos comandos SQL, normalmente é mais fácil
+   trabalhar com a sintaxe do construtor <literal>ROW</> do que com a sintaxe
+   do literal composto.
+   Usando <literal>ROW</> os valores individuais dos campos são escritos
+   da mesma maneira como seriam escritos se não fossem membros de um valor
+   composto.
+  </para>
+ </tip>
+ </sect2>
+
+</sect1>

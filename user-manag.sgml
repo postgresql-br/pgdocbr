@@ -1,0 +1,361 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/user-manag.sgml,v 1.27 2005/01/08 22:13:36 tgl Exp $
+-->
+
+<chapter id="user-manag">
+ <title>Usuários do banco de dados e privilégios</title>
+
+ <para>
+  Todo agrupamento de bancos de dados possui um conjunto de usuários de banco de
+  dados. Estes usuários são distintos dos usuários gerenciados pelo sistema
+  operacional onde o servidor executa. Os usuários possuem objetos de banco de
+  dados (por exemplo, tabelas), e podem conceder privilégios nestes objetos
+  para outros usuários controlando, assim, quem pode acessar qual objeto.
+ </para>
+
+ <para>
+  Este capítulo descreve como criar e gerenciar usuários, e introduz o sistema
+  de privilégios. Mais informações sobre os vários tipos de objetos de banco
+  de dados e os efeitos dos privilégios podem ser encontrados no
+  <xref linkend="ddl">.
+ </para>
+
+ <sect1 id="database-users">
+  <title>Usuários de banco de dados</title>
+
+  <indexterm zone="database-users">
+   <primary>usuário</primary>
+  </indexterm>
+
+  <indexterm>
+   <primary>CREATE USER</primary>
+  </indexterm>
+
+  <indexterm>
+   <primary>DROP USER</primary>
+  </indexterm>
+
+  <para>
+   Conceitualmente, os usuários de banco de dados são completamente distintos
+   dos usuários de sistema operacional. Na prática, pode ser conveniente manter
+   correspondência, mas não é requerido. Os nomes dos usuários de banco de dados
+   são globais para todo o agrupamento de bancos de dados (e não próprio de
+   cada banco de dados). Para criar um usuário deve ser utilizado o comando SQL
+   <xref linkend="sql-createuser" endterm="sql-createuser-title">:
+<synopsis>
+CREATE USER <replaceable>nome_do_usuário</replaceable>;
+</synopsis>
+   Onde <replaceable>nome_do_usuário</replaceable> segue as regras dos
+   identificadores SQL: ou não contém caracteres especiais, ou está entre aspas.
+   Para remover um usuário existente deve ser utilizado o comando
+   <xref linkend="sql-dropuser" endterm="sql-dropuser-title">:
+<synopsis>
+DROP USER <replaceable>nome_do_usuário</replaceable>;
+</synopsis>
+  </para>
+
+  <indexterm>
+   <primary>programa createuser</primary>
+  </indexterm>
+
+  <indexterm>
+   <primary>programa dropuser</primary>
+  </indexterm>
+
+  <para>
+   Para facilitar, são fornecidos os programas <xref linkend="app-createuser">
+   e <xref linkend="app-dropuser"> que incorporam estes comandos SQL, e que
+   podem ser executados a partir do interpretador de comandos:
+<synopsis>
+createuser <replaceable>nome_do_usuário</replaceable>
+dropuser <replaceable>nome_do_usuário</replaceable>
+</synopsis>
+  </para>
+
+  <para>
+   Para conhecer o conjunto de usuários existentes deve ser consultado
+   o catálogo do sistema <structname>pg_user</> como, por exemplo:
+<synopsis>
+SELECT usename FROM pg_user;
+</synopsis>
+   Também pode ser utilizado o meta-comando <literal>\du</> do programa
+   <xref linkend="app-psql"> para listar os usuários existentes.
+  </para>
+
+  <para>
+   Para ser possível ativar o sistema de banco de dados, um sistema recém
+   criado sempre contém um usuário pré-definido. É atribuído o valor 1 para o
+   identificador deste usuário e, por padrão (a menos que seja alterado ao
+   executar o utilitário <command>initdb</command>), possui o mesmo nome do
+   usuário de sistema operacional que inicializou o agrupamento de bancos de
+   dados. Geralmente este usuário se chama <literal>postgres</literal>.
+   Para poder criar mais usuários, primeiro é necessário se conectar como este
+   usuário inicial.
+  </para>
+
+  <para>
+   Em uma conexão com o servidor de banco de dados, está ativa a identidade de
+   exatamente um usuário. O nome de usuário a ser utilizado em uma determinada
+   conexão com o banco de dados é indicado pelo cliente ao fazer o
+   pedido de conexão, de uma forma específica do aplicativo. Por exemplo,
+   o programa <command>psql</command> utiliza a opção <option>-U</option>
+   na linha de comando para indicar o usuário a ser utilizado na conexão.
+   Muitos aplicativos assumem, por padrão, o nome do usuário corrente do sistema
+   operacional (inclusive o <command>createuser</command> e o
+   <command>psql</command>). Portanto, é conveniente manter uma correspondência
+   de nomes entre estes dois conjuntos de usuários.
+  </para>
+
+  <para>
+   O conjunto de usuários de banco de dados que podem se conectar através de
+   determinada conexão cliente é determinado pela configuração da autenticação
+   de clientes, conforme explicado no <xref linkend="client-authentication">
+   (Portanto, um cliente não está necessariamente limitado a se conectar com o
+   mesmo nome de usuário do sistema operacional, da mesma maneira que uma pessoa
+   não está limitada no nome de <literal>login</literal> ao seu nome verdadeiro).
+   Uma vez que a identidade do usuário determina o conjunto de privilégios
+   disponíveis para o cliente conectado, é importante que isto seja definido
+   com cuidado quando se configura um ambiente multiusuário.
+  </para>
+ </sect1>
+
+ <sect1 id="user-attributes">
+  <title>Atributos do usuário</title>
+
+   <para>
+    O usuário de banco de dados pode possuir vários atributos que definem seus
+    privilégios e interagem com o sistema de autenticação de clientes.
+
+    <variablelist>
+     <varlistentry>
+      <term>superuser<indexterm><primary>superusuário</primary></></term>
+      <listitem>
+       <para>
+        Um superusuário do banco de dados não está sujeito a verificações de
+        permissão. Também, somente um superusuário pode criar novos usuários.
+        Para criar um superusuário do banco de dados deve ser utilizado o
+        comando <literal>CREATE USER <replaceable>nome_do_usuário</replaceable>
+        CREATEUSER</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>criação de banco de dados<indexterm><primary>banco de dados</primary><secondary>privilégio para criar</secondary></indexterm></term>
+      <listitem>
+       <para>
+        Para o usuário poder criar bancos de dados deve ser dada uma permissão
+        explícita (exceto para os superusuários, uma vez que estes não estão
+        sujeitos a verificações de permissão). Para criar um usuário que pode
+        criar bancos de dados, deve ser utilizado o comando
+        <literal>CREATE USER <replaceable>nome_do_usuário</replaceable>
+        CREATEDB</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term>senha<indexterm><primary>senha</primary></indexterm></term>
+      <listitem>
+       <para>
+        A senha só é importante se o método de autenticação do cliente
+        requerer que o usuário forneça a senha para se conectar ao banco de
+        dados. Os métodos de autenticação <option>password</option>,
+        <option>md5</option> e <option>crypt</option> fazem uso de senha. As
+        senhas de banco de dados são distintas das senhas do sistema operacional.
+        A senha deve ser especificada quando o usuário é criado utilizando
+        <literal>CREATE USER <replaceable>nome_do_usuário</replaceable>
+        PASSWORD '<replaceable>cadeia de caracteres</replaceable>'</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+
+    Os atributos do usuário podem ser modificados após este ter sido criado
+    utilizando o comando <command>ALTER USER</command>.
+    <indexterm><primary>ALTER USER</primary></indexterm>
+    Para obter mais detalhes consulte as páginas de referência dos comandos
+    <xref linkend="sql-createuser" endterm="sql-createuser-title"> e
+    <xref linkend="sql-alteruser" endterm="sql-alteruser-title">.
+   </para>
+
+  <para>
+   O usuário também pode definir padrões pessoais para várias definições
+   de configuração em tempo de execução, conforme descrito na
+   <xref linkend="runtime-config">. Por exemplo, se por alguma razão o usuário
+   desejar desabilitar as varreduras de índice toda vez que se conectar
+   (conselho: não é uma boa idéia), pode utilizar o comando:
+<programlisting>
+ALTER USER meu_usuário SET enable_indexscan TO off;
+</programlisting>
+   Este comando salva a definição (mas não define imediatamente) e nas próximas
+   conexões feitas por este usuário vai parecer que o comando
+   <literal>SET enable_indexscan TO off;</literal> foi chamado logo antes da
+   sessão começar. Continua sendo possível alterar esta definição durante a
+   sessão; apenas será a definição padrão. Para desfazer esta definição deve
+   ser utilizado o comando
+   <literal>ALTER USER <replaceable>meu_usuário</replaceable>
+   RESET <replaceable>nome_da_variável</replaceable>;</literal>.
+  </para>
+ </sect1>
+
+ <sect1 id="groups">
+  <title>Grupos</title>
+
+  <indexterm zone="groups">
+   <primary>grupo</primary>
+  </indexterm>
+
+  <para>
+   Como no Unix, os grupos são uma forma lógica de juntar usuários para
+   facilitar o gerenciamento de privilégios; os privilégios podem ser
+   concedidos, ou revogados, para o grupo como um todo. Para criar um grupo
+   deve ser utilizado o comando SQL
+   <xref linkend="sql-creategroup" endterm="sql-creategroup-title">:
+<synopsis>
+CREATE GROUP <replaceable>nome_do_grupo</replaceable>;
+</synopsis>
+
+   Para adicionar ou remover usuários de um grupo existente deve ser utilizado
+   o comando SQL <xref linkend="sql-altergroup" endterm="sql-altergroup-title">:
+<synopsis>
+ALTER GROUP <replaceable>nome_do_grupo</replaceable> ADD USER <replaceable>nome_do_usuário</replaceable>, ... ;
+ALTER GROUP <replaceable>nome_do_grupo</replaceable> DROP USER <replaceable>nome_do_usuário</replaceable>, ... ;
+</synopsis>
+
+   Para remover um grupo deve ser utilizado o comando SQL
+   <xref linkend="sql-dropgroup" endterm="sql-dropgroup-title">:
+<synopsis>
+DROP GROUP <replaceable>nome_do_grupo</replaceable>;
+</synopsis>
+   Este comando remove apenas os grupos; não remove os usuários membros do grupo.
+  </para>
+
+  <para>
+   Para conhecer o conjunto de grupos existentes, deve ser consultado o
+   catálogo do sistema <structname>pg_group</structname> como, por exemplo:
+<synopsis>
+SELECT groname FROM pg_group;
+</synopsis>
+   Também pode ser utilizado o meta-comando <literal>\dg</> do programa
+   <xref linkend="app-psql"> para listar os grupos existentes.
+  </para>
+ </sect1>
+
+ <sect1 id="privileges">
+  <title>Privilégios</title>
+
+  <indexterm zone="privileges">
+   <primary>privilégio</primary>
+  </indexterm>
+
+  <indexterm zone="privileges">
+   <primary>dono</primary>
+  </indexterm>
+
+  <indexterm zone="privileges">
+   <primary>GRANT</primary>
+  </indexterm>
+
+  <indexterm zone="privileges">
+   <primary>REVOKE</primary>
+  </indexterm>
+
+  <remark>Being moved to the DDL chapter.  Will eventually disappear here.</remark>
+
+  <para>
+   Quando um objeto do banco de dados é criado, é atribuído um dono ao mesmo.
+   O dono é o usuário que executou o comando de criação. Para mudar o dono de
+   uma tabela, índice, seqüência ou visão deve ser utilizado o comando
+   <xref linkend="sql-altertable" endterm="sql-altertable-title">. Por padrão,
+   somente o dono (ou um superusuário) pode fazer qualquer coisa com o objeto.
+   Para permitir o uso por outros usuários, devem ser concedidos
+   <firstterm>privilégios</firstterm>.
+  </para>
+
+  <para>
+   Existem vários privilégios distintos: <literal>SELECT</literal>,
+   <literal>INSERT</literal>, <literal>UPDATE</literal>,
+   <literal>DELETE</literal>, <literal>RULE</literal>,
+   <literal>REFERENCES</literal>, <literal>TRIGGER</literal>,
+   <literal>CREATE</literal>, <literal>TEMPORARY</literal>,
+   <literal>EXECUTE</literal>, <literal>USAGE</literal> e
+   <literal>ALL PRIVILEGES</literal>. Para obter mais
+   informações sobre os diferentes tipos de privilégio suportados pelo
+   <productname>PostgreSQL</productname> deve ser consultada a página de referência
+   do comando <xref linkend="sql-grant" endterm="sql-grant-title">.
+   O direito de modificar ou remover um objeto é sempre um privilégio apenas de
+   seu dono. É utilizado o comando <command>GRANT</command> para conceder
+   privilégios. Portanto, se <literal>joel</literal> for um usuário existente, e
+   <literal>tbl_contas</literal> for uma tabela existente, o privilégio de
+   atualizar a tabela pode ser concedido pelo comando:
+
+<programlisting>
+GRANT UPDATE ON tbl_contas TO joel;
+</programlisting>
+
+   Este comando deve ser executado pelo usuário dono da tabela.
+   Para conceder privilégios para um grupo deve ser utilizado o comando:
+
+<programlisting>
+GRANT SELECT ON tbl_contas TO GROUP grp_financas;
+</programlisting>
+
+   O nome especial de <quote>usuário</quote> <literal>PUBLIC</literal> pode
+   ser utilizado para conceder o privilégio para todos os usuários do sistema.
+   Escrevendo <literal>ALL</literal> no lugar do privilégio especifica a
+   concessão de todos os privilégios.
+  </para>
+
+  <para>
+   Para revogar um privilégio deve ser utilizado o comando
+   <xref linkend="sql-revoke" endterm="sql-revoke-title">:
+
+<programlisting>
+REVOKE ALL ON tbl_contas FROM PUBLIC;
+</programlisting>
+
+   Os privilégios especiais do dono da tabela (ou seja, o direito de
+   <command>DROP</command> (remover), <command>GRANT</command> (conceder),
+   <command>REVOKE</command> (revogar), etc.) são sempre implícitos ao fato de
+   ser o dono, não podendo ser concedidos ou revogados. Mas o dono da tabela
+   pode decidir revogar seus próprios privilégios comuns como, por exemplo,
+   tornando uma tabela somente para leitura para o próprio e para os outros.
+  </para>
+ </sect1>
+
+ <sect1 id="perm-functions">
+  <title>Funções e gatilhos</title>
+
+  <para>
+   As funções e os gatilhos permitem que usuários insiram código no servidor
+   que outros usuários podem executar sem conhecer. Portanto, estes dois
+   mecanismos permitem a criação de <quote>Cavalos de Tróia</quote>
+   <footnote>
+    <para>
+     Cavalo de Tróia &mdash;
+     Um programa destrutivo disfarçado de um aplicativo benigno.
+     Ao contrário dos vírus, os cavalos de tróia não se replicam, mas podem ser
+     tão destrutivos quanto estes.
+     <ulink url="http://www.webopedia.com/TERM/T/Trojan_horse.html">What is
+     Trojan Horse</ulink>. (N. do T.)
+    </para>
+   </footnote>
+   com relativa impunidade. A única proteção real é um controle rígido
+   sobre quem pode definir funções.
+  </para>
+
+  <para>
+   As funções executam dentro do processo servidor, com as permissões do sistema
+   operacional do processo servidor de banco de dados. Se a linguagem de
+   programação utilizada pela função permitir acesso à memória sem verificação,
+   é possível mudar as estruturas de dados internas do servidor. Portanto, entre
+   outras coisas, estas funções podem burlar qualquer sistema de controle de
+   acesso. As linguagens de função que permitem este tipo de acesso são
+   consideradas <quote>não confiáveis</quote> (<literal>untrusted</literal>),
+   e o <productname>PostgreSQL</productname> somente permite que superusuários
+   criem funções escritas nestas linguagens.
+  </para>
+ </sect1>
+
+</chapter>

@@ -1,0 +1,189 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/analyze.sgml,v 1.19 2004/03/09 16:57:47 neilc Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-ANALYZE">
+ <refmeta>
+  <refentrytitle id="sql-analyze-title">ANALYZE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>ANALYZE</refname>
+  <refpurpose>coleta estatísticas sobre o banco de dados</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-analyze">
+  <primary>ANALYZE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+ANALYZE [ VERBOSE ] [ <replaceable class="parameter">tabela</replaceable> [ (<replaceable class="parameter">coluna</replaceable> [, ...] ) ] ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>ANALYZE</command> coleta estatísticas sobre o conteúdo
+   das tabelas do banco de dados, e armazena os resultados na tabela do sistema
+   <literal>pg_statistic</literal>. Posteriormente, o planejador de comandos
+   utiliza estas estatísticas para ajudar a determinar o plano de execução
+   mais eficiente para os comandos.
+  </para>
+
+  <para>
+   Sem nenhum parâmetro, o comando <command>ANALYZE</command> analisa todas as
+   tabelas do banco de dados corrente. Com um parâmetro, o comando
+   <command>ANALYZE</command> analisa somente esta tabela. É possível, também,
+   fornecer uma lista de nomes de colunas e, neste caso, somente são coletadas
+   estatísticas para estas colunas.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><literal>VERBOSE</literal></term>
+    <listitem>
+     <para>
+      Habilita a exibição das mensagens de progresso.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">tabela</replaceable></term>
+    <listitem>
+     <para>
+      O nome (possivelmente qualificado pelo esquema) da tabela a ser analisada.
+      O padrão é analisar todas as tabelas do banco de dados corrente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">coluna</replaceable></term>
+    <listitem>
+     <para>
+      O nome de uma determinada coluna a ser analisada.
+      O padrão é analisar todas as colunas.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Saídas</title>
+
+   <para>
+    Quando <literal>VERBOSE</literal> é especificado, o comando
+    <command>ANALYZE</command> emite mensagens de progresso indicando qual
+    tabela está sendo processada no momento. Várias estatísticas sobre as
+    tabelas também são mostradas.
+   </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Aconselha-se executar o comando <command>ANALYZE</command> periodicamente, ou
+   logo após realizar uma alteração importante no conteúdo de uma tabela.
+   Estatísticas precisas auxiliam o planejador na escolha do plano de comando
+   mais apropriado e, portanto, melhoram o tempo do processamento do comando.
+   Uma estratégia habitual é executar
+   <xref linkend="sql-vacuum" endterm="sql-vacuum-title">
+   e <command>ANALYZE</command> uma vez por dia em hora de pouca utilização.
+  </para>
+
+  <para>
+   Ao contrário do comando <command>VACUUM FULL</command>, o comando
+   <command>ANALYZE</command> requer somente um bloqueio de leitura na tabela
+   podendo, portanto, ser executado em conjunto com outras atividades na tabela.
+  </para>
+
+  <para>
+   As estatísticas coletadas pelo comando <command>ANALYZE</command> geralmente
+   incluem a lista dos valores mais comuns de cada coluna, e
+   um histograma mostrando a distribuição aproximada dos dados em cada coluna.
+   Estas informações podem ser omitidas se o comando
+   <command>ANALYZE</command> considerá-las sem importância (por exemplo,
+   em uma coluna de chave única não existem valores repetidos), ou se o
+   tipo de dado da coluna não suportar os operadores apropriados. Existem
+   informações adicionais sobre estatísticas no <xref linkend="maintenance">.
+  </para>
+
+  <para>
+   Para tabelas grandes, o comando <command>ANALYZE</command> pega amostras
+   aleatórias do conteúdo da tabela, em vez de examinar todas as linhas.
+   Esta estratégia permite que mesmo tabelas muito grandes sejam analisadas
+   em curto espaço de tempo. Entretanto, deve ser observado que as estatísticas
+   são apenas aproximadas, e mudam um pouco cada vez que o comando
+   <command>ANALYZE</command> é executado, mesmo que o conteúdo da tabela não se
+   altere, podendo provocar pequenas mudanças no custo estimado pelo planejador
+   mostrado pelo comando <command>EXPLAIN</command>. Em situações raras, este
+   não determinismo faz o otimizador de consultas escolher planos diferentes
+   entre execuções do comando <command>ANALYZE</command>. Para evitar esta
+   situação, a quantidade de estatísticas coletada pelo comando
+   <command>ANALYZE</command> deve ser aumentada, conforme descrito abaixo.
+  </para>
+
+  <para>
+   A extensão da análise pode ser controlada ajustando o valor da variável de
+   configuração <xref linkend="guc-default-statistics-target">, ou coluna por
+   coluna definindo a quantidade de estatísticas por coluna através do comando
+   <command>ALTER TABLE ... ALTER COLUMN ... SET STATISTICS</command>
+   (consulte o comando <xref linkend="sql-altertable" endterm="sql-altertable-title">).
+   A quantidade especificada define o número máximo de entradas presentes na
+   lista de valores com maior incidência, e o número máximo de barras no
+   histograma. O valor padrão é 10, mas pode ser ajustado para mais, ou para
+   menos, para balancear a precisão das estimativas do planejador contra o tempo
+   gasto para executar o comando <command>ANALYZE</command> e a quantidade
+   de espaço ocupado pela tabela <literal>pg_statistic</literal>.
+   Em particular, especificar o valor zero desabilita a coleta de estatísticas
+   para a coluna, podendo ser útil em colunas que nunca são usadas
+   como parte das cláusulas <literal>WHERE</literal>, <literal>GROUP BY</literal>
+   ou <literal>ORDER BY</literal> nos comandos, porque as estatísticas para
+   estas colunas nunca são utilizadas pelo planejador.
+  </para>
+
+  <para>
+   A quantidade máxima de estatísticas entre as colunas sendo analisadas
+   determina o número de linhas amostradas para preparar as estatísticas.
+   Aumentando a quantidade aumenta proporcionalmente o tempo e espaço
+   necessários para executar o comando <command>ANALYZE</command>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Não existe o comando <command>ANALYZE</command> no padrão SQL.
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

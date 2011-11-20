@@ -1,0 +1,244 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/dml.sgml,v 1.9 2004/12/23 05:37:39 tgl Exp $ -->
+
+<chapter id="dml">
+ <title>Manipulação de dados</title>
+
+ <remark>
+  This chapter is still quite incomplete.
+ </remark>
+
+ <para>
+  O capítulo anterior mostrou como criar tabelas e outras estruturas para
+  armazenar dados. Agora está na hora de preencher as tabelas com dados.
+  Este capítulo mostra como inserir, atualizar e excluir dados em tabelas.
+  Também são apresentadas maneiras de efetuar mudanças automáticas nos dados
+  quando ocorrem certos eventos: gatilhos (<literal>triggers</literal>) e regras
+  de reescrita (<literal>rewrite rules</literal>). Para completar, o próximo
+  capítulo explica como fazer consultas para extrair dados do banco de dados.
+ </para>
+
+ <sect1 id="dml-insert">
+  <title>Inserção de dados</title>
+
+  <indexterm zone="dml-insert">
+   <primary>inserção</primary>
+  </indexterm>
+
+  <indexterm zone="dml-insert">
+   <primary>INSERT</primary>
+  </indexterm>
+
+  <para>
+   A tabela recém-criada não contém dados. A primeira ação a ser realizada para
+   o banco de dados ter utilidade é inserir dados. Conceitualmente, os dados são
+   inseridos uma linha de cada vez. É claro que é possível inserir mais de uma
+   linha, mas não existe maneira de inserir menos de uma linha por vez.
+   Mesmo que se conheça apenas o valor de algumas colunas, deve ser criada uma
+   linha completa.
+  </para>
+
+  <para>
+   Para criar uma linha é utilizado o comando
+   <xref linkend="sql-insert" xreflabel="sql-insert-title">.
+   Este comando requer o nome da tabela, e um valor para cada coluna
+   da tabela. Por exemplo, considere a tabela produtos
+   do <xref linkend="ddl">:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer,
+    nome       text,
+    preco      numeric
+);
+</programlisting>
+   Um exemplo de comando para inserir uma linha é:
+<programlisting>
+INSERT INTO produtos VALUES (1, 'Queijo', 9.99);
+</programlisting>
+   Os valores dos dados são colocados na mesma ordem que as colunas se encontram
+   na tabela, separados por vírgula. Geralmente os valores dos dados
+   são literais (constantes), mas também são permitidas expressões escalares.
+  </para>
+
+  <para>
+   A sintaxe mostrada acima tem como desvantagem ser necessário conhecer a ordem
+   das colunas da tabela. Para evitar isto, as colunas podem ser relacionadas
+   explicitamente. Por exemplo, os dois comandos mostrados abaixo possuem o
+   mesmo efeito do comando mostrado acima:
+<programlisting>
+INSERT INTO produtos (cod_prod, nome, preco) VALUES (1, 'Queijo', 9.99);
+INSERT INTO produtos (nome, preco, cod_prod) VALUES ('Queijo', 9.99, 1);
+</programlisting>
+   Muitos usuários consideram boa prática escrever sempre os nomes das
+   colunas.
+  </para>
+
+  <para>
+   Se não forem conhecidos os valores de todas as colunas, as colunas com valor
+   desconhecido podem ser omitidas. Neste caso, estas colunas são preenchidas
+   com seu respectivo valor padrão. Por exemplo:
+<programlisting>
+INSERT INTO produtos (cod_prod, nome) VALUES (1, 'Queijo');
+INSERT INTO produtos VALUES (1, 'Queijo');
+</programlisting>
+   A segunda forma é uma extensão do <productname>PostgreSQL</productname>,
+   que preenche as colunas a partir da esquerda com quantos valores forem
+   fornecidos, e as demais com o valor padrão.
+  </para>
+
+  <para>
+   Para ficar mais claro, pode ser requisitado explicitamente o valor padrão da
+   coluna individualmente, ou para toda a linha:
+<programlisting>
+INSERT INTO produtos (cod_prod, nome, preco) VALUES (1, 'Queijo', DEFAULT);
+INSERT INTO produtos DEFAULT VALUES;
+</programlisting>
+  </para>
+
+  <tip>
+   <para>
+    Para realizar <quote>cargas volumosas</quote>, ou seja, inserir muitos
+    dados, consulte o comando <xref linkend="sql-copy" endterm="sql-copy-title">.
+    Este comando não é tão flexível quanto o comando
+    <xref linkend="sql-insert" xreflabel="sql-insert-title">,
+    mas é mais eficiente.
+   </para>
+  </tip>
+ </sect1>
+
+ <sect1 id="dml-update">
+  <title>Atualização de dados</title>
+
+  <indexterm zone="dml-update">
+   <primary>atualização</primary>
+  </indexterm>
+
+  <indexterm zone="dml-update">
+   <primary>UPDATE</primary>
+  </indexterm>
+
+  <para>
+   A modificação dos dados armazenados no banco de dados é referida como
+   atualização. Pode ser atualizada uma linha, todas as linhas, ou um
+   subconjunto das linhas da tabela. Uma coluna pode ser atualizada
+   separadamente; as outras colunas não são afetadas.
+  </para>
+
+  <para>
+   Para realizar uma atualização são necessárias três informações:
+   <orderedlist spacing=compact>
+    <listitem>
+     <para>O nome da tabela e da coluna a ser atualizada;</para>
+    </listitem>
+
+    <listitem>
+     <para>O novo valor para a coluna;</para>
+    </listitem>
+
+    <listitem>
+     <para>Quais linhas serão atualizadas.</para>
+    </listitem>
+   </orderedlist>
+  </para>
+
+  <para>
+   Lembre-se que foi dito no <xref linkend="ddl"> que o SQL, de uma maneira
+   geral, não fornece um identificador único para as linhas. Portanto, não é
+   necessariamente possível especificar diretamente a linha a ser atualizada.
+   Em vez disso, devem ser especificadas as condições que a linha deve atender
+   para ser atualizada. Somente havendo uma chave primária na tabela (não
+   importando se foi declarada ou não), é possível endereçar uma linha específica
+   com confiança, escolhendo uma condição correspondendo à chave primária.
+   Ferramentas gráficas de acesso a banco de dados dependem da chave primária
+   para poderem atualizar as linhas individualmente.
+  </para>
+
+  <para>
+   Por exemplo, o comando mostrado abaixo atualiza todos os produtos com preço
+   igual a 5, mudando estes preços para 10:
+<programlisting>
+UPDATE produtos SET preco = 10 WHERE preco = 5;
+</programlisting>
+    Este comando pode atualizar nenhuma, uma, ou muitas linhas.
+    Não é errado tentar uma atualização que não corresponda a nenhuma linha.
+  </para>
+
+  <para>
+   Vejamos este comando em detalhe: Primeiro aparece a palavra chave
+   <literal>UPDATE</literal> seguida pelo nome da tabela. Como usual, o nome
+   da tabela pode ser qualificado pelo esquema, senão é procurado no
+   caminho. Depois aparece a palavra chave <literal>SET</literal>, seguida
+   pelo nome da coluna, por um sinal de igual, e pelo novo valor da coluna.
+   O novo valor da coluna pode ser qualquer expressão escalar, e não apenas
+   uma constante. Por exemplo, se for desejado aumentar o preço de todos
+   os produtos em 10% pode ser utilizado:
+<programlisting>
+UPDATE produtos SET preco = preco * 1.10;
+</programlisting>
+   Como pode ser visto, a expressão para obter o novo valor pode fazer
+   referência ao valor antigo. Também foi deixada de fora a cláusula
+   <literal>WHERE</literal>. Quando esta cláusula é omitida, significa que
+   todas as linhas da tabela serão atualizadas e, quando está presente, somente
+   as linhas que atendem à condição desta cláusula serão atualizadas.
+   Deve ser observado que o sinal de igual na cláusula <literal>SET</literal>
+   é uma atribuição, enquanto o sinal de igual na cláusula
+   <literal>WHERE</literal> é uma comparação, mas isto não cria uma ambigüidade.
+   Obviamente, a condição da cláusula <literal>WHERE</literal> não é
+   necessariamente um teste de igualdade, estão disponíveis vários outros
+   operadores (consulte o <xref linkend="functions">), mas a expressão deve
+   produzir um resultado booleano.
+  </para>
+
+  <para>
+   Também pode ser atualizada mais de uma coluna pelo comando
+   <command>UPDATE</command>, colocando mais de uma
+   atribuição na cláusula <literal>SET</literal>. Por exemplo:
+<programlisting>
+UPDATE minha_tabela SET a = 5, b = 3, c = 1 WHERE a &gt; 0;
+</programlisting>
+  </para>
+ </sect1>
+
+ <sect1 id="dml-delete">
+  <title>Exclusão de dados</title>
+
+  <indexterm zone="dml-delete">
+   <primary>exclusão</primary>
+  </indexterm>
+
+  <indexterm zone="dml-delete">
+   <primary>DELETE</primary>
+  </indexterm>
+
+  <para>
+   Até aqui foi mostrado como adicionar dados a tabelas, e como modificar estes
+   dados. Está faltando mostrar como remover os dados que não são mais
+   necessários. Assim como só é possível adicionar dados para toda uma linha,
+   uma linha também só pode ser removida por inteiro da tabela. Na seção
+   anterior foi explicado que o SQL não fornece uma maneira para endereçar
+   diretamente uma determinada linha. Portanto, a remoção das linhas só pode ser
+   feita especificando as condições que as linhas a serem removidas devem
+   atender. Havendo uma chave primária na tabela, então é possível
+   especificar exatamente a linha. Mas também pode ser removido um grupo de
+   linhas atendendo a uma determinada condição, ou podem ser removidas
+   todas as linhas da tabela de uma só vez.
+  </para>
+
+  <para>
+   É utilizado o comando <xref linkend="sql-delete" xreflabel="sql-delete-title">
+   para remover linhas; a sintaxe deste comando é muito semelhante a do comando
+   <xref linkend="sql-update" xreflabel="sql-update-title">. Por exemplo, para
+   remover todas as linhas da tabela produtos possuindo preço igual a 10:
+<programlisting>
+DELETE FROM produtos WHERE preco = 10;
+</programlisting>
+  </para>
+
+  <para>
+   Se for escrito simplesmente
+<programlisting>
+DELETE FROM produtos;
+</programlisting>
+   então todas as linhas da tabela serão excluídas! Dica de programador.
+  </para>
+ </sect1>
+</chapter>

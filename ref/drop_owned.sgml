@@ -1,0 +1,116 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/drop_owned.sgml,v 1.4 2006/09/18 21:19:29 neilc Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-DROP-OWNED">
+ <refmeta>
+  <refentrytitle id="SQL-DROP-OWNED-TITLE">DROP OWNED</refentrytitle>
+  <refmiscinfo>SQL - Instruções da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>DROP OWNED</refname>
+  <refpurpose>remove os objetos de banco de dados pertencentes ao papel de banco de dados</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-drop-owned">
+  <primary>DROP OWNED</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+DROP OWNED BY <replaceable class="parameter">nome</replaceable> [, ...] [ CASCADE | RESTRICT ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>DROP OWNED</command> remove do banco de dados corrente
+   todos os objetos pertencentes aos papéis especificados.
+   Todos os privilégios concedidos aos papéis sobre objetos do
+   banco de dados corrente também são revogados.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome do papel cujos objetos serão removidos e cujos privilégios serão
+      revogados.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>CASCADE</literal></term>
+    <listitem>
+     <para>
+      Remove automaticamente os objetos que dependem dos objetos afetados.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>RESTRICT</literal></term>
+    <listitem>
+     <para>
+      Recusa remover os objetos pertencentes ao papel se existirem outros
+      objetos do banco de dados que dependem dos objetos afetados.
+      Este é o padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+  <para>
+   Geralmente o comando <command>DROP OWNED</command> é utilizado como
+   preparação para a remoção de um ou mais papéis.
+   Como o comando <command>DROP OWNED</command> somente afeta os objetos
+   do banco de dados corrente, normalmente é necessário executar este comando
+   em cada um dos bancos de dados que contêm objetos pertencentes ao papel
+   a ser removido.
+  </para>
+
+  <para>
+   A utilização da opção <literal>CASCADE</literal> pode tornar este comando
+   recursivo a objetos pertencentes a outros usuários.
+  </para>
+
+  <para>
+   O comando
+   <xref linkend="sql-reassign-owned" endterm="sql-reassign-owned-title">
+   é uma alternativa que muda o dono de todos os objetos do banco
+   de dados pertencentes a um ou mais papéis.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>DROP OWNED</command> é uma extensão do
+   <productname>PostgreSQL</productname>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-reassign-owned" endterm="sql-reassign-owned-title"></member>
+   <member><xref linkend="sql-droprole" endterm="sql-droprole-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>

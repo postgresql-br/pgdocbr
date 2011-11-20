@@ -1,0 +1,102 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/alter_view.sgml,v 1.2 2007/07/08 17:47:38 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-ALTERVIEW">
+ <refmeta>
+  <refentrytitle id="SQL-ALTERVIEW-TITLE">ALTER VIEW</refentrytitle>
+  <refmiscinfo>SQL - Comandos da linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>ALTER VIEW</refname>
+  <refpurpose>altera a definição de uma visão</refpurpose>
+ </refnamediv>  
+  
+ <indexterm zone="sql-alterview">
+  <primary>ALTER VIEW</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+ALTER VIEW <replaceable>nome</replaceable> RENAME TO <replaceable>novo_nome</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+  
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   <command>ALTER VIEW</command> altera a definição de uma visão.
+   A única funcionalidade atualmente disponível é a de renomear uma visão.
+   Para executar esse comando você deve ser o dono da visão.
+  </para>
+ </refsect1>
+  
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) de uma visão existente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">novo_nome</replaceable></term>
+    <listitem>
+     <para>
+      O novo nome da visão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Notas</title>
+
+  <para>
+   Algumas variantes de <command>ALTER TABLE</command> podem ser utilizadas
+   com visões também; por exemplo, para renomear uma visão é possível também
+   utilizar <command>ALTER TABLE RENAME</command>.  Para alterar o esquema
+   ou o dono de uma visão, atualmente você deve utilizar <command>ALTER
+   TABLE</>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para renomear uma visão <literal>foo</literal> para
+   <literal>bar</literal>:
+<programlisting>
+ALTER VIEW foo RENAME TO bar;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   <command>ALTER VIEW</command> é uma extensão do <productname>PostgreSQL</>
+   ao padrão SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Veja também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createview" endterm="sql-createview-title"></member>
+   <member><xref linkend="sql-dropview" endterm="sql-dropview-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

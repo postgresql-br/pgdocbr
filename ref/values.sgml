@@ -1,0 +1,286 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/values.sgml,v 1.2 2006/10/23 18:10:32 petere Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-VALUES">
+ <refmeta>
+  <refentrytitle id="SQL-VALUES-TITLE">VALUES</refentrytitle>
+  <refmiscinfo>SQL - Instruções da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>VALUES</refname>
+  <refpurpose>computa um conjunto de linhas</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-values">
+  <primary>VALUES</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+VALUES ( <replaceable class="parameter">expressão</replaceable> [, ...] ) [, ...]
+    [ ORDER BY <replaceable class="parameter">expressão_de_classificação</replaceable> [ ASC | DESC | USING <replaceable class="parameter">operador</replaceable> ] [, ...] ]
+    [ LIMIT { <replaceable class="parameter">contador</replaceable> | ALL } ]
+    [ OFFSET <replaceable class="parameter">início</replaceable> ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>VALUES</command> computa um valor linha ou um conjunto
+   de valores linha especificados por expressões de valor.
+   É mais comumente utilizado para gerar uma <quote>tabela constante</quote>
+   dentro de um comando maior, mas pode ser utilizado sozinho.
+   <footnote>
+    <para>
+     <productname>DB2</productname> &mdash;
+     O comando <command>VALUES</command> é uma forma de consulta.
+     Pode ser incorporado a um programa aplicativo ou submetido
+     interativamente.
+     <ulink url="http://publib.boulder.ibm.com/infocenter/db2luw/v9/topic/com.ibm.db2.udb.admin.doc/doc/r0001024.htm">
+     DB2 Version 9 for Linux, UNIX, and Windows</ulink> (N. do T.)
+    </para>
+   </footnote>
+  </para>
+
+  <para>
+   Quando é especificada mais de uma linha, todas as linhas devem possuir o
+   mesmo número de elementos.
+   Os tipos de dado das colunas da tabela resultante são determinados pela
+   combinação dos tipos explícitos ou inferidos das expressões que aparecem
+   nesta coluna, utilizando as mesmas regras utilizadas para <literal>UNION</>
+   (consulte a <xref linkend="typeconv-union-case">).
+  </para>
+
+  <para>
+   Dentro de comandos maiores, <command>VALUES</> é sintaticamente permitido
+   em qualquer lugar onde o <command>SELECT</> é permitido.
+   Como é tratado como o <command>SELECT</> pela gramática, é possível
+   utilizar as cláusulas <literal>ORDER BY</>, <literal>LIMIT</> e
+   <literal>OFFSET</> com o comando <command>VALUES</>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">expressão</replaceable></term>
+    <listitem>
+     <para>
+      Uma constante ou expressão a ser computada e inserida no local indicado
+      da tabela resultante (conjunto de linhas).
+      Numa lista <command>VALUES</> aparecendo no nível mais alto do comando
+      <command>INSERT</>, a <replaceable class="parameter">expressão</>
+      pode ser substituída por <literal>DEFAULT</literal> para indicar que
+      deve ser inserido o valor padrão da coluna de destino.
+      Não pode ser utilizado <literal>DEFAULT</literal> quando
+      <command>VALUES</> aparece em outro contexto.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">expressão_de_classificação</replaceable></term>
+    <listitem>
+     <para>
+      Uma expressão ou constante inteira indicando como classificar as linhas
+      do resultado.
+      Esta expressão pode fazer referência às colunas do resultado de
+      <command>VALUES</> como <literal>column1</>, <literal>column2</>,
+      etc. Para obter detalhes deve ser consultada a
+      <xref linkend="sql-orderby" endterm="sql-orderby-title">.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">operador</replaceable></term>
+    <listitem>
+     <para>
+      O operador de classificação. Para obter detalhes deve ser consultada a
+      <xref linkend="sql-orderby" endterm="sql-orderby-title">.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">contador</replaceable></term>
+    <listitem>
+     <para>
+      O número máximo de linhas a serem retornadas.
+      Para obter detalhes deve ser consultada a
+      <xref linkend="sql-limit" endterm="sql-limit-title">.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">início</replaceable></term>
+    <listitem>
+     <para>
+      O número de linhas a serem saltadas antes de começar a retornar as linhas.
+      Para obter detalhes deve ser consultada a
+      <xref linkend="sql-limit" endterm="sql-limit-title">.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Listas <command>VALUES</> com um número muito grande de linhas devem ser
+   evitadas, uma vez que pode ocorrer falha devido à falta de memória
+   ou o desempenho ser prejudicado.
+   <command>VALUES</> aparecendo dentro do comando <command>INSERT</>
+   é um caso especial, porque os tipos de dado desejados para as colunas
+   são conhecidos a partir da tabela de destino do <command>INSERT</>,
+   não precisando ser inferidos varrendo a lista do <command>VALUES</>.
+   Por isso pode tratar listas maiores do que as que seriam possíveis em
+   outros contextos.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Um comando <command>VALUES</> puro:
+
+<programlisting>
+VALUES (1, 'um'), (2, 'dois'), (3, 'três');
+
+<computeroutput>
+ column1 | column2
+---------+---------
+       1 | um
+       2 | dois
+       3 | três
+(3 linhas)
+</computeroutput>
+</programlisting>
+
+   O comando acima retorna uma tabela com duas colunas e três linhas.
+   Na realidade é equivalente ao comando:
+
+<programlisting>
+SELECT 1 AS column1, 'um' AS column2
+UNION ALL
+SELECT 2, 'dois'
+UNION ALL
+SELECT 3, 'três';
+
+<computeroutput>
+ column1 | column2
+---------+---------
+       1 | um
+       2 | dois
+       3 | três
+(3 linhas)
+</computeroutput>
+</programlisting>
+
+  </para>
+
+  <para>
+   Normalmente <command>VALUES</> é utilizado dentro de um comando
+   <acronym>SQL</acronym> maior.
+   O uso mais comum é no comando <command>INSERT</>:
+
+<programlisting>
+INSERT INTO filmes (cod, titulo, id_dist, data_prod, tipo)
+    VALUES ('T_601', 'Yojimbo', 106, '1961-06-16', 'Drama');
+</programlisting>
+  </para>
+
+  <para>
+   No contexto do comando <command>INSERT</>, as entradas da lista do
+   <command>VALUES</> podem ser <literal>DEFAULT</literal> para
+   indicar que deve ser utilizado nesta posição o valor padrão da coluna,
+   em vez de um valor especificado:
+
+<programlisting>
+INSERT INTO filmes VALUES
+    ('UA502', 'Bananas', 105, DEFAULT, 'Comédia', '82 minutes'),
+    ('T_601', 'Yojimbo', 106, DEFAULT, 'Drama', DEFAULT);
+</programlisting>
+  </para>
+
+  <para>
+   <command>VALUES</> também pode ser utilizado onde um sub-<command>SELECT</>
+   poderia ser escrito como, por exemplo, na cláusula <literal>FROM</>:
+
+<programlisting>
+SELECT f.*
+  FROM filmes f, (VALUES('MGM', 'Horror'), ('UA', 'Sci-Fi')) AS t (estudio, tipo)
+  WHERE f.estudio = t.estudio AND f.tipo = t.tipo;
+
+UPDATE empregados SET salario = salario * v.aumento
+  FROM (VALUES(1, 200000, 1.2), (2, 400000, 1.4)) AS v (num_dep, destino, aumento)
+  WHERE empregados.num_dep = v.num_dep AND empregados.vendas &gt;= v.destino;
+</programlisting>
+
+   Deve ser observado que a cláusula <literal>AS</> é requerida quando
+   <command>VALUES</> é utilizado na cláusula <literal>FROM</>, como
+   é verdade para o comando <command>SELECT</>.
+   Não é requerido que a cláusula <literal>AS</> especifique nomes para
+   todas as colunas, mas é boa prática fazer isto
+   (Os nomes padrão das colunas de <command>VALUES</> são <literal>column1</>,
+   <literal>column2</>, etc. no <productname>PostgreSQL</productname>, mas
+   estes nomes podem ser diferentes em outros sistemas de banco de dados).
+  </para>
+
+  <para>
+   Quando <command>VALUES</> é utilizado no comando <command>INSERT</>,
+   os valores são todos convertidos automaticamente para o tipo de dado da
+   coluna de destino correspondente.
+   Quando é utilizado em outros contextos, pode ser necessário especificar
+   o tipo de dado correto.
+   Se as entradas forem todas constantes literais entre apóstrofos, a conversão
+   da primeira é suficiente para determinar o tipo assumido para todas:
+
+<programlisting>
+SELECT * FROM maquinas
+WHERE ip_address IN (VALUES('192.168.0.1'::inet), ('192.168.0.10'), ('192.168.1.43'));
+</programlisting>
+  </para>
+
+  <tip>
+   <para>
+    Para testes simples do <literal>IN</>, é melhor depender da forma com
+    lista de escalares do <literal>IN</> do que escrever o comando
+    <command>VALUES</> conforme mostrado acima.
+    O método da lista de escalares requer menos escrita, e geralmente é mais
+    eficiente.
+   </para>
+  </tip>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>VALUES</command> está em conformidade com o padrão
+   <acronym>SQL</acronym>, exceto por <literal>LIMIT</literal> e
+   <literal>OFFSET</literal> que são extensões do
+   <productname>PostgreSQL</productname>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-insert" endterm="sql-insert-title"></member>
+   <member><xref linkend="sql-select" endterm="sql-select-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

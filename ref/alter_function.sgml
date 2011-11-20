@@ -1,0 +1,135 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/alter_function.sgml,v 1.5 2004/06/25 21:55:50 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-ALTERFUNCTION">
+ <refmeta>
+  <refentrytitle id="SQL-ALTERFUNCTION-TITLE">ALTER FUNCTION</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>ALTER FUNCTION</refname>
+  <refpurpose>altera a definição de uma função</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-alterfunction">
+  <primary>ALTER FUNCTION</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+ALTER FUNCTION <replaceable>nome</replaceable> ( [ <replaceable class="parameter">tipo</replaceable> [, ...] ] ) RENAME TO <replaceable>novo_nome</replaceable>
+ALTER FUNCTION <replaceable>nome</replaceable> ( [ <replaceable class="parameter">tipo</replaceable> [, ...] ] ) OWNER TO <replaceable>novo_dono</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>ALTER FUNCTION</command> altera a definição de uma função.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) de uma função existente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">tipo</replaceable></term>
+    <listitem>
+     <para>
+      O tipo de dado do argumento da função.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">novo_nome</replaceable></term>
+    <listitem>
+     <para>
+      O novo nome da função.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">novo_dono</replaceable></term>
+    <listitem>
+     <para>
+      O novo dono da função. Para mudar o dono da função é necessário ser um
+      superusuário. Deve ser observado que, se a função estiver marcada com
+      <literal>SECURITY DEFINER</literal>,
+      subseqüentemente esta será executa com o novo dono.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para mudar o nome da função <literal>sqrt</literal> para o tipo
+   <type>integer</type> para <literal>raiz_quadrada</literal>:
+<programlisting>
+ALTER FUNCTION sqrt(integer) RENAME TO raiz_quadrada;
+</programlisting>
+  </para>
+
+  <para>
+   Para mudar o dono da função <literal>sqrt</literal> para o tipo
+   <type>integer</type> para <literal>joel</literal>:
+<programlisting>
+ALTER FUNCTION sqrt(integer) OWNER TO joel;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Existe o comando <command>ALTER FUNCTION</command> no padrão SQL,
+   mas não possui a opção de mudar o nome ou o dono da função.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createfunction" endterm="sql-createfunction-title"></member>
+   <member><xref linkend="sql-dropfunction" endterm="sql-dropfunction-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

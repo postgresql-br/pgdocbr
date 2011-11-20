@@ -1,0 +1,2836 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/ddl.sgml,v 1.38 2005/01/17 01:29:02 tgl Exp $ -->
+
+<chapter id="ddl">
+ <title>Definição de dados</title>
+
+ <para>
+  Este capítulo mostra como criar as estruturas de banco de dados
+  que armazenam os dados. Nos bancos de dados relacionais os dados
+  são armazenados em tabelas, por isso a maior parte deste capítulo dedica-se a
+  explicar como as tabelas são criadas e modificadas, e as funcionalidades
+  disponíveis para controlar que dados podem ser armazenados nas tabelas.
+  Em seguida é mostrado como as tabelas podem ser organizadas em esquemas,
+  e como atribuir privilégios às tabelas. No final são vistas, superficialmente,
+  outras funcionalidades que afetam o armazenamento dos dados,
+  como visões, funções e gatilhos.
+ </para>
+
+ <sect1 id="ddl-basics">
+  <title>Noções básicas de tabela</title>
+
+  <indexterm zone="ddl-basics">
+   <primary>tabela</primary>
+  </indexterm>
+
+  <indexterm>
+   <primary>linha</primary>
+  </indexterm>
+
+  <indexterm>
+   <primary>coluna</primary>
+  </indexterm>
+
+  <para>
+   Uma tabela em um banco de dados relacional é muito semelhante a uma tabela
+   no papel: é formada por linhas e colunas. O número e a ordem das colunas
+   são fixos, e cada coluna possui um nome. O número de linhas é variável,
+   refletindo a quantidade de dados armazenados em um determinado instante.
+   O padrão SQL não dá nenhuma garantia sobre a ordem das linhas na tabela.
+   Quando a tabela é lida, as linhas aparecem em uma ordem aleatória, a não ser
+   que a classificação seja requisitada explicitamente. Esta parte é descrita no
+   <xref linkend="queries">. Além disso, o SQL não atribui identificadores
+   únicos para as linhas e, portanto, é possível existirem várias linhas
+   totalmente idênticas na tabela. Isto é uma conseqüência do modelo matemático
+   subjacente ao SQL, mas geralmente não é desejável.
+   Mais adiante neste capítulo será mostrado como lidar com esta questão.
+  </para>
+
+  <para>
+   Cada coluna possui um tipo de dado. O tipo de dado restringe o conjunto
+   de valores que podem ser atribuídos à coluna e atribui semântica
+   <footnote>
+    <para>
+     semântica &mdash; do Gr. semantiké, da significação &mdash;
+     estudo da linguagem humana do ponto de vista do significado das palavras
+     e dos enunciados.
+     <ulink url="http://www.priberam.pt/dlpo/dlpo.aspx">PRIBERAM -
+     Língua Portuguesa On-Line</ulink>. (N. do T.)
+    </para>
+   </footnote>
+   aos dados armazenados na coluna, de forma que estes possam ser processados.
+   Por exemplo, uma coluna declarada como sendo de um tipo numérico não aceita
+   cadeias de caracteres com texto arbitrário, e os dados armazenados nesta
+   coluna podem ser utilizados para efetuar cálculos matemáticos. Ao contrário,
+   uma coluna declarada como sendo do tipo cadeia de caracteres aceita
+   praticamente qualquer espécie de dado, mas não pode ser usada para efetuar
+   cálculos matemáticos, embora possam ser efetuadas outras operações, como a
+   concatenação de cadeias de caracteres.
+  </para>
+
+  <para>
+   O <productname>PostgreSQL</productname> possui um extenso conjunto de tipos
+   de dado nativos, adequados para muitos aplicativos. Os usuários também podem
+   definir seus próprios tipos de dado. A maioria dos tipos de dado nativos
+   possui nome e semântica óbvia, portanto uma explicação detalhada será
+   postergada até o <xref linkend="datatype">. Alguns dos tipos de dado mais
+   utilizados são o <type>integer</type> para números inteiros,
+   <type>numeric</type> para números possivelmente fracionários,
+   <type>text</type> para cadeias de caracteres, <type>date</type> para datas,
+   <type>time</type> para valores da hora do dia, e <type>timestamp</type> para
+   valores contendo tanto data quanto hora.
+  </para>
+
+  <indexterm>
+   <primary>tabela</primary>
+   <secondary>criação</secondary>
+  </indexterm>
+
+  <para>
+   Para criar uma tabela utiliza-se o comando <literal>CREATE TABLE</literal>.
+   Neste comando são especificados, ao menos, o nome da nova tabela, os nomes
+   das colunas, e o tipo de dado de cada coluna. Por exemplo:
+<programlisting>
+CREATE TABLE minha_primeira_tabela (
+    primeira_coluna text,
+    segunda_coluna integer
+);
+</programlisting>
+   Este comando cria a tabela chamada <literal>minha_primeira_tabela</literal>
+   contendo duas colunas. A primeira coluna chama-se
+   <literal>primeira_coluna</literal>, e possui o tipo de dado
+   <type>text</type>; a segunda coluna chama-se
+   <literal>segunda_coluna</literal>, e possui o tipo de dado
+   <type>integer</type>. O nome da tabela e das colunas obedecem a sintaxe para
+   identificadores explicada na <xref linkend="sql-syntax-identifiers">.
+   Normalmente os nomes dos tipos também são identificadores, mas existem
+   algumas exceções. Deve ser observado que a lista de colunas é envolta por
+   parênteses, e os elementos da lista são separados por vírgula.
+  </para>
+
+  <para>
+   Obviamente, o exemplo anterior é muito artificial. Normalmente são dados
+   nomes para as tabelas e para as colunas condizentes com as informações
+   armazenadas. Sendo assim, vejamos um exemplo mais próximo da realidade:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer,
+    nome       text,
+    preco      numeric
+);
+</programlisting>
+   (O tipo <type>numeric</type> pode armazenar a parte fracionária, comum
+   em valores monetários)
+  </para>
+
+  <tip>
+   <para>
+    Quando são criadas tabelas inter-relacionadas, é aconselhável escolher um
+    padrão coerente para atribuir nomes às tabelas e colunas. Por exemplo,
+    existe a possibilidade de utilizar nomes de tabelas no singular ou no plural,
+    e cada uma destas possibilidades é defendida por um teórico ou por outro.
+   </para>
+  </tip>
+
+  <para>
+   Existe um limite de quantas colunas uma tabela pode conter.
+   Dependendo dos tipos das colunas, pode ser entre 250 e 1600.
+   Entretanto, definir uma tabela com esta quantidade de colunas
+   é muito raro e, geralmente, torna o projeto questionável.
+  </para>
+
+  <indexterm>
+   <primary>tabela</primary>
+   <secondary>remover</secondary>
+  </indexterm>
+
+  <para>
+   Se uma tabela não for mais necessária, pode-se removê-la utilizando o comando
+   <literal>DROP TABLE</literal>. Por exemplo:
+<programlisting>
+DROP TABLE minha_primeira_tabela;
+DROP TABLE produtos;
+</programlisting>
+   Tentar remover uma tabela não existente é um erro. Entretanto, é comum os
+   arquivos de script SQL tentarem remover a tabela incondicionalmente antes
+   de criá-la, ignorando a mensagem de erro.
+  </para>
+
+  <para>
+   Se for necessário modificar uma tabela existente consulte a
+   <xref linkend="ddl-alter"> mais adiante neste capítulo.
+  </para>
+
+  <para>
+   Utilizando as ferramentas mostradas até este ponto é possível criar tabelas
+   totalmente funcionais. O restante deste capítulo está relacionado com a
+   adição de funcionalidades na definição da tabela para garantir a integridade
+   dos dados, a segurança, ou a comodidade. Se você está ansioso para colocar
+   dados nas tabelas neste instante, então pode ir direto para o
+   <xref linkend="dml"> e ler o restante deste capítulo depois.
+  </para>
+ </sect1>
+
+ <sect1 id="ddl-default">
+  <title>Valor padrão</title>
+
+  <indexterm zone="ddl-default">
+   <primary>valor padrão</primary>
+  </indexterm>
+
+  <para>
+   Pode ser atribuído um valor padrão a uma coluna. Quando é criada uma nova
+   linha, e não é especificado nenhum valor para algumas de suas colunas, estas
+   colunas são preenchidas com o valor padrão de cada uma delas. Além disso,
+   um comando de manipulação de dados pode requerer explicitamente que a
+   coluna receba o seu valor padrão, sem saber qual é este valor (os detalhes
+   sobre os comandos de manipulação de dados estão no <xref linkend="dml">).
+  </para>
+
+  <para>
+   <indexterm><primary>valor nulo</primary><secondary>valor padrão</secondary></indexterm>
+   Se não for declarado explicitamente nenhum valor padrão, o valor nulo
+   será o valor padrão. Isto geralmente faz sentido, porque o valor nulo pode
+   ser considerado como representando um dado desconhecido.
+  </para>
+
+  <para>
+   Na definição da tabela, o valor padrão é posicionado após
+   o tipo de dado da coluna. Por exemplo:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer PRIMARY KEY,
+    nome       text,
+    preco      numeric <emphasis>DEFAULT 9.99</emphasis>
+);
+</programlisting>
+  </para>
+
+  <para>
+   O valor padrão pode ser uma expressão,
+   avaliada sempre que for inserido o valor padrão
+   (e <emphasis>não</emphasis> quando a tabela é criada).
+   Um exemplo comum é uma coluna do tipo <type>timestamp</type> com o
+   valor padrão <literal>now()</>, para que receba a data e hora de
+   inserção da linha. Outro exemplo comum é a geração de um
+   <quote>número serial</> para cada linha.
+   No <productname>PostgreSQL</productname> isto é feito tipicamente através
+   de algo como:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod integer <emphasis>DEFAULT nextval('produtos_cod_prod_seq')</emphasis>,
+    ...
+);
+</programlisting>
+   onde a função <literal>nextval()</> fornece valores sucessivos do
+   <firstterm>objeto de seqüência</> (consulte a <xref
+   linkend="functions-sequence">). Esta situação é tão comum que
+   existe uma forma abreviada da mesma:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod <emphasis>SERIAL</emphasis>,
+    ...
+);
+</programlisting>
+   A forma abreviada <literal>SERIAL</> é mostrada posteriormente na
+   <xref linkend="datatype-serial">.
+  </para>
+ </sect1>
+
+ <sect1 id="ddl-constraints">
+  <title>Restrições</title>
+
+  <indexterm zone="ddl-constraints">
+   <primary>restrição</primary>
+  </indexterm>
+
+  <para>
+   Os tipos de dado são uma forma de limitar os dados que podem ser armazenados
+   na tabela. Entretanto, para muitos aplicativos a restrição obtida não possui
+   o refinamento necessário. Por exemplo, uma coluna contendo preços de
+   produtos provavelmente só pode aceitar valores positivos, mas não existe
+   nenhum tipo de dado que aceite apenas números positivos. Um outro problema
+   é que pode ser necessário restringir os dados de uma coluna com relação a
+   outras colunas ou linhas. Por exemplo, em uma tabela contendo informações
+   sobre produtos deve haver apenas uma linha para cada código de produto.
+  </para>
+
+  <para>
+   Para esta finalidade, a linguagem SQL permite definir restrições em colunas
+   e tabelas. As restrições permitem o nível de controle sobre os dados da
+   tabela que for desejado. Se o usuário tentar armazenar dados em uma coluna
+   da tabela violando a restrição, ocasiona erro. Isto se aplica até
+   quando o erro é originado pela definição do valor padrão.
+  </para>
+
+  <sect2>
+   <title>Restrições de verificação</title>
+
+   <indexterm>
+    <primary>restrição de verificação</primary>
+   </indexterm>
+
+   <indexterm>
+    <primary>restrição</primary>
+    <secondary>verificação</secondary>
+   </indexterm>
+
+   <para>
+    Uma restrição de verificação é o tipo mais genérico de restrição.
+    Permite especificar que os valores de uma determinada coluna devem
+    estar de acordo com uma expressão booleana (valor-verdade
+    <footnote>
+     <para>
+      <literal>truth-value</literal> &mdash; Na lógica, o valor verdade,
+      ou valor-verdade, é um valor indicando até que ponto uma declaração
+      é verdadeira; Na lógica clássica, os únicos valores verdade possíveis
+      são verdade e falso. Entretanto, são possíveis outros valores em outras
+      lógicas. A lógica intuicionista simples possui os valores verdade:
+      verdade, falso e desconhecido. A lógica <literal>fuzzy</literal>, e outras
+      formas de lógica multi-valoradas, também possuem mais valores verdade
+      do que simplesmente verdade e falso; Algebricamente, o conjunto
+      {verdade, falso} forma a lógica booleana simples.
+      <ulink url="http://encyclopedia.laborlawtalk.com/Truth_value">
+      Dictionary.LaborLawTalk.com</ulink> (N. do T.)
+     </para>
+    </footnote>
+    ). Por exemplo, para permitir apenas preços com valores positivos
+    utiliza-se:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer,
+    nome       text,
+    preco      numeric <emphasis>CHECK (preco &gt; 0)</emphasis>
+);
+</programlisting>
+   </para>
+
+   <para>
+    Como pode ser observado, a definição da restrição vem após o tipo de dado,
+    assim como a definição do valor padrão. O valor padrão e a restrição podem
+    estar em qualquer ordem. A restrição de verificação é formada pela palavra
+    chave <literal>CHECK</literal> seguida por uma expressão entre parênteses.
+    A expressão da restrição de verificação deve envolver a coluna sendo
+    restringida, senão não fará muito sentido.
+   </para>
+
+   <indexterm>
+    <primary>restrição</primary>
+    <secondary>nome</secondary>
+   </indexterm>
+
+   <para>
+    Também pode ser atribuído um nome individual para a restrição. Isto torna
+    mais clara a mensagem de erro, e permite fazer referência à
+    restrição quando se desejar alterá-la. A sintaxe é:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod  integer,
+    nome      text,
+    preco     numeric <emphasis>CONSTRAINT chk_preco_positivo</emphasis> CHECK (preco &gt; 0)
+);
+</programlisting>
+    Portanto, para especificar o nome da restrição deve ser utilizada a
+    palavra chave <literal>CONSTRAINT</literal>, seguida por um identificador,
+    seguido por sua vez pela definição da restrição (Se não for escolhido o
+    nome da restrição desta maneira, o sistema escolhe um nome para a restrição).
+   </para>
+
+   <para>
+    Uma restrição de verificação também pode referenciar várias colunas. Supondo
+    que serão armazenados o preço normal e o preço com desconto, e que se
+    deseje garantir que o preço com desconto seja menor que o preço normal:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod           integer,
+    nome               text,
+    preco              numeric CHECK (preco &gt; 0),
+    preco_com_desconto numeric CHECK (preco_com_desconto &gt; 0),
+    <emphasis>CHECK (preco &gt; preco_com_desconto)</emphasis>
+);
+</programlisting>
+   </para>
+
+   <para>
+    As duas primeiras formas de restrição já devem ser familiares. A terceira
+    utiliza uma nova sintaxe, e não está anexada a uma coluna em particular.
+    Em vez disso, aparece como um item à parte na lista de colunas separadas
+    por vírgula. As definições das colunas e as definições destas restrições
+    podem estar em qualquer ordem.
+   </para>
+
+   <para>
+    Dizemos que as duas primeiras restrições são restrições de coluna, enquanto
+    a terceira é uma restrição de tabela, porque está escrita separado das
+    definições de colunas. As restrições de coluna também podem ser escritas
+    como restrições de tabela, enquanto o contrário nem sempre é possível,
+    porque supostamente a restrição de coluna somente faz referência à coluna
+    em que está anexada (O <productname>PostgreSQL</productname> não impõe
+    esta regra, mas deve-se segui-la se for desejado que a definição da tabela
+    sirva para outros sistemas de banco de dados).
+    O exemplo acima também pode ser escrito do seguinte modo:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod           integer,
+    nome               text,
+    preco              numeric,
+    CHECK (preco &gt; 0),
+    preco_com_desconto numeric,
+    CHECK (preco_com_desconto &gt; 0),
+    CHECK (preco &gt; preco_com_desconto)
+);
+</programlisting>
+    ou ainda
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod           integer,
+    nome               text,
+    preco              numeric CHECK (preco &gt; 0),
+    preco_com_desconto numeric,
+    CHECK (preco_com_desconto &gt; 0 AND preco &gt; preco_com_desconto)
+);
+</programlisting>
+    É uma questão de gosto.
+   </para>
+
+   <para>
+    Podem ser atribuídos nomes para as restrições de tabela da mesma
+    maneira que para as restrições de coluna:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod           integer,
+    nome               text,
+    preco              numeric,
+    CHECK (preco &gt; 0),
+    preco_com_desconto numeric,
+    CHECK (preco_com_desconto &gt; 0),
+    <emphasis>CONSTRAINT chk_desconto_valido</> CHECK (preco &gt; preco_com_desconto)
+);
+</programlisting>
+   </para>
+
+   <indexterm>
+    <primary>valor nulo</primary>
+    <secondary sortas="check constraints">em restrições de verificação</secondary>
+   </indexterm>
+
+   <para>
+    Deve ser observado que a restrição de verificação está satisfeita se o
+    resultado da expressão de verificação for verdade ou o valor nulo. Como a
+    maioria das expressões retorna o valor nulo quando um dos operandos é nulo,
+    estas expressões não impedem a presença de valores nulos nas colunas com
+    restrição. Para garantir que a coluna não contém o valor nulo, deve ser
+    utilizada a restrição de não nulo descrita a seguir.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Restrições de não-nulo</title>
+
+   <indexterm>
+    <primary>restrição de não-nulo</primary>
+   </indexterm>
+
+   <indexterm>
+    <primary>restrição</primary>
+    <secondary>NOT NULL</secondary>
+   </indexterm>
+
+   <para>
+    Uma restrição de não-nulo simplesmente especifica que uma
+    coluna não pode assumir o valor nulo. Um exemplo da sintaxe:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer <emphasis>NOT NULL</emphasis>,
+    nome       text    <emphasis>NOT NULL</emphasis>,
+    preco      numeric
+);
+</programlisting>
+   </para>
+
+   <para>
+    A restrição de não-nulo é sempre escrita como restrição de coluna.
+    A restrição de não-nulo é funcionalmente equivalente a criar uma restrição
+    de verificação <literal>CHECK (<replaceable>nome_da_coluna</replaceable>
+    IS NOT NULL)</literal>, mas no <productname>PostgreSQL</productname>
+    a criação de uma restrição de não-nulo explícita é mais eficiente.
+    A desvantagem é que não pode ser dado um nome explícito para uma restrição
+    de não nulo criada deste modo.
+   </para>
+
+   <para>
+    Obviamente, uma coluna pode possuir mais de uma restrição, bastando apenas
+    escrever uma restrição em seguida da outra:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer NOT NULL,
+    nome       text    NOT NULL,
+    preco      numeric NOT NULL CHECK (preco &gt; 0)
+);
+</programlisting>
+    A ordem das restrições não importa, porque não determina, necessariamente,
+    a ordem de verificação das restrições.
+   </para>
+
+   <para>
+    A restrição <literal>NOT NULL</literal> possui uma inversa: a
+    restrição <literal>NULL</literal>. Isto não significa que a coluna
+    deva ser nula, o que com certeza não tem utilidade. Em vez disto é
+    simplesmente definido o comportamento padrão dizendo que a coluna pode ser
+    nula. A restrição <literal>NULL</literal> não é definida no padrão SQL,
+    não devendo ser utilizada em aplicativos portáveis (somente foi
+    adicionada ao <productname>PostgreSQL</productname> para torná-lo
+    compatível com outros sistemas de banco de dados). Porém, alguns usuários
+    gostam porque torna fácil inverter a restrição no script de comandos.
+    Por exemplo, é possível começar com
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer NULL,
+    nome       text    NULL,
+    preco      numeric NULL
+);
+</programlisting>
+    e depois colocar a palavra chave <literal>NOT</literal> onde se desejar.
+   </para>
+
+   <tip>
+    <para>
+     Na maioria dos projetos de banco de dados, a maioria das colunas
+     deve ser especificada como não-nula.
+    </para>
+   </tip>
+  </sect2>
+
+  <sect2>
+   <title>Restrições de unicidade</title>
+
+   <indexterm>
+    <primary>restrição de unicidade</primary>
+   </indexterm>
+
+   <indexterm>
+    <primary>restrição</primary>
+    <secondary>unicidade</secondary>
+   </indexterm>
+
+   <para>
+    A restrição de unicidade garante que os dados contidos na coluna, ou
+    no grupo de colunas, é único em relação a todas as outras linhas da
+    tabela. A sintaxe é
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer <emphasis>UNIQUE</emphasis>,
+    nome       text,
+    preco      numeric
+);
+</programlisting>
+    quando escrita como restrição de coluna, e
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer,
+    nome       text,
+    preco      numeric,
+    <emphasis>UNIQUE (cod_prod)</emphasis>
+);
+</programlisting>
+    quando escrita como restrição de tabela.
+   </para>
+
+   <para>
+    Se uma restrição de unicidade faz referência a um grupo de colunas,
+    as colunas são listadas separadas por vírgula:
+<programlisting>
+CREATE TABLE exemplo (
+    a integer,
+    b integer,
+    c integer,
+    <emphasis>UNIQUE (a, c)</emphasis>
+);
+</programlisting>
+    Isto especifica que a combinação dos valores das colunas indicadas deve ser
+    único para toda a tabela, embora não seja necessário que cada uma das
+    colunas seja única (o que geralmente não é).
+   </para>
+
+   <para>
+    Também é possível atribuir nomes às restrições de unicidade:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer <emphasis>CONSTRAINT unq_cod_prod</emphasis> UNIQUE,
+    nome       text,
+    preco      numeric
+);
+</programlisting>
+   </para>
+
+   <indexterm>
+    <primary>valor nulo</primary>
+    <secondary sortas="unique constraints">em restrições de unicidade</secondary>
+   </indexterm>
+
+   <para>
+    De um modo geral, uma restrição de unicidade é violada quando existem duas
+    ou mais linhas na tabela onde os valores de todas as colunas incluídas na
+    restrição são iguais.
+    Entretanto, os valores nulos não são considerados iguais nesta comparação.
+    Isto significa que, mesmo na presença da restrição de unicidade,
+    é possível armazenar um número ilimitado de linhas que
+    contenham o valor nulo em pelo menos uma das colunas da restrição.
+    Este comportamento está em conformidade com o padrão SQL, mas já ouvimos
+    dizer que outros bancos de dados SQL não seguem esta regra. Portanto,
+    seja cauteloso ao desenvolver aplicativos onde se pretenda haver
+    portabilidade.
+    <footnote>
+     <para>
+      <productname>Oracle 9i</productname> &mdash;
+      Para satisfazer a restrição de unicidade, não podem haver haver duas
+      linhas na tabela com o mesmo valor para a chave única. Entretanto,
+      a chave única formada por uma única coluna pode conter nulos.
+      Para satisfazer uma chave única composta, não podem haver duas linhas
+      na tabela ou na visão com a mesma combinação de valores nas colunas
+      chave. Qualquer linha contendo nulo em todas as colunas chave satisfaz,
+      automaticamente, a restrição. Entretanto, duas linhas contendo nulo
+      em uma ou mais colunas chave, e a mesma combinação de valores para as
+      outras colunas chave, violam a restrição.
+      <ulink url="http://www.stanford.edu/dept/itss/docs/oracle/9i/server.920/a96540/clauses3a.htm">
+      Oracle9i SQL Reference</ulink>
+     </para>
+    </footnote>
+    <footnote>
+     <para>
+      <productname>SQL Server 2000</productname> &mdash;
+      As restrições de unicidade podem ser utilizadas para garantir que
+      não serão entrados valores duplicados em colunas específicas que
+      não participam da chave primária. Embora tanto a restrição UNIQUE
+      quanto a restrição PRIMARY KEY obriguem a unicidade, deve ser
+      utilizado UNIQUE em vez de PRIMARY KEY quando se deseja garantir a
+      unicidade de: uma coluna, ou combinação de colunas, que não seja
+      a chave primária (podem ser definidas várias restrições UNIQUE em
+      uma tabela, mas somente uma restrição PRIMARY KEY); uma coluna que
+      aceite o valor nulo (as restrições UNIQUE podem ser definidas em colunas
+      que permitem o valor nulo, enquanto as restrições PRIMARY KEY somente
+      podem ser definidas em colunas que não aceitam o valor nulo). &mdash;
+      A restrição UNIQUE também pode ser referenciada pela restrição
+      FOREIGN KEY. &mdash;
+      Quando é adicionada uma restrição UNIQUE a uma coluna, ou colunas,
+      existentes em uma tabela, os dados existentes nas colunas são
+      verificados para garantir que todos os valores, exceto os nulos,
+      são únicos.
+      SQL Server Books Online (N. do T.)
+     </para>
+    </footnote>
+    <footnote>
+     <para>
+      <productname>DB2 8.1</productname> &mdash;
+      A restrição de unicidade é a regra que especifica que os valores de uma
+      chave são válidos apenas se forem únicos na tabela. As colunas
+      especificadas em uma restrição de unicidade devem ser definidas como
+      NOT NULL. O gerenciador de banco de dados usa um índice único para
+      para obrigar a unicidade da chave durante as alterações nas colunas
+      da restrição de unicidade. A restrição de unicidade que é referenciada
+      por uma chave estrangeira de uma restrição referencial é chamada de
+      chave pai. Deve ser observado que existe uma distinção entre definir
+      uma restrição de unicidade e criar um índice único: embora ambos
+      obriguem a unicidade, o índice único permite colunas com valor nulo e,
+      geralmente, não pode ser utilizado como uma chave pai.
+      <ulink url="ftp://ftp.software.ibm.com/ps/products/db2/info/vr82/pdf/en_US/db2s1e81.pdf">
+      IBM DB2 Universal Database - SQL Reference Volume 1</ulink> (N. do T.)
+     </para>
+    </footnote>
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Chaves primárias</title>
+
+   <indexterm>
+    <primary>chave primária</primary>
+   </indexterm>
+
+   <indexterm>
+    <primary>restrição</primary>
+    <secondary>chave primária</secondary>
+   </indexterm>
+
+   <para>
+    Tecnicamente a restrição de chave primária é simplesmente a combinação da
+    restrição de unicidade com a restrição de não-nulo. Portanto, as
+    duas definições de tabela abaixo aceitam os mesmos dados:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer <emphasis>UNIQUE NOT NULL</emphasis>,
+    nome       text,
+    preco      numeric
+);
+</programlisting>
+
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer <emphasis>PRIMARY KEY</emphasis>,
+    nome       text,
+    preco      numeric
+);
+</programlisting>
+   </para>
+
+   <para>
+    As chaves primárias também podem restringir mais de uma coluna;
+    a sintaxe é semelhante à da restrição de unicidade:
+<programlisting>
+CREATE TABLE exemplo (
+    a integer,
+    b integer,
+    c integer,
+    <emphasis>PRIMARY KEY (a, c)</emphasis>
+);
+</programlisting>
+   </para>
+
+   <para>
+    A chave primária indica que a coluna, ou grupo de colunas, pode ser
+    utilizada como identificador único das linhas da tabela (Isto é uma
+    conseqüência direta da definição da chave primária. Deve ser observado que
+    a restrição de unicidade não fornece, por si só, um identificador único,
+    porque não exclui os valores nulos). A chave primária é útil tanto para fins
+    de documentação quanto para os aplicativos cliente.
+    Por exemplo, um aplicativo contendo uma Interface de Usuário Gráfica (GUI),
+    que permite modificar os valores das linhas, provavelmente necessita
+    conhecer a chave primária da tabela para poder identificar as linhas de
+    forma única.
+   </para>
+
+   <para>
+    Uma tabela pode ter no máximo uma chave primária (embora possa ter muitas
+    restrições de unicidade e de não-nulo). A teoria de banco de dados
+    relacional dita que toda tabela deve ter uma chave primária. Esta regra não
+    é imposta pelo <productname>PostgreSQL</productname>, mas normalmente é
+    melhor segui-la.
+   </para>
+  </sect2>
+
+  <sect2 id="ddl-constraints-fk">
+   <title>Chaves Estrangeiras</title>
+
+   <indexterm>
+    <primary>chave estrangeira</primary>
+   </indexterm>
+
+   <indexterm>
+    <primary>restrição</primary>
+    <secondary>chave estrangeira</secondary>
+   </indexterm>
+
+   <indexterm>
+    <primary>integridade referencial</primary>
+   </indexterm>
+
+   <para>
+    A restrição de chave estrangeira especifica que o valor da coluna (ou
+    grupo de colunas) deve corresponder a algum valor
+    existente em uma linha de outra tabela.
+    Diz-se que a chave estrangeira mantém a <firstterm>integridade
+    referencial</firstterm> entre duas tabelas relacionadas.
+   </para>
+
+   <para>
+    Supondo que já temos a tabela de produtos utilizada diversas vezes anteriormente:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer PRIMARY KEY,
+    nome       text,
+    preco      numeric
+);
+</programlisting>
+    Agora vamos assumir a existência de uma tabela armazenando os pedidos destes
+    produtos. Desejamos garantir que a tabela de pedidos contenha somente
+    pedidos de produtos que realmente existem. Para isso é definida uma
+    restrição de chave estrangeira na tabela de pedidos fazendo referência à
+    tabela de produtos:
+<programlisting>
+CREATE TABLE pedidos (
+    cod_pedido  integer PRIMARY KEY,
+    cod_prod    integer <emphasis>REFERENCES produtos (cod_prod)</emphasis>,
+    quantidade  integer
+);
+</programlisting>
+    Isto torna impossível criar um pedido com
+    <literal>cod_prod</literal> não existente na
+    tabela de produtos.
+   </para>
+
+   <para>
+    Nesta situação é dito que a tabela de pedidos é a tabela
+    <firstterm>que faz referência</firstterm>, e a tabela de produtos é a
+    tabela <firstterm>referenciada</firstterm>. Da mesma forma existem
+    colunas fazendo referência e sendo referenciadas.
+   </para>
+
+   <para>
+    O comando acima pode ser abreviado escrevendo
+<programlisting>
+CREATE TABLE pedidos (
+    cod_pedido integer PRIMARY KEY,
+    cod_prod   integer <emphasis>REFERENCES produtos</emphasis>,
+    quantidade integer
+);
+</programlisting>
+    porque, na ausência da lista de colunas, a chave primária
+    da tabela referenciada é usada como a coluna referenciada.
+   </para>
+
+   <para>
+    A chave estrangeira também pode restringir e referenciar um grupo de colunas.
+    Como usual, é necessário ser escrito na forma de restrição de tabela.
+    Abaixo está mostrado um exemplo artificial da sintaxe:
+<programlisting>
+CREATE TABLE t1 (
+  a integer PRIMARY KEY,
+  b integer,
+  c integer,
+  <emphasis>FOREIGN KEY (b, c) REFERENCES outra_tabela (c1, c2)</emphasis>
+);
+</programlisting>
+    Obviamente, o número e tipo das colunas na restrição devem corresponder
+    ao número e tipo das colunas referenciadas.
+   </para>
+
+   <para>
+    Pode ser atribuído um nome à restrição de chave estrangeira
+    da forma habitual.
+   </para>
+
+   <para>
+    Uma tabela pode conter mais de uma restrição de chave estrangeira, o que é
+    utilizado para implementar relacionamentos muitos-para-muitos entre tabelas.
+    Digamos que existam as tabelas de produtos e de pedidos, e desejamos
+    permitir que um pedido posa conter vários produtos (o que não é permitido na
+    estrutura anterior). Podemos, então, utilizar a seguinte estrutura de tabela:
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer PRIMARY KEY,
+    nome       text,
+    preco      numeric
+);
+
+CREATE TABLE pedidos (
+    cod_pedido       integer PRIMARY KEY,
+    endereco_entrega text,
+    ...
+);
+
+CREATE TABLE itens_pedidos (
+    cod_prod    integer REFERENCES produtos,
+    cod_pedido  integer REFERENCES pedidos,
+    quantidade  integer,
+    PRIMARY KEY (cod_prod, cod_pedido)
+);
+</programlisting>
+    Deve ser observado, também, que a chave primária está sobreposta às
+    chaves estrangeiras na última tabela.
+   </para>
+
+   <indexterm>
+    <primary>CASCADE</primary>
+    <secondary>ação da chave estrangeira</secondary>
+   </indexterm>
+
+   <indexterm>
+    <primary>RESTRICT</primary>
+    <secondary>ação da chave estrangeira</secondary>
+   </indexterm>
+
+   <para>
+    Sabemos que a chave estrangeira não permite a criação de pedidos não
+    relacionados com algum produto. Porém, o que acontece se um produto for
+    removido após a criação de um pedido fazendo referência a este produto?
+    A linguagem SQL permite tratar esta situação também. Intuitivamente temos
+    algumas opções:
+    <itemizedlist spacing="compact">
+     <listitem><para>Não permitir a exclusão de um produto referenciado</para></listitem>
+     <listitem><para>Excluir o pedido também</para></listitem>
+     <listitem><para>Algo mais?</para></listitem>
+    </itemizedlist>
+   </para>
+
+   <para>
+    Para ilustrar esta situação, vamos implementar a seguinte política
+    no exemplo de relacionamento muitos-para-muitos acima: Quando se desejar
+    remover um produto referenciado por um pedido (através de
+    <literal>itens_pedidos</literal>), isto não será permitido. Se um pedido
+    for removido, os itens do pedido também serão removidos.
+<programlisting>
+CREATE TABLE produtos (
+    cod_prod   integer PRIMARY KEY,
+    nome       text,
+    preco      numeric
+);
+
+CREATE TABLE pedidos (
+    cod_pedido       integer PRIMARY KEY,
+    endereco_entrega text,
+    ...
+);
+
+CREATE TABLE itens_pedidos (
+    cod_prod    integer REFERENCES produtos <emphasis>ON DELETE RESTRICT</emphasis>,
+    cod_pedido  integer REFERENCES pedidos  <emphasis>ON DELETE CASCADE</emphasis>,
+    quantidade  integer,
+    PRIMARY KEY (cod_prod, cod_pedido)
+);
+</programlisting>
+   </para>
+
+   <para>
+    As duas opções mais comuns são restringir, ou excluir em cascata.
+    <literal>RESTRICT</literal> não permite excluir a linha referenciada.
+    <literal>NO ACTION</literal> significa que, se as linhas referenciadas ainda
+    existirem quando a restrição for verificada, será gerado um erro;
+    este é o comportamento padrão se nada for especificado
+    (A diferença essencial entre estas duas opções é que
+    <literal>NO ACTION</literal> permite postergar a verificação para mais tarde
+    na transação, enquanto <literal>RESTRICT</literal> não permite).
+    <literal>CASCADE</> especifica que, quando a linha referenciada é excluída,
+    as linhas que fazem referência também devem ser excluídas automaticamente.
+    Existem outras duas opções:
+    <literal>SET NULL</literal> e <literal>SET DEFAULT</literal>.
+    Estas opções fazem com que as colunas que fazem referência sejam definidas
+    como nulo ou com o valor padrão, respectivamente, quando a linha
+    referenciada é excluída.
+    Deve ser observado que isto não evita a observância das restrições.
+    Por exemplo, se uma ação especificar <literal>SET DEFAULT</literal>,
+    mas o valor padrão não satisfizer a chave estrangeira, a operação
+    não será bem-sucedida.
+   </para>
+
+   <para>
+    Semelhante a <literal>ON DELETE</literal> existe também
+    <literal>ON UPDATE</literal>, chamada quando uma coluna
+    referenciada é alterada (atualizada). As ações possíveis são as mesmas.
+   </para>
+
+   <para>
+    Mais informações sobre atualização e exclusão de dados
+    podem ser encontradas no <xref linkend="dml">.
+   </para>
+
+   <para>
+    Para terminar, devemos mencionar que a chave estrangeira deve referenciar
+    colunas de uma chave primária ou de uma restrição de unicidade.
+    Se a chave estrangeira fizer referência a uma restrição de unicidade,
+    existem algumas possibilidades adicionais sobre como os valores nulos são
+    correspondidos. Esta parte está explicada na documentação de referência para
+    <xref linkend="sql-createtable" endterm="sql-createtable-title">.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Exemplos do tradutor</title>
+   <example id="ddl-unique-null-simple">
+    <title>Restrição de unicidade com valor nulo em chave única simples</title>
+    <para>
+     Abaixo são mostrados exemplos de inserção de linhas contendo valor
+     nulo no campo da chave única simples da restrição de unicidade.
+     Deve ser observado que, nestes exemplos, o
+     <productname>PostgreSQL</productname> e o
+     <productname>Oracle</productname> consideram os valores nulos diferentes.
+   </para>
+
+   <para>
+    <productname>PostgreSQL &version;</productname>:
+   </para>
+
+<screen>
+<prompt>=&gt;</prompt> <userinput>\pset null '(nulo)'</userinput>
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE tbl_unique (c1 int UNIQUE);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (1);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (NULL);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (NULL);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (2);</userinput>
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM tbl_unique;</userinput>
+
+<computeroutput>
+   c1
+--------
+      1
+ (nulo)
+ (nulo)
+      2
+(4 linhas)
+</computeroutput>
+</screen>
+
+   <para>
+    <productname>SQL Server 2000</productname>:
+   </para>
+
+<screen>
+<userinput>
+CREATE TABLE tbl_unique (c1 int UNIQUE)
+INSERT INTO tbl_unique VALUES (1)
+INSERT INTO tbl_unique VALUES (NULL)
+INSERT INTO tbl_unique VALUES (NULL)
+</userinput>
+<computeroutput>
+Violation of UNIQUE KEY constraint 'UQ__tbl_unique__37A5467C'.
+Cannot insert duplicate key in object 'tbl_unique'.
+The statement has been terminated.
+</computeroutput>
+<userinput>
+INSERT INTO tbl_unique VALUES (2)
+SELECT * FROM tbl_unique
+</userinput>
+
+<computeroutput>
+c1
+-----------
+NULL
+1
+2
+(3 row(s) affected)
+</computeroutput>
+</screen>
+
+   <para>
+    <productname>Oracle 10g</productname>:
+   </para>
+
+<screen>
+<prompt>SQL&gt;</prompt> <userinput>SET NULL (nulo)</userinput>
+<prompt>SQL&gt;</prompt> <userinput>CREATE TABLE tbl_unique (c1 int UNIQUE);</userinput>
+<prompt>SQL&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (1);</userinput>
+<prompt>SQL&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (NULL);</userinput>
+<prompt>SQL&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (NULL);</userinput>
+<prompt>SQL&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (2);</userinput>
+<prompt>SQL&gt;</prompt> <userinput>SELECT * FROM tbl_unique;</userinput>
+
+<computeroutput>
+        C1
+----------
+         1
+(nulo)
+(nulo)
+         2
+</computeroutput>
+</screen>
+   </example>
+
+   <example id="ddl-unique-null-composite">
+    <title>Restrição de unicidade com valor nulo em chave única composta</title>
+    <para>
+     Abaixo são mostrados exemplos de inserção de linhas contendo valores
+     nulos em campos da chave única composta da restrição de unicidade.
+     Deve ser observado que, nestes exemplos, somente o
+     <productname>PostgreSQL</productname> considera os valores nulos diferentes.
+   </para>
+
+   <para>
+    <productname>PostgreSQL &version;</productname>:
+   </para>
+
+<screen>
+<prompt>=&gt;</prompt> <userinput>\pset null '(nulo)'</userinput>
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE tbl_unique (c1 int, c2 int, UNIQUE (c1, c2));</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (1,1);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (1,NULL);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (NULL,1);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (NULL,NULL);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (1,NULL);</userinput>
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM tbl_unique;</userinput>
+
+<computeroutput>
+   c1   |   c2
+--------+--------
+      1 |      1
+      1 | (nulo)
+ (nulo) |      1
+ (nulo) | (nulo)
+      1 | (nulo)
+(5 linhas)
+</computeroutput>
+</screen>
+
+   <para>
+    <productname>SQL Server 2000</productname>:
+   </para>
+
+<screen>
+<userinput>
+CREATE TABLE tbl_unique (c1 int, c2 int, UNIQUE (c1, c2))
+INSERT INTO tbl_unique VALUES (1,1)
+INSERT INTO tbl_unique VALUES (1,NULL)
+INSERT INTO tbl_unique VALUES (NULL,1)
+INSERT INTO tbl_unique VALUES (NULL,NULL)
+INSERT INTO tbl_unique VALUES (1,NULL)
+</userinput>
+<computeroutput>
+Violation of UNIQUE KEY constraint 'UQ__tbl_unique__33D4B598'.
+Cannot insert duplicate key in object 'tbl_unique'.
+The statement has been terminated.
+</computeroutput>
+<userinput>SELECT * FROM tbl_unique</userinput>
+
+<computeroutput>
+c1          c2
+----------- -----------
+NULL        NULL
+NULL        1
+1           NULL
+1           1
+(4 row(s) affected)
+</computeroutput>
+</screen>
+
+   <para>
+    <productname>Oracle 10g</productname>:
+   </para>
+
+<screen>
+<prompt>SQL&gt;</prompt> <userinput>SET NULL (nulo)</userinput>
+<prompt>SQL&gt;</prompt> <userinput>CREATE TABLE tbl_unique (c1 int, c2 int, UNIQUE (c1, c2));</userinput>
+<prompt>SQL&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (1,1);</userinput>
+<prompt>SQL&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (1,NULL);</userinput>
+<prompt>SQL&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (NULL,1);</userinput>
+<prompt>SQL&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (NULL,NULL);</userinput>
+<prompt>SQL&gt;</prompt> <userinput>INSERT INTO tbl_unique VALUES (1,NULL);</userinput>
+<computeroutput>
+INSERT INTO tbl_unique VALUES (1,NULL)
+*
+ERROR at line 1:
+ORA-00001: unique constraint (SCOTT.SYS_C005273) violated
+</computeroutput>
+<prompt>SQL&gt;</prompt> <userinput>SELECT * FROM tbl_unique;</userinput>
+
+<computeroutput>
+        C1         C2
+---------- ----------
+         1          1
+         1 (nulo)
+(nulo)              1
+(nulo)     (nulo)
+</computeroutput>
+</screen>
+   </example>
+
+   <example id="ddl-empty-sring-null">
+    <title>Cadeia de caracteres vazia e valor nulo</title>
+    <para>
+     Abaixo são mostrados exemplos de consulta a uma tabela contendo
+     tanto o valor nulo quanto uma cadeia de caracteres vazia em uma coluna.
+     Deve ser observado que apenas o <productname>Oracle 10g</productname>
+     não faz distinção entre a cadeia de caracteres vazia e o valor nulo.
+     Foram utilizados os seguintes comandos para criar e inserir dados na
+     tabela em todos os gerenciadores de banco de dados:
+   </para>
+
+<programlisting>
+CREATE TABLE c (c1 varchar(6), c2 varchar(6));
+INSERT INTO c VALUES ('x', 'x');
+INSERT INTO c VALUES ('VAZIA', '');
+INSERT INTO c VALUES ('NULA', null);
+</programlisting>
+
+   <para>
+    <productname>PostgreSQL &version;</productname>:
+   </para>
+
+<screen>
+<prompt>=&gt;</prompt> <userinput>\pset null '(nulo)'</userinput>
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM c WHERE c2 IS NULL;</userinput>
+
+<computeroutput>
+  c1  |   c2
+------+--------
+ NULA | (nulo)
+(1 linha)
+</computeroutput>
+</screen>
+
+   <para>
+    <productname>SQL Server 2000</productname>:
+   </para>
+
+<screen>
+<userinput>
+SELECT * FROM c WHERE c2 IS NULL
+</userinput>
+
+<computeroutput>
+c1     c2
+------ ------
+NULA   NULL
+(1 row(s) affected)
+</computeroutput>
+</screen>
+
+   <para>
+    <productname>Oracle 10g</productname>:
+   </para>
+
+<screen>
+<prompt>SQL&gt;</prompt> <userinput>SET NULL (nulo)</userinput>
+<prompt>SQL&gt;</prompt> <userinput>SELECT * FROM c WHERE c2 IS NULL;</userinput>
+
+<computeroutput>
+C1     C2
+------ ------
+VAZIA  (nulo)
+NULA   (nulo)
+</computeroutput>
+</screen>
+
+   <para>
+    <productname>DB2 8.1</productname>:
+   </para>
+
+<screen>
+<prompt>DB2SQL92&gt;</prompt> <userinput>SELECT * FROM c WHERE c2 IS NULL;</userinput>
+
+<computeroutput>
+C1     C2
+------ ------
+NULA   -
+</computeroutput>
+</screen>
+   </example>
+
+   <example id="ddl-not-null-pk">
+    <title>Coluna sem restrição de não nulo em chave primária</title>
+    <para>
+     Abaixo são mostrados exemplos de criação de uma tabela definindo
+     uma chave primária em uma coluna que não é definida como não
+     aceitando o valor nulo. O padrão SQL diz que, neste caso, a restrição
+     de não nulo é implícita, mas o <productname>DB2</productname> não
+     implementa desta forma, enquanto o <productname>PostgreSQL</productname>,
+     o <productname>SQL Server</productname> e o
+     <productname>Oracle</productname> seguem o padrão. Também são mostrados
+     comandos para exibir a estrutura da tabela nestes gerenciadores de
+     banco de dados.
+   </para>
+
+   <para>
+    <productname>PostgreSQL &version;</productname>:
+   </para>
+
+<screen>
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE c (c1 int, PRIMARY KEY(c1));</userinput>
+<prompt>=&gt;</prompt> <userinput>\d c</userinput>
+
+<computeroutput>
+        Tabela "public.c"
+ Coluna |  Tipo   | Modificadores
+--------+---------+---------------
+ c1     | integer | not null
+Índices:
+    "c_pkey"chave primária, btree (c1)
+</computeroutput>
+</screen>
+
+   <para>
+    <productname>SQL Server 2000</productname>:
+   </para>
+
+<screen>
+<userinput>
+CREATE TABLE c (c1 int, PRIMARY KEY(c1));
+sp_help c
+</userinput>
+
+<computeroutput>
+Name Owner Type       Created_datetime
+---- ----- ---------- -----------------------
+c    dbo   user table 2005-03-28 11:00:24.027
+
+Column_name Type Computed Length Prec  Scale Nullable
+----------- ---- -------- ------ ----- ----- -------- ...
+c1          int  no       4      10    0     no
+
+index_name      index_description                                 index_keys
+--------------- ------------------------------------------------- ----------
+PK__c__403A8C7D clustered, unique, primary key located on PRIMARY c1
+</computeroutput>
+</screen>
+
+   <para>
+    <productname>Oracle 10g</productname>:
+   </para>
+
+<screen>
+<prompt>SQL&gt;</prompt> <userinput>CREATE TABLE c (c1 int, PRIMARY KEY(c1));</userinput>
+<prompt>SQL&gt;</prompt> <userinput>DESCRIBE c</userinput>
+
+<computeroutput>
+ Name Null?    Type
+ ---- -------- ----------
+ C1   NOT NULL NUMBER(38)
+</computeroutput>
+
+<prompt>SQL&gt;</prompt> <userinput>SELECT index_name, index_type, tablespace_name, uniqueness</userinput>
+<prompt>  2 </prompt> <userinput>FROM user_indexes</userinput>
+<prompt>  3 </prompt> <userinput>WHERE table_name='C';</userinput>
+
+<computeroutput>
+INDEX_NAME  INDEX_TYPE TABLESPACE_NAME UNIQUENES
+----------- ---------- --------------- ---------
+SYS_C005276 NORMAL     USERS           UNIQUE
+</computeroutput>
+</screen>
+
+   <para>
+    <productname>DB2 8.1</productname>:
+   </para>
+
+<screen>
+<prompt>db2 =&gt;</prompt> <userinput>CREATE TABLE c (c1 int, PRIMARY KEY(c1))</userinput>
+
+<computeroutput>
+SQL0542N  "C1" não pode ser uma coluna de uma chave primária ou exclusiva,
+porque pode conter valores nulos.  SQLSTATE=42831
+</computeroutput>
+
+<prompt>db2 =&gt;</prompt> <userinput>CREATE TABLE c (c1 int NOT NULL, PRIMARY KEY(c1))</userinput>
+
+<computeroutput>
+DB20000I  O comando SQL terminou com sucesso.
+</computeroutput>
+
+<prompt>db2 =&gt;</prompt> <userinput>DESCRIBE TABLE c</userinput>
+
+<computeroutput>
+Nome da Tipo de   Nome do
+coluna  esquema   tipo    Tamanho Escala Nulos
+------- --------- ------- ------- ------ ------
+C1      SYSIBM    INTEGER       4      0 Não
+
+  1 registro(s) selecionado(s).
+</computeroutput>
+
+<prompt>db2 =&gt;</prompt> <userinput>DESCRIBE INDEXES FOR TABLE c SHOW DETAIL</userinput>
+
+<computeroutput>
+Esquema do Nome do            Regra     Número de
+índice     índice             exclusiva colunas   Nomes de coluna
+---------- ------------------ --------- --------- ---------------
+SYSIBM     SQL050328184542990 P                 1 +C1
+
+  1 registro(s) selecionado(s).
+</computeroutput>
+</screen>
+   </example>
+  </sect2>
+ </sect1>
+
+ <sect1 id="ddl-system-columns">
+  <title>Colunas do sistema</title>
+
+  <para>
+   Toda tabela possui diversas <firstterm>colunas do sistema</firstterm>, as
+   quais são implicitamente definidas pelo sistema. Portanto, estes nomes não
+   podem ser utilizados como nomes de colunas definidas pelo usuário (observe
+   que esta restrição é diferente do nome ser uma palavra chave ou não;
+   colocar o nome entre aspas não faz esta restrição deixar de ser
+   aplicada). Não há necessidade dos usuários se preocuparem com estas colunas,
+   basta apenas saber que elas existem.
+  </para>
+
+  <indexterm>
+   <primary>coluna</primary>
+   <secondary>coluna do sistema</secondary>
+  </indexterm>
+
+  <variablelist>
+   <varlistentry>
+    <term><structfield>oid</></term>
+    <listitem>
+     <para>
+      <indexterm>
+       <primary>OID</primary>
+       <secondary>coluna</secondary>
+      </indexterm>
+      <indexterm><primary>OID</primary><secondary>coluna</secondary></indexterm>
+      O identificador de objeto (<literal>object ID</literal>) de uma linha.
+      É um número serial adicionado pelo <productname>PostgreSQL</productname>,
+      automaticamente, a todas as linhas da tabela
+      (a não ser que a tabela seja criada com <literal>WITHOUT OIDS</literal> e,
+      neste caso, esta coluna não estará presente). O tipo desta coluna é
+      <literal>oid</literal> (o mesmo nome da coluna); consulte a <xref
+      linkend="datatype-oid"> para obter informações adicionais sobre o tipo.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><structfield>tableoid</></term>
+    <listitem>
+     <indexterm>
+      <primary>tableoid</primary>
+     </indexterm>
+
+     <para>
+      O OID da tabela que contém esta linha. Este atributo é
+      particularmente útil nas consultas fazendo seleção em hierarquias
+      de herança, porque sem este atributo é difícil saber de
+      que tabela se origina cada linha. Pode ser feita uma junção entre
+      <structfield>tableoid</structfield> e a coluna
+      <structfield>oid</structfield> de
+      <classname>pg_class</classname> para obter o nome da tabela.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><structfield>xmin</></term>
+    <listitem>
+     <indexterm>
+      <primary>xmin</primary>
+     </indexterm>
+
+     <para>
+      O identificador da transação de inserção (<literal>transaction ID</literal>)
+      para esta versão da linha (Uma versão da linha é um estado individual
+      da linha; cada atualização da linha cria uma nova versão de linha para
+      a mesma linha lógica).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><structfield>cmin</></term>
+    <listitem>
+     <indexterm>
+      <primary>cmin</primary>
+     </indexterm>
+
+     <para>
+      O identificador do comando, começando por zero, dentro da
+      transação de inserção.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><structfield>xmax</></term>
+    <listitem>
+     <indexterm>
+      <primary>xmax</primary>
+     </indexterm>
+
+     <para>
+      O identificador da transação de exclusão (<literal>transaction ID</literal>),
+      ou zero para uma versão de linha não excluída. É possível que esta coluna
+      seja diferente de zero em uma versão de linha visível: normalmente isto
+      indica que a transação fazendo a exclusão ainda não foi efetivada
+      (<literal>commit</literal>), ou que uma tentativa de exclusão foi desfeita
+      (<literal>rollback</literal>).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><structfield>cmax</></term>
+    <listitem>
+     <indexterm>
+      <primary>cmax</primary>
+     </indexterm>
+
+     <para>
+      O identificador do comando dentro da transação de exclusão, ou zero.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><structfield>ctid</></term>
+    <listitem>
+     <indexterm>
+      <primary>ctid</primary>
+     </indexterm>
+
+     <para>
+      A posição física da versão da linha dentro da tabela. Deve ser
+      observado que, embora seja possível usar <structfield>ctid</structfield>
+      para localizar a versão da linha muito rapidamente, o
+      <structfield>ctid</structfield> da linha muda cada vez que a linha
+      é atualizada ou movida pelo comando <command>VACUUM FULL</command>.
+      Portanto, o <structfield>ctid</structfield> não serve como identificador
+      de linha duradouro. O OID ou, melhor ainda, um número serial definido
+      pelo usuário deve ser utilizado para identificar logicamente a linha.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+
+   <para>
+    Os OIDs são quantidades de 32 bits atribuídas a partir de um contador único
+    para todo o agrupamento de bancos de dados. Em um banco de dados grande ou
+    existente há muito tempo, é possível que o contador recomece. Portanto, é
+    má prática assumir que os OIDs sejam únicos, a menos que sejam realizados
+    procedimentos para garantir que este seja o caso.
+    Se for necessário identificar as linhas da tabela, recomenda-se a
+    utilização de um gerador de seqüência.
+    Entretanto, os OIDs podem ser utilizados desde que sejam tomadas umas poucas
+    precauções adicionais:
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       Deve ser criada uma restrição de unicidade na coluna OID de cada tabela
+       onde o OID será utilizado para identificar as linhas.
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       Nunca se deve assumir que os OIDs sejam únicos entre tabelas; deve ser
+       utilizada a combinação de <structfield>tableoid</> com o OID da linha
+       se for necessário um identificador para todo o banco de dados.
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       As tabelas em questão devem ser criadas especificando <literal>WITH
+       OIDS</literal>, para garantir a compatibilidade com as versões futuras
+       do <productname>PostgreSQL</productname>. Planeja-se que
+       <literal>WITHOUT OIDS</> se torne o padrão.
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+
+   <para>
+    Os identificadores das transações também são quantidades de 32 bits. Em um
+    banco de dados existente há muito tempo é possível que os IDs de transação
+    recomecem. Este problema não é fatal se forem obedecidos os procedimentos
+    apropriados de manutenção; consulte o <xref linkend="maintenance"> para obter
+    detalhes. Entretanto, não é aconselhado depender da unicidade dos IDs de
+    transação por um longo período de tempo (mais de um bilhão de transações).
+   </para>
+
+   <para>
+    Os identificadores de comando também são quantidades de 32 bits,
+    criando um limite de 2<superscript>32</superscript> (4 bilhões) de
+    comandos <acronym>SQL</acronym> dentro de uma única transação. Na prática
+    este limite não é um problema &mdash; observe que o limite diz respeito ao
+    número de comandos <acronym>SQL</acronym>, e não ao número de linhas
+    processadas.
+   </para>
+ </sect1>
+
+ <sect1 id="ddl-inherit">
+  <title>Herança</title>
+
+  <remark>This section needs to be rethought.  Some of the
+  information should go into the following chapters.</remark>
+
+  <para>
+   Vamos criar duas tabelas. A tabela capitais contém as capitais dos estados,
+   que também são cidades. Por conseqüência, a tabela capitais deve herdar da
+   tabela cidades.
+
+<programlisting>
+CREATE TABLE cidades (
+    nome        text,
+    populacao   float,
+    altitude    int     -- (em pés)
+);
+
+CREATE TABLE capitais (
+    estado      char(2)
+) INHERITS (cidades);
+</programlisting>
+
+   Neste caso, as linhas da tabela capitais <firstterm>herdam</firstterm>
+   todos os atributos (nome, população e altitude) de sua tabela ancestral,
+   cidades. As capitais dos estados possuem um atributo adicional chamado estado,
+   contendo seu estado. No <productname>PostgreSQL</productname> uma tabela
+   pode herdar de zero ou mais tabelas, e uma consulta pode referenciar tanto
+   todas as linhas de uma tabela, quanto todas as linhas de uma tabela mais
+   todas as linhas de suas descendentes.
+
+   <note>
+    <para>
+     A hierarquia de herança é, na verdade, um grafo acíclico dirigido.
+     <footnote>
+      <para>
+      Grafo: uma coleção de vértices e arestas;
+      Grafo dirigido: um grafo com arestas unidirecionais;
+      Grafo acíclico dirigido: um grafo dirigido que não contém ciclos -
+      <ulink url="http://wombat.doc.ic.ac.uk/foldoc/index.html">
+      FOLDOC - Free On-Line Dictionary of Computing</ulink> (N. do T.)
+      </para>
+     </footnote>
+    </para>
+   </note>
+  </para>
+
+  <para>
+    Por exemplo, a consulta abaixo retorna os nomes de todas as cidades,
+    incluindo as capitais dos estados, localizadas a uma altitude
+    superior a 500 pés:
+
+<programlisting>
+SELECT nome, altitude
+    FROM cidades
+    WHERE altitude &gt; 500;
+
+<computeroutput>
+   nome    | altitude
+-----------+----------
+ Las Vegas |     2174
+ Mariposa  |     1953
+ Madison   |      845
+</computeroutput>
+</programlisting>
+  </para>
+
+  <para>
+    Por outro lado, a consulta abaixo retorna todas as cidades situadas a uma
+    altitude superior a 500 pés, que não são capitais de estados:
+
+<programlisting>
+SELECT nome, altitude
+    FROM ONLY cidades
+    WHERE altitude &gt; 500;
+
+<computeroutput>
+   nome    | altitude
+-----------+----------
+ Las Vegas |     2174
+ Mariposa  |     1953
+</computeroutput>
+</programlisting>
+  </para>
+
+  <para>
+   O termo <quote>ONLY</quote> antes de cidades indica que a consulta
+   deve ser executada apenas na tabela cidades, sem incluir as tabelas
+   descendentes de cidades na hierarquia de herança. Muitos comandos
+   mostrados até agora &mdash; <command>SELECT</command>,
+   <command>UPDATE</command> e <command>DELETE</command> &mdash;
+   suportam esta notação de <quote>ONLY</quote>.
+  </para>
+
+  <note>
+   <title>Em obsolescência</title>
+   <para>
+     Nas versões anteriores do <productname>PostgreSQL</productname>, o
+     comportamento padrão era não incluir as tabelas descendentes nos comandos.
+     Descobriu-se que isso ocasionava muitos erros, e que também violava o
+     padrão SQL:1999. Na sintaxe antiga, para incluir as tabelas descendentes
+     era necessário anexar um <literal>*</literal> ao nome da tabela.
+     Por exemplo:
+<programlisting>
+SELECT * FROM cidades*;
+</programlisting>
+     Ainda é possível especificar explicitamente a varredura das tabelas
+     descendentes anexando o <literal>*</literal>, assim como especificar
+     explicitamente para não varrer as tabelas descendentes escrevendo
+     <quote>ONLY</quote>. A partir da versão 7.1 o comportamento padrão
+     para nomes de tabelas sem adornos passou a ser varrer as tabelas
+     descendentes também, enquanto antes desta versão o comportamento padrão
+     era não varrer as tabelas descendentes. Para habilitar o comportamento
+     padrão antigo, deve ser definida a opção de configuração
+     <literal>SQL_Inheritance</literal> como desabilitada como, por exemplo,
+<programlisting>
+SET SQL_Inheritance TO OFF;
+</programlisting>
+     ou definir o parâmetro de configuração
+     <xref linkend="guc-sql-inheritance">.
+   </para>
+  </note>
+
+  <para>
+  Em alguns casos pode-se desejar saber de qual tabela uma determinada
+  linha se origina. Em cada tabela existe uma coluna do sistema chamada
+  <structfield>tableoid</structfield> que pode informar a tabela de origem:
+
+<programlisting>
+SELECT c.tableoid, c.nome, c.altitude
+FROM cidades c
+WHERE c.altitude &gt; 500;
+
+<computeroutput>
+ tableoid |   nome    | altitude
+----------+-----------+----------
+   139793 | Las Vegas |     2174
+   139793 | Mariposa  |     1953
+   139798 | Madison   |      845
+</computeroutput>
+</programlisting>
+
+   Se for tentada a reprodução deste exemplo, os valores numéricos dos OIDs
+   provavelmente serão diferentes. Fazendo uma junção com a tabela
+   <quote><literal>pg_class</literal></quote> é possível mostrar o nome da tabela:
+
+<programlisting>
+SELECT p.relname, c.nome, c.altitude
+FROM   cidades c, pg_class p
+WHERE  c.altitude &gt; 500 AND c.tableoid = p.oid;
+
+<computeroutput>
+ relname  |   nome    | altitude
+----------+-----------+----------
+ cidades  | Las Vegas |     2174
+ cidades  | Mariposa  |     1953
+ capitais | Madison   |      845
+</computeroutput>
+</programlisting>
+
+  </para>
+
+  <para>
+   Uma tabela pode herdar de mais de uma tabela ancestral e, neste caso,
+   possuirá a união das colunas definidas nas tabelas ancestrais (além de
+   todas as colunas declaradas especificamente para a tabela filha).
+  </para>
+
+  <para>
+   Uma limitação séria da funcionalidade da herança é que os índices (incluindo
+   as restrições de unicidade) e as chaves estrangeiras somente se aplicam a
+   uma única tabela, e não às suas descendentes. Isto é verdade tanto do lado
+   que faz referência quanto do lado que é referenciado na chave estrangeira.
+   Portanto, em termos do exemplo acima:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Se for declarado <structname>cidades</>.<structfield>nome</> como sendo
+      <literal>UNIQUE</> ou <literal>PRIMARY KEY</>, isto não impede que a
+      tabela <structname>capitais</> tenha linhas com nomes idênticos aos
+      da tabela <structname>cidades</> e, por padrão, estas linhas duplicadas
+      aparecem nas consultas à tabela <structname>cidades</>.
+      Na verdade, por padrão, a tabela <structname>capitais</> não teria
+      nenhuma restrição de unicidade e, portanto, poderia conter várias linhas
+      com nomes idênticos.
+      Poderia ser adicionada uma restrição de unicidade à tabela
+      <structname>capitais</>, mas isto não impediria um nome idêntico
+      na tabela <structname>cidades</>.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      De forma análoga, se for especificado
+      <structname>cidades</>.<structfield>nome</> <literal>REFERENCES</> alguma
+      outra tabela, esta restrição não se propaga automaticamente para a
+      tabela <structname>capitais</>. Neste caso, o problema poderia ser
+      contornado adicionando manualmente a restrição <literal>REFERENCES</>
+      para a tabela <structname>capitais</>.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Especificar para uma coluna de outra tabela <literal>REFERENCES
+      cidades(nome)</> permite à outra tabela conter os nomes das cidades,
+      mas não os nomes das capitais. Não existe um maneira boa para contornar
+      este problema.
+     </para>
+    </listitem>
+   </itemizedlist>
+
+   Estas deficiências deverão, provavelmente, serem corrigidas em alguma versão
+   futura, mas enquanto isso deve haver um cuidado considerável ao decidir
+   se a herança é útil para resolver o problema em questão.
+  </para>
+ </sect1>
+
+ <sect1 id="ddl-alter">
+  <title>Modificação de tabelas</title>
+
+  <indexterm zone="ddl-alter">
+   <primary>tabela</primary>
+   <secondary>modificar</secondary>
+  </indexterm>
+
+  <para>
+   Quando percebemos, após a tabela ser criada, que foi cometido um erro
+   ou que os requisitos do aplicativo mudaram, é possível remover a
+   tabela e criá-la novamente. Porém, esta opção não é conveniente
+   quando existem dados na tabela, ou se a tabela é referenciada por
+   outros objetos do banco de dados (por exemplo, uma restrição de chave
+   estrangeira); por isso, o <productname>PostgreSQL</productname>
+   disponibiliza um conjunto de comandos para realizar modificações em tabelas
+   existentes. Deve ser observado que esta operação é conceitualmente distinta
+   da alteração dos dados contidos na tabela, aqui o interesse está em mudar a
+   definição, ou estrutura, da tabela.
+  </para>
+
+  <para>
+   É possível:
+   <itemizedlist spacing="compact">
+    <listitem>
+     <para>Adicionar coluna;</para>
+    </listitem>
+    <listitem>
+     <para>Remover coluna;</para>
+    </listitem>
+    <listitem>
+     <para>Adicionar restrição;</para>
+    </listitem>
+    <listitem>
+     <para>Remover restrição;</para>
+    </listitem>
+    <listitem>
+     <para>Mudar valor padrão;</para>
+    </listitem>
+    <listitem>
+     <para>Mudar tipo de dado de coluna;</para>
+    </listitem>
+    <listitem>
+     <para>Mudar nome de coluna;</para>
+    </listitem>
+    <listitem>
+     <para>Mudar nome de tabela.</para>
+    </listitem>
+   </itemizedlist>
+
+   Todas estas atividades são realizadas utilizando o comando
+   <xref linkend="sql-altertable" endterm="sql-altertable-title">.
+  </para>
+
+  <sect2>
+   <title>Adicionar coluna</title>
+
+   <indexterm>
+    <primary>coluna</primary>
+    <secondary>adição</secondary>
+   </indexterm>
+
+   <para>
+    Para adicionar uma coluna, utiliza-se:
+<programlisting>
+ALTER TABLE produtos ADD COLUMN descricao text;
+</programlisting>
+    Inicialmente a nova coluna é preenchida com o valor padrão especificado,
+    ou nulo se a cláusula <literal>DEFAULT</> não for especificada.
+   </para>
+
+   <para>
+    Também podem ser definidas, ao mesmo tempo, restrições para a coluna
+    utilizando a sintaxe habitual:
+<programlisting>
+ALTER TABLE produtos ADD COLUMN descricao text CHECK (descricao &lt;&gt; '');
+</programlisting>
+    Na verdade, todas as opções que podem ser aplicadas à descrição da coluna
+    no comando <command>CREATE TABLE</> podem ser utilizadas aqui. Entretanto,
+    tenha em mente que o valor padrão deve satisfazer as restrições
+    especificadas, ou o <literal>ADD</> não será bem-sucedido. Como alternativa,
+    as restrições podem ser adicionadas posteriormente (veja abaixo), após a
+    nova coluna ter sido preenchida com dados adequados.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Remover coluna</title>
+
+   <indexterm>
+    <primary>coluna</primary>
+    <secondary>remover</secondary>
+   </indexterm>
+
+   <para>
+    Para remover uma coluna, utiliza-se:
+<programlisting>
+ALTER TABLE produtos DROP COLUMN descricao;
+</programlisting>
+    Os dados presentes na coluna desaparecem. As restrições de tabela que
+    envolvem a coluna também são removidas. Entretanto, se a coluna for
+    referenciada por uma restrição de chave estrangeira de outra tabela,
+    o <productname>PostgreSQL</productname> não irá remover esta restrição em
+    silêncio. Pode ser autorizada a remoção de tudo que depende da coluna
+    adicionando <literal>CASCADE</>:
+<programlisting>
+ALTER TABLE produtos DROP COLUMN descricao CASCADE;
+</programlisting>
+    Consulte a <xref linkend="ddl-depend"> para obter uma descrição geral
+    do mecanismo por trás desta operação.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Adicionar restrição</title>
+
+   <indexterm>
+    <primary>restrição</primary>
+    <secondary>adição</secondary>
+   </indexterm>
+
+   <para>
+    É utilizada a sintaxe de restrição de tabela para adicionar uma restrição.
+    Por exemplo:
+<programlisting>
+ALTER TABLE produtos ADD CHECK (nome &lt;&gt; '');
+ALTER TABLE produtos ADD CONSTRAINT unq_cod_prod UNIQUE (cod_prod);
+ALTER TABLE produtos ADD FOREIGN KEY (fk_grupo_produtos) REFERENCES grupo_produtos;
+</programlisting>
+    Para adicionar a restrição de não nulo, que não pode ser escrita na
+    forma de restrição de tabela, deve ser utilizada a sintaxe:
+<programlisting>
+ALTER TABLE produtos ALTER COLUMN cod_prod SET NOT NULL;
+</programlisting>
+   </para>
+
+   <para>
+    A restrição será verificada imediatamente, portanto os dados da tabela
+    devem satisfazer a restrição para esta poder ser adicionada.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Remover restrição</title>
+
+   <indexterm>
+    <primary>restrição</primary>
+    <secondary>remoção</secondary>
+   </indexterm>
+
+   <para>
+    Para remover uma restrição é necessário conhecer seu nome. Se foi atribuído
+    um nome à restrição é fácil, caso contrário o sistema atribui à
+    restrição um nome gerado que precisa ser descoberto. O comando <literal>\d
+    <replaceable>nome_da_tabela</replaceable></literal>
+    do <application>psql</application> pode ser útil nesta situação;
+    outras interfaces também podem oferecer uma forma de inspecionar
+    os detalhes das tabelas. O comando utilizado para remover restrição é:
+<programlisting>
+ALTER TABLE produtos DROP CONSTRAINT nome_da_restrição;
+</programlisting>
+    (Caso esteja lidando com um nome de restrição gerado, como
+    <literal>$2</literal>, não se esqueça de colocar entre aspas para torná-lo
+    um identificador válido).
+   </para>
+
+   <para>
+    Da mesma forma que para remover uma coluna, é necessário adicionar
+    <literal>CASCADE</> se for desejado remover uma restrição que outro
+    objeto dependa. Um exemplo é a restrição de chave estrangeira,
+    que depende da restrição de unicidade ou de chave primária nas colunas
+    referenciadas.
+   </para>
+
+   <para>
+    Esta sintaxe serve igualmente para todos os tipos de restrição,
+    exceto não-nulo. Para remover uma restrição de não-nulo, utiliza-se:
+<programlisting>
+ALTER TABLE produtos ALTER COLUMN cod_prod DROP NOT NULL;
+</programlisting>
+    (Lembre-se que as restrições de não-nulo não possuem nome)
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Mudar valor padrão da coluna</title>
+
+   <indexterm>
+    <primary>valor padrão</primary>
+    <secondary>modificar</secondary>
+   </indexterm>
+
+   <para>
+    Para definir um novo valor padrão para a coluna, utiliza-se:
+<programlisting>
+ALTER TABLE produtos ALTER COLUMN preco SET DEFAULT 7.77;
+</programlisting>
+    Deve ser observado que este comando não afeta nenhuma coluna existente na
+    tabela, apenas muda o valor padrão para os próximos comandos
+    <command>INSERT</>.
+   </para>
+
+   <para>
+    Para remover o valor padrão para a coluna, utiliza-se:
+<programlisting>
+ALTER TABLE produtos ALTER COLUMN preco DROP DEFAULT;
+</programlisting>
+    Efetivamente é o mesmo que definir o valor nulo como sendo o valor padrão.
+    Como conseqüência, não é errado remover um valor padrão que não tenha sido
+    definido, porque implicitamente o valor nulo é o valor padrão.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Mudar o tipo de dado da coluna</title>
+
+   <indexterm>
+    <primary>tipo de dado da coluna</primary>
+    <secondary>mudar</secondary>
+   </indexterm>
+
+   <para>
+    Para converter a coluna em um tipo de dado diferente, utiliza-se:
+<programlisting>
+ALTER TABLE produtos ALTER COLUMN preco TYPE numeric(10,2);
+</programlisting>
+    Este comando somente será bem-sucedido se todas as entradas existentes na
+    coluna puderem ser convertidas para o novo tipo através de uma conversão
+    implícita. Se for necessária uma conversão mais complexa, pode ser
+    adicionada a cláusula <literal>USING</> especificando como calcular
+    os novos valores a partir dos antigos.
+   </para>
+
+   <para>
+    O <productname>PostgreSQL</> tenta converter o valor padrão da coluna
+    (se houver) para o novo tipo, assim bem como todas as restrições que
+    envolvem a coluna. Mas estas conversões podem falhar, ou podem produzir
+    resultados surpreendentes. Geralmente é melhor remover todas as restrições
+    da coluna antes de alterar o seu tipo, e depois adicionar novamente estas
+    restrições modificadas de forma apropriada.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Mudar nome de coluna</title>
+
+   <indexterm>
+    <primary>coluna</primary>
+    <secondary>mudar o nome</secondary>
+   </indexterm>
+
+   <para>
+    Para mudar o nome de uma coluna, utiliza-se:
+<programlisting>
+ALTER TABLE produtos RENAME COLUMN cod_prod TO cod_produto;
+</programlisting>
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Mudar nome de tabela</title>
+
+   <indexterm>
+    <primary>tabela</primary>
+    <secondary>mudar nome</secondary>
+   </indexterm>
+
+   <para>
+    Para mudar o nome de uma tabela, utiliza-se:
+<programlisting>
+ALTER TABLE produtos RENAME TO equipamentos;
+</programlisting>
+   </para>
+  </sect2>
+ </sect1>
+
+ <sect1 id="ddl-priv">
+  <title>Privilégios</title>
+
+  <indexterm zone="ddl-priv">
+   <primary>privilégio</primary>
+  </indexterm>
+
+  <indexterm>
+   <primary>permissão</primary>
+   <see>privilégio</see>
+  </indexterm>
+
+  <para>
+   Quem cria o objeto no banco de dados se torna o seu dono. Por
+   padrão, apenas o dono do objeto pode fazer qualquer coisa com
+   o objeto. Para permitir outros usuários utilizarem o objeto,
+   devem ser concedidos <firstterm>privilégios</firstterm>  (entretanto,
+   os usuários que possuem o atributo de superusuário sempre podem acessar
+   qualquer objeto).
+  </para>
+
+  <para>
+   Existem vários privilégios diferentes: <literal>SELECT</>,
+   <literal>INSERT</>, <literal>UPDATE</>, <literal>DELETE</>,
+   <literal>RULE</>, <literal>REFERENCES</>, <literal>TRIGGER</>,
+   <literal>CREATE</>, <literal>TEMPORARY</>, <literal>EXECUTE</>
+   e <literal>USAGE</>. Os privilégios aplicáveis a um determinado tipo
+   de objeto variam de acordo com o tipo do objeto (tabela, função, etc.).
+   Para obter informações completas sobre os diferentes tipos de privilégio
+   suportados pelo <productname>PostgreSQL</productname>, deve ser
+   consultada a página de referência do comando
+   <xref linkend="sql-grant" endterm="sql-grant-title">.  As próximas seções e
+   capítulos também mostram como os privilégios são utilizados.
+  </para>
+
+  <para>
+   O direito de modificar e destruir um objeto
+   são sempre privilégios exclusivos do seu criador.
+  </para>
+
+  <note>
+   <para>
+    Para mudar o dono de uma tabela, índice, seqüência ou visão deve ser
+    utilizado o comando  <xref linkend="sql-altertable">. Existem comandos
+    <literal>ALTER</> correspondentes para outros tipos de objeto.
+   </para>
+  </note>
+
+  <para>
+   Para conceder privilégios utiliza-se o comando <command>GRANT</command>.
+   Por exemplo, se <literal>joel</literal> for um usuário existente, e
+   <literal>contas</literal> for uma tabela existente, o privilégio de poder
+   atualizar esta tabela pode ser concedido por meio do comando:
+<programlisting>
+GRANT UPDATE ON contas TO joel;
+</programlisting>
+   Para conceder o privilégio para um grupo é utilizada a sintaxe:
+<programlisting>
+GRANT SELECT ON contas TO GROUP contabilidade;
+</programlisting>
+   O nome especial de <quote>usuário</quote> <literal>PUBLIC</literal> pode
+   ser utilizado para conceder privilégios para todos os usuários do sistema.
+   Escrever <literal>ALL</literal> no lugar do nome específico do
+   privilégio concede todos os privilégios relevantes para o tipo do objeto.
+  </para>
+
+  <para>
+   Para revogar um privilégio utiliza-se o comando
+   <command>REVOKE</command>:
+<programlisting>
+REVOKE ALL ON contas FROM PUBLIC;
+</programlisting>
+   Os privilégios especiais do dono da tabela (ou seja, os direitos de
+   <command>DROP</command>, <command>GRANT</command>, <command>REVOKE</command>,
+   etc.) são sempre inerentes à condição de ser o dono,
+   não podendo ser concedidos ou revogados. Porém, o dono do objeto pode
+   decidir revogar seus próprios privilégios comuns como, por exemplo, tornar a
+   tabela somente para leitura para o próprio, assim como para os outros.
+  </para>
+
+  <para>
+   Normalmente, somente o dono do objeto (ou um superusuário) pode conceder ou
+   revogar privilégios para um objeto. Entretanto, é possível conceder
+   um privilégio <quote>com a opção de concessão</>, o que dá a quem recebe
+   o direito de conceder o privilégio para outros. Se mais tarde esta opção de
+   concessão for revogada, então todos aqueles que receberam o privilégio
+   a partir desta pessoa (diretamente ou através de uma cadeia de concessões),
+   perdem este privilégio. Para obter mais detalhes consulte as páginas de referência
+   dos comandos <xref linkend="sql-grant"> e <xref linkend="sql-revoke">.
+  </para>
+ </sect1>
+
+ <sect1 id="ddl-schemas">
+  <title>Esquemas</title>
+
+  <indexterm zone="ddl-schemas">
+   <primary>esquema</primary>
+  </indexterm>
+
+  <para>
+   Um agrupamento de bancos de dados do <productname>PostgreSQL</productname>
+   contém um ou mais bancos de dados com nome. Os usuários e os
+   grupos de usuários são compartilhados por todo o agrupamento, mas
+   nenhum outro dado é compartilhado entre os bancos de dados. Todas as
+   conexões dos clientes com o servidor podem acessar somente os dados de um
+   único banco de dados, àquele que foi especificado no pedido de conexão.
+  </para>
+
+  <note>
+   <para>
+    Os usuários de um agrupamento de bancos de dados não possuem,
+    necessariamente, o privilégio de acessar todos os bancos de dados do
+    agrupamento. O compartilhamento de nomes de usuários significa que não pode
+    haver, em dois bancos de dados do mesmo agrupamento, mais de um usuário com
+    o mesmo nome como, por exemplo, <literal>joel</literal>; mas o sistema pode
+    ser configurado para permitir que o usuário <literal>joel</literal> acesse
+    apenas determinados bancos de dados.
+   </para>
+  </note>
+
+  <para>
+   Um banco de dados contém um ou mais <firstterm>esquemas</firstterm> com nome,
+   os quais por sua vez contêm tabelas. Os esquemas também contêm outros tipos
+   de objetos com nome, incluindo tipos de dado, funções e operadores. O mesmo
+   nome de objeto pode ser utilizado em esquemas diferentes sem conflito;
+   por exemplo, tanto o <literal>esquema_1</literal> quanto o
+   <literal>meu_esquema</literal> podem conter uma tabela chamada
+   <literal>minha_tabela</literal>. Diferentemente dos bancos de dados, os
+   esquemas não são separados rigidamente: um usuário pode acessar objetos de
+   vários esquemas no banco de dados em que está conectado, caso possua os
+   privilégios necessários para fazê-lo.
+  </para>
+
+  <para>
+   Existem diversas razões pelas quais pode-se desejar utilizar esquemas:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Para permitir vários usuários utilizarem o mesmo banco de dados sem que um
+      interfira com o outro.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Para organizar objetos do banco de dados em grupos lógicos tornando-os
+      mais gerenciáveis.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Os aplicativos desenvolvidos por terceiros podem ser colocados em esquemas
+      separados, para não haver colisão com nomes de outros objetos.
+     </para>
+    </listitem>
+   </itemizedlist>
+
+   Os esquemas são análogos a diretórios no nível do sistema operacional,
+   exceto que os esquemas não podem ser aninhados.
+  </para>
+
+  <sect2 id="ddl-schemas-create">
+   <title>Criação de esquema</title>
+
+   <indexterm zone="ddl-schemas-create">
+    <primary>esquema</primary>
+    <secondary>criação</secondary>
+   </indexterm>
+
+   <para>
+    Para criar um esquema utiliza-se o comando <literal>CREATE
+    SCHEMA</literal>. O nome do esquema é escolhido livremente pelo usuário.
+    Por exemplo:
+<programlisting>
+CREATE SCHEMA meu_esquema;
+</programlisting>
+   </para>
+
+   <indexterm>
+    <primary>nome qualificado</primary>
+   </indexterm>
+
+   <indexterm>
+    <primary>nome</primary>
+    <secondary>qualificado</secondary>
+   </indexterm>
+
+   <para>
+    Para criar ou acessar objetos em um esquema deve ser escrito um
+    <firstterm>nome qualificado</firstterm>, formado pelo nome do esquema
+    e pelo nome da tabela separados por um ponto:
+<synopsis>
+<replaceable>nome_do_esquema</replaceable><literal>.</><replaceable>nome_da_tabela</>
+</synopsis>
+    Esta forma funciona em qualquer local onde é esperado o nome de uma tabela,
+    inclusive nos comandos de modificação de tabela e nos comandos de acesso a
+    dado mostrados nos próximos capítulos
+    (Para abreviar falaremos apenas das tabelas, mas a mesma idéia se aplica
+    a outros tipos de objetos com nome, tais como tipos e funções).
+   </para>
+
+   <para>
+    Na verdade, também pode ser utilizada a sintaxe mais geral
+<synopsis>
+<replaceable>nome_do_banco_de_dados</replaceable><literal>.</><replaceable>nome_do_esquema</replaceable><literal>.</><replaceable>nome_da_tabela</>
+</synopsis>
+    mas atualmente é apenas uma conformidade <literal>pró-forma</literal> com o
+    padrão SQL; se for escrito o nome do banco de dados, este deverá ter o
+    mesmo nome do banco de dados que se está conectado.
+   </para>
+
+   <para>
+    Portanto, para criar uma tabela no novo esquema utiliza-se:
+<programlisting>
+CREATE TABLE meu_esquema.minha_tabela (
+ ...
+);
+</programlisting>
+   </para>
+
+   <indexterm>
+    <primary>esquema</primary>
+    <secondary>remover</secondary>
+   </indexterm>
+
+   <para>
+    Para remover um esquema vazio (todos os seus objetos já
+    foram removidos), utiliza-se:
+<programlisting>
+DROP SCHEMA meu_esquema;
+</programlisting>
+    Para remover um esquema junto com todos os objetos que este contém, utiliza-se:
+<programlisting>
+DROP SCHEMA meu_esquema CASCADE;
+</programlisting>
+    Consulte a <xref linkend="ddl-depend"> para ver a descrição do mecanismo
+    geral por trás desta operação.
+   </para>
+
+   <para>
+    Muitas vezes deseja-se criar um esquema cujo dono é outro usuário
+    (porque este é um dos modos utilizados para restringir as atividades dos
+    usuários a espaços de nomes bem definidos). A sintaxe para esta operação é:
+<programlisting>
+CREATE SCHEMA <replaceable>nome_do_esquema</replaceable> AUTHORIZATION <replaceable>nome_do_usuário</replaceable>;
+</programlisting>
+    Inclusive, o nome do esquema pode ser omitido e, neste caso, o nome do
+    esquema será idêntico ao nome do usuário. Consulte a
+    <xref linkend="ddl-schemas-patterns"> para ver como pode ser útil.
+   </para>
+
+   <para>
+    Os nomes de esquemas começando por <literal>pg_</literal> são reservados
+    para uso pelo sistema, não devendo ser criados pelos usuários.
+   </para>
+  </sect2>
+
+  <sect2 id="ddl-schemas-public">
+   <title>O esquema público</title>
+
+   <indexterm zone="ddl-schemas-public">
+    <primary>esquema</primary>
+    <secondary>público</secondary>
+   </indexterm>
+
+   <para>
+    Nas seções anteriores foram criadas tabelas sem que fosse especificado
+    nenhum nome de esquema. Por padrão, estas tabelas (e outros objetos) são
+    colocadas automaticamente no esquema chamado <quote>public</quote>.
+    Todo banco de dados novo possui este esquema. Portanto, as duas formas
+    abaixo são equivalentes:
+<programlisting>
+CREATE TABLE produtos ( ... );
+</programlisting>
+    e
+<programlisting>
+CREATE TABLE public.produtos ( ... );
+</programlisting>
+   </para>
+  </sect2>
+
+  <sect2 id="ddl-schemas-path">
+   <title>O caminho de procura do esquema</title>
+
+   <indexterm>
+    <primary>caminho de procura</primary>
+   </indexterm>
+
+   <indexterm>
+    <primary>nome não qualificado</primary>
+   </indexterm>
+
+   <indexterm>
+    <primary>nome</primary>
+    <secondary>não qualificado</secondary>
+   </indexterm>
+
+   <para>
+    Os nomes qualificados são desagradáveis de escrever, sendo geralmente melhor
+    não ligar o aplicativo a um esquema específico. Por isso, geralmente as
+    tabelas são  referenciadas por meio de <firstterm>nomes não qualificados</>,
+    formados apenas pelo nome da tabela. O sistema determina qual tabela está
+    sendo referenciada seguindo o <firstterm>caminho de procura</firstterm>, o
+    qual é uma lista de esquemas para procura. A primeira tabela correspondente
+    encontrada no caminho de procura é assumida como sendo a desejada.
+    Não havendo nenhuma correspondência no caminho de procura é relatado um
+    erro, mesmo que uma tabela correspondendo ao nome exista em outro esquema
+    no banco de dados.
+   </para>
+
+   <indexterm>
+    <primary>esquema</primary>
+    <secondary>corrente</secondary>
+   </indexterm>
+
+   <para>
+    O primeiro nome de esquema no caminho de procura é chamado de esquema
+    corrente. Além de ser o primeiro esquema a ser procurado, também é o esquema
+    onde as novas tabelas são criadas quando o comando
+    <command>CREATE TABLE</command> não especifica o nome do esquema.
+   </para>
+
+   <indexterm>
+    <primary>caminho de procura</primary>
+   </indexterm>
+
+   <para>
+    Para mostrar o caminho de procura corrente, utiliza-se:
+<programlisting>
+SHOW search_path;
+</programlisting>
+    Na configuração padrão este comando retorna:
+<screen>
+
+<computeroutput>
+ search_path
+--------------
+ $user,public
+</computeroutput>
+</screen>
+    O primeiro elemento especifica que deve ser procurado o esquema
+    com o mesmo nome do usuário corrente. Se este esquema
+    não existir, esta entrada é ignorada. O segundo elemento
+    se refere ao esquema público visto anteriormente.
+   </para>
+
+   <para>
+    O primeiro esquema no caminho de procura, que exista, é o local
+    padrão para a criação dos novos objetos. Esta é a razão pela qual,
+    por padrão, os objetos são criados no esquema público. Quando os objetos
+    são referenciados em qualquer outro contexto sem qualificação pelo esquema
+    (comandos de modificação de tabelas, modificação de dados ou consultas) o
+    caminho de procura é percorrido até que o objeto correspondente seja
+    encontrado. Portanto, na configuração padrão, qualquer acesso não
+    qualificado somente pode fazer referência ao esquema público.
+   </para>
+
+   <para>
+    Para incluir um novo esquema no caminho, utiliza-se:
+<programlisting>
+SET search_path TO meu_esquema,public;
+</programlisting>
+    (O esquema <literal>$user</literal> foi omitido, porque não há necessidade
+    imediata dele). Dessa forma, a tabela pode ser acessada sem
+    ser qualificada pelo esquema:
+<programlisting>
+DROP TABLE minha_tabela;
+</programlisting>
+    Também, como <literal>meu_esquema</literal> é o primeiro elemento
+    do caminho, os novos objetos serão criados neste esquema por padrão.
+   </para>
+
+   <para>
+    Também poderia ter sido escrito
+<programlisting>
+SET search_path TO meu_esquema;
+</programlisting>
+    para retirar o acesso ao esquema público sem uma qualificação explícita.
+    Não existe nada especial com relação ao esquema público, a não ser que
+    existe por padrão. Também pode ser excluído.
+   </para>
+
+   <para>
+    Consulte também a <xref linkend="functions-info"> para conhecer outras
+    formas de manipular o caminho de procura de esquema.
+   </para>
+
+   <para>
+    O caminho de procura funciona para nomes de tipos de dado, nomes de funções
+    e nomes de operadores, da mesma maneira que funciona para nomes de tabelas.
+    Os nomes dos tipos de dado e das funções podem ser qualificados exatamente
+    da mesma maneira que os nomes das tabelas. Se for necessário escrever um
+    nome de operador qualificado em uma expressão, existe uma maneira
+    especial de fazê-lo, deve ser escrito:
+<synopsis>
+<literal>OPERATOR(</><replaceable>nome_do_esquema</replaceable><literal>.</><replaceable>nome_do_operador</replaceable><literal>)</>
+</synopsis>
+    Isto é necessário para evitar uma ambigüidade de sintaxe. Por exemplo:
+<programlisting>
+SELECT 3 OPERATOR(pg_catalog.+) 4;
+</programlisting>
+    Na prática geralmente confia-se no caminho de procura para os operadores,
+    não sendo necessário escrever algo tão horrível assim.
+   </para>
+  </sect2>
+
+  <sect2 id="ddl-schemas-priv">
+   <title>Esquemas e privilégios</title>
+
+   <indexterm zone="ddl-schemas-priv">
+    <primary>privilégio</primary>
+    <secondary sortas="schemas">para esquemas</secondary>
+   </indexterm>
+
+   <para>
+    Por padrão, os usuários não podem acessar objetos em esquemas que não são
+    seus. Para poderem acessar, o dono do esquema precisa conceder o
+    privilégio <literal>USAGE</literal> para o esquema. Para permitir os
+    usuários utilizarem os objetos do esquema é necessário conceder privilégios
+    adicionais, conforme seja apropriado para cada objeto.
+   </para>
+
+   <para>
+    Pode ser permitido, também, que um usuário crie objetos no esquema
+    de outro usuário. Para permitir que isto seja feito, deve ser concedido o
+    privilégio <literal>CREATE</literal> para o esquema. Deve ser observado que,
+    por padrão, todos os usuários possuem o privilégio <literal>CREATE</literal>
+    e <literal>USAGE</literal> para o esquema <literal>public</literal>.
+    Isto permite a todos os usuários que podem se conectar ao banco de
+    dados criar objetos no esquema <literal>public</literal>. Se isto não
+    for desejado, este privilégio pode ser revogado:
+<programlisting>
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+</programlisting>
+    O primeiro <quote>public</quote> acima é o nome do esquema, enquanto o
+    segundo <quote>public</quote> significa <quote>todos os usuários</quote>.
+    Na primeira ocorrência é um identificador, enquanto na segunda ocorrência
+    é uma palavra chave; por isso, na primeira vez está escrito em minúsculas
+    enquanto na segunda vez está em maiúsculas; lembre-se da convenção da
+    <xref linkend="sql-syntax-identifiers">.
+   </para>
+  </sect2>
+
+  <sect2 id="ddl-schemas-catalog">
+   <title>O esquema do catálogo do sistema</title>
+
+   <indexterm zone="ddl-schemas-catalog">
+    <primary>catálogo do sistema</primary>
+    <secondary>esquema</secondary>
+   </indexterm>
+
+   <para>
+    Além do esquema <literal>public</literal> e dos esquemas criados pelos
+    usuários, cada banco de dados contém o esquema <literal>pg_catalog</literal>,
+    contendo as tabelas do sistema e todos os tipos de dado, funções e operadores
+    nativos. O <literal>pg_catalog</literal> é sempre parte efetiva do caminho de
+    procura. Se não for colocado explicitamente no caminho de procura, então é
+    implicitamente procurado <emphasis>antes</emphasis> dos esquemas do caminho
+    de procura. Isto garante que os nomes nativos sempre podem ser encontrados.
+    Entretanto, é possível colocar explicitamente o <literal>pg_catalog</literal>
+    no final do caminho de procura, se for desejado que os nomes definidos pelo
+    usuário substituam os nomes nativos.
+   </para>
+
+   <para>
+    Nas versões do <productname>PostgreSQL</productname> anteriores a 7.3,
+    os nomes de tabela começando por <literal>pg_</literal> eram reservados.
+    Isto não é mais verdade: podem ser criadas tabelas com este nome, se for
+    desejado, em qualquer esquema que não seja o do sistema. Entretanto, é
+    melhor continuar evitando estes nomes, para garantir que não haverá
+    conflito caso alguma versão futura defina uma tabela do sistema com o mesmo
+    nome da tabela criada (com o caminho de procura padrão, uma referência não
+    qualificada à tabela criada será resolvida com a tabela do sistema).
+    As tabelas do sistema vão continuar seguindo a convenção de possuir nomes
+    começando por <literal>pg_</literal>, não conflitando com os nomes
+    não qualificados das tabelas dos usuários, desde que os usuários
+    evitem utilizar o prefixo <literal>pg_</literal>.
+   </para>
+  </sect2>
+
+  <sect2 id="ddl-schemas-patterns">
+   <title>Modelos de utilização</title>
+
+   <para>
+    Os esquemas podem ser utilizados para organizar os dados de várias maneiras.
+    Existem uns poucos modelos de utilização recomendados, facilmente
+    suportados pela configuração padrão:
+    <itemizedlist>
+     <listitem>
+      <para>
+       Se não for criado nenhum esquema, então todos os usuários acessam o
+       esquema público implicitamente, simulando a situação onde os
+       esquemas não estão disponíveis. Esta configuração é recomendada,
+       principalmente, quando existe no banco de dados apenas um usuário,
+       ou alguns poucos usuários colaborativos. Esta configuração também
+       permite uma transição suave de uma situação sem esquemas.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Pode ser criado um esquema para cada usuário com o mesmo nome do
+       usuário. Lembre-se que o caminho de procura padrão começa por
+       <literal>$user</literal>, que é resolvido como o nome do usuário.
+       Portanto, se cada usuário possuir um esquema separado, vão
+       acessar seus próprios esquemas por padrão.
+      </para>
+
+      <para>
+       Se esta configuração for utilizada, também pode ser revogado o
+       acesso ao esquema público (ou mesmo removê-lo), deixando os
+       usuários totalmente restritos aos seus próprios esquemas.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Para instalar aplicações compartilhadas (tabelas utilizadas por todos,
+       funções adicionais fornecidas por terceiros, etc.), estas devem ser
+       colocadas em esquemas separados. Devem ser concedidos, também, os
+       privilégios necessários para permitir o acesso pelos outros usuários.
+       Os usuários poderão, então, fazer referência a estes objetos adicionais
+       qualificando seus nomes com o nome do esquema, ou poderão adicionar
+       esquemas ao caminho de procura, conforme julgarem melhor.
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+  </sect2>
+
+  <sect2 id="ddl-schemas-portability">
+   <title>Portabilidade</title>
+
+   <para>
+    No padrão SQL, não existe a noção de objetos no mesmo esquema pertencendo
+    a usuários diferentes. Além disso, algumas implementações não permitem criar
+    esquemas com nome diferente do nome de seu dono. Na verdade, os conceitos de
+    esquema e de usuário são praticamente equivalentes em sistemas de banco de
+    dados que implementam somente o suporte básico a esquemas especificado no
+    padrão. Portanto, muitos usuários consideram os nomes qualificados na
+    verdade formados por
+    <literal><replaceable>nome_do_usuário</replaceable>.<replaceable>nome_da_tabela</replaceable></literal>.
+    Esta é a forma como o <productname>PostgreSQL</productname> se comportará
+    efetivamente, se for criado um esquema por usuário para todos os usuários.
+   </para>
+
+   <para>
+    Além disso, não existe o conceito do esquema <literal>public</literal> no
+    padrão SQL. Para máxima conformidade com o padrão, o esquema
+    <literal>public</literal> não deve ser utilizado (talvez deva até ser
+    removido).
+   </para>
+
+   <para>
+    Obviamente, alguns sistemas de banco de dados SQL podem não implementar
+    esquemas de nenhuma maneira, ou oferecer suporte a espaços de nomes
+    permitindo apenas acesso entre bancos de dados (possivelmente limitado).
+    Se for necessário trabalhar com estes sistemas, o máximo de portabilidade
+    é obtido não utilizando nada relacionado a esquemas.
+    <footnote>
+     <para>
+      <productname>Oracle 9i</productname> &mdash;
+      Um esquema é uma coleção de objetos de banco de dados.
+      O esquema pertence ao usuário do banco de dados e possui o mesmo nome
+      do usuário.
+      Os objetos do esquema são estruturas lógicas que se referem diretamente
+      aos dados do banco de dados.
+      Os objetos do esquema incluem estruturas como tabelas, visões e índices.
+      Não existe relacionamento entre espaço de tabela e esquema; objetos do
+      mesmo esquema podem estar em espaços de tabela diferentes, e espaços de
+      tabelas podem conter objetos de esquemas diferentes.
+      <ulink url="http://www.stanford.edu/dept/itss/docs/oracle/9i/server.920/a96524/c01_02intro.htm">
+      Introduction to the Oracle Server</ulink>
+     </para>
+    </footnote>
+    <footnote>
+     <para>
+      <productname>SQL Server 2000</productname> &mdash;
+      O nome completo de um objeto é formado por quatro identificadores:
+      o nome do servidor, o nome do banco de dados, o nome do dono e o
+      nome do objeto. Aparecem no seguinte formato:
+      <literal>[ [ [ nome_do_servidor. ] [ nome_do_banco_de_dados ] . ] [ nome_do_dono ] . ] nome_do_objeto</literal>.
+      O nome do servidor, do banco de dados e do dono são conhecidos como
+      qualificadores do nome do objeto.
+      SQL Server Books Online (N. do T.)
+     </para>
+    </footnote>
+    <footnote>
+     <para>
+      <productname>DB2 8.1</productname> &mdash;
+      Um esquema é uma coleção de objetos com nome. Os esquemas provêem uma
+      uma classificação lógica dos objetos no banco de dados. O esquema pode
+      conter tabelas, visões, apelidos, gatilhos, funções, pacotes e outros
+      objetos. O esquema também é um objeto do banco de dados. O nome do
+      esquema é utilizado como a parte de mais alta ordem de um nome de
+      objeto de duas partes. Se o objeto for qualificado com um nome de
+      esquema específico ao ser criado, o objeto é atribuído a este esquema.
+      Se não for especificado nenhum nome de esquema ao criar um objeto,
+      é utilizado o nome de esquema padrão. Os esquemas também possuem
+      privilégios, permitindo ao dono do esquema controlar quais usuários
+      possuem o privilégio de criar, alterar e remover objetos no esquema.
+      <ulink url="ftp://ftp.software.ibm.com/ps/products/db2/info/vr82/pdf/en_US/db2s1e81.pdf">
+      IBM DB2 Universal Database - SQL Reference Volume 1</ulink> (N. do T.)
+     </para>
+    </footnote>
+   </para>
+  </sect2>
+
+  <sect2 id="ddl-schemas-examples">
+
+   <sect2info>
+    <author>
+     <firstname>Halley</firstname>
+     <surname>Pacheco de Oliveira</surname>
+     <affiliation>
+      <orgname>Câmara Municipal do Rio de Janeiro</orgname>
+      <orgdiv>Assessoria de Informática</orgdiv>
+      <address>
+       <city>Rio de Janeiro</city>
+       <country>Brasil</country>
+      </address>
+     </affiliation>
+    </author>
+    <date>2005-08-10</date>
+   </sect2info>
+
+   <title>Exemplos</title>
+   <note>
+    <para>
+     Seção escrita pelo tradutor, não fazendo parte do manual original.
+    </para>
+   </note>
+   <example id="ddl-schemas-example1">
+    <title>Informações sobre esquema</title>
+    <para>
+     Este exemplo mostra a utilização do comando <literal>\dn</literal> do
+     <application>psql</application> e das funções
+     <function>current_schema()</function> e
+     <function>current_schemas()</function> para obter informações sobre
+     esquema.
+    </para>
+
+<screen>
+<prompt>=&gt; </prompt> <userinput>\dn</userinput>
+
+<computeroutput>
+       Lista de esquemas
+        Nome        |   Dono
+--------------------+----------
+ information_schema | postgres
+ pg_catalog         | postgres
+ pg_toast           | postgres
+ public             | postgres
+(4 linhas)
+</computeroutput>
+
+<prompt>=&gt; </prompt> <userinput>\df current_schema*</userinput>
+
+<computeroutput>
+                                    Lista de funções
+   Esquema  |      Nome       | Tipo de dado do resultado | Tipo de dado dos argumentos
+------------+-----------------+---------------------------+-----------------------------
+ pg_catalog | current_schema  | name                      |
+ pg_catalog | current_schemas | name[]                    | boolean
+(2 linhas)
+</computeroutput>
+
+<prompt>=&gt; </prompt> <userinput>SELECT current_schema();</userinput>
+
+<computeroutput>
+ current_schema
+----------------
+ public
+(1 linha)
+</computeroutput>
+
+<prompt>=&gt; </prompt> <userinput>SELECT current_schemas(true);</userinput>
+
+<computeroutput>
+   current_schemas
+---------------------
+ {pg_catalog,public}
+(1 linha)
+</computeroutput>
+
+<prompt>=&gt; </prompt> <userinput>SELECT current_schemas(false);</userinput>
+
+<computeroutput>
+ current_schemas
+-----------------
+ {public}
+(1 linha)
+</computeroutput>
+</screen>
+   </example>
+  </sect2>
+ </sect1>
+
+ <sect1 id="ddl-others">
+  <title>Outros objetos de banco de dados</title>
+
+  <para>
+   As tabelas são os objetos centrais da estrutura de um banco de dados
+   relacional, porque armazenam os dados, mas não são os únicos objetos
+   que existem no banco de dados. Podem ser criados vários objetos de outros
+   tipos, para tornar o uso e o gerenciamento dos dados mais eficiente, ou mais
+   conveniente. Estes outros objetos não são mostrados neste capítulo, mas são
+   listados abaixo para que se tome conhecimento do que é possível criar.
+  </para>
+
+  <itemizedlist>
+   <listitem>
+    <para>
+     Visões
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     Funções e operadores
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     Tipos de dado e domínios
+    </para>
+   </listitem>
+
+   <listitem>
+    <para>
+     Gatilhos e regras de reescrita
+    </para>
+   </listitem>
+  </itemizedlist>
+
+  <para>
+   Informações detalhadas sobre estes tópicos
+   são mostradas na <xref linkend="server-programming">.
+  </para>
+ </sect1>
+
+ <sect1 id="ddl-depend">
+  <title>Acompanhando as dependências</title>
+
+  <indexterm zone="ddl-depend">
+   <primary>CASCADE</primary>
+   <secondary sortas="DROP">com DROP</secondary>
+  </indexterm>
+
+  <indexterm zone="ddl-depend">
+   <primary>RESTRICT</primary>
+   <secondary sortas="DROP">com DROP</secondary>
+  </indexterm>
+
+  <para>
+   Ao se criar uma estrutura de banco de dados complexa, envolvendo muitas
+   tabelas com restrições de chave estrangeira, visões, gatilhos, funções, etc.,
+   cria-se, implicitamente, uma rede de dependências entre os objetos.
+   Por exemplo, uma tabela com uma restrição de chave estrangeira depende
+   da tabela referenciada.
+  </para>
+
+  <para>
+   Para garantir a integridade de toda a estrutura do banco de dados, o
+   <productname>PostgreSQL</productname> não permite remover
+   um objeto quando há objetos que dependem do mesmo. Por exemplo,
+   tentar remover a tabela <literal>produtos</literal>, conforme declarada na
+   <xref linkend="ddl-constraints-fk"> onde a tabela <literal>pedidos</literal>
+   depende dela, produz uma mensagem de erro como esta:
+<screen>
+<userinput>DROP TABLE produtos;</userinput>
+
+<computeroutput>
+NOTA:  a restrição pedidos_cod_prod_fkey na tabela pedidos depende da tabela produtos
+ERRO:  não foi possível remover a tabela produtos porque outros objetos dependem da mesma
+DICA:  Use DROP ... CASCADE para remover os objetos dependentes também.
+</computeroutput>
+</screen>
+   A mensagem de erro mostra uma dica útil: Se não tem importância
+   remover todos os objetos dependentes, então pode ser executado
+<screen>
+<userinput>DROP TABLE produtos CASCADE;</userinput>
+</screen>
+   e todos os objetos dependentes serão removidos. Neste caso não será removida
+   a tabela <literal>pedidos</literal>, será removida apenas a restrição de
+   chave estrangeira (caso se deseje verificar o que
+   <literal>DROP ... CASCADE</literal> fará, deve ser executado o comando
+   <command>DROP</command> sem o <literal>CASCADE</literal>, e lidas as
+   <literal>NOTA</literal>s, ou <literal>NOTICE</literal> em inglês).
+  </para>
+
+  <para>
+   Todos os comandos de remoção do <productname>PostgreSQL</productname>
+   permitem especificar <literal>CASCADE</literal>. Obviamente, a natureza das
+   dependências possíveis varia conforme o tipo do objeto. Pode ser escrito
+   <literal>RESTRICT</literal> em vez de <literal>CASCADE</literal>, para obter
+   o comportamento padrão que é impedir a remoção do objeto quando existem
+   objetos que dependem do mesmo.
+  </para>
+
+  <note>
+   <para>
+    De acordo com o padrão <acronym>SQL</acronym> é obrigatório especificar
+    <literal>RESTRICT</literal> ou <literal>CASCADE</literal>.
+    Nenhum banco de dados obriga seguir esta regra, mas
+    tornar <literal>RESTRICT</literal> ou <literal>CASCADE</literal>
+    o comportamento padrão varia entre sistemas.
+   </para>
+  </note>
+
+  <note>
+   <para>
+    As dependências de restrição de chave estrangeira e as dependências de
+    coluna serial, das versões do <productname>PostgreSQL</productname>
+    anteriores a 7.3, <emphasis>não</emphasis> são mantidas ou criadas durante
+    o processo de atualização de versão. Todos os outros tipos de dependência
+    são criados de forma apropriada durante a atualização de uma versão anterior
+    a 7.3.
+   </para>
+  </note>
+ </sect1>
+
+</chapter>

@@ -1,0 +1,672 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/lobj.sgml,v 1.36 2005/01/10 00:04:38 tgl Exp $
+-->
+
+ <chapter id="largeObjects">
+  <title id="largeObjects-title">Objetos grandes</title>
+
+  <indexterm zone="largeobjects"><primary>objeto grande</primary></>
+  <indexterm><primary>BLOB</><see>objeto grande</see></>
+
+   <para>
+    O <productname>PostgreSQL</productname> possui a funcionalidade
+    <firstterm>objeto grande</>, que fornece acesso na forma de fluxo aos dados
+    dos usuários que são armazenados em uma estrutura especial de objeto grande.
+    O acesso na forma de fluxo é útil quando se trabalha com valores de dados
+    que são muito grandes para serem manuseados convenientemente como um todo.
+   </para>
+
+   <para>
+    Este capítulo descreve a implementação, e as interfaces de linguagem de
+    programação e de consulta dos dados objeto grande no
+    <productname>PostgreSQL</productname>. Nos exemplos deste capítulo é
+    utilizada a biblioteca C <application>libpq</application>, mas a maioria
+    das interfaces de programação nativas do <productname>PostgreSQL</>
+    suportam funcionalidades equivalentes. Outras interfaces podem utilizar
+    internamente a interface de objeto grande para fornecer suporte genérico
+    a valores grandes, mas não são descritas aqui.
+   </para>
+
+  <sect1 id="lo-history">
+   <title>Histórico</title>
+
+   <para>
+    O <productname>POSTGRES 4.2</productname>, predecessor indireto do
+    <productname>PostgreSQL</productname>, suportava três implementações padrão
+    para objetos grandes: como arquivos externos ao servidor
+    <productname>POSTGRES</productname>; como arquivos externos gerenciados
+    pelo servidor <productname>POSTGRES</productname>; e como dados armazenados
+    dentro do banco de dados <productname>POSTGRES</productname>.
+    Esta situação causava uma confusão considerável entre os usuários. Como
+    conseqüência, somente permaneceu no <productname>PostgreSQL</productname> o
+    suporte a objetos grandes como dados armazenados dentro do banco de dados.
+    Embora seja mais lento para ser acessado, fornece uma integridade de dados
+    mais rigorosa. Por motivos históricos, este esquema de armazenamento é
+    referido como <firstterm>Inversão de objetos grandes</firstterm>
+    (<literal>Inversion large objects</literal>) (Ocasionalmente será visto o
+    termo Inversão utilizado com o mesmo significado de objeto grande).
+    Desde o <productname>PostgreSQL 7.1</productname> todos os objetos grandes
+    são armazenados em uma tabela do sistema chamada
+    <classname>pg_largeobject</classname>.
+   </para>
+
+   <para>
+    <indexterm>
+     <primary>TOAST</primary>
+     <secondary>versus objetos grandes</secondary>
+    </indexterm>
+    <indexterm>
+     <primary>fatiado</primary>
+     <see>TOAST</see>
+    </indexterm>
+    O <productname>PostgreSQL 7.1</productname> introduziu o mecanismo
+    apelidado de <quote><acronym>TOAST</acronym></quote> (fatias), que permite
+    os valores dos dados serem muito maiores que as páginas de dados. Isto
+    tornou a funcionalidade de objeto grande parcialmente obsoleta. Uma vantagem
+    da funcionalidade de objeto grande que permaneceu, é permitir valores com
+    tamanho de até 2 GB, enquanto os campos fatiados (<literal>TOASTed</>)
+    podem ter no máximo 1 GB. Além disso, os objetos grandes podem ser
+    manipulados pedaço a pedaço de maneira muito mais fácil que os campos de
+    dados comuns e, portanto, os limites práticos são consideravelmente
+    diferentes.
+   </para>
+
+  </sect1>
+
+  <sect1 id="lo-implementation">
+   <title>Funcionalidades da implementação</title>
+
+   <para>
+    A implementação de objeto grande divide os objetos grandes em
+    <quote>pedaços</quote> (<literal>chunks</literal>), e armazena estes pedaços
+    em linhas no banco de dados. Um índice B-tree garante a procura rápida do
+    número correto do pedaço quando são feitos acessos aleatórios de leitura e
+    escrita.
+   </para>
+  </sect1>
+
+  <sect1 id="lo-interfaces">
+   <title>Interfaces cliente</title>
+
+   <para>
+    Esta seção descreve as facilidades que as bibliotecas de interface cliente
+    do <productname>PostgreSQL</productname> fornecem para acessar objetos
+    grandes. Toda manipulação de objeto grande que utiliza estas funções
+    <emphasis>deve</emphasis> acontecer dentro de um bloco de transação SQL
+    (Este requisito é exigido desde o
+    <productname>PostgreSQL 6.5</productname>, embora tenha sido um requisito
+    implícito nas versões anteriores, resultando em um mal comportamento quando
+    ignorado). A interface de objeto grande do
+    <productname>PostgreSQL</productname> é modelada segundo a interface do
+    sistema de arquivos do <acronym>Unix</acronym>, com funções
+    <function>open</function>,  <function>read</function>,
+    <function>write</function>, <function>lseek</function>, etc. análogas.
+   </para>
+
+   <para>
+    Os aplicativos cliente que utilizam a interface de objeto grande da
+    <application>libpq</application> devem incluir o arquivo de cabeçalho
+    <filename>libpq/libpq-fs.h</filename>, e fazer a ligação com a biblioteca
+    <application>libpq</application>.
+   </para>
+
+   <sect2>
+    <title>Criação de objeto grande</title>
+
+    <para>
+     A função
+<synopsis>
+Oid lo_creat(PGconn *conn, int modo);
+</synopsis>
+     <indexterm><primary>lo_creat</></>
+     cria um objeto grande novo. O argumento
+     <replaceable class="parameter">modo</replaceable> é uma máscara de bits
+     que descreve vários atributos diferentes do novo objeto.
+     As constantes simbólicas usadas aqui são definidas no arquivo de cabeçalho
+     <filename>libpq/libpq-fs.h</filename>.
+     O tipo de acesso (leitura, escrita ou ambos) é controlado pelo
+     OU lógico dos bits de <symbol>INV_READ</symbol> e <symbol>INV_WRITE</>.
+     Os dezesseis bits de mais baixa ordem da máscara
+     têm sido utilizados em Berkeley, historicamente, para designar
+     o número do gerenciador de armazenamento no qual o objeto grande
+     deve residir. Agora estes bits devem ser sempre zero.
+     O valor retornado é o OID atribuído ao novo objeto grande
+     (o tipo de acesso também não faz mais nada, mas deve ser definido pelo
+     menos um dos sinalizadores para evitar erro).
+     O valor retornado é o OID atribuído ao novo objeto grande,
+     ou InvalidOid (zero) se não for bem-sucedido.
+    </para>
+
+    <para>
+     Exemplo:
+<programlisting>
+inv_oid = lo_creat(conn, INV_READ|INV_WRITE);
+</programlisting>
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Importação de objeto grande</title>
+
+    <para>
+     Para importar um arquivo do sistema operacional como um objeto grande é
+     chamada a função:
+<synopsis>
+Oid lo_import(PGconn *conn, const char *nome_do_arquivo);
+</synopsis>
+     <indexterm><primary>lo_import</></>
+     O argumento <replaceable class="parameter">nome_do_arquivo</replaceable>
+     especifica o nome do arquivo do sistema operacional a ser importado para
+     o novo objeto grande.
+     O valor retornado é o OID atribuído ao novo objeto grande,
+     ou InvalidOid (zero) se não for bem-sucedido.
+     Deve ser observado que o arquivo é lido pela biblioteca de interface
+     cliente, e não pelo servidor; portanto, o arquivo deve residir no sistema
+     de arquivos do cliente e poder ser lido pelo aplicativo cliente.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Exportação de objeto grande</title>
+
+    <para>
+     Para exportar um objeto grande para um arquivo do sistema operacional é
+     chamada a função:
+<synopsis>
+int lo_export(PGconn *conn, Oid lobjId, const char *nome_do_arquivo);
+</synopsis>
+     <indexterm><primary>lo_export</></>
+     O argumento <parameter>lobjId</parameter> especifica o OID do objeto grande
+     a ser exportado, e o argumento <parameter>nome_do_arquivo</parameter>
+     especifica o nome do arquivo no sistema operacional.
+     Deve ser observado que o arquivo é escrito pela biblioteca de interface
+     cliente, e não pelo servidor.
+     A função retorna 1 quando é bem-sucedida, ou -1 caso contrário.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Abertura objeto grande existente</title>
+
+    <para>
+     Para abrir um objeto grande existente para ler ou escrever chama-se a
+     função:
+<synopsis>
+int lo_open(PGconn *conn, Oid lobjId, int modo);
+</synopsis>
+     <indexterm><primary>lo_open</></>
+     O argumento <parameter>lobjId</parameter> especifica o OID do objeto grande
+     a ser aberto. Os bits de <parameter>modo</parameter> controlam se o objeto
+     deve ser aberto para leitura (<symbol>INV_READ</symbol>),  escrita
+     (<symbol>INV_WRITE</symbol>), ou ambos. O objeto grande não pode ser aberto
+     antes de ser criado. A função <function>lo_open</function> retorna o
+     descritor do objeto grande (não negativo) para uso posterior em
+     <function>lo_read</function>, <function>lo_write</function>,
+     <function>lo_lseek</function>, <function>lo_tell</function> e
+     <function>lo_close</function>. O descritor é válido apenas pela duração da
+     transação corrente. Quando a função não é bem-sucedida retorna -1.
+</para>
+</sect2>
+
+<sect2>
+<title>Escrita de dados em objeto grande</title>
+
+<para>
+     A função
+<synopsis>
+int lo_write(PGconn *conn, int fd, const char *buf, size_t len);
+</synopsis>
+     <indexterm><primary>lo_write</></> writes
+     escreve <parameter>len</parameter> bytes de <parameter>buf</parameter>
+     no descritor de objeto grande <parameter>fd</parameter>. O argumento
+     <parameter>fd</parameter> deve ter sido retornado por uma chamada anterior
+     a <function>lo_open</function>. A função retorna o número de bytes
+     realmente escritos. Caso aconteça algum erro, retorna um valor negativo.
+</para>
+</sect2>
+
+<sect2>
+<title>Leitura de dados de objeto grande</title>
+
+<para>
+     A função
+<synopsis>
+int lo_read(PGconn *conn, int fd, char *buf, size_t len);
+</synopsis>
+     <indexterm><primary>lo_read</></>
+     lê <parameter>len</parameter> bytes do descritor de objeto grande
+     <parameter>fd</parameter> colocando-os em <parameter>buf</parameter>.
+     O argumento <parameter>fd</parameter> deve ter sido retornado por uma
+     chamada anterior à função <function>lo_open</function>. A função retorna
+     o número de bytes realmente lidos. Caso aconteça algum erro, retorna um
+     valor negativo.
+</para>
+</sect2>
+
+<sect2>
+<title>Procura em objeto grande</title>
+
+<para>
+     Para mudar a posição corrente de leitura ou de escrita associada ao
+     descritor do objeto grande chama-se a função:
+<synopsis>
+int lo_lseek(PGconn *conn, int fd, int deslocamento, int donde);
+</synopsis>
+     <indexterm><primary>lo_lseek</></>
+     Esta função move o ponteiro de posição corrente do descritor de objeto
+     grande, identificado por <parameter>fd</parameter>, para a nova posição
+     especificada pelo argumento <parameter>deslocamento</parameter>. Os valores
+     válidos para o argumento <parameter>donde</parameter> são
+     <symbol>SEEK_SET</symbol> (procurar a partir do início do objeto),
+     <symbol>SEEK_CUR</symbol> (procurar a partir da posição corrente), e
+     <symbol>SEEK_END</symbol> (procurar a partir do fim do objeto). O valor
+     retornado é o novo ponteiro de posição, ou -1 se não for bem-sucedida.
+</para>
+</sect2>
+
+<sect2>
+<title>Obtenção da posição de procura no objeto grande</title>
+
+<para>
+     Para obter a posição corrente de leitura ou escrita do descritor de objeto
+     grande chama-se a função:
+<synopsis>
+int lo_tell(PGconn *conn, int fd);
+</synopsis>
+     <indexterm><primary>lo_tell</></>
+     No caso de erro retorna um valor negativo.
+</para>
+</sect2>
+
+<sect2>
+<title>Fechamento do descritor do objeto grande</title>
+
+<para>
+     O descritor de objeto grande pode ser fechado chamando a função
+<synopsis>
+int lo_close(PGconn *conn, int fd);
+</synopsis>
+     <indexterm><primary>lo_close</></>
+     onde o argumento <parameter>fd</parameter> é o descritor do objeto grande
+     retornado pela função <function>lo_open</function>.
+     Se for bem-sucedida, a função <function>lo_close</function> retorna zero.
+     Se houver erro, retorna um valor negativo.
+</para>
+
+<para>
+     Todo descritor de objeto grande que permanecer aberto no final da
+     transação será fechado automaticamente.
+</para>
+</sect2>
+
+   <sect2>
+    <title>Remoção de objeto grande</title>
+
+    <para>
+     Para remover um objeto do grande do banco de dados chama-se a função:
+<synopsis>
+int lo_unlink(PGconn *conn, Oid lobjId);
+</synopsis>
+     <indexterm><primary>lo_unlink</></>
+     O argumento <parameter>lobjId</parameter> especifica o OID do objeto
+     grande a ser removido. A função retorna 1 quando é bem-sucedida. No caso
+     de erro retorna -1.
+    </para>
+   </sect2>
+
+</sect1>
+
+<sect1 id="lo-funcs">
+<title>Funções do lado servidor</title>
+
+  <para>
+   Existem duas funções do lado servidor, que podem ser chamadas através da
+   linguagem SQL, que correspondem às duas funções do lado cliente descritas
+   acima; na verdade, a maior parte das funções do lado cliente são simplesmente
+   interfaces para funções equivalentes do lado servidor. As funções realmente
+   úteis para serem chamadas através de comandos SQL são
+   <function>lo_creat</function><indexterm><primary>lo_creat</></>,
+   <function>lo_unlink</function><indexterm><primary>lo_unlink</></>,
+   <function>lo_import</function><indexterm><primary>lo_import</></> e
+   <function>lo_export</function><indexterm><primary>lo_export</></>.
+   Abaixo seguem exemplos de como utilizá-las:
+
+<programlisting>
+CREATE TABLE imagem (
+    nome            text,
+    raster          oid
+);
+
+SELECT lo_creat(-1);       -- retorna o OID do objeto grande novo e vazio
+
+SELECT lo_unlink(173454);  -- apaga o objeto grande com OID igual a 173454
+
+INSERT INTO imagem (nome, raster)
+    VALUES ('uma linda imagem', lo_import('/etc/motd'));
+
+SELECT lo_export(imagem.raster, '/tmp/motd') FROM imagem
+    WHERE nome = 'uma linda imagem';
+</programlisting>
+  </para>
+
+  <para>
+    As funções do lado servidor <function>lo_import</function> e
+    <function>lo_export</function> se comportam de maneira consideravelmente
+    diferente das suas funções análogas do lado cliente.
+    Estas duas funções lêem e escrevem arquivos no sistema de arquivos do
+    servidor, usando as permissões do usuário sob o qual o banco de dados
+    executa. Portanto, o uso destas funções é restrito aos superusuários.
+    Em contraposição, as funções de importação e exportação do lado cliente
+    lêem e escrevem arquivos no sistema de arquivos do cliente, usando as
+    permissões do programa cliente. As funções do lado cliente podem ser
+    utilizadas por qualquer usuário do <productname>PostgreSQL</productname>.
+  </para>
+</sect1>
+
+<sect1 id="lo-examplesect">
+<title>Programa exemplo</title>
+
+<para>
+     O <xref linkend="lo-example"> é um programa modelo, que mostra como a
+     interface de objeto grande da biblioteca <application>libpq</application>
+     pode ser utilizada. Partes do programa foram transformadas em comentário,
+     mas foram deixadas no código fonte para benefício do leitor. Este programa
+     também pode ser encontrado em <filename>src/test/examples/testlo.c</> na
+     distribuição do código fonte.
+</para>
+
+  <example id="lo-example">
+   <title>Programa de exemplo de objeto grande com <application>libpq</application></title>
+<programlisting>
+/*-------------------------------------------------------------------------
+ *
+ * testlo.c
+ *    teste de utilização de objetos grandes com libpq
+ *
+ * Portions Copyright (c) 1996-2005, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1994, Regents of the University of California
+ *
+ *
+ * IDENTIFICATION
+ *    $PostgreSQL: pgsql/src/test/examples/testlo.c,v 1.25 2004/12/31 22:03:58 pgsql Exp $
+ *
+ *-------------------------------------------------------------------------
+ */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+#include &lt;sys/types.h&gt;
+#include &lt;sys/stat.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;unistd.h&gt;
+
+#include &quot;libpq-fe.h&quot;
+#include &quot;libpq/libpq-fs.h&quot;
+
+#define BUFSIZE 1024
+
+/*
+ * importFile -
+ *    importar o arquivo &quot;in_filename&quot; para o banco de dados
+ *    como o objeto grande &quot;lobjOid&quot;
+ *
+ */
+static Oid
+importFile(PGconn *conn, char *filename)
+{
+        Oid     lobjId;
+        int     lobj_fd;
+        char    buf[BUFSIZE];
+        int     nbytes,
+                tmp;
+        int     fd;
+
+        /*
+         * abrir o arquivo a ser lido
+         */
+        fd = open(filename, O_RDONLY, 0666);
+        if (fd &lt; 0)
+        {                                                             /* erro */
+                fprintf(stderr,
+                        &quot;não foi possível abrir o arquivo Unix\&quot;%s\&quot;\n&quot;,
+                        filename);
+        }
+
+        /*
+         * criar o objeto grande
+         */
+        lobjId = lo_creat(conn, INV_READ | INV_WRITE);
+        if (lobjId == 0)
+                fprintf(stderr, &quot;não foi possível criar o objeto grande&quot;);
+
+        lobj_fd = lo_open(conn, lobjId, INV_WRITE);
+
+        /*
+         * ler do arquivo Unix e escrever no arquivo de inversão
+         */
+        while ((nbytes = read(fd, buf, BUFSIZE)) &gt; 0)
+        {
+                tmp = lo_write(conn, lobj_fd, buf, nbytes);
+                if (tmp &lt; nbytes)
+                        fprintf(stderr,
+                                &quot;erro durante a leitura de \&quot;%s\&quot;&quot;,
+                                filename);
+        }
+
+        close(fd);
+        lo_close(conn, lobj_fd);
+
+        return lobjId;
+}
+
+static void
+pickout(PGconn *conn, Oid lobjId, int start, int len)
+{
+    int     lobj_fd;
+    char    *buf;
+    int     nbytes;
+    int     nread;
+
+    lobj_fd = lo_open(conn, lobjId, INV_READ);
+    if (lobj_fd &lt; 0)
+            fprintf(stderr,
+                    &quot;não foi possível abrir o objeto grande %u&quot;,
+                    lobjId);
+
+    lo_lseek(conn, lobj_fd, start, SEEK_SET);
+    buf = malloc(len + 1);
+
+    nread = 0;
+    while (len - nread &gt; 0)
+    {
+            nbytes = lo_read(conn, lobj_fd, buf, len - nread);
+            buf[nbytes] = '\0';
+            fprintf(stderr, &quot;&gt;&gt;&gt; %s&quot;, buf);
+            nread += nbytes;
+            if (nbytes &lt;= 0)
+                    break;                          /* sem mais dados? */
+    }
+    free(buf);
+    fprintf(stderr, &quot;\n&quot;);
+    lo_close(conn, lobj_fd);
+}
+
+static void
+overwrite(PGconn *conn, Oid lobjId, int start, int len)
+{
+    int     lobj_fd;
+    char    *buf;
+    int     nbytes;
+    int     nwritten;
+    int     i;
+
+    lobj_fd = lo_open(conn, lobjId, INV_READ);
+    if (lobj_fd &lt; 0)
+            fprintf(stderr, &quot;não foi possível abrir o objeto grande %u&quot;, lobjId);
+    lo_lseek(conn, lobj_fd, start, SEEK_SET);
+    buf = malloc(len + 1);
+    for (i = 0; i &lt; len; i++)
+            buf[i] = 'X';
+    buf[i] = '\0';
+
+    nwritten = 0;
+    while (len - nwritten &gt; 0)
+    {
+            nbytes = lo_write(conn, lobj_fd, buf + nwritten, len - nwritten);
+            nwritten += nbytes;
+            if (nbytes &lt;= 0)
+            {
+                    fprintf(stderr, &quot;\nERRO DE ESCRITA!\n&quot;);
+                    break;
+            }
+    }
+    free(buf);
+    fprintf(stderr, &quot;\n&quot;);
+    lo_close(conn, lobj_fd);
+}
+
+
+/*
+ * exportFile -
+ *    exportar o objeto grande &quot;lobjOid&quot; para o arquivo &quot;out_filename&quot;
+ *
+ */
+static void
+exportFile(PGconn *conn, Oid lobjId, char *filename)
+{
+    int     lobj_fd;
+    char    buf[BUFSIZE];
+    int     nbytes,
+            tmp;
+    int     fd;
+
+    /*
+     * criar um &quot;objeto&quot; inversão
+     */
+    lobj_fd = lo_open(conn, lobjId, INV_READ);
+    if (lobj_fd &lt; 0)
+        fprintf(stderr, &quot;não foi possível abrir o objeto grande %u&quot;, lobjId);
+     /*
+     * abrir o arquivo a ser escrito
+     */
+    fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0666);
+    if (fd &lt; 0)
+    {                                                             /* erro */
+        fprintf(stderr,
+                &quot;não foi possível abrir o arquivo Unix\&quot;%s\&quot;&quot;,
+                filename);
+    }
+    /*
+     * ler do arquivo Unix e escrever no arquivo inversão
+     */
+    while ((nbytes = lo_read(conn, lobj_fd, buf, BUFSIZE)) &gt; 0)
+    {
+        tmp = write(fd, buf, nbytes);
+        if (tmp &lt; nbytes)
+        {
+            fprintf(stderr,
+                    &quot;erro ao escrever \&quot;%s\&quot;&quot;,
+                    filename);
+        }
+    }
+
+    lo_close(conn, lobj_fd);
+    close(fd);
+
+    return;
+}
+
+static void
+exit_nicely(PGconn *conn)
+{
+    PQfinish(conn);
+    exit(1);
+}
+
+int
+main(int argc, char **argv)
+{
+    char        *in_filename,
+                *out_filename;
+    char        *database;
+    Oid          lobjOid;
+    PGconn      *conn;
+    PGresult    *res;
+
+    if (argc != 4)
+    {
+        fprintf(stderr, &quot;Utilização: %s nome_do_banco_de_dados \
+nome_do_arquivo_de_entrada nome_do_arquivo_de_saída\n&quot;,
+                argv[0]);
+        exit(1);
+    }
+
+    database = argv[1];
+    in_filename = argv[2];
+    out_filename = argv[3];
+
+    /*
+     * estabelecer a conexão
+     */
+    conn = PQsetdb(NULL, NULL, NULL, NULL, database);
+
+    /* verificar se a conexão com o servidor foi bem-sucedida */
+    if (PQstatus(conn) != CONNECTION_OK)
+    {
+        fprintf(stderr,
+                &quot;A conexão com o banco de dados %s falhou&quot;,
+                PQerrorMessage(conn));
+        exit_nicely(conn);
+    }
+
+    res = PQexec(conn, &quot;begin&quot;);
+    PQclear(res);
+    printf(&quot;importing file \&quot;%s\&quot; ...\n&quot;, in_filename);
+/*  lobjOid = importFile(conn, in_filename); */
+    lobjOid = lo_import(conn, in_filename);
+    if (lobjOid == 0)
+        fprintf(stderr, &quot;%s\n&quot;, PQerrorMessage(conn));
+    else
+    {
+        printf(&quot;\tcomo o objeto grande %u.\n&quot;, lobjOid);
+
+        printf(&quot;lendo os bytes 1000-2000 do objeto grande\n&quot;);
+        pickout(conn, lobjOid, 1000, 1000);
+
+        printf(&quot;sobrescrevendo os bytes 1000-2000 do objeto grande com X's\n&quot;);
+        overwrite(conn, lobjOid, 1000, 1000);
+
+        printf(&quot;exportando o objeto grande para o arquivo \&quot;%s\&quot; ...\n&quot;,
+               out_filename);
+/*      exportFile(conn, lobjOid, out_filename); */
+        if (!lo_export(conn, lobjOid, out_filename))
+            fprintf(stderr, &quot;%s\n&quot;, PQerrorMessage(conn));
+    }
+
+    res = PQexec(conn, &quot;end&quot;);
+    PQclear(res);
+    PQfinish(conn);
+    return 0;
+}
+</programlisting>
+</example>
+
+</sect1>
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

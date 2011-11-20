@@ -1,0 +1,254 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/insert.sgml,v 1.29 2005/01/09 05:57:45 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-INSERT">
+ <refmeta>
+  <refentrytitle id="SQL-INSERT-TITLE">INSERT</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>INSERT</refname>
+  <refpurpose>cria novas linhas na tabela</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-insert">
+  <primary>INSERT</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+INSERT INTO <replaceable class="parameter">tabela</replaceable> [ ( <replaceable class="parameter">coluna</replaceable> [, ...] ) ]
+    { DEFAULT VALUES | VALUES ( { <replaceable class="parameter">expressão</replaceable> | DEFAULT } [, ...] ) | <replaceable class="parameter">consulta</replaceable> }
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>INSERT</command> permite inserir novas linhas na tabela.
+   Pode ser inserida uma única linha especificada por expressões de valor,
+   ou várias linhas resultantes de uma consulta.
+  </para>
+
+  <para>
+   Os nomes das colunas de destino podem ser listados em qualquer ordem.
+   Se não for fornecida nenhuma lista de nomes de colunas, o padrão é usar
+   todas as colunas da tabela na ordem em que foram declaradas; ou os primeiros
+   <replaceable>N</replaceable> nomes de colunas, se existirem apenas
+   <replaceable>N</replaceable>
+   colunas fornecidas na cláusula <literal>VALUES</literal> ou na
+   <replaceable>consulta</replaceable>.
+   Os valores fornecidos pela cláusula <literal>VALUES</literal> e pela
+   <replaceable>consulta</replaceable> são associados à lista de colunas
+   explícita ou implícita da esquerda para a direita.
+  </para>
+
+  <para>
+   As colunas que não estão presentes na lista de colunas explícita ou
+   implícita são preenchidas com o valor padrão, seja o valor padrão
+   declarado ou nulo se não houver nenhum.
+  </para>
+
+  <para>
+   Se a expressão para alguma coluna não for do tipo de dado correto,
+   será tentada uma conversão automática de tipo.
+  </para>
+
+  <para>
+   É necessário possuir o privilégio <literal>INSERT</literal> na tabela
+   para poder inserir linhas. Se for utilizada a cláusula <replaceable
+   class="PARAMETER">consulta</replaceable> para inserir linhas a
+   partir de uma consulta, também é necessário possuir o privilégio
+   <literal>SELECT</literal> em todas as tabelas usadas pela consulta.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">tabela</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) de uma tabela existente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">coluna</replaceable></term>
+    <listitem>
+     <para>
+      O nome de uma coluna da <replaceable class="PARAMETER">tabela</replaceable>.
+      O nome da coluna pode ser qualificado por um nome de subcampo ou
+      por um índice de matriz, se for necessário (a inserção em apenas alguns
+      campos de uma coluna composta deixa os outros campos nulos).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>DEFAULT VALUES</literal></term>
+    <listitem>
+     <para>
+      Todas as colunas são preenchidas com seu valor padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">expressão</replaceable></term>
+    <listitem>
+     <para>
+      Uma expressão ou valor a ser atribuído à
+      <replaceable class="PARAMETER">coluna</replaceable> correspondente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>DEFAULT</literal></term>
+    <listitem>
+     <para>
+      A <replaceable class="PARAMETER">coluna</replaceable> correspondente
+      é preenchida com o valor padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">consulta</replaceable></term>
+    <listitem>
+     <para>
+      Uma consulta (comando <command>SELECT</command>) que fornece as
+      linhas a serem inseridas. Consulte o comando <command>SELECT</command>
+      para obter a descrição da sintaxe.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Saídas</title>
+
+  <para>
+   Ao terminar bem-sucedido, o comando <command>INSERT</command>
+   retorna uma linha de fim de comando na forma
+<screen>
+INSERT <replaceable>oid</replaceable> <replaceable class="parameter">contador</replaceable>
+</screen>
+   O <replaceable class="parameter">contador</replaceable> é o número de
+   linhas inseridas. Se <replaceable class="parameter">contador</replaceable>
+   for igual a um, e a tabela de destino possuir OIDs, então
+   <replaceable class="parameter">oid</replaceable> é o
+   <acronym>OID</acronym> atribuído à linha inserida, senão
+   <replaceable class="parameter">oid</replaceable> é zero.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Inserir uma única linha na tabela <literal>filmes</literal>:
+
+<programlisting>
+INSERT INTO filmes VALUES
+    ('UA502', 'Bananas', 105, '1971-07-13', 'Comédia', '82 minutos');
+</programlisting>
+  </para>
+
+  <para>
+   No exemplo abaixo, a coluna <literal>duracao</literal> é
+   omitida e, portanto, receberá o valor padrão:
+
+<programlisting>
+INSERT INTO filmes (cod, titulo, did, data_prod, tipo)
+    VALUES ('T_601', 'Yojimbo', 106, '1961-06-16', 'Drama');
+</programlisting>
+  </para>
+
+  <para>
+   O exemplo abaixo utiliza a cláusula <literal>DEFAULT</literal>
+   para as colunas de data em vez de especificar um valor.
+
+<programlisting>
+INSERT INTO filmes VALUES
+    ('UA502', 'Bananas', 105, DEFAULT, 'Comédia', '82 minutos');
+INSERT INTO filmes (cod, titulo, did, data_prod, tipo)
+    VALUES ('T_601', 'Yojimbo', 106, DEFAULT, 'Drama');
+</programlisting>
+  </para>
+
+  <para>
+   Para inserir uma linha consistindo inteiramente de valores padrão:
+
+<programlisting>
+INSERT INTO filmes DEFAULT VALUES;
+</programlisting>
+  </para>
+
+  <para>
+   O exemplo abaixo insere algumas linhas na tabela
+   <literal>filmes</literal> a partir da tabela <literal>temp_filmes</literal>
+   com a mesma disposição de colunas da tabela <literal>filmes</literal>:
+
+<programlisting>
+INSERT INTO filmes SELECT * FROM temp_filmes WHERE data_prod &lt; '2004-05-07';
+</programlisting>
+  </para>
+
+  <para>
+   O exemplo mostrado abaixo insere em colunas de matriz:
+
+<programlisting>
+-- Criar um tabuleiro vazio de 3x3 posições para o Jogo da Velha
+-- (estes comandos criam o mesmo tabuleiro)
+INSERT INTO tictactoe (game, board[1:3][1:3])
+    VALUES (1,'{{"","",""},{"","",""},{"","",""}}');
+INSERT INTO tictactoe (game, board)
+    VALUES (2,'{{,,},{,,},{,,}}');
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>INSERT</command> está em conformidade com o padrão SQL.
+   O caso em que a lista de nomes de colunas é omitida, mas nem todas
+   as colunas são preenchidas a partir da cláusula <literal>VALUES</literal>
+   ou da <replaceable>consulta</replaceable> não é permitido pelo padrão.
+  </para>
+
+  <para>
+   As possíveis limitações da cláusula <replaceable
+   class="PARAMETER">consulta</replaceable> estão documentadas no comando
+   <xref linkend="sql-select" endterm="sql-select-title">.
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

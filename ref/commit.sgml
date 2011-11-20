@@ -1,0 +1,95 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/commit.sgml,v 1.19 2003/11/29 19:51:38 pgsql Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-COMMIT">
+ <refmeta>
+  <refentrytitle id="SQL-COMMIT-TITLE">COMMIT</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>COMMIT</refname>
+  <refpurpose>efetiva a transação corrente</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-commit">
+  <primary>COMMIT</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+COMMIT [ WORK | TRANSACTION ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>COMMIT</command> efetiva a transação corrente.
+   Todas as modificações efetuadas pela transação se tornam visíveis
+   para os outros, e existe a garantia de permanecerem se uma falha ocorrer.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><literal>WORK</literal></term>
+    <term><literal>TRANSACTION</literal></term>
+    <listitem>
+     <para>
+      Palavras chave opcionais. Não produzem nenhum efeito.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Use o <xref linkend="SQL-ROLLBACK" endterm="SQL-ROLLBACK-TITLE">
+   para interromper a transação.
+  </para>
+
+  <para>
+   A utilização do <command>COMMIT</command> fora de uma transação não causa
+   nenhum problema, mas provoca uma mensagem de advertência.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para efetivar a transação corrente e tornar todas as mudanças permanentes:
+<programlisting>
+COMMIT;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O padrão SQL somente especifica as duas formas <literal>COMMIT</literal> e
+   <literal>COMMIT WORK</literal>. Fora isso está totalmente em conformidade.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-begin" endterm="sql-begin-title"></member>
+   <member><xref linkend="sql-rollback" endterm="sql-rollback-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

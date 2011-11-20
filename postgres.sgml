@@ -1,0 +1,276 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/postgres.sgml,v 1.84 2007/11/10 23:30:46 momjian Exp $ -->
+
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook V4.2//EN" [
+
+<!entity % version SYSTEM "version.sgml">
+%version;
+<!entity % filelist SYSTEM "filelist.sgml">
+%filelist;
+
+<!entity reference  SYSTEM "reference.sgml">
+
+]>
+
+<book id="postgres">
+ <title>Documentação do PostgreSQL &version;</title>
+
+ <bookinfo>
+  <corpauthor>
+   <ulink url="http://www.postgresql.org.br/docs/">
+   Projeto de Tradução para o Português do Brasil
+   </ulink>
+  </corpauthor>
+  <corpauthor>The PostgreSQL Global Development Group</corpauthor>
+  &legal;
+ </bookinfo>
+
+ &intro;
+
+ <part id="tutorial">
+  <title>Tutorial</title>
+
+  <partintro>
+   <para>
+    Bem vindo ao Tutorial do <productname>PostgreSQL</productname>.
+    Os poucos capítulos a seguir têm por objetivo fornecer uma introdução simples ao
+    <productname>PostgreSQL</productname>, aos conceitos de banco de
+    dados relacional e à linguagem SQL, para os iniciantes
+    em qualquer um destes tópicos. Somente é pressuposto um conhecimento
+    geral sobre a utilização de computadores. Nenhuma experiência
+    com Unix ou em programação é necessária. Esta parte tem como objetivo
+    principal fornecer experiência prática sobre os aspectos importantes
+    do <productname>PostgreSQL</productname>. Não há nenhuma intenção em dar-se
+    um tratamento completo ou abrangente dos tópicos cobertos.
+   </para>
+
+   <para>
+    Após ler este tutorial pode-se prosseguir através da
+    leitura da <xref linkend="sql"> para obter um maior conhecimento formal
+    da linguagem SQL, ou da <xref linkend="client-interfaces"> para obter
+    informações sobre o desenvolvimento de aplicativos para o
+    <productname>PostgreSQL</productname>. Aqueles que instalam e
+    gerenciam seus próprios servidores também devem ler a <xref linkend="admin">.
+   </para>
+  </partintro>
+
+  &start;
+  &query;
+  &advanced;
+
+ </part>
+
+ <part id="sql">
+  <title>A linguagem SQL</title>
+
+  <partintro>
+   <para>
+    Esta parte descreve a utilização da linguagem <acronym>SQL</acronym>
+    no <productname>PostgreSQL</productname>. Começa descrevendo
+    a sintaxe geral do <acronym>SQL</acronym> e, depois,
+    explica como criar estruturas para armazenar dados, como carregar
+    o banco de dados e como consultá-lo. A parte intermediária mostra os
+    tipos de dado disponíveis e as funções utilizadas nos comandos
+    <acronym>SQL</acronym>. O restante trata de vários aspectos
+    importantes para ajustar o banco de dados para obter um desempenho
+    otimizado.
+   </para>
+
+   <para>
+    As informações contidas nesta parte estão dispostas de maneira que um
+    usuário inexperiente possa seguir do princípio ao fim para obter uma
+    compreensão completa dos tópicos, sem ser necessário fazer referência a
+    partes posteriores muitas vezes.
+    A intenção foi criar capítulos auto-contidos, de modo que os usuários
+    avançados possam ler os capítulos individualmente conforme haja necessidade.
+    As informações nesta parte estão apresentadas sob forma de narrativa, sendo
+    cada unidade um tópico.
+    Os leitores à procura de uma descrição completa de um determinado comando
+    devem consultar a <xref linkend="reference">.
+   </para>
+
+   <para>
+    Os leitores desta parte devem saber como conectar ao banco de dados
+    <productname>PostgreSQL</productname> e executar comandos
+    <acronym>SQL</acronym>. Incentivamos os leitores não familiarizados com
+    estes procedimentos lerem primeiro a <xref linkend="tutorial">.
+    Normalmente os comandos <acronym>SQL</acronym> são executados
+    utilizando o terminal interativo do <productname>PostgreSQL</productname>
+    <application>psql</application>, mas outros programas com funcionalidades
+    equivalentes também podem ser utilizados.
+   </para>
+  </partintro>
+
+  &syntax;
+  &ddl;
+  &dml;
+  &queries;
+  &datatype;
+  &func;
+  &typeconv;
+  &indices;
+  &textsearch;
+  &mvcc;
+  &perform;
+
+ </part>
+
+ <part id="admin">
+  <title>Administração do servidor</title>
+
+  <partintro>
+   <para>
+    Esta parte cobre tópicos que são de interesse do administrador de
+    banco de dados do <productname>PostgreSQL</productname>. Inclui a
+    instalação do produto, configuração do servidor,
+    gerenciamento de usuários e de bancos de dados, e tarefas de manutenção.
+    Todos que gerenciam um servidor <productname>PostgreSQL</productname> para
+    uso pessoal ou, especialmente, de produção, devem estar familiarizados
+    com os tópicos cobertos nesta parte.
+   </para>
+
+   <para>
+    As informações estão organizadas, aproximadamente, na
+    ordem pela qual um novo usuário deve lê-las. Porém, os capítulos são
+    auto-contidos podendo ser lidos individualmente conforme desejado. As
+    informações estão apresentadas sob forma narrativa, sendo cada unidade um
+    tópico. Os leitores à procura de uma descrição completa
+    de um determinado comando devem consultar a <xref linkend="reference">.
+   </para>
+
+   <para>
+    Os capítulos iniciais estão escritos de forma que possam ser entendidos
+    sem pré-requisitos de conhecimento e, portanto, os novos usuários com
+    necessidade de instalar seus próprios servidores podem começar a leitura por
+    estes capítulos. O restante está relacionado com ajuste e gerenciamento,
+    pressupondo que o leitor esteja familiarizado com o uso geral do sistema de
+    banco de dados <productname>PostgreSQL</productname>. Incentivamos os
+    leitores lerem a <xref linkend="tutorial"> e a <xref linkend="sql"> para
+    obter informações adicionais.
+   </para>
+  </partintro>
+
+  &installation;
+  &installw;
+  &runtime;
+  &config;
+  &user-manag;
+  &manage-ag;
+  &client-auth;
+  &charset;
+  &maintenance;
+  &backup;
+  &high-availability;
+  &monitoring;
+  &diskusage;
+  &wal;
+  &regress;
+
+ </part>
+
+ <part id="client-interfaces">
+  <title>Interfaces cliente</title>
+
+  <partintro>
+   <para>
+    Esta parte descreve as interfaces de programação cliente distribuídas
+    com o <productname>PostgreSQL</productname>. Cada um destes capítulos pode
+    ser lido de forma independente. Deve ser observado que existem muitas outras
+    interfaces de programação para programas cliente distribuídas em separado,
+    cada uma contendo sua própria documentação
+    (O <xref linkend="external-projects"> lista algumas das mais populares).
+    Os leitores desta parte devem estar familiarizados com os comandos
+    <acronym>SQL</acronym> utilizados para manipular e consultar os bancos de
+    dados (consulte a <xref linkend="sql">) e, naturalmente, com a linguagem de
+    programação utilizada pela interface.
+   </para>
+  </partintro>
+
+  &libpq;
+  &lobj;
+  &ecpg;
+  &infoschema;
+
+ </part>
+
+ <part id="server-programming">
+  <title>Programação servidor</title>
+
+  <partintro>
+   <para>
+    Esta parte diz respeito à extensão das funcionalidades do servidor através
+    de funções, tipos de dado, gatilhos, etc. definidos pelo usuário. Estes
+    tópicos são avançados e, provavelmente, somente deverão ser estudados após
+    as demais partes da documentação do <productname>PostgreSQL</productname>
+    para usuários tiver sido compreendida.
+    Os últimos capítulos desta parte descrevem as linguagens de programação do
+    lado servidor disponíveis na distribuição do
+    <productname>PostgreSQL</productname>, assim como questões gerais
+    sobre as linguagens de programação do lado servidor. É
+    essencial ler ao menos as primeiras seções do <xref linkend="extend">
+    (cobrindo as funções), antes de se aprofundar no material sobre linguagens
+    de programação do lado servidor.
+   </para>
+  </partintro>
+
+  &extend;
+  &trigger;
+  &rules;
+
+  &xplang;
+  &plsql;
+  &pltcl;
+  &plperl;
+  &plpython;
+
+  &spi;
+
+ </part>
+
+ &reference;
+
+ <part id="internals">
+  <title>Internamente</title>
+
+  <partintro>
+   <para>
+    Esta parte contém diversas informações úteis para os desenvolvedores do
+    <productname>PostgreSQL</productname>.
+   </para>
+  </partintro>
+
+  &arch-dev;
+  &catalogs;
+  &protocol;
+  &sources;
+  &nls;
+  &plhandler;
+  &geqo;
+  &indexam;
+  &gist;
+  &gin;
+  &storage;
+  &bki;
+  &planstats;
+
+ </part>
+
+ <part id="appendixes">
+  <title>Apêndices</title>
+
+  &errcodes;
+  &datetime;
+  &keywords;
+  &features;
+  &release;
+  &contrib;
+  &external-projects;
+  &cvs;
+  &docguide;
+  &acronyms;
+
+ </part>
+
+ &biblio;
+ &bookindex;
+
+</book>

@@ -1,0 +1,131 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/release_savepoint.sgml,v 1.6 2006/09/16 00:30:19 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-RELEASE-SAVEPOINT">
+ <refmeta>
+  <refentrytitle id="SQL-RELEASE-SAVEPOINT-TITLE">RELEASE SAVEPOINT</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>RELEASE SAVEPOINT</refname>
+  <refpurpose>destrói um ponto de salvamento definido anteriormente</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-release-savepoint">
+  <primary>RELEASE SAVEPOINT</primary>
+ </indexterm>
+
+ <indexterm zone="sql-release-savepoint">
+  <primary>ponto de salvamento</primary>
+  <secondary>liberação</secondary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+RELEASE [ SAVEPOINT ] <replaceable>ponto_de_salvamento</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>RELEASE SAVEPOINT</command> destrói o ponto de salvamento
+   definido anteriormente na transação corrente.
+  </para>
+
+  <para>
+   Destruir um ponto de salvamento faz com que este não fique mais disponível
+   como ponto para desfazer (<literal>rollback</literal>), mas não ocasiona
+   nenhum outro comportamento visível pelo usuário.
+   Não desfaz os efeitos dos comandos executados após o estabelecimento do
+   ponto de salvamento (Para se fazer isto consulte
+   <xref linkend="sql-rollback-to" endterm="sql-rollback-to-title">).
+   A destruição de um ponto de salvamento quando não for mais necessário
+   permite ao sistema recuperar alguns recursos antes do fim da transação.
+  </para>
+
+  <para>
+   O comando <command>RELEASE SAVEPOINT</command> também destrói todos os
+   pontos de salvamento estabelecidos depois que o ponto de salvamento
+   especificado foi estabelecido.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable>ponto_de_salvamento</replaceable></term>
+    <listitem>
+     <para>
+      O nome do ponto de salvamento a ser destruído.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Especificar um nome de ponto de salvamento que não foi definido anteriormente
+   é um erro.
+  </para>
+
+  <para>
+   Não é possível liberar um ponto de salvamento quando a transação está
+   em um estado interrompido (<literal>aborted</literal>).
+  </para>
+
+  <para>
+   Se vários pontos de salvamento tiverem o mesmo nome, somente o que foi
+   definido mais recentemente será liberado.
+  </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para estabelecer um ponto de salvamento e destruí-lo posteriormente:
+<programlisting>
+BEGIN;
+    INSERT INTO tabela1 VALUES (3);
+    SAVEPOINT meu_ponto_de_salvamento;
+    INSERT INTO tabela1 VALUES (4);
+    RELEASE SAVEPOINT meu_ponto_de_salvamento;
+COMMIT;
+</programlisting>
+   A transação acima insere tanto o 3 quanto o 4.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Este comando está em conformidade com o padrão <acronym>SQL</>. O padrão 
+   especifica que a palavra chave <literal>SAVEPOINT</literal> é obrigatória, 
+   mas o <productname>PostgreSQL</productname> permite que seja omitida.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-begin" endterm="sql-begin-title"></member>
+   <member><xref linkend="sql-commit" endterm="sql-commit-title"></member>
+   <member><xref linkend="sql-rollback" endterm="sql-rollback-title"></member>
+   <member><xref linkend="sql-rollback-to" endterm="sql-rollback-to-title"></member>
+   <member><xref linkend="sql-savepoint" endterm="sql-savepoint-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

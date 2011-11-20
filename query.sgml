@@ -1,0 +1,892 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/query.sgml,v 1.49 2007/01/31 20:56:18 momjian Exp $ -->
+
+ <chapter id="tutorial-sql">
+  <title>A linguagem <acronym>SQL</acronym></title>
+
+  <sect1 id="tutorial-sql-intro">
+   <title>Introdução</title>
+
+   <para>
+    Este capítulo fornece uma visão geral sobre como utilizar a linguagem
+    <acronym>SQL</acronym> para realizar operações simples. O propósito deste
+    tutorial é apenas fazer uma introdução e, de forma alguma, ser um tutorial
+    completo sobre a linguagem <acronym>SQL</acronym>. Existem muitos livros
+    escritos sobre a linguagem <acronym>SQL</acronym>, incluindo
+    <xref linkend="MELT93"> e <xref linkend="DATE97">. É preciso estar ciente
+    que algumas funcionalidades da linguagem <acronym>SQL</acronym> do
+    <productname>PostgreSQL</productname> são extensões ao padrão.
+   </para>
+
+   <para>
+    Nos exemplos a seguir supõe-se que tenha sido criado o banco de dados
+    chamado <literal>meu_bd</literal>, conforme descrito no capítulo
+    anterior, e tenha sido capaz de iniciar o <application>psql</application>.
+   </para>
+
+   <para>
+    Os exemplos presentes neste manual também podem ser encontrados
+    na distribuição do código fonte do <productname>PostgreSQL</productname>,
+    no diretório <filename>src/tutorial/</filename>.
+    Para usar estes arquivos, primeiro deve-se tornar o diretório
+    <filename>src/tutorial/</filename> o diretório corrente, e depois executar
+    o utilitário <application>make</application>, conforme mostrado abaixo:
+
+<screen>
+<prompt>$</prompt> <userinput>cd <replaceable>....</replaceable>/src/tutorial</userinput>
+<prompt>$</prompt> <userinput>make</userinput>
+</screen>
+
+    Este procedimento cria os scripts e compila os arquivos C contendo as
+    funções e tipos definidos pelo usuário. (Se você instalou uma versão pré-empacotada do 
+	<productname>PostgreSQL</productname> ao invés de construir a partir dos fontes, 
+	procure o diretório <filename>tutorial</> na documentação do
+    <productname>PostgreSQL</productname>.  Nesse momento, o comando <quote>make</>
+    já deve ter sido finalizado).
+    Depois disso, para iniciar o tutorial faça o seguinte:
+
+<screen>
+<prompt>$</prompt> <userinput>cd <replaceable>....</replaceable>/tutorial</userinput>
+<prompt>$</prompt> <userinput>psql -s meu_bd</userinput>
+<computeroutput>
+...
+</computeroutput>
+
+<prompt>meu_bd=&gt;</prompt> <userinput>\i basics.sql</userinput>
+</screen>
+
+    O comando <literal>\i</literal> lê os comandos no arquivo especificado.
+    A opção <literal>-s</literal> ativa o modo passo a passo, que faz uma
+    pausa antes de enviar cada comando para o servidor. Os comandos utilizados
+    nesta seção estão no arquivo <filename>basics.sql</filename>.
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-concepts">
+   <title>Conceitos</title>
+
+   <para>
+    <indexterm><primary>banco de dados relacional</primary></indexterm>
+    <indexterm><primary>banco de dados hierárquico</primary></indexterm>
+    <indexterm><primary>banco de dados orientado a objetos</primary></indexterm>
+    <indexterm><primary>relação</primary></indexterm>
+    <indexterm><primary>tabela</primary></indexterm>
+
+    O <productname>PostgreSQL</productname> é um <firstterm>sistema de
+    gerenciamento de banco de dados relacional</firstterm>
+    (<acronym>SGBDR</acronym>). Isto significa que é um sistema para gerenciar
+    dados armazenados em <firstterm>relações</firstterm>. Relação é,
+    essencialmente, um termo matemático para <firstterm>tabela</firstterm>.
+    A noção de armazenar dados em tabelas é tão trivial hoje em dia que pode
+    parecer totalmente óbvio, mas existem várias outras formas de organizar
+    bancos de dados. Arquivos e diretórios em sistemas operacionais tipo Unix
+    são um exemplo de banco de dados hierárquico. Um desenvolvimento mais
+    moderno são os bancos de dados orientados a objeto.
+   </para>
+
+   <para>
+    <indexterm><primary>linha</primary></indexterm>
+    <indexterm><primary>coluna</primary></indexterm>
+
+    Cada tabela é uma coleção nomeada de <firstterm>linhas</firstterm>.
+    Todas as linhas de uma determinada tabela possuem o mesmo conjunto de
+    <firstterm>colunas</firstterm> nomeadas, e cada coluna é de um tipo de
+    dado específico. Enquanto as colunas possuem uma ordem fixa nas linhas,
+    é importante lembrar que o SQL não garante a ordem das linhas dentro de uma
+    tabela (embora as linhas possam ser explicitamente ordenadas para a
+    exibição).
+   </para>
+
+   <para>
+    <indexterm><primary>agrupamento de bancos de dados</primary></indexterm>
+    <indexterm><primary>agrupamento</primary><secondary>de bancos de dados</secondary><see>agrupamento de bancos de dados</see></indexterm>
+
+    As tabelas são agrupadas em bancos de dados, e uma coleção de bancos de
+    dados gerenciados por uma única instância do servidor
+    <productname>PostgreSQL</productname> forma um
+    <firstterm>agrupamento</firstterm> de bancos de dados.
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-table">
+   <title>Criação de tabelas</title>
+
+   <indexterm zone="tutorial-table">
+    <primary>CREATE TABLE</primary>
+   </indexterm>
+
+   <para>
+    Pode-se criar uma tabela especificando o seu nome juntamente com os
+    nomes das colunas e seus tipos de dado:
+
+<screen>
+<userinput>
+CREATE TABLE clima (
+    cidade          varchar(80),
+    temp_min        int,           -- temperatura mínima
+    temp_max        int,           -- temperatura máxima
+    prcp            real,          -- precipitação
+    data            date
+);
+</userinput>
+</screen>
+
+    Este comando pode ser digitado no <command>psql</command> com quebras
+    de linha. O <command>psql</command> reconhece que o comando só termina
+    quando é encontrado o ponto-e-vírgula.
+   </para>
+
+   <para>
+    Espaços em branco (ou seja, espaços, tabulações e novas linhas) podem ser
+    utilizados livremente nos comandos SQL. Isto significa que o comando
+    pode ser digitado com um alinhamento diferente do mostrado acima, ou mesmo
+    tudo em uma única linha. Dois hífens (<quote><literal>--</literal></quote>)
+    iniciam um comentário; tudo que vem depois é ignorado até o final da
+    linha. A linguagem SQL não diferencia letras maiúsculas e minúsculas nas
+    palavras chave e nos identificadores, a não ser que os identificadores
+    sejam colocados entre aspas para preservar letras
+    maiúsculas e minúsculas, o que não foi feito acima.
+   </para>
+
+   <para>
+    <type>varchar(80)</type> especifica um tipo de dado que pode
+    armazenar cadeias de caracteres arbitrárias com comprimento até 80
+    caracteres; <type>int</type> é o tipo inteiro normal; <type>real</type>
+    é o tipo para armazenar números de ponto flutuante de precisão simples;
+    <type>date</type> é o tipo para armazenar data (a coluna do
+    tipo <type>date</type> pode se chamar <literal>date</literal>, o
+    que tanto pode ser conveniente quanto pode causar confusão &mdash; 
+	a escolha é sua).
+   </para>
+
+   <para>
+    O <productname>PostgreSQL</productname> suporta os tipos
+    <acronym>SQL</acronym> padrão <type>int</type>, <type>smallint</type>,
+    <type>real</type>, <type>double precision</type>,
+    <type>char(<replaceable>N</replaceable>)</type>,
+    <type>varchar(<replaceable>N</replaceable>)</type>,
+    <type>date</type>, <type>time</type>, <type>timestamp</type> e
+    <type>interval</type>, assim como outros tipos de utilidade geral, e um
+    conjunto abrangente de tipos geométricos.
+    O <productname>PostgreSQL</productname> pode ser personalizado com um
+    número arbitrário de tipos definidos pelo usuário. Como conseqüência,
+    sintaticamente os nomes dos tipos não são palavras chave, exceto onde for
+    requerido para suportar casos especiais do padrão <acronym>SQL</acronym>.
+   </para>
+
+   <para>
+    No segundo exemplo são armazenadas cidades e suas localizações
+    geográficas associadas:
+<programlisting>
+CREATE TABLE cidades (
+    nome            varchar(80),
+    localizacao     point
+);
+</programlisting>
+    O tipo <type>point</type> é um exemplo de tipo de dado específico do
+    <productname>PostgreSQL</productname>.
+   </para>
+
+   <para>
+    <indexterm>
+     <primary>DROP TABLE</primary>
+    </indexterm>
+
+    Para terminar deve ser mencionado que, quando a tabela não é mais
+    necessária, ou se deseja recriá-la de uma forma diferente, é possível
+    removê-la por meio do comando:
+<synopsis>
+DROP TABLE <replaceable>nome_da_tabela</replaceable>;
+</synopsis>
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-populate">
+   <title>Inserção de linhas em tabelas</title>
+
+   <indexterm zone="tutorial-populate">
+    <primary>INSERT</primary>
+   </indexterm>
+
+   <para>
+    É utilizado o comando <command>INSERT</command> para inserir linhas nas
+    tabelas:
+
+<programlisting>
+INSERT INTO clima VALUES ('São Francisco', 46, 50, 0.25, '1994-11-27');
+</programlisting>
+
+    Repare que todos os tipos de dado possuem formato de entrada de dados
+    bastante óbvios. As constantes, que não são apenas valores numéricos,
+    geralmente devem estar entre apóstrofos (<literal>'</literal>), como no
+    exemplo acima. O tipo <type>date</type> é, na verdade, muito flexível em
+    relação aos dados que aceita, mas para este tutorial vamos nos fixar no
+    formato sem ambigüidade mostrado acima.
+   </para>
+
+   <para>
+    O tipo <type>point</type> requer um par de coordenadas como entrada,
+    como mostrado abaixo:
+<programlisting>
+INSERT INTO cidades VALUES ('São Francisco', '(-194.0, 53.0)');
+</programlisting>
+   </para>
+
+   <para>
+    A sintaxe usada até agora requer que seja lembrada a ordem das colunas.
+    Uma sintaxe alternativa permite declarar as colunas explicitamente:
+<programlisting>
+INSERT INTO clima (cidade, temp_min, temp_max, prcp, data)
+    VALUES ('São Francisco', 43, 57, 0.0, '1994-11-29');
+</programlisting>
+    Se for desejado, pode-se declarar as colunas em uma ordem diferente,
+    e pode-se, também, omitir algumas colunas. Por exemplo, se a precipitação
+    não for conhecida:
+<programlisting>
+INSERT INTO clima (data, cidade, temp_max, temp_min)
+    VALUES ('1994-11-29', 'Hayward', 54, 37);
+</programlisting>
+    Muitos desenvolvedores consideram declarar explicitamente as colunas um
+    estilo melhor que confiar na ordem implícita.
+   </para>
+
+   <para>
+    Por favor, entre todos os comando mostrados acima para ter alguns dados
+    para trabalhar nas próximas seções.
+   </para>
+
+   <para>
+    <indexterm>
+     <primary>COPY</primary>
+    </indexterm>
+
+    Também pode ser utilizado o comando <command>COPY</command> para carregar
+    uma grande quantidade de dados a partir de arquivos texto puro. Geralmente
+    é mais rápido, porque o comando <command>COPY</command> é otimizado para
+    esta finalidade, embora possua menos flexibilidade que o comando
+    <command>INSERT</command>. Para servir de exemplo:
+
+<programlisting>
+COPY clima FROM '/home/user/clima.txt';
+</programlisting>
+
+    O arquivo contendo os dados deve poder ser acessado pelo servidor e não pelo
+    cliente, porque o servidor lê o arquivo diretamente. Podem ser obtidas mais
+    informações sobre o comando <command>COPY</command> em
+    <xref linkend="sql-copy" endterm="sql-copy-title">.
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-select">
+   <title>Consultar tabelas</title>
+
+   <para>
+    <indexterm><primary>consulta</primary></indexterm>
+    <indexterm><primary>SELECT</primary></indexterm>
+
+    Para trazer os dados de uma tabela, a tabela deve ser
+    <firstterm>consultada</firstterm>.  Para esta finalidade é utilizado o
+    comando <command>SELECT</command> do <acronym>SQL</acronym>.
+    Este comando é dividido em <emphasis>lista de seleção</emphasis> (a parte
+    que especifica as colunas a serem trazidas), <emphasis>lista de
+    tabelas</emphasis> (a parte que especifica as tabelas de onde os dados vão
+    ser trazidos), e uma <emphasis>qualificação opcional</emphasis>
+    (a parte onde são especificadas as restrições). Por exemplo, para trazer
+    todas as linhas da tabela <classname>clima</classname> digite:
+<programlisting>
+SELECT * FROM clima;
+</programlisting>
+    (aqui <literal>*</literal> é uma forma abreviada de <quote>todas as
+    colunas</quote>).
+     <footnote>
+      <para>
+       Embora o <literal>SELECT *</literal> seja útil para consultas rápidas,
+       geralmente é considerado um estilo ruim para código em produção,
+       uma vez que a adição de uma coluna à tabela mudaria os resultados.
+      </para>
+     </footnote>
+    Seriam obtidos os mesmos resultados usando:
+<programlisting>
+SELECT cidade, temp_min, temp_max, prcp, data FROM clima;
+</programlisting>
+
+    A saída deve ser:
+
+<screen>
+     cidade      | temp_min | temp_max | prcp |    data
+-----------------+----------+----------+------+------------
+ São Francisco   |       46 |       50 | 0.25 | 1994-11-27
+ São Francisco   |       43 |       57 |    0 | 1994-11-29
+ Hayward         |       37 |       54 |      | 1994-11-29
+(3 linhas)
+</screen>
+   </para>
+
+   <para>
+    Na lista de seleção podem ser especificadas expressões, e não apenas
+    referências a colunas. Por exemplo, pode ser escrito
+<programlisting>
+SELECT cidade, (temp_max+temp_min)/2 AS temp_media, data FROM clima;
+</programlisting>
+    devendo produzir:
+<screen>
+     cidade      | temp_media |    data
+-----------------+------------+------------
+ São Francisco   |         48 | 1994-11-27
+ São Francisco   |         50 | 1994-11-29
+ Hayward         |         45 | 1994-11-29
+(3 linhas)
+</screen>
+    Perceba que a cláusula <literal>AS</literal> foi utilizada para mudar o
+    nome da coluna de saída (a cláusula <literal>AS</literal> é opcional).
+   </para>
+
+   <para>
+    A consulta pode ser <quote>qualificada</quote>, adicionando a cláusula
+    <literal>WHERE</literal> para especificar as linhas desejadas. A cláusula
+    <literal>WHERE</literal> contém expressões booleanas (valor verdade), e
+    somente são retornadas as linhas para as quais o valor da expressão
+    booleana for verdade. São permitidos os operadores booleanos usuais
+    (<literal>AND</literal>, <literal>OR</literal> e <literal>NOT</literal>) na
+    qualificação. Por exemplo, o comando abaixo retorna os registros do clima
+    de São Francisco nos dias de chuva:
+
+<programlisting>
+SELECT * FROM clima
+    WHERE cidade = 'São Francisco' AND prcp &gt; 0.0;
+</programlisting>
+    Resultado:
+<screen>
+     cidade      | temp_min | temp_max | prcp |    data
+-----------------+----------+----------+------+------------
+ São Francisco   |       46 |       50 | 0.25 | 1994-11-27
+(1 linha)
+</screen>
+   </para>
+
+   <para>
+    <indexterm><primary>ORDER BY</primary></indexterm>
+
+    Pode ser solicitado que os resultados da consulta sejam retornados
+    em uma determinada ordem:
+
+<programlisting>
+SELECT * FROM clima
+    ORDER BY cidade;
+</programlisting>
+
+<screen>
+     cidade      | temp_min | temp_max | prcp |    data
+-----------------+----------+----------+------+------------
+ Hayward         |       37 |       54 |      | 1994-11-29
+ São Francisco   |       43 |       57 |    0 | 1994-11-29
+ São Francisco   |       46 |       50 | 0.25 | 1994-11-27
+</screen>
+
+    Neste exemplo a ordem de classificação não está totalmente especificada e,
+    portanto, as linhas de São Francisco podem retornar em qualquer ordem.
+    Mas sempre seriam obtidos os resultados mostrados acima se fosse executado:
+
+<programlisting>
+SELECT * FROM clima
+    ORDER BY cidade, temp_min;
+</programlisting>
+   </para>
+
+   <para>
+    <indexterm><primary>DISTINCT</primary></indexterm>
+    <indexterm><primary>duplicadas</primary></indexterm>
+
+    Pode ser solicitado que as linhas duplicadas sejam removidas do resultado
+    da consulta:
+
+<programlisting>
+SELECT DISTINCT cidade
+    FROM clima;
+</programlisting>
+
+<screen>
+    cidade
+---------------
+ Hayward
+ São Francisco
+(2 linhas)
+</screen>
+
+    Novamente, neste exemplo a ordem das linhas pode variar. Pode-se garantir
+    resultados consistentes utilizando <literal>DISTINCT</literal> e
+    <literal>ORDER BY</literal> juntos:
+     <footnote>
+      <para>
+       Em alguns sistemas de banco de dados, incluindo as versões antigas do
+       <productname>PostgreSQL</productname>, a implementação do
+       <literal>DISTINCT</literal> ordena automaticamente as linhas e, por
+       isso, o <literal>ORDER BY</literal> não é necessário. Mas isto não é
+       requerido pelo padrão SQL, e o <productname>PostgreSQL</productname>
+       corrente não garante que <literal>DISTINCT</literal> faça com que as
+       linhas sejam ordenadas.
+      </para>
+     </footnote>
+
+<programlisting>
+SELECT DISTINCT cidade
+    FROM clima
+    ORDER BY cidade;
+</programlisting>
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-join">
+   <title>Junções entre tabelas</title>
+
+   <indexterm zone="tutorial-join">
+    <primary>junção</primary>
+   </indexterm>
+
+   <para>
+    Até agora as consultas somente acessaram uma tabela de cada vez.
+    As consultas podem acessar várias tabelas de uma vez, ou acessar a mesma
+    tabela de uma maneira que várias linhas da tabela sejam processadas ao mesmo
+    tempo. A consulta que acessa várias linhas da mesma tabela, ou de tabelas
+    diferentes, de uma vez, é chamada de consulta de <firstterm>junção</firstterm>.
+    Como exemplo, suponha que se queira listar todas as linhas de clima junto
+    com a localização da cidade associada. Para se fazer isto, é necessário
+    comparar a coluna cidade de cada linha da tabela clima com a coluna nome
+    de todas as linhas da tabela cidades, e selecionar os pares de linha onde
+    estes valores são correspondentes.
+    <note>
+     <para>
+      Este é apenas um modelo conceitual, a junção geralmente é realizada de
+      uma maneira mais eficiente que comparar de verdade cada par de linhas
+      possível, mas isto não é visível para o usuário.
+     </para>
+    </note>
+    Esta operação pode ser efetuada por meio da seguinte consulta:
+
+<screen>
+<userinput>
+SELECT *
+    FROM clima, cidades
+    WHERE cidade = nome;
+</userinput>
+</screen>
+
+<screen>
+
+<computeroutput>
+     cidade      | temp_min | temp_max | prcp |    data    |     nome      | localizacao
+-----------------+----------+----------+------+------------+---------------+-------------
+ São Francisco   |       46 |       50 | 0.25 | 1994-11-27 | São Francisco | (-194,53)
+ São Francisco   |       43 |       57 |    0 | 1994-11-29 | São Francisco | (-194,53)
+(2 linhas)
+</computeroutput>
+</screen>
+   </para>
+
+   <para>
+    Duas coisas devem ser observadas no resultado produzido:
+    <itemizedlist>
+     <listitem>
+      <para>
+       Não existe nenhuma linha para a cidade Hayward. Isto acontece porque
+       não existe entrada correspondente na tabela
+       <classname>cidades</classname> para Hayward, e a junção ignora as linhas
+       da tabela clima sem correspondência.
+       Veremos em breve como isto pode ser mudado.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Existem duas colunas contendo o nome da cidade, o que está correto
+       porque a lista de colunas das tabelas <classname>clima</classname> e
+       <classname>cidades</classname> estão concatenadas. Na prática isto não
+       é desejado, sendo preferível, portanto, escrever a lista das colunas de
+       saída explicitamente em vez de utilizar o <literal>*</literal>:
+<programlisting>
+SELECT cidade, temp_min, temp_max, prcp, data, localizacao
+    FROM clima, cidades
+    WHERE cidade = nome;
+</programlisting>
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+
+   <formalpara>
+    <title>Exercício:</title>
+
+    <para>
+     Descobrir a semântica desta consulta quando a
+     cláusula <literal>WHERE</literal> é omitida.
+    </para>
+   </formalpara>
+
+   <para>
+    Como todas as colunas possuem nomes diferentes, o analisador encontra
+    automaticamente a tabela que a coluna pertence. Se houver nomes de colunas 
+    iguais nas duas tabelas, será necessário <firstterm>qualificar</> os nomes
+	das colunas para mostrar qual você quis dizer, como em:
+<programlisting>
+SELECT clima.cidade, clima.temp_min, clima.temp_max,
+       clima.prcp, clima.data, cidades.localizacao
+    FROM clima, cidades
+    WHERE cidades.nome = clima.cidade;
+</programlisting>
+    É considerado uma boa prática especificar todos os nomes de colunas 
+    em uma consulta de junção, assim a consulta não falhará se um nome de coluna
+	já existente for adicionado posteriormente a uma das tabelas.
+   </para>
+
+   <para>
+    As consultas de junção do tipo visto até agora também poderiam
+    ser escritas da seguinte forma alternativa:
+
+<programlisting>
+SELECT *
+    FROM clima INNER JOIN cidades ON (clima.cidade = cidades.nome);
+</programlisting>
+
+    A utilização desta sintaxe não é tão comum quanto a usada acima,
+    mas é mostrada para ajudar a entender os próximos tópicos.
+   </para>
+
+   <para>
+    <indexterm><primary>junção</primary><secondary>externa</secondary></indexterm>
+
+    Agora vamos descobrir como se faz para obter as linhas de Hayward. Desejamos
+    o seguinte: que a consulta varra a tabela <classname>clima</classname> e,
+    para cada uma de suas linhas, encontre a(s) linha(s) correspondente(s) na tabela
+    <classname>cidades</classname>. Se não for encontrada nenhuma linha
+    correspondente, desejamos que sejam colocados <quote>valores vazios</quote>
+    nas colunas da tabela <classname>cidades</classname>. Este tipo de consulta
+    é chamada de <firstterm>junção externa</firstterm>
+    (<literal>outer join</literal>). As consultas vistas até agora são junções
+    internas (<literal>inner join</literal>). O comando então fica assim:
+
+<programlisting>
+SELECT *
+    FROM clima LEFT OUTER JOIN cidades ON (clima.cidade = cidades.nome);
+
+     cidade      | temp_min | temp_max | prcp |    data    |     nome      | localizacao
+-----------------+----------+----------+------+------------+---------------+------------
+ Hayward         |       37 |       54 |      | 1994-11-29 |               |
+ São Francisco   |       46 |       50 | 0.25 | 1994-11-27 | São Francisco | (-194,53)
+ São Francisco   |       43 |       57 |    0 | 1994-11-29 | São Francisco | (-194,53)
+(3 linhas)
+</programlisting>
+
+    Esta consulta é chamada de <firstterm>junção externa esquerda</firstterm>
+    (<literal>left outer join</literal>), porque a tabela mencionada à esquerda
+    do operador de junção terá cada uma de suas linhas aparecendo na saída pelo
+    menos uma vez, enquanto a tabela à direita terá somente as linhas
+    correspondendo a alguma linha da tabela à esquerda aparecendo na saída.
+    Ao listar uma linha da tabela à esquerda, para a qual não existe nenhuma
+    linha correspondente na tabela à direita, são colocados valores vazios
+    (<literal>null</literal>) nas colunas da tabela à direita.
+   </para>
+
+   <formalpara>
+    <title>Exercício:</title>
+
+    <para>
+     Existem também a junção externa direita (<literal>right outer join</literal>)
+     e a junção externa completa (<literal>full outer join</literal>).
+     Tente descobrir o que fazem.
+    </para>
+   </formalpara>
+
+   <para>
+    <indexterm><primary>junção</primary><secondary>auto</secondary></indexterm>
+    <indexterm><primary>aliás</primary><secondary>para nome de tabela em consulta</secondary></indexterm>
+
+    Também é possível fazer a junção da tabela consigo mesma. Isto é chamado de
+    <firstterm>autojunção</firstterm> (<literal>self join</literal>).
+    Como exemplo, suponha que desejamos descobrir todas as linhas de clima que
+    estão no intervalo de temperatura de outros registros de clima. Para isso é
+    necessário comparar as colunas <structfield>temp_min</structfield> e
+    <structfield>temp_max</structfield> de cada registro de
+    <classname>clima</classname> com as colunas
+    <structfield>temp_min</structfield> e <structfield>temp_max</structfield>
+    de todos os outros registros da tabela <classname>clima</classname>, o que
+    pode ser feito utilizando a seguinte consulta:
+
+<programlisting>
+SELECT C1.cidade, C1.temp_min AS menor, C1.temp_max AS maior,
+    C2.cidade, C2.temp_min AS menor, C2.temp_max AS maior
+    FROM clima C1, clima C2
+    WHERE C1.temp_min &lt; C2.temp_min
+    AND C1.temp_max &gt; C2.temp_max;
+
+     cidade      | menor | maior |     cidade    | menor | maior
+-----------------+-------+-------+---------------+-------+-------
+ São Francisco   |    43 |    57 | São Francisco |    46 |    50
+ Hayward         |    37 |    54 | São Francisco |    46 |    50
+(2 linhas)
+</programlisting>
+
+    A tabela clima teve seu nome mudado para <literal>C1</literal> e
+    <literal>C2</literal>, para permitir distinguir o lado esquerdo do lado
+    direito da junção. Estes tipos de <quote>aliases</quote> também podem ser
+    utilizados em outras consultas para reduzir a digitação como, por exemplo:
+<programlisting>
+SELECT *
+    FROM clima w, cidades c
+    WHERE w.cidade = c.nome;
+</programlisting>
+    Será vista esta forma de abreviar com bastante freqüência.
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-agg">
+   <title>Funções de agregação</title>
+
+   <indexterm zone="tutorial-agg">
+    <primary>função de agregação</primary>
+   </indexterm>
+
+   <para>
+    <indexterm><primary>média</primary></indexterm>
+    <indexterm><primary>contar</primary></indexterm>
+    <indexterm><primary>máximo</primary></indexterm>
+    <indexterm><primary>mínimo</primary></indexterm>
+    <indexterm><primary>soma</primary></indexterm>
+
+    Como a maioria dos produtos de banco de dados relacional,
+    o <productname>PostgreSQL</productname> suporta funções de agregação.
+    Uma função de agregação computa um único resultado para várias linhas de
+    entrada. Por exemplo, existem funções de agregação para contar
+    (<function>count</function>), somar (<function>sum</function>), calcular a
+    média (<function>avg</function>), o valor máximo (<function>max</function>)
+    e o valor mínimo (<function>min</function>) para um conjunto de linhas.
+   </para>
+
+   <para>
+    Para servir de exemplo, é possível encontrar a maior temperatura mínima
+    ocorrida em qualquer lugar usando:
+
+<programlisting>
+SELECT max(temp_min) FROM clima;
+</programlisting>
+
+<screen>
+ max
+-----
+  46
+(1 linha)
+</screen>
+   </para>
+
+   <para>
+    <indexterm><primary>subconsulta</primary></indexterm>
+
+    Se for desejado saber a cidade (ou cidades) onde esta temperatura ocorreu
+    pode-se tentar usar:
+
+<programlisting>
+SELECT cidade FROM clima WHERE temp_min = max(temp_min);     <lineannotation>ERRADO</lineannotation>
+</programlisting>
+
+    mas não vai funcionar, porque a função de agregação <function>max</function>
+    não pode ser usada na cláusula <literal>WHERE</literal> (Esta restrição
+    existe porque a cláusula <literal>WHERE</literal> determina quais as linhas 
+    vão passar para o estágio de agregação e, portanto, precisa ser avaliada
+    antes das funções de agregação serem computadas).
+    Entretanto, como é geralmente o caso, a consulta pode ser reformulada para
+    obter o resultado desejado, o que será feito por meio de uma
+    <firstterm>subconsulta</firstterm>:
+
+<programlisting>
+SELECT cidade FROM clima
+    WHERE temp_min = (SELECT max(temp_min) FROM clima);
+</programlisting>
+
+<screen>
+     cidade
+---------------
+ São Francisco
+(1 linha)
+</screen>
+
+    Isto está correto porque a subconsulta é uma ação independente, que calcula
+    sua agregação em separado do que está acontecendo na consulta externa.
+   </para>
+
+   <para>
+    <indexterm><primary>GROUP BY</primary></indexterm>
+    <indexterm><primary>HAVING</primary></indexterm>
+
+    As agregações também são muito úteis em combinação com a cláusula
+    <literal>GROUP BY</literal>. Por exemplo, pode ser obtida a maior
+    temperatura mínima observada em cada cidade usando:
+
+<programlisting>
+SELECT cidade, max(temp_min)
+    FROM clima
+    GROUP BY cidade;
+</programlisting>
+
+<screen>
+     cidade      | max
+-----------------+-----
+ Hayward         |  37
+ São Francisco   |  46
+(2 linhas)
+</screen>
+
+    produzindo uma linha de saída para cada cidade. Cada resultado da agregação
+    é computado sobre as linhas da tabela correspondendo a uma cidade.
+    As linhas agrupadas podem ser filtradas utilizando a cláusula
+    <literal>HAVING</literal>
+
+<programlisting>
+SELECT cidade, max(temp_min)
+    FROM clima
+    GROUP BY cidade
+    HAVING max(temp_min) &lt; 40;
+</programlisting>
+
+<screen>
+  cidade   | max
+-----------+-----
+ Hayward   |  37
+(1 linha)
+</screen>
+
+    que mostra os mesmos resultados, mas apenas para as cidades que possuem
+    todos os valores de <literal>temp_min</literal> abaixo de 40.
+    Para concluir, se desejarmos somente as cidades com nome começando pela
+    letra <quote><literal>S</literal></quote> podemos escrever:
+
+<programlisting>
+SELECT cidade, max(temp_min)
+    FROM clima
+    WHERE cidade LIKE 'S%'<co id="co.tutorial-agg-like">
+    GROUP BY cidade
+    HAVING max(temp_min) &lt; 40;
+</programlisting>
+   <calloutlist>
+    <callout arearefs="co.tutorial-agg-like">
+     <para>
+      O operador <literal>LIKE</literal> faz correspondência com padrão,
+      sendo explicado na <xref linkend="functions-matching">.
+     </para>
+    </callout>
+   </calloutlist>
+   </para>
+
+   <para>
+    É importante compreender a interação entre as agregações e as cláusulas
+    <literal>WHERE</literal> e <literal>HAVING</literal> do
+    <acronym>SQL</acronym>. A diferença fundamental entre
+    <literal>WHERE</literal> e <literal>HAVING</literal> é esta:
+    <literal>WHERE</literal> seleciona as linhas de entrada antes dos grupos e
+    agregações serem computados (portanto, controla quais linhas irão para o
+    computo da agregação), enquanto <literal>HAVING</literal> seleciona linhas
+    de grupo após os grupos e agregações serem computados. Portanto, a cláusula
+    <literal>WHERE</literal> não pode conter funções de agregação; não faz
+    sentido tentar utilizar uma agregação para determinar quais linhas serão a
+    entrada da agregação. Por outro lado, a cláusula <literal>HAVING</literal>
+    sempre contém funções de agregação (A rigor, é permitido escrever uma
+    cláusula <literal>HAVING</literal> que não possua agregação, mas isso é
+    raramente utilizado. A mesma condição poderia ser utilizada de forma mais eficiente
+    no estágio do <literal>WHERE</literal>).
+   </para>
+
+   <para>
+    No exemplo anterior, a restrição do nome da cidade pode ser aplicada na
+    cláusula <literal>WHERE</literal>, porque não necessita de nenhuma
+    agregação, sendo mais eficiente que colocar a restrição na cláusula
+    <literal>HAVING</literal>, porque evita realizar os procedimentos de
+    agrupamento e agregação em todas as linhas que não atendem a cláusula
+    <literal>WHERE</literal>.
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-update">
+   <title>Atualizações</title>
+
+   <indexterm zone="tutorial-update">
+    <primary>UPDATE</primary>
+   </indexterm>
+
+   <para>
+    As linhas existentes podem ser atualizadas utilizando o comando
+    <command>UPDATE</command>. Suponha que foi descoberto que as leituras de
+    temperatura estão todas mais altas 2 graus após 28 de novembro.
+    Os dados podem ser corrigidos da seguinte maneira:
+
+<screen>
+<userinput>
+UPDATE clima
+    SET temp_max = temp_max - 2,  temp_min = temp_min - 2
+    WHERE data &gt; '1994-11-28';
+</userinput>
+</screen>
+   </para>
+
+   <para>
+    Agora vejamos o novo estado dos dados:
+<screen>
+SELECT * FROM clima;
+
+     cidade      | temp_min | temp_max | prcp |    data
+-----------------+----------+----------+------+------------
+ São Francisco   |       46 |       50 | 0.25 | 1994-11-27
+ São Francisco   |       41 |       55 |    0 | 1994-11-29
+ Hayward         |       35 |       52 |      | 1994-11-29
+(3 linhas)
+</screen>
+   </para>
+  </sect1>
+
+  <sect1 id="tutorial-delete">
+   <title>Exclusões</title>
+
+   <indexterm zone="tutorial-delete">
+    <primary>DELETE</primary>
+   </indexterm>
+
+   <para>
+    As linhas podem ser removidas da tabela através do comando
+    <command>DELETE</command>.
+    Suponha que não estamos mais interessados nos registros do clima em Hayward.
+    Então precisamos excluir estas linhas da tabela.
+<programlisting>
+DELETE FROM clima WHERE cidade = 'Hayward';
+</programlisting>
+
+    Todos os registros de clima pertencentes a Hayward são removidos.
+
+<programlisting>
+SELECT * FROM clima;
+</programlisting>
+
+<screen>
+    cidade     | temp_min | temp_max | prcp |    data
+---------------+----------+----------+------+------------
+ São Francisco |       46 |       50 | 0.25 | 1994-11-27
+ São Francisco |       41 |       55 |    0 | 1994-11-29
+(2 linhas)
+</screen>
+   </para>
+
+   <para>
+    Deve-se tomar cuidado com comandos na forma:
+<synopsis>
+DELETE FROM <replaceable>nome_da_tabela</replaceable>;
+</synopsis>
+
+    Sem uma qualificação, o comando <command>DELETE</command> remove
+    <emphasis>todas</emphasis> as linhas da tabela, deixando-a vazia.
+    O sistema não solicita confirmação antes de realizar esta operação!
+   </para>
+  </sect1>
+
+ </chapter>

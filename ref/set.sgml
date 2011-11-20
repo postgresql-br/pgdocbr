@@ -1,0 +1,308 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/set.sgml,v 1.86 2004/08/10 00:55:08 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-SET">
+ <refmeta>
+  <refentrytitle id="SQL-SET-TITLE">SET</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>SET</refname>
+  <refpurpose>muda um parâmetro de tempo de execução</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-set">
+  <primary>SET</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+SET [ SESSION | LOCAL ] <replaceable class="parameter">nome</replaceable> { TO | = } { <replaceable class="parameter">valor</replaceable> | '<replaceable class="parameter">valor</replaceable>' | DEFAULT }
+SET [ SESSION | LOCAL ] TIME ZONE { <replaceable class="parameter">zona_horária</replaceable> | LOCAL | DEFAULT }
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>SET</command> muda os parâmetros de configuração
+   de tempo de execução. Muitos parâmetros de tempo de execução listados na
+   <xref linkend="runtime-config"> podem ser mudados em tempo de execução
+   pelo comando <command>SET</command>
+   (Mas alguns requerem privilégio de superusuário para serem mudados,
+   e outros não podem ser mudados após o servidor ou a sessão iniciar).
+   O comando <command>SET</command> afeta apenas os valores utilizados
+   na sessão corrente.
+  </para>
+
+  <para>
+   Se o comando <command>SET</command>, ou <command>SET SESSION</command>, for
+   executado dentro de uma transação interrompida posteriormente, os efeitos
+   produzidos pelo comando <command>SET</command> desaparecem quando a transação
+   é desfeita (Este comportamento representa uma mudança em relação às versões
+   do <productname>PostgreSQL</productname> anteriores a 7.3, onde os efeitos
+   produzidos pelo comando <command>SET</command> não eram desfeitos após
+   um erro posterior).
+   Se a transação que envolve o comando for efetivada, os efeitos produzidos
+   persistem até o fim da sessão, a não ser que seja mudado por
+   outro comando <command>SET</command>.
+  </para>
+
+  <para>
+   Os efeitos produzidos pelo comando <command>SET LOCAL</command> duram apenas
+   até o fim da transação corrente, seja esta efetivada ou não.
+   Um caso especial ocorre quando o comando <command>SET</command> é seguido por
+   um comando <command>SET LOCAL</command> dentro da mesma transação: o valor do
+   comando <command>SET LOCAL</command> tem efeito até o final da transação,
+   mas depois (se a transação for efetivada) passa a ter efeito o valor do
+   comando <command>SET</command>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><literal>SESSION</literal></term>
+    <listitem>
+     <para>
+      Especifica que o comando tem efeito para a sessão corrente
+      (Este é o padrão se nem <literal>SESSION</literal> nem
+      <literal>LOCAL</literal> estiverem presentes).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>LOCAL</literal></term>
+    <listitem>
+     <para>
+      Especifica que o comando tem efeito apenas para a transação corrente.
+      Após o <command>COMMIT</command> ou o <command>ROLLBACK</command>
+      a definição no nível de sessão volta a ter efeito novamente. Deve ser
+      observado que o comando <command>SET LOCAL</command> parece não produzir
+      nenhum efeito quando executado fora de um bloco <command>BEGIN</command>,
+      uma vez que a transação termina imediatamente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      Nome de um parâmetro de tempo de execução cujo valor pode ser definido.
+      Os parâmetros disponíveis estão documentados na
+      <xref linkend="runtime-config"> e abaixo.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">valor</replaceable></term>
+    <listitem>
+     <para>
+      O novo valor do parâmetro.
+      Os valores podem ser especificados como constantes cadeias de caracteres,
+      identificadores, números, ou listas separadas por vírgula dos mesmos.
+      Pode ser utilizado <literal>DEFAULT</literal> para especificar a
+      redefinição do parâmetro com o seu valor padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+
+  <para>
+   Além dos parâmetros de configuração documentados na
+   <xref linkend="runtime-config">, existem uns poucos que somente podem ser
+   ajustados usando o comando <command>SET</command>, ou que possuem uma
+   sintaxe especial:
+
+   <variablelist>
+    <varlistentry>
+     <term><literal>NAMES</literal></term>
+     <listitem>
+      <para>
+       <literal>SET NAMES <replaceable>valor</replaceable></literal>
+       é um outro nome para
+       <literal>SET client_encoding TO <replaceable>valor</replaceable></literal>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>SEED</literal></term>
+     <listitem>
+      <para>
+       Define a semente interna para o gerador de números randômicos
+       (a função <function>random</function>). Os valores permitidos são
+       números de ponto flutuante entre 0 e 1, os quais são então
+       multiplicados por 2<superscript>31</superscript>-1.
+      </para>
+
+      <para>
+       A semente também pode ser definida chamando a função
+       <function>setseed</function>:
+<programlisting>
+SELECT setseed(<replaceable>valor</replaceable>);
+</programlisting>
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>TIME ZONE</literal></term>
+     <listitem>
+      <para>
+       <literal>SET TIME ZONE <replaceable>valor</replaceable></literal>
+       é um outro nome para
+       <literal>SET timezone TO <replaceable>valor</replaceable></literal>.
+       A sintaxe <literal>SET TIME ZONE</literal> permite uma sintaxe especial
+       para especificar a zona horária.
+       Abaixo estão alguns exemplos de valores válidos:
+
+       <variablelist>
+        <varlistentry>
+         <term><literal>'PST8PDT'</literal></term>
+         <listitem>
+          <para>
+           A zona horária de Berkeley, Califórnia.
+          </para>
+         </listitem>
+        </varlistentry>
+        <varlistentry>
+         <term><literal>'Europe/Rome'</literal></term>
+         <listitem>
+          <para>
+           A zona horária da Itália.
+          </para>
+         </listitem>
+        </varlistentry>
+        <varlistentry>
+         <term><literal>-7</literal></term>
+         <listitem>
+          <para>
+           A zona horária 7 horas a oeste da UTC (equivalente a PDT -
+           <literal>Pacific Daylight Time</literal>).
+           Os valores positivos estão a leste da UTC.
+          </para>
+         </listitem>
+        </varlistentry>
+        <varlistentry>
+         <term><literal>INTERVAL '-08:00' HOUR TO MINUTE</literal></term>
+         <listitem>
+          <para>
+           A zona horária 8 horas a oeste da UTC (o mesmo que PST -
+           <literal>Pacific Standard Time</literal>).
+          </para>
+         </listitem>
+        </varlistentry>
+        <varlistentry>
+         <term><literal>LOCAL</literal></term>
+         <term><literal>DEFAULT</literal></term>
+         <listitem>
+          <para>
+           Define a zona horária como a zona horária local
+           (a zona horária padrão do sistema operacional do servidor).
+          </para>
+         </listitem>
+        </varlistentry>
+       </variablelist>
+
+       Consulte a <xref linkend="datatype-datetime"> para obter
+       informações adicionais sobre zonas horárias.
+       Além disso, o <xref linkend="datetime-appendix">
+       possui uma lista de nomes reconhecidos de zonas horárias.
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   A função <function>set_config</function> fornece uma funcionalidade
+   equivalente. Consulte a <xref linkend="functions-admin">.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Definir o caminho de procura de esquema:
+<programlisting>
+SET search_path TO meu_esquema, public;
+</programlisting>
+  </para>
+
+  <para>
+   Definir o estilo da data igual ao estilo tradicional do
+   <productname>POSTGRES</productname>, com a convenção de entrada
+   <quote>dia antes do mês</quote>:
+<screen>
+SET datestyle TO postgres, dmy;
+</screen>
+  </para>
+
+  <para>
+   Definir a zona horária de Berkeley, California:
+<screen>
+SET TIME ZONE 'PST8PDT';
+</screen>
+  </para>
+
+  <para>
+   Definir a zona horária da Itália:
+<screen>
+SET TIME ZONE 'Europe/Rome';
+</screen>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   <literal>SET TIME ZONE</literal> estende a sintaxe definida no padrão SQL.
+   O padrão permite somente deslocamentos de zona horária numéricos, enquanto o
+   <productname>PostgreSQL</productname> permite uma especificação de zona
+   horária mais flexível. Todas as outras funcionalidades do
+   <literal>SET</literal> são extensões do <productname>PostgreSQL</productname>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="SQL-RESET" endterm="SQL-RESET-title"></member>
+   <member><xref linkend="SQL-SHOW" endterm="SQL-SHOW-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

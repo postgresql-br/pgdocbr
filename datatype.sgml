@@ -1,0 +1,4025 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/datatype.sgml,v 1.154 2005/01/17 18:47:15 tgl Exp $
+-->
+
+ <chapter id="datatype">
+  <title id="datatype-title">Tipos de dado</title>
+
+  <indexterm zone="datatype">
+   <primary>tipo de dado</primary>
+  </indexterm>
+
+  <indexterm>
+   <primary>tipo</primary>
+   <see>tipo de dado</see>
+  </indexterm>
+
+  <para>
+   O <productname>PostgreSQL</productname> disponibiliza para os usuários
+   um amplo conjunto de tipos de dado nativos. Os usuários podem adicionar
+   novos tipos ao <productname>PostgreSQL</productname>
+   utilizando o comando <command>CREATE TYPE</command>.
+   <footnote>
+    <para>
+     O SQL suporta três modalidades de tipos de dado: <emphasis>tipos de dado
+     pré-definidos</emphasis>, <emphasis>tipos construídos</emphasis> e
+     <emphasis>tipos definidos pelo usuário</emphasis>.
+     Os tipos pré-definidos são algumas vezes chamados de <quote>tipos
+     nativos</quote>, mas não neste Padrão Internacional. Os tipos
+     definidos pelo usuário podem ser definidos por um padrão, por uma
+     implementação, ou por um aplicativo.
+    </para>
+    <para>
+     O tipo construído é especificado utilizando um dos construtores de
+     tipo de dado do SQL: <literal>ARRAY</literal>, <literal>MULTISET</literal>,
+     <literal>REF</literal> e <literal>ROW</literal>. O tipo construído é
+     um tipo matriz, um tipo multi-conjunto, um tipo referência ou um tipo
+     linha, se for especificado por <literal>ARRAY</literal>,
+     <literal>MULTISET</literal>, <literal>REF</literal> e
+     <literal>ROW</literal>, respectivamente. Os tipos matriz e multi-conjunto
+     são conhecidos genericamente como tipos coleção.
+    </para>
+    <para>
+     (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+     ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+    </para>
+   </footnote>
+   <footnote>
+    <para>
+     Todo tipo de dado inclui um valor especial, chamado de <emphasis>valor
+     nulo</emphasis>, algumas vezes denotado pela palavra chave NULL. Este
+     valor difere dos demais valores com relação aos seguintes aspectos.
+    </para>
+    <para>
+     &mdash; Uma vez que o valor nulo está presente em todo tipo de dado, o tipo
+     de dado do valor nulo implicado pela palavra chave NULL não pode ser
+     inferido; portanto NULL pode ser utilizado para denotar o valor nulo apenas
+     em certos contextos, e não em todos os lugares onde um literal é permitido.
+    </para>
+    <para>
+     &mdash; Embora o valor nulo não seja igual a qualquer outro valor, nem seja
+     não igual a qualquer outro valor - é <emphasis>desconhecido</emphasis>
+     se é igual ou não a qualquer outro valor - em alguns contextos, valores
+     nulos múltiplos são tratados juntos; por exemplo, a &lt;cláusula
+     group by&gt; trata todos os valores nulos juntos.
+    </para>
+    <para>
+     (ISO-ANSI Working Draft) Framework (SQL/Framework), August 2003,
+     ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+    </para>
+   </footnote>
+    <footnote>
+     <para>
+      <literal>literal</literal> &mdash;
+      um valor usado exatamente da forma como é visto. Por exemplo, o número
+      25 e a cadeia de caracteres "Alô" são ambos literais. Os literais podem
+      ser utilizados em expressões, e podem ser atribuídos literais para
+      constantes ou variáveis no <productname>Visual Basic</productname>.
+      <ulink url="http://www.microsoft.com/atwork/glossary.mspx">Microsoft
+      Glossary for Business Users</ulink> (N. do T.)
+     </para>
+    </footnote>
+  </para>
+
+  <para>
+   A <xref linkend="datatype-table"> mostra todos os tipos de dado nativos de
+   propósito geral. A maioria dos nomes alternativos listados na coluna
+   <quote>Aliases</quote> é o nome utilizado internamente pelo
+   <productname>PostgreSQL</productname> por motivos históricos. Além desses,
+   existem alguns tipos usados internamente ou em obsolescência
+   <footnote>
+    <para>
+     <literal>deprecated</literal> &mdash;
+      Dito de um programa ou funcionalidade que é considerada em obsolescência
+      e no processo de ter sua utilização gradualmente interrompida, geralmente
+      em favor de uma determinada substituição. As funcionalidades em
+      obsolescência podem, infelizmente, demorar muitos anos para desaparecer.
+      <ulink url="http://www.catb.org/~esr/jargon/html/D/deprecated.html">The
+      Jargon File</ulink> (N. do T.)
+    </para>
+   </footnote>
+   que não são mostrados aqui.
+  </para>
+
+   <table id="datatype-table">
+    <title>Tipos de dado</title>
+    <tgroup cols="3">
+     <thead>
+      <row>
+       <entry>Nome</entry>
+       <entry>Aliases</entry>
+       <entry>Descrição</entry>
+      </row>
+     </thead>
+
+     <tbody>
+      <row>
+       <entry><type>bigint</type></entry>
+       <entry><type>int8</type></entry>
+       <entry>inteiro de oito bytes com sinal
+        <footnote>
+         <para>
+          Os tipos de dado NUMERIC, DECIMAL, SMALLINT, INTEGER e BIGINT
+          são referenciados coletivamente como <emphasis>tipos numéricos
+          exatos</emphasis>.
+          (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+          ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+         </para>
+        </footnote>
+       </entry>
+      </row>
+
+      <row>
+       <entry><type>bigserial</type></entry>
+       <entry><type>serial8</type></entry>
+       <entry>inteiro de oito bytes com auto-incremento</entry>
+      </row>
+
+      <row>
+       <entry><type>bit [ (<replaceable>n</replaceable>) ]</type></entry>
+       <entry></entry>
+       <entry>cadeia de bits de comprimento fixo</entry>
+      </row>
+
+      <row>
+       <entry><type>bit varying [ (<replaceable>n</replaceable>) ]</type></entry>
+       <entry><type>varbit</type></entry>
+       <entry>cadeia de bits de comprimento variável
+        <footnote>
+         <para>
+          comprimento variável &mdash;
+          uma característica das cadeias de caracteres e das cadeias binárias
+          que permite as cadeias conterem qualquer número de caracteres ou de
+          octetos, respectivamente, entre zero e um número máximo, conhecido
+          como comprimento máximo em caracteres ou octetos, respectivamente,
+          da cadeia.
+          (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+          ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+         </para>
+        </footnote>
+       </entry>
+      </row>
+
+      <row>
+       <entry><type>boolean</type></entry>
+       <entry><type>bool</type></entry>
+       <entry>booleano lógico (verdade/falso)</entry>
+      </row>
+
+      <row>
+       <entry><type>box</type></entry>
+       <entry></entry>
+       <entry>caixa retangular no plano</entry>
+      </row>
+
+      <row>
+       <entry><type>bytea</type></entry>
+       <entry></entry>
+       <entry>dados binários (<quote>matriz de bytes</>)</entry>
+      </row>
+
+      <row>
+       <entry><type>character varying [ (<replaceable>n</replaceable>) ]</type></entry>
+       <entry><type>varchar [ (<replaceable>n</replaceable>) ]</type></entry>
+       <entry>cadeia de caracteres de comprimento variável
+        <footnote>
+         <para>
+          Os tipos de dado CHARACTER, CHARACTER VARYING e CHARACTER LARGE
+          OBJECT são referenciados coletivamente como <emphasis>tipos cadeia
+          de caracteres</emphasis>.
+          (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+          ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+         </para>
+        </footnote>
+       </entry>
+      </row>
+
+      <row>
+       <entry><type>character [ (<replaceable>n</replaceable>) ]</type></entry>
+       <entry><type>char [ (<replaceable>n</replaceable>) ]</type></entry>
+       <entry>cadeia de caracteres de comprimento fixo</entry>
+      </row>
+
+      <row>
+       <entry><type>cidr</type></entry>
+       <entry></entry>
+       <entry>endereço de rede IPv4 ou IPv6</entry>
+      </row>
+
+      <row>
+       <entry><type>circle</type></entry>
+       <entry></entry>
+       <entry>círculo no plano</entry>
+      </row>
+
+      <row>
+       <entry><type>date</type></entry>
+       <entry></entry>
+       <entry>data de calendário (ano, mês,dia)</entry>
+      </row>
+
+      <row>
+       <entry><type>double precision</type></entry>
+       <entry><type>float8</type></entry>
+       <entry>número de ponto flutuante de precisão dupla
+        <footnote>
+         <para>
+          Os tipos de dado FLOAT, REAL e DOUBLE PRECISION são referenciados
+          coletivamente como <emphasis>tipos numéricos aproximados</emphasis>.
+          (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+          ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+         </para>
+        </footnote>
+       </entry>
+      </row>
+
+      <row>
+       <entry><type>inet</type></entry>
+       <entry></entry>
+       <entry>endereço de hospedeiro IPv4 ou IPv6</entry>
+      </row>
+
+      <row>
+       <entry><type>integer</type></entry>
+       <entry><type>int</type>, <type>int4</type></entry>
+       <entry>inteiro de quatro bytes com sinal</entry>
+      </row>
+
+      <row>
+       <entry><type>interval [ (<replaceable>p</replaceable>) ]</type></entry>
+       <entry></entry>
+       <entry>espaço de tempo</entry>
+      </row>
+
+      <row>
+       <entry><type>line</type></entry>
+       <entry></entry>
+       <entry>linha infinita no plano</entry>
+      </row>
+
+      <row>
+       <entry><type>lseg</type></entry>
+       <entry></entry>
+       <entry>segmento de linha no plano</entry>
+      </row>
+
+      <row>
+       <entry><type>macaddr</type></entry>
+       <entry></entry>
+       <entry>endereço MAC</entry>
+      </row>
+
+      <row>
+       <entry><type>money</type></entry>
+       <entry></entry>
+       <entry>quantia monetária</entry>
+      </row>
+
+      <row>
+       <entry><type>numeric [ (<replaceable>p</replaceable>,
+         <replaceable>s</replaceable>) ]</type></entry>
+       <entry><type>decimal [ (<replaceable>p</replaceable>,
+         <replaceable>s</replaceable>) ]</type></entry>
+       <entry>numérico exato com precisão selecionável</entry>
+      </row>
+
+      <row>
+       <entry><type>path</type></entry>
+       <entry></entry>
+       <entry>caminho geométrico no plano</entry>
+      </row>
+
+      <row>
+       <entry><type>point</type></entry>
+       <entry></entry>
+       <entry>ponto geométrico no plano</entry>
+      </row>
+
+      <row>
+       <entry><type>polygon</type></entry>
+       <entry></entry>
+       <entry>caminho geométrico fechado no plano</entry>
+      </row>
+
+      <row>
+       <entry><type>real</type></entry>
+       <entry><type>float4</type></entry>
+       <entry>número de ponto flutuante de precisão simples</entry>
+      </row>
+
+      <row>
+       <entry><type>smallint</type></entry>
+       <entry><type>int2</type></entry>
+       <entry>inteiro de dois bytes com sinal</entry>
+      </row>
+
+      <row>
+       <entry><type>serial</type></entry>
+       <entry><type>serial4</type></entry>
+       <entry>inteiro de quatro bytes com auto-incremento</entry>
+      </row>
+
+      <row>
+       <entry><type>text</type></entry>
+       <entry></entry>
+       <entry>cadeia de caracteres de comprimento variável</entry>
+      </row>
+
+      <row>
+       <entry><type>time [ (<replaceable>p</replaceable>) ] [ without time zone ]</type></entry>
+       <entry></entry>
+       <entry>hora do dia</entry>
+      </row>
+
+      <row>
+       <entry><type>time [ (<replaceable>p</replaceable>) ] with time zone</type></entry>
+       <entry><type>timetz</type></entry>
+       <entry>hora do dia, incluindo a zona horária</entry>
+      </row>
+
+      <row>
+       <entry><type>timestamp [ (<replaceable>p</replaceable>) ] [ without time zone ]</type></entry>
+       <entry></entry>
+       <entry>data e hora</entry>
+      </row>
+
+      <row>
+       <entry><type>timestamp [ (<replaceable>p</replaceable>) ] with time zone</type></entry>
+       <entry><type>timestamptz</type></entry>
+       <entry>data e hora, incluindo a zona horária</entry>
+      </row>
+     </tbody>
+    </tgroup>
+   </table>
+
+  <note>
+   <title>Compatibilidade</title>
+   <para>
+    Os seguintes tipos (ou a citação destes) são especificados pelo padrão
+    <acronym>SQL</acronym>: <type>bit</type>, <type>bit
+    varying</type>, <type>boolean</type>, <type>char</type>,
+    <type>character varying</type>, <type>character</type>,
+    <type>varchar</type>, <type>date</type>, <type>double
+    precision</type>, <type>integer</type>, <type>interval</type>,
+    <type>numeric</type>, <type>decimal</type>, <type>real</type>,
+    <type>smallint</type>, <type>time</type> (com ou sem zona horária),
+    <type>timestamp</type> (com ou sem zona horária).
+   </para>
+  </note>
+
+  <para>
+   Cada tipo de dado possui uma representação externa determinada pelas
+   suas funções de entrada e de saída. Muitos tipos nativos possuem
+   formato externo óbvio. Entretanto, muitos tipos existem apenas no
+   <productname>PostgreSQL</productname>, como os caminhos geométricos,
+   ou possuem várias possibilidades para o formato, como os tipos
+   de data e hora.
+   Algumas das funções de entrada e saída não são inversíveis, ou seja,
+   o resultado da função de saída pode perder precisão quando comparado
+   com a entrada original.
+  </para>
+
+  <sect1 id="datatype-numeric">
+   <title>Tipos numéricos</title>
+
+   <indexterm zone="datatype-numeric">
+    <primary>tipo de dado</primary>
+    <secondary>numérico</secondary>
+   </indexterm>
+
+   <para>
+    Os tipos numéricos consistem em inteiros de dois, quatro e oito bytes,
+    números de ponto flutuante de quatro e oito bytes, e decimais de
+    precisão selecionável. A <xref linkend="datatype-numeric-table"> lista os
+    tipos disponíveis.
+   </para>
+
+    <table id="datatype-numeric-table">
+     <title>Tipos numéricos</title>
+     <tgroup cols="4">
+      <thead>
+       <row>
+        <entry>Nome</entry>
+        <entry>Tamanho de armazenamento</entry>
+        <entry>Descrição</entry>
+        <entry>Faixa de valores</entry>
+       </row>
+      </thead>
+
+      <tbody>
+       <row>
+        <entry><type>smallint</></entry>
+        <entry>2 bytes</entry>
+        <entry>inteiro com faixa pequena</entry>
+        <entry>-32768 a +32767</entry>
+       </row>
+       <row>
+        <entry><type>integer</></entry>
+        <entry>4 bytes</entry>
+        <entry>escolha usual para inteiro</entry>
+        <entry>-2147483648 a +2147483647</entry>
+       </row>
+       <row>
+        <entry><type>bigint</></entry>
+        <entry>8 bytes</entry>
+        <entry>inteiro com faixa larga</entry>
+        <entry>-9223372036854775808 a 9223372036854775807</entry>
+       </row>
+
+       <row>
+        <entry><type>decimal</></entry>
+        <entry>variável</entry>
+        <entry>precisão especificada pelo usuário, exato</entry>
+        <entry>sem limite</entry>
+       </row>
+       <row>
+        <entry><type>numeric</></entry>
+        <entry>variável</entry>
+        <entry>precisão especificada pelo usuário, exato</entry>
+        <entry>sem limite</entry>
+       </row>
+
+       <row>
+        <entry><type>real</></entry>
+        <entry>4 bytes</entry>
+        <entry>precisão variável, inexato</entry>
+        <entry>precisão de 6 dígitos decimais</entry>
+       </row>
+       <row>
+        <entry><type>double precision</></entry>
+        <entry>8 bytes</entry>
+        <entry>precisão variável, inexato</entry>
+        <entry>precisão de 15 dígitos decimais</entry>
+       </row>
+
+       <row>
+        <entry><type>serial</></entry>
+        <entry>4 bytes</entry>
+        <entry>inteiro com auto-incremento</entry>
+        <entry>1 a 2147483647</entry>
+       </row>
+
+       <row>
+        <entry><type>bigserial</type></entry>
+        <entry>8 bytes</entry>
+        <entry>inteiro grande com auto-incremento</entry>
+        <entry>1 a 9223372036854775807</entry>
+       </row>
+      </tbody>
+     </tgroup>
+    </table>
+
+   <para>
+    A sintaxe das constantes para os tipos numéricos é descrita na
+    <xref linkend="sql-syntax-constants">. Os tipos numéricos possuem
+    um conjunto completo de operadores aritméticos e funções
+    correspondentes. Consulte o <xref linkend="functions"> para obter
+    informações adicionais. As próximas seções descrevem os tipos em detalhe.
+   </para>
+
+   <sect2 id="datatype-int">
+    <title>Tipos inteiros</title>
+
+    <indexterm zone="datatype-int">
+     <primary>integer</primary>
+    </indexterm>
+
+    <indexterm zone="datatype-int">
+     <primary>smallint</primary>
+    </indexterm>
+
+    <indexterm zone="datatype-int">
+     <primary>bigint</primary>
+    </indexterm>
+
+    <indexterm>
+     <primary>int4</primary>
+     <see>integer</see>
+    </indexterm>
+
+    <indexterm>
+     <primary>int2</primary>
+     <see>smallint</see>
+    </indexterm>
+
+    <indexterm>
+     <primary>int8</primary>
+     <see>bigint</see>
+    </indexterm>
+
+    <para>
+     Os tipos <type>smallint</type>, <type>integer</type> e
+     <type>bigint</type> armazenam números inteiros, ou seja,
+     números sem a parte fracionária, com faixas diferentes.
+     A tentativa de armazenar um valor fora da faixa permitida resulta em erro.
+    </para>
+
+    <para>
+     O tipo <type>integer</type> é a escolha usual, porque oferece o melhor
+     equilíbrio entre faixa de valores, tamanho de armazenamento e desempenho.
+     Geralmente o tipo <type>smallint</type> só é utilizado quando o espaço em
+     disco está muito escasso. O tipo <type>bigint</type> somente deve ser
+     usado quando a faixa de valores de <type>integer</type> não for suficiente,
+     porque este último é bem mais rápido.
+    </para>
+
+    <para>
+     O tipo <type>bigint</type> pode não funcionar de modo correto em todas as
+     plataformas, porque depende de suporte no compilador para inteiros de
+     oito bytes. Nas máquinas sem este suporte, o <type>bigint</type> age
+     do mesmo modo que o <type>integer</type> (mas ainda ocupa oito bytes
+     de armazenamento). Entretanto, não é de nosso conhecimento nenhuma
+     plataforma razoável onde este caso se aplique.
+    </para>
+
+    <para>
+     O padrão <acronym>SQL</acronym> somente especifica os tipos inteiros
+     <type>integer</type> (ou <type>int</type>) e
+     <type>smallint</type>. O tipo <type>bigint</type>, e os nomes
+     de tipo <type>int2</type>, <type>int4</type> e
+     <type>int8</type> são extensões, também compartilhadas
+     por vários outros sistemas de banco de dados <acronym>SQL</acronym>.
+    </para>
+
+   </sect2>
+
+   <sect2 id="datatype-numeric-decimal">
+    <title>Números com precisão arbitrária</title>
+
+    <indexterm zone="datatype-numeric-decimal">
+     <primary>numérico (tipo de dado)</primary>
+    </indexterm>
+
+    <indexterm>
+     <primary>decimal</primary>
+     <see>numérico</see>
+    </indexterm>
+
+    <para>
+     O tipo <type>numeric</type> pode armazenar números com precisão de até
+     1.000 dígitos e realizar cálculos exatos. É recomendado, especialmente,
+     para armazenar quantias monetárias e outras quantidades onde se requeira
+     exatidão. Entretanto, a aritmética em valores do tipo
+     <type>numeric</type> é muito lenta se comparada com os tipos inteiros,
+     ou com os tipos de ponto flutuante descritos na próxima seção.
+    </para>
+
+    <para>
+     São utilizados os seguintes termos: A
+     <firstterm>escala</firstterm> do tipo <type>numeric</type> é o
+     número de dígitos decimais da parte fracionária, à direita do
+     ponto decimal. A <firstterm>precisão</firstterm> do tipo
+     <type>numeric</type> é o número total de dígitos significativos de todo
+     o número, ou seja, o número de dígitos nos dois lados do
+     ponto decimal. Portanto, o número 23.5141
+     <footnote>
+      <para>
+       Padrão americano: o ponto, e não a vírgula, separando a parte
+       fracionária. (N. do T.)
+      </para>
+     </footnote>
+     possui precisão igual a 6 e escala igual a 4. Os inteiros podem ser
+     considerados como tendo escala igual a zero.
+    </para>
+
+    <para>
+     Tanto a precisão máxima quanto a escala de uma coluna do tipo
+     <type>numeric</type> podem ser configuradas. Para declarar uma coluna do
+     tipo <type>numeric</type> é utilizada a sintaxe:
+<programlisting>
+NUMERIC(<replaceable>precisão</replaceable>, <replaceable>escala</replaceable>)
+</programlisting>
+     A precisão deve ser um número positivo, enquanto a escala pode ser zero ou
+     positiva. Como forma alternativa,
+<programlisting>
+NUMERIC(<replaceable>precisão</replaceable>)
+</programlisting>
+     define a escala como sendo igual a 0. Especificando-se
+<programlisting>
+NUMERIC
+</programlisting>
+     sem qualquer precisão ou escala é criada uma coluna onde podem ser
+     armazenados valores numéricos com qualquer precisão ou escala, até a
+     precisão limite da implementação. Uma coluna deste tipo não converte os
+     valores de entrada para nenhuma escala em particular, enquanto as colunas
+     do tipo <type>numeric</type> com escala declarada convertem os valores da
+     entrada para esta escala (O padrão <acronym>SQL</acronym> requer
+     a escala padrão igual a 0, ou seja, uma conversão para a precisão
+     inteira. Isto foi considerado sem utilidade. Havendo preocupação com a
+     portabilidade, a precisão e a escala devem ser sempre especificadas
+     explicitamente).
+    </para>
+
+    <para>
+     Se a escala do valor a ser armazenado for maior que a escala declarada
+     para a coluna, o sistema arredonda o valor para o número de dígitos
+     fracionários especificado. Depois, se o número de dígitos à esquerda do
+     ponto decimal exceder a precisão declarada menos a escala declarada,
+     é gerado um erro.
+    </para>
+
+    <example id="datatype-numeric-round">
+     <title>Arredondamento em tipo <type>numeric</type></title>
+
+     <para>
+      Abaixo estão mostrados exemplos de inserção de dados em um campo do tipo
+      <type>numeric</type>. No terceiro exemplo o arredondamento faz com que
+      a precisão do campo seja excedida.
+      <footnote>
+       <para>
+        Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+       </para>
+      </footnote>
+     </para>
+
+     <para>
+      A execução deste exemplo no <productname>SQL Server 2000</productname>
+      e no <productname>Oracle 10g</productname> produziu o mesmo resultado,
+      mas o <productname>DB2 8.1</productname> em vez de arredondar trunca
+      as casas decimais e, por isso, a precisão não é excedida.
+     </para>
+
+<screen>
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE t ( c NUMERIC(6,3));</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES (998.9991);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES (998.9999);</userinput>
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM t;</userinput>
+
+<computeroutput>
+    c
+---------
+ 998.999
+ 999.000
+(2 linhas)
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES (999.9999);</userinput>
+
+<computeroutput>
+ERRO:  estouro de campo numérico
+DETALHE:  O valor absoluto é maior ou igual a 10^3 para campo com precisão 6, escala 3.
+</computeroutput>
+</screen>
+   </example>
+
+    <para>
+     Os valores numéricos são armazenados fisicamente sem zeros adicionais no
+     início ou no final. Portanto, a precisão e a escala declaradas para uma
+     coluna são as alocações máximas, e não fixas (Sob este aspecto o tipo
+     <type>numeric</> é mais semelhante ao tipo
+     <type>varchar(<replaceable>n</>)</type> do que ao tipo
+     <type>char(<replaceable>n</>)</type>).
+    </para>
+
+    <para>
+     Além dos valores numéricos ordinários o tipo <type>numeric</type>
+     aceita o valor especial <literal>NaN</>, que significa
+     <quote>não-é-um-número</quote> (<literal>not-a-number</literal>).
+     Toda operação envolvendo <literal>NaN</> produz outro <literal>NaN</>.
+     Para escrever este valor como uma constante em um comando SQL deve-se
+     colocá-lo entre apóstrofos como, por exemplo,
+     <literal>UPDATE tabela SET x = 'NaN'</>. Na entrada, a cadeia de
+     caracteres <literal>NaN</> é reconhecida sem que haja distinção entre
+     letras maiúsculas e minúsculas.
+    </para>
+
+    <para>
+     Os tipos <type>decimal</type> e <type>numeric</type> são equivalentes.
+     Os dois tipos fazem parte do padrão <acronym>SQL</acronym>.
+    </para>
+   </sect2>
+
+
+   <sect2 id="datatype-float">
+    <title>Tipos de ponto flutuante</title>
+
+    <indexterm zone="datatype-float">
+     <primary>real</primary>
+    </indexterm>
+
+    <indexterm zone="datatype-float">
+     <primary>precisão dupla</primary>
+    </indexterm>
+
+    <indexterm>
+     <primary>float4</primary>
+     <see>real</see>
+    </indexterm>
+
+    <indexterm>
+     <primary>float8</primary>
+     <see>precisão dupla</see>
+    </indexterm>
+
+    <indexterm zone="datatype-float">
+     <primary>ponto flutuante</primary>
+    </indexterm>
+
+    <para>
+     Os tipos de dado <type>real</type> e <type>double precision</type> são
+     tipos numéricos não exatos de precisão variável.
+     Na prática, estes tipos são geralmente implementações do <quote>Padrão
+     <acronym>IEEE</acronym> 754 para Aritmética Binária de Ponto
+     Flutuante</quote> (de precisão simples e dupla, respectivamente), conforme
+     suportado pelo processador, sistema operacional e compilador utilizados.
+    </para>
+
+    <para>
+     Não exato significa que alguns valores não podem ser convertidos exatamente
+     para o formato interno, sendo armazenados como aproximações. Portanto, ao
+     se armazenar e posteriormente imprimir um valor podem ocorrer pequenas
+     discrepâncias. A gerência destes erros, e como se propagam através dos
+     cálculos, é assunto de um ramo da matemática e da ciência da computação
+     que não será exposto aqui, exceto os seguintes pontos:
+     <itemizedlist>
+      <listitem>
+       <para>
+        Se for necessário armazenamento e cálculos exatos (como em quantias
+        monetárias), em vez de tipos de ponto flutuante deve ser utilizado o
+        tipo <type>numeric</type>.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Se for desejado efetuar cálculos complicados usando tipos de ponto
+        flutuante para algo importante, especialmente dependendo de certos
+        comportamentos em situações limites (infinito ou muito próximo de zero),
+        a implementação deve ser avaliada cuidadosamente.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        A comparação de igualdade de dois valores de ponto flutuante pode
+        funcionar conforme o esperado, ou não.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </para>
+
+    <para>
+     Na maioria das plataformas o tipo <type>real</type> possui uma faixa de
+     pelo menos 1E-37 a 1E+37, com precisão de pelo menos 6 dígitos decimais.
+     O tipo <type>double precision</type> normalmente possui uma faixa em torno
+     de 1E-307 a 1E+308 com precisão de pelo menos 15 dígitos. Os valores
+     muito pequenos ou muito grandes causam erro. O arredondamento pode
+     acontecer se a precisão do número entrado for muito grande.
+     Os números muito próximos de zero, que não podem ser representados de forma
+     distinta de zero, causam erro de <literal>underflow</literal>.
+    </para>
+
+    <para>
+     Além dos valores numéricos ordinários, os tipos de ponto flutuante
+     possuem diversos valores especiais:
+<literallayout>
+<literal>Infinity</literal>
+<literal>-Infinity</literal>
+<literal>NaN</literal>
+</literallayout>
+     Estes valores representam os valores especiais do padrão IEEE 754
+     <quote>infinito</quote>, <quote>infinito negativo</quote> e
+     <quote>não-é-um-número</quote>, respectivamente (Nas máquinas cuja
+     aritmética de ponto flutuante não segue o padrão IEEE 754, estes valores
+     provavelmente não vão funcionar da forma esperada). Ao se escrever estes
+     valores como constantes em um comando SQL deve-se colocá-los entre
+     apóstrofos como, por exemplo, <literal>UPDATE tabela SET x = 'Infinity'</>.
+     Na entrada, estas cadeias de caracteres são reconhecidas sem que haja
+     distinção entre letras maiúsculas e minúsculas
+    </para>
+
+    <para>
+     O <productname>PostgreSQL</productname> também suporta a notação do padrão
+     SQL <type>float</type> e <type>float(<replaceable>p</replaceable>)</type>
+     para especificar tipos numéricos inexatos. Neste caso,
+     <replaceable>p</replaceable> especifica a precisão mínima aceitável em
+     dígitos binários. O <productname>PostgreSQL</productname> aceita de
+     <type>float(1)</type> a <type>float(24)</type> como selecionando o
+     tipo <type>real</type>, enquanto <type>float(25)</type> a
+     <type>float(53)</type> selecionam <type>double precision</type>.
+     Os valores de <replaceable>p</replaceable> fora da faixa permitida
+     ocasionam erro.
+     <type>float</type> sem precisão especificada é assumido como significando
+     <type>double precision</type>.
+    </para>
+
+    <note>
+     <para>
+      Antes do <productname>PostgreSQL</productname> 7.4 a precisão em
+      <type>float(<replaceable>p</replaceable>)</type> era considerada como
+      significando a quantidade de dígitos decimais, mas foi corrigida para
+      corresponder ao padrão SQL, que especifica que a precisão é medida em
+      dígitos binários. A premissa que <type>real</type> e
+      <type>double precision</type> possuem exatamente 24 e 53 bits na
+      mantissa, respectivamente, está correta para implementações em acordo
+      com o padrão IEEE para números de ponto flutuante. Nas plataformas
+      não-IEEE pode ser um pouco diferente, mas para simplificar as mesmas
+      faixas de <replaceable>p</replaceable> são utilizadas em todas as
+      plataformas.
+     </para>
+    </note>
+
+   </sect2>
+
+   <sect2 id="datatype-serial">
+    <title>Tipos seriais</title>
+
+    <indexterm zone="datatype-serial">
+     <primary>serial</primary>
+    </indexterm>
+
+    <indexterm zone="datatype-serial">
+     <primary>bigserial</primary>
+    </indexterm>
+
+    <indexterm zone="datatype-serial">
+     <primary>serial4</primary>
+    </indexterm>
+
+    <indexterm zone="datatype-serial">
+     <primary>serial8</primary>
+    </indexterm>
+
+    <indexterm>
+     <primary>auto-incremento</primary>
+     <see>serial</see>
+    </indexterm>
+
+    <indexterm>
+     <primary>seqüência</primary>
+     <secondary>e o tipo serial</secondary>
+    </indexterm>
+
+    <para>
+     Os tipos de dado <type>serial</type> e <type>bigserial</type>
+     não são tipos verdadeiros, mas meramente uma
+     notação conveniente para definir colunas identificadoras únicas
+     (semelhante à propriedade <literal>AUTO_INCREMENTO</literal> existente
+     em alguns outros bancos de dados). Na implementação corrente especificar
+
+<programlisting>
+CREATE TABLE <replaceable class="parameter">nome_da_tabela</replaceable> (
+    <replaceable class="parameter">nome_da_coluna</replaceable> SERIAL
+);
+</programlisting>
+
+     equivale a especificar:
+
+<programlisting>
+CREATE SEQUENCE <replaceable class="parameter">nome_da_tabela</replaceable>_<replaceable class="parameter">nome_da_coluna</replaceable>_seq;
+CREATE TABLE <replaceable class="parameter">nome_da_tabela</replaceable> (
+    <replaceable class="parameter">nome_da_coluna</replaceable> integer DEFAULT nextval('<replaceable class="parameter">nome_da_tabela</replaceable>_<replaceable class="parameter">nome_da_coluna</replaceable>_seq') NOT NULL
+);
+</programlisting>
+
+     Conforme visto, foi criada uma coluna do tipo inteiro e feito o valor
+     padrão ser atribuído a partir de um gerador de seqüência. A restrição
+     <literal>NOT NULL</literal> é aplicada para garantir que não pode ser
+     inserido o valor nulo explicitamente. Na maior parte das vezes, deve ser
+     colocada uma restrição <literal>UNIQUE</literal> ou
+     <literal>PRIMARY KEY</literal> para não permitir a inserção de valores
+     duplicados por acidente, mas isto não é automático.
+    </para>
+
+    <note>
+     <para>
+      Antes do <productname>PostgreSQL</productname> 7.3 <type>serial</type>
+      implicava <literal>UNIQUE</literal>, mas isto não é mais automático.
+      Se for desejado que a coluna serial esteja em uma restrição de unicidade
+      ou de chave primária isto deve ser especificado, da mesma forma
+      como em qualquer outro tipo de dado.
+     </para>
+    </note>
+
+    <para>
+     Para inserir o próximo valor da seqüência em uma coluna do tipo
+     <type>serial</type> deve ser especificada a atribuição do valor padrão
+     à coluna <type>serial</type>, o que pode ser feito omitindo a
+     coluna na lista de colunas no comando <command>INSERT</command>, ou através
+     da utilização da palavra chave <literal>DEFAULT</literal>.
+    </para>
+
+    <para>
+     Os nomes de tipo <type>serial</type> e <type>serial4</type> são
+     equivalentes: ambos criam colunas do tipo <type>integer</type>.
+     Os nomes de tipo <type>bigserial</type> e <type>serial8</type> funcionam
+     da mesma maneira, exceto por criarem uma coluna <type>bigint</type>.
+     Deve ser utilizado <type>bigserial</type> se forem esperados
+     mais de 2<superscript>31</superscript> identificadores durante a
+     existência da tabela.
+    </para>
+
+    <para>
+     A seqüência criada para a coluna do tipo <type>serial</type> é
+     removida automaticamente quando a coluna que a definiu é removida, e
+     não pode ser removida de outra forma (Isto não era verdade nas versões do
+     <productname>PostgreSQL</productname> anteriores a 7.3. Deve ser observado
+     que este vínculo de remoção automática não ocorre em uma seqüência
+     criada pela restauração da cópia de segurança de um banco de dados pré-7.3;
+     a cópia de segurança não contém as informações necessárias para estabelecer
+     o vínculo de dependência). Além disso, a dependência entre a seqüência e a
+     coluna é feita apenas para a própria coluna <type>serial</type>; se
+     qualquer outra coluna fizer referência à seqüência (talvez chamando
+     manualmente a função <function>nextval()</function>), haverá rompimento se
+     a seqüência for removida. Esta forma de utilizar as seqüências das colunas
+     <type>serial</type> é considerada um estilo ruim. Se for desejado suprir
+     várias colunas a partir do mesmo gerador de seqüência, a seqüência deve ser
+     criada como um objeto independente.
+    </para>
+
+   <example id="datatype-serial-restart">
+    <title>Alteração da seqüência da coluna serial</title>
+    <para>
+     A seqüência criada para a coluna do tipo <type>serial</type> pode ter seus
+     parâmetros alterados através do comando <xref linkend="sql-altersequence">,
+     da mesma forma que qualquer outra seqüência criada através do comando
+     <xref linkend="sql-createsequence">.
+     Este exemplo mostra como proceder para fazer com que o valor inicial
+     da coluna do tipo <type>serial</type> seja igual a 1000.
+     <footnote>
+      <para>
+       Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+      </para>
+     </footnote>
+<screen>
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE t ( c1 SERIAL, c2 TEXT);</userinput>
+
+<computeroutput>
+NOTICE:  CREATE TABLE will create implicit sequence "t_c1_seq" for "serial" column "t.c1"
+CREATE TABLE
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>\ds</userinput>
+
+<computeroutput>
+             Lista de relações
+ Esquema |   Nome   |   Tipo    |   Dono
+---------+----------+-----------+----------
+ public  | t_c1_seq | seqüência | postgres
+(1 linha)
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>ALTER SEQUENCE t_c1_seq RESTART WITH 1000;</userinput>
+
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES (DEFAULT, 'Primeira linha');</userinput>
+
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM t;</userinput>
+
+<computeroutput>
+  c1  |       c2
+------+----------------
+ 1000 | Primeira linha
+(1 linha)
+</computeroutput>
+</screen>
+    </para>
+   </example>
+   </sect2>
+  </sect1>
+
+  <sect1 id="datatype-money">
+   <title>Tipos monetários</title>
+
+   <note>
+    <para>
+     O tipo <type>money</type> está em obsolescência.  Em seu lugar deve ser
+     utilizado o tipo <type>numeric</type> ou <type>decimal</type>, em
+     combinação com a função <function>to_char</function>.
+    </para>
+   </note>
+
+   <para>
+    O tipo <type>money</type> armazena a quantia monetária com uma
+    precisão fracionária fixa; consulte a <xref linkend="datatype-money-table">.
+    A entrada é aceita em vários formatos, incluindo literais inteiros
+    e de ponto flutuante, e também o formato monetário <quote>típico</quote>,
+    como <literal>'$1,000.00'</literal>.
+    A saída geralmente é neste último formato, mas depende do idioma).
+   </para>
+
+    <table id="datatype-money-table">
+     <title>Tipos monetários</title>
+     <tgroup cols="4">
+      <thead>
+       <row>
+        <entry>Nome</entry>
+        <entry>Tamanho de Armazenamento</entry>
+        <entry>Descrição</entry>
+        <entry>Faixa</entry>
+       </row>
+      </thead>
+      <tbody>
+       <row>
+        <entry>money</entry>
+        <entry>4 bytes</entry>
+        <entry>quantia monetária</entry>
+        <entry>-21474836.48 a +21474836.47</entry>
+       </row>
+      </tbody>
+     </tgroup>
+    </table>
+  </sect1>
+
+
+  <sect1 id="datatype-character">
+   <title>Tipos para cadeias de caracteres</title>
+
+   <indexterm zone="datatype-character">
+    <primary>cadeia de caracteres</primary>
+    <secondary>tipo de dado</secondary>
+   </indexterm>
+
+   <indexterm>
+    <primary>string</primary>
+    <see>cadeia de caracteres</see>
+   </indexterm>
+
+   <indexterm zone="datatype-character">
+    <primary>character</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-character">
+    <primary>character varying</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-character">
+    <primary>text</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-character">
+    <primary>char</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-character">
+    <primary>varchar</primary>
+   </indexterm>
+
+   <para>
+    A <xref linkend="datatype-character-table"> mostra os
+    tipos de propósito geral para cadeias de caracteres disponíveis no
+    <productname>PostgreSQL</productname>.
+   </para>
+
+    <table id="datatype-character-table">
+     <title>Tipos para cadeias de caracteres</title>
+     <tgroup cols="2">
+      <thead>
+       <row>
+        <entry>Nome</entry>
+        <entry>Descrição</entry>
+       </row>
+      </thead>
+      <tbody>
+       <row>
+        <entry><type>character varying(<replaceable>n</>)</type>, <type>varchar(<replaceable>n</>)</type></entry>
+        <entry>comprimento variável com limite</entry>
+       </row>
+       <row>
+        <entry><type>character(<replaceable>n</>)</type>, <type>char(<replaceable>n</>)</type></entry>
+        <entry>comprimento fixo, completado com brancos</entry>
+       </row>
+       <row>
+        <entry><type>text</type></entry>
+        <entry>comprimento variável não limitado</entry>
+       </row>
+     </tbody>
+     </tgroup>
+    </table>
+
+   <para>
+    O <acronym>SQL</acronym> define dois tipos primários para caracteres:
+    <type>character varying(<replaceable>n</replaceable>)</type> e
+    <type>character(<replaceable>n</replaceable>)</type>, onde
+    <replaceable>n</replaceable> é um número inteiro positivo. Estes dois tipos
+    podem armazenar cadeias de caracteres com comprimento de até
+    <replaceable>n</replaceable> caracteres. A tentativa de armazenar uma cadeia
+    de caracteres mais longa em uma coluna de um destes tipos resulta em erro,
+    a não ser que os caracteres excedentes sejam todos espaços; neste caso
+    a cadeia de caracteres será truncada em seu comprimento máximo (Esta exceção
+    um tanto bizarra é requerida pelo padrão <acronym>SQL</acronym>).
+    Se a cadeia de caracteres a ser armazenada for mais curta que o comprimento
+    declarado, os valores do tipo <type>character</type> são completados com
+    espaços; os valores do tipo <type>character varying</type> simplesmente
+    armazenam uma cadeia de caracteres mais curta.
+   </para>
+
+    <para>
+     Se um valor for convertido explicitamente (<literal>cast</literal>) para
+     <type>character varying(<replaceable>n</replaceable>)</type>, ou para
+     <type>character(<replaceable>n</replaceable>)</type>, o excesso de
+     comprimento será truncado para <replaceable>n</replaceable> caracteres sem
+     gerar erro (isto também é requerido pelo padrão <acronym>SQL</acronym>).
+    </para>
+
+   <note>
+    <para>
+     Antes do <productname>PostgreSQL</productname> 7.2 as cadeias de
+     caracteres muito longas eram sempre truncadas sem gerar erro,
+     tanto no contexto de conversão explícita quanto no de implícita.
+    </para>
+   </note>
+
+   <para>
+    As notações <type>varchar(<replaceable>n</replaceable>)</type> e
+    <type>char(<replaceable>n</replaceable>)</type> são sinônimos para
+    <type>character varying(<replaceable>n</replaceable>)</type> e
+    <type>character(<replaceable>n</replaceable>)</type>, respectivamente.
+    O uso de <type>character</type> sem especificação de comprimento equivale a
+    <type>character(1)</type>; se for utilizado <type>character varying</type>
+    sem especificador de comprimento, este tipo aceita cadeias de caracteres de
+    qualquer tamanho. Este último é uma extensão do <productname>PostgreSQL</>.
+   </para>
+
+   <para>
+    Além desses o <productname>PostgreSQL</productname> disponibiliza o tipo
+    <type>text</type>, que armazena cadeias de caracteres de qualquer
+    comprimento. Embora o tipo <type>text</type> não esteja no padrão
+    <acronym>SQL</acronym>, vários outros sistemas gerenciadores de banco de
+    dados SQL também o possuem.
+   </para>
+
+   <para>
+    Os valores do tipo <type>character</type> são preenchidos fisicamente com
+    espaços até o comprimento <replaceable>n</> especificado, sendo armazenados
+    e mostrados desta forma. Entretanto, os espaços de preenchimento são
+    tratados como não sendo significativos semanticamente. Os espaços de
+    preenchimento são desconsiderados ao se comparar dois valores do tipo
+    <type>character</type>, e são removidos ao converter um valor do tipo
+    <type>character</type> para um dos outros tipos para cadeia de caracteres.
+    Deve ser observado que os espaços no final <emphasis>são</> significativos
+    semanticamente nos valores dos tipos <type>character varying</type> e
+    <type>text</type>.
+   </para>
+
+   <para>
+    São necessários para armazenar dados destes tipos 4 bytes mais a própria
+    cadeia de caracteres e, no caso do tipo <type>character</type>, mais os
+    espaços para completar o tamanho. As cadeias de caracteres longas são
+    comprimidas automaticamente pelo sistema e, portanto, o espaço físico
+    necessário em disco pode ser menor. Os valores longos também são
+    armazenados em tabelas secundárias, para não interferirem com o acesso
+    rápido aos valores mais curtos da coluna. De qualquer forma, a cadeia de
+    caracteres mais longa que pode ser armazenada é em torno de 1 GB (O valor
+    máximo permitido para <replaceable>n</replaceable> na declaração do tipo de
+    dado é menor que isto. Não seria muito útil mudar, porque de todo jeito nas
+    codificações de caractere multibyte o número de caracteres e de bytes podem
+    ser bem diferentes. Se for desejado armazenar cadeias de caracteres longas,
+    sem um limite superior especificado, deve ser utilizado <type>text</type> ou
+    <type>character varying</type> sem a especificação de comprimento,
+    em vez de especificar um limite de comprimento arbitrário).
+   </para>
+
+   <tip>
+    <para>
+     Não existe diferença de desempenho entre estes três tipos, a não ser pelo
+     aumento do tamanho do armazenamento quando é utilizado o tipo completado
+     com brancos. Enquanto o tipo <type>character(<replaceable>n</>)</type>
+     possui vantagens no desempenho em alguns outros sistemas gerenciadores de
+     banco de dados, não possui estas vantagens no
+     <productname>PostgreSQL</productname>. Na maioria das situações deve
+     ser utilizado <type>text</type> ou <type>character varying</type>
+     em vez deste tipo.
+    </para>
+   </tip>
+
+   <para>
+    Consulte a <xref linkend="sql-syntax-strings"> para obter informações sobre
+    a sintaxe dos literais cadeias de caracteres, e o <xref linkend="functions">
+    para obter informações sobre os operadores e funções.
+    O conjunto de caracteres do banco de dados determina o conjunto de
+    caracteres utilizado para armazenar valores textuais; para obter mais
+    informações sobre o suporte a conjunto de caracteres consulte a
+    <xref linkend="multibyte">.
+   </para>
+
+   <para>
+    Existem dois outros tipos para cadeias de caracteres de comprimento fixo no
+    <productname>PostgreSQL</productname>, mostrados na <xref
+    linkend="datatype-character-special-table">. O tipo <type>name</type>
+    existe <emphasis>apenas</emphasis> para armazenamento de identificadores nos
+    catálogos internos do sistema, não tendo por finalidade ser usado pelos
+    usuários comuns. Seu comprimento é definido atualmente como 64 bytes (63
+    caracteres utilizáveis mais o terminador) mas deve ser referenciado
+    utilizando a constante <symbol>NAMEDATALEN</symbol>. O comprimento é
+    definido quando é feita a compilação (sendo, portanto, ajustável para usos
+    especiais); o padrão para comprimento máximo poderá mudar em uma versão
+    futura. O tipo <type>"char"</type> (observe as aspas) é diferente de
+    <type>char(1)</type>, porque utiliza apenas um byte para armazenamento.
+    É utilizado internamente nos catálogos do sistema como o tipo de enumeração
+    do homem pobre (<literal>poor-man's enumeration type</literal>).
+   </para>
+
+    <table id="datatype-character-special-table">
+     <title>Tipos especiais para caracteres</title>
+     <tgroup cols="3">
+      <thead>
+       <row>
+        <entry>Nome</entry>
+        <entry>Tamanho de Armazenamento</entry>
+        <entry>Descrição</entry>
+       </row>
+      </thead>
+      <tbody>
+       <row>
+        <entry><type>"char"</type></entry>
+        <entry>1 byte</entry>
+        <entry>tipo interno de um único caractere</entry>
+       </row>
+       <row>
+        <entry><type>name</type></entry>
+        <entry>64 bytes</entry>
+        <entry>tipo interno para nomes de objeto</entry>
+       </row>
+      </tbody>
+     </tgroup>
+    </table>
+
+   <example id="datatype-string-use">
+    <title>Utilização dos tipos para cadeias de caracteres</title>
+
+<screen>
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE teste1 (a character(4));</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO teste1 VALUES ('ok');</userinput>
+<prompt>=&gt;</prompt> <userinput>SELECT a, char_length(a) FROM teste1;</userinput> -- <co id="co.datatype-char-1">
+
+<computeroutput>
+  a   | char_length
+------+-------------
+ ok   |           4
+</computeroutput>
+
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE teste2 (b VARCHAR(5));</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO teste2 VALUES ('ok');</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO teste2 VALUES ('bom        ');</userinput> -- <co id="co.datatype-char-2">
+<prompt>=&gt;</prompt> <userinput>INSERT INTO teste2 VALUES ('muito longo');</userinput>
+<computeroutput>ERRO:  valor muito longo para o tipo character varying(5)</computeroutput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO teste2 VALUES (CAST('muito longo' AS VARCHAR(5)));</userinput> -- truncamento explícito
+<prompt>=&gt;</prompt> <userinput>SELECT b, char_length(b) FROM teste2;</userinput>
+
+<computeroutput>
+   b   | char_length
+-------+-------------
+ ok    |           2
+ bom   |           5
+ muito |           5
+</computeroutput>
+</screen>
+
+    <para>
+     <calloutlist>
+      <callout arearefs="co.datatype-char-1">
+       <para>
+        A função <function>char_length</function> é mostrada na
+        <xref linkend="functions-string">.
+       </para>
+      </callout>
+      <callout arearefs="co.datatype-char-2">
+       <para>
+        O <productname>DB2 8.1</productname> atua da mesma maneira que
+        o <productname>PostgreSQL &version;</productname>, truncando os
+        espaços à direita que excedem o tamanho do campo, o
+        <productname>SQL Server 2000</productname> também, mas a função
+        <function>len</function> não conta os espaços à direita e o
+        comprimento mostrado fica sendo igual a 3, enquanto o
+        <productname>Oracle 10g</productname> não trunca os espaços à direita e
+        gera mensagem de erro informando que o valor é muito longo, como no
+        comando seguinte. (N. do T.)
+       </para>
+      </callout>
+     </calloutlist>
+    </para>
+   </example>
+
+   <example id="datatype-string-space-equal">
+    <title>Comparação de cadeias de caracteres com espaço à direita</title>
+    <para>
+     Nestes exemplos faz-se a comparação de uma cadeia de caracteres com espaço
+     à direita com outra cadeia de caracteres idêntica sem espaço à direita.
+     Na tabela <literal>t1</literal> é feita a comparação entre dois tipos
+     <type>char</type>, na tabela <literal>t2</literal> é feita a comparação
+     entre dois tipos <type>varchar</type>, e na tabela <literal>t3</literal>
+     é feita a comparação entre os tipos <type>char</type> e
+     <type>varchar</type>.
+     O mesmo script foi executado no <productname>PostgreSQL</productname>,
+     no <productname>Oracle</productname>, no
+     <productname>SQL Server</productname> e no <productname>DB2</productname>.
+     Abaixo está mostrado o script executado:
+     <footnote>
+      <para>
+       Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+      </para>
+     </footnote>
+     <footnote>
+      <para>
+       No <productname>SQL Server</productname> o operador <literal>||</literal>
+       foi substituído pelo operador <literal>+</literal>.
+      </para>
+     </footnote>
+<programlisting>
+CREATE TABLE t1 ( c1 CHAR(10), c2 CHAR(10));
+INSERT INTO t1 VALUES ('X', 'X ');
+SELECT '''' || c1 || '''' AS c1,
+       '''' || c2 || '''' AS c2,
+       CASE WHEN (c1=c2) THEN 'igual' ELSE 'diferente' END AS comparação
+FROM t1;
+
+CREATE TABLE t2 ( c1 VARCHAR(10), c2 VARCHAR(10));
+INSERT INTO t2 VALUES ('X', 'X ');
+SELECT '''' || c1 || '''' AS c1,
+       '''' || c2 || '''' AS c2,
+       CASE WHEN (c1=c2) THEN 'igual' ELSE 'diferente' END AS comparação
+FROM t2;
+
+CREATE TABLE t3 ( c1 CHAR(10), c2 VARCHAR(10));
+INSERT INTO t3 VALUES ('X', 'X ');
+INSERT INTO t3 VALUES ('X ', 'X');
+SELECT '''' || c1 || '''' AS c1,
+       '''' || c2 || '''' AS c2,
+       CASE WHEN (c1=c2) THEN 'igual' ELSE 'diferente' END AS comparação
+FROM t3;
+</programlisting>
+     A seguir estão mostrados os resultados obtidos:
+    </para>
+
+    <para>
+     <productname>PostgreSQL &version;</productname>:
+    </para>
+
+<screen>
+<computeroutput>
+
+ c1  | c2  | comparação
+-----+-----+------------
+ 'X' | 'X' | igual
+</computeroutput>
+
+<computeroutput>
+ c1  |  c2  | comparação
+-----+------+------------
+ 'X' | 'X ' | diferente
+</computeroutput>
+
+<computeroutput>
+ c1  |  c2  | comparação
+-----+------+------------
+ 'X' | 'X ' | igual
+ 'X' | 'X'  | igual
+</computeroutput>
+</screen>
+
+    <para>
+     <productname>SQL Server 2000</productname>:
+    </para>
+
+<screen>
+<computeroutput>
+c1           c2           comparação
+------------ ------------ ----------
+'X         ' 'X         ' igual
+</computeroutput>
+
+<computeroutput>
+c1           c2           comparação
+------------ ------------ ----------
+'X'          'X '         igual
+</computeroutput>
+
+<computeroutput>
+c1           c2           comparação
+------------ ------------ ----------
+'X         ' 'X '         igual
+'X         ' 'X'          igual
+</computeroutput>
+</screen>
+
+    <para>
+     <productname>Oracle 10g</productname>:
+    </para>
+
+<screen>
+<computeroutput>
+C1           C2           COMPARAÇÃO
+------------ ------------ ----------
+'X         ' 'X         ' igual
+</computeroutput>
+
+<computeroutput>
+C1           C2           COMPARAÇÃO
+------------ ------------ ----------
+'X'          'X '         diferente
+</computeroutput>
+
+<computeroutput>
+C1           C2           COMPARAÇÃO
+------------ ------------ ----------
+'X         ' 'X '         diferente
+'X         ' 'X'          diferente
+</computeroutput>
+</screen>
+
+    <para>
+     <productname>DB2 8.1</productname>:
+    </para>
+
+<screen>
+<computeroutput>
+C1           C2           COMPARAÇÃO
+------------ ------------ ----------
+'X         ' 'X         ' igual
+</computeroutput>
+
+<computeroutput>
+C1           C2           COMPARAÇÃO
+------------ ------------ ----------
+'X'          'X '         igual
+</computeroutput>
+
+<computeroutput>
+C1           C2           COMPARAÇÃO
+------------ ------------ ----------
+'X         ' 'X '         igual
+'X         ' 'X'          igual
+</computeroutput>
+</screen>
+
+    <para>
+     Como pode ser visto, no <productname>SQL Server</productname> e no
+     <productname>DB2</productname> todas as comparações foram consideradas como
+     sendo iguais. No <productname>Oracle</productname> só foi considerada
+     igual a comparação entre dois tipos <type>char</type>, enquanto no
+     <productname>PostgreSQL</productname> só foi considerada diferente a
+     comparação entre dois tipos <type>varchar</type>.
+    </para>
+   </example>
+
+  </sect1>
+
+ <sect1 id="datatype-binary">
+  <title>Tipos de dado binários</title>
+
+  <indexterm zone="datatype-binary">
+   <primary>dados binários</primary>
+  </indexterm>
+
+  <indexterm zone="datatype-binary">
+   <primary>bytea</primary>
+  </indexterm>
+
+   <para>
+    O tipo de dado <type>bytea</type> permite o armazenamento de cadeias
+    binárias; consulte a <xref linkend="datatype-binary-table">.
+   </para>
+
+   <table id="datatype-binary-table">
+    <title>Tipos de dado binários</title>
+    <tgroup cols="3">
+     <thead>
+      <row>
+       <entry>Nome</entry>
+       <entry>Tamanho de Armazenamento</entry>
+       <entry>Descrição</entry>
+      </row>
+     </thead>
+     <tbody>
+      <row>
+       <entry><type>bytea</type></entry>
+       <entry>4 bytes mais a cadeia binária</entry>
+       <entry>Cadeia binária de comprimento variável</entry>
+      </row>
+     </tbody>
+    </tgroup>
+   </table>
+
+   <para>
+    A cadeia binária é uma seqüência de octetos (ou bytes). As cadeias
+    binárias se distinguem das cadeias de caracteres por duas características:
+    Em primeiro lugar, as cadeias binárias permitem especificamente o
+    armazenamento de octetos com o valor zero e outros octetos
+    <quote>não-imprimíveis</quote> (geralmente octetos fora da faixa 32 a 126).
+    As cadeias de caracteres não permitem octetos zero, e também não permitem
+    outros valores de octeto e seqüências de valores de octeto inválidas
+    de acordo com o conjunto de caracteres da codificação selecionada para
+    o banco de dados.
+    Em segundo lugar, as operações nas cadeias binárias processam os bytes como
+    estão armazenados, enquanto o processamento das cadeias de caracteres
+    dependem do idioma definido.
+    Resumindo, as cadeias binárias são apropriadas para armazenar dados que os
+    programadores imaginam como <quote>octetos crus</quote>
+    (<literal>raw bytes</literal>), enquanto as cadeias de caracteres são
+    apropriadas para armazenar texto.
+   </para>
+
+   <para>
+    Ao entrar com valores para <type>bytea</type> octetos com certos valores
+    <emphasis>devem</emphasis> estar numa seqüência de escape (porém, todos os
+    valores de octeto <emphasis>podem</emphasis> estar numa seqüência de escape)
+    quando utilizados como parte do literal cadeia de bytes em uma declaração
+    <acronym>SQL</acronym>. Em geral, para construir a seqüência de escape de
+    um octeto este é convertido em um número octal de três dígitos equivalente
+    ao valor decimal do octeto, e precedido por duas contrabarras.
+    A <xref linkend="datatype-binary-sqlesc"> mostra os caracteres que devem
+    estar em uma seqüência de escape, e fornece a seqüência de escape
+    alternativa onde aplicável.
+   </para>
+
+   <table id="datatype-binary-sqlesc">
+    <title>Octetos com seqüência de escape para literais <type>bytea</type></title>
+    <tgroup cols="5">
+     <thead>
+      <row>
+       <entry>Valor decimal do octeto</entry>
+       <entry>Descrição</entry>
+       <entry>Representação da entrada com escape</entry>
+       <entry>Exemplo</entry>
+       <entry>Representação da saída</entry>
+      </row>
+     </thead>
+
+     <tbody>
+      <row>
+       <entry>0</entry>
+       <entry>octeto zero</entry>
+       <entry><literal>'\\000'</literal></entry>
+       <entry><literal>SELECT '\\000'::bytea;</literal></entry>
+       <entry><literal>\000</literal></entry>
+      </row>
+
+      <row>
+       <entry>39</entry>
+       <entry>apóstrofo</entry>
+       <entry><literal>'\''</literal> ou <literal>'\\047'</literal></entry>
+       <entry><literal>SELECT '\''::bytea;</literal></entry>
+       <entry><literal>'</literal></entry>
+      </row>
+
+      <row>
+       <entry>92</entry>
+       <entry>contrabarra</entry>
+       <entry><literal>'\\\\'</literal> ou <literal>'\\134'</literal></entry>
+       <entry><literal>SELECT '\\\\'::bytea;</literal></entry>
+       <entry><literal>\\</literal></entry>
+      </row>
+
+      <row>
+       <entry>0 a 31 e 127 a 255</entry>
+       <entry>octetos <quote>não-imprimíveis</quote></entry>
+       <entry><literal>'\\<replaceable>xxx'</></literal> (valor octal)</entry>
+       <entry><literal>SELECT '\\001'::bytea;</literal></entry>
+       <entry><literal>\001</literal></entry>
+      </row>
+
+     </tbody>
+    </tgroup>
+   </table>
+
+   <para>
+    A necessidade de colocar os octetos <quote>não-imprimíveis</quote> em uma
+    seqüência de escape varia conforme o idioma definido. Em certas
+    circunstâncias podem ser deixados fora de uma seqüência de escape.
+    Deve ser observado que o resultado de todos os exemplos da
+    <xref linkend="datatype-binary-sqlesc"> têm exatamente um octeto de
+    comprimento, muito embora a representação de saída do octeto zero e da
+    contrabarra possuam mais de um caractere.
+   </para>
+
+   <example id="datatype-bytea-diacritic-letter">
+    <title>Letra acentuada em <type>bytea</type></title>
+    <para>
+     Neste exemplo é feita a conversão explícita da cadeia de caracteres
+     <literal>aàáâã</literal> para o tipo <type>bytea</type>. Os mesmos
+     resultados são obtidos em bancos de dados com conjunto de caracteres
+     <literal>LATIN1</literal> e <literal>SQL_ASCII</literal>, desde que o
+     conjunto de caracteres do cliente seja <literal>ISO-8859-1</literal> ou
+     <literal>1252</literal> (<systemitem class="osname">Windows</systemitem>).
+     A letra <literal>a</literal> sem acento é mostrada literalmente, mas as
+     letras acentuadas são mostradas através de valores octais.
+     <footnote>
+      <para>
+       Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+      </para>
+     </footnote>
+     <footnote>
+      <para>
+       <literal>LATIN1</literal> é a forma de codificação de caracteres
+       especificada na <literal>ISO 8859-1</literal>.
+       (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+       ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+      </para>
+     </footnote>
+    </para>
+<screen>
+<prompt>=&gt;</prompt> <userinput>\!chcp 1252</userinput>
+<computeroutput>Active code page: 1252</computeroutput>
+<prompt>=&gt;</prompt> <userinput>SELECT cast('aàáâã' AS bytea);</userinput>
+
+<computeroutput>
+       bytea
+-------------------
+ a\340\341\342\343
+(1 linha)
+</computeroutput>
+</screen>
+   </example>
+
+   <para>
+    O motivo pelo qual é necessário escrever tantas contrabarras, conforme
+    mostrado na <xref linkend="datatype-binary-sqlesc">, é que uma cadeia de
+    caracteres de entrada escrita como um literal cadeia de caracteres deve
+    passar por duas fases de análise no servidor
+    <productname>PostgreSQL</productname>. A primeira contrabarra de cada par é
+    interpretada como um caractere de escape pelo analisador de literais cadeias
+    de caracteres e portanto consumida, deixando a segunda contrabarra do par.
+    A contrabarra remanescente é então reconhecida pela função de entrada de
+    <type>bytea</type> como o início de um valor octal de três dígitos ou como
+    escape de outra contrabarra. Por exemplo, o literal cadeia de caracteres
+    passado para o servidor como <literal>'\\001'</literal> se torna
+    <literal>'\001'</literal> após passar pelo analisador de literais cadeias
+    de caracteres. O <literal>'\001'</literal> é então enviado para a função de
+    entrada de <type>bytea</type>, onde é convertido em um único octeto com
+    valor decimal igual a 1. Deve ser observado que o caractere apóstrofo não
+    recebe tratamento especial por <type>bytea</type> e, portanto, segue as
+    regras usuais para literais cadeias de caracteres (Consulte também a
+    <xref linkend="sql-syntax-strings">.)
+   </para>
+
+   <para>
+    Os octetos <type>bytea</type> também são transformados em seqüências de
+    escape na saída. De uma maneira geral, cada octeto <quote>não-imprimível</>
+    é convertido em seu valor octal equivalente de três dígitos, e precedido por
+    uma contrabarra. Os octetos <quote>imprimíveis</quote> são, em sua maioria,
+    representados através de sua representação padrão no conjunto de caracteres
+    do cliente. O octeto com valor decimal 92 (contrabarra) possui uma
+    representação de saída alternativa especial. Os detalhes podem ser vistos
+    na <xref linkend="datatype-binary-resesc">.
+   </para>
+
+   <table id="datatype-binary-resesc">
+    <title>Saída dos octetos <type>bytea</type> com escape</title>
+    <tgroup cols="5">
+     <thead>
+      <row>
+       <entry>Valor decimal do octeto</entry>
+       <entry>Descrição</entry>
+       <entry>Representação da saída com escape</entry>
+       <entry>Exemplo</entry>
+       <entry>Resultado de saída</entry>
+      </row>
+     </thead>
+
+     <tbody>
+
+      <row>
+       <entry>92</entry>
+       <entry>contrabarra</entry>
+       <entry><literal>\\</literal></entry>
+       <entry><literal>SELECT '\\134'::bytea;</literal></entry>
+       <entry><literal>\\</literal></entry>
+      </row>
+
+      <row>
+       <entry>0 a 31 e 127 a 255</entry>
+       <entry>octetos <quote>não-imprimíveis</quote></entry>
+       <entry><literal>\<replaceable>xxx</></literal> (valor octal)</entry>
+       <entry><literal>SELECT '\\001'::bytea;</literal></entry>
+       <entry><literal>\001</literal></entry>
+      </row>
+
+      <row>
+       <entry>32 a 126</entry>
+       <entry>octetos <quote>imprimíveis</quote></entry>
+       <entry>representação no conjunto de caracteres do cliente</entry>
+       <entry><literal>SELECT '\\176'::bytea;</literal></entry>
+       <entry><literal>~</literal></entry>
+      </row>
+
+     </tbody>
+    </tgroup>
+   </table>
+
+   <para>
+    Dependendo do programa cliente do <productname>PostgreSQL</productname>
+    utilizado, pode haver trabalho adicional a ser realizado em relação a
+    colocar e retirar escapes das cadeias <type>bytea</type>. Por exemplo, pode
+    ser necessário colocar escapes para os caracteres de nova-linha e
+    retorno-de-carro se a interface realizar a tradução automática destes
+    caracteres.
+   </para>
+
+   <para>
+    O padrão <acronym>SQL</acronym> define um tipo de cadeia binária
+    diferente, chamado <type>BLOB</type> ou <type>BINARY LARGE OBJECT</type>
+    (objeto binário grande). O formato de entrada é diferente se comparado
+    com <type>bytea</type>, mas as funções e operadores fornecidos são
+    praticamente os mesmos.
+   </para>
+ </sect1>
+
+
+  <sect1 id="datatype-datetime">
+   <title>Tipos para data e hora</title>
+
+   <indexterm zone="datatype-datetime">
+    <primary>data</primary>
+   </indexterm>
+   <indexterm zone="datatype-datetime">
+    <primary>hora</primary>
+   </indexterm>
+   <indexterm zone="datatype-datetime">
+    <primary>hora sem zona horária</primary>
+   </indexterm>
+   <indexterm zone="datatype-datetime">
+    <primary>hora com zona horária</primary>
+   </indexterm>
+   <indexterm zone="datatype-datetime">
+    <primary>carimbo do tempo</primary>
+   </indexterm>
+   <indexterm zone="datatype-datetime">
+    <primary>carimbo do tempo com zona horária</primary>
+   </indexterm>
+   <indexterm zone="datatype-datetime">
+    <primary>carimbo do tempo sem zona horária</primary>
+   </indexterm>
+   <indexterm zone="datatype-datetime">
+    <primary>intervalo</primary>
+   </indexterm>
+   <indexterm zone="datatype-datetime">
+    <primary>espaço de tempo</primary>
+   </indexterm>
+
+   <para>
+    O <productname>PostgreSQL</productname> suporta o conjunto completo de
+    tipos para data e hora do <acronym>SQL</acronym>, mostrados na
+    <xref linkend="datatype-datetime-table">.
+    As operações disponíveis para estes tipos de dado estão descritas na
+    <xref linkend="functions-datetime">.
+   </para>
+
+    <table id="datatype-datetime-table">
+     <title>Tipos para data e hora</title>
+     <tgroup cols="6">
+      <thead>
+       <row>
+        <entry>Nome</entry>
+        <entry>Tamanho de Armazenamento</entry>
+        <entry>Descrição</entry>
+        <entry>Menor valor</entry>
+        <entry>Maior valor</entry>
+        <entry>Resolução</entry>
+       </row>
+      </thead>
+      <tbody>
+       <row>
+        <entry><type>timestamp [ (<replaceable>p</replaceable>) ] [ without time zone ]</type></entry>
+        <entry>8 bytes</entry>
+        <entry>tanto data quanto hora</entry>
+        <entry>4713 AC</entry>
+        <entry>5874897 DC</entry>
+        <entry>1 microssegundo / 14 dígitos</entry>
+       </row>
+       <row>
+        <entry><type>timestamp [ (<replaceable>p</replaceable>) ] with time zone</type></entry>
+        <entry>8 bytes</entry>
+        <entry>tanto data quanto hora, com zona horária</entry>
+        <entry>4713 AC</entry>
+        <entry>5874897 DC</entry>
+        <entry>1 microssegundo / 14 dígitos</entry>
+       </row>
+       <row>
+        <entry><type>interval [ (<replaceable>p</replaceable>) ]</type></entry>
+        <entry>12 bytes</entry>
+        <entry>intervalo de tempo</entry>
+        <entry>-178000000 anos</entry>
+        <entry>178000000 anos</entry>
+        <entry>1 microssegundo / 14 dígitos</entry>
+       </row>
+       <row>
+        <entry><type>date</type></entry>
+        <entry>4 bytes</entry>
+        <entry>somente data</entry>
+        <entry>4713 AC</entry>
+        <entry>32767 DC</entry>
+        <entry>1 dia</entry>
+       </row>
+       <row>
+        <entry><type>time [ (<replaceable>p</replaceable>) ] [ without time zone ]</type></entry>
+        <entry>8 bytes</entry>
+        <entry>somente a hora do dia</entry>
+        <entry>00:00:00.00</entry>
+        <entry>23:59:59.99</entry>
+        <entry>1 microssegundo / 14 dígitos</entry>
+       </row>
+       <row>
+        <entry><type>time [ (<replaceable>p</replaceable>) ] with time zone</type></entry>
+        <entry>12 bytes</entry>
+        <entry>somente a hora do dia, com zona horária</entry>
+        <entry>00:00:00.00+12</entry>
+        <entry>23:59:59.99-12</entry>
+        <entry>1 microssegundo / 14 dígitos</entry>
+       </row>
+      </tbody>
+     </tgroup>
+    </table>
+
+   <note>
+    <para>
+     Antes do <productname>PostgreSQL</productname> 7.3, escrever apenas
+     <type>timestamp</type> equivalia a escrever <type>timestamp with time
+     zone</type>. Isto foi mudado para ficar em conformidade com o padrão SQL.
+    </para>
+   </note>
+
+   <para>
+    Os tipos <type>time</type>, <type>timestamp</type>, e
+    <type>interval</type> aceitam um valor opcional de precisão
+    <replaceable>p</replaceable>, que especifica o número de
+    dígitos fracionários mantidos no campo de segundos. Por padrão não
+    existe limite explícito para a precisão. O intervalo permitido para
+    <replaceable>p</replaceable> é de 0 a 6 para os tipos
+    <type>timestamp</type> e <type>interval</type>.
+   </para>
+
+   <note>
+   <para>
+    Quando os valores de <type>timestamp</type> são armazenados como números de
+    ponto flutuante de precisão dupla (atualmente o padrão), o limite efetivo da
+    precisão pode ser inferior a 6. Os valores de <type>timestamp</type> são
+    armazenados como segundos antes ou após a meia-noite de 2000-01-01.
+    A precisão de microssegundos é obtida para datas próximas a 2000-01-01
+    (alguns anos), mas a precisão degrada para datas mais afastadas.
+    Quando os valores de <type>timestamp</type> são armazenadas como inteiros de
+    oito bytes (uma opção de compilação), a precisão de microssegundo está
+    disponível para toda a faixa de valores. Entretanto, os valores de
+    <type>timestamp</type> em inteiros de 8 bytes possuem uma faixa de tempo
+    mais limitada do que a mostrada acima: de 4713 AC até 294276 DC.
+    A mesma opção de compilação também determina se os valores de
+    <type>time</type> e <type>interval</type> são armazenados como ponto
+    flutuante ou inteiros de oito bytes. No caso de ponto flutuante,
+    a precisão dos valores de <type>interval</type> degrada conforme o
+    tamanho do intervalo aumenta.
+   </para>
+   </note>
+
+   <para>
+    Para os tipos <type>time</type> o intervalo permitido para
+    <replaceable>p</replaceable> é de 0 a 6 quando armazenados em inteiros de
+    oito bytes, e de 0 a 10 quando armazenados em ponto flutuante.
+   </para>
+
+   <para>
+    O tipo <type>time with time zone</type> é definido pelo padrão SQL,
+    mas a definição contém propriedades que levam a uma utilidade
+    duvidosa. Na maioria dos casos, a combinação de
+    <type>date</type>, <type>time</type>, <type>timestamp without time
+    zone</type> e <type>timestamp with time zone</type> deve
+    fornecer uma faixa completa de funcionalidades para data e hora requeridas
+    por qualquer aplicativo.
+   </para>
+
+   <para>
+    Os tipos <type>abstime</type>
+    e <type>reltime</type> são tipos de menor precisão usados internamente.
+    É desestimulada a utilização destes tipos em novos aplicativos,
+    além de ser incentivada a migração dos aplicativos antigos
+    quando apropriado. Qualquer um destes tipos internos
+    pode desaparecer em uma versão futura, ou mesmo todos.
+   </para>
+
+   <sect2 id="datatype-datetime-input">
+    <title>Entrada de data e hora</title>
+
+    <para>
+     A entrada da data e da hora é aceita em praticamente todos os formatos
+     razoáveis, incluindo o <acronym>ISO 8601</acronym>, o
+     <acronym>SQL</acronym>-compatível, o <productname>POSTGRES</productname>
+     tradicional, além de outros. Para alguns formatos a ordem do dia, mês e
+     ano na entrada da data é ambíguo e, por isso, existe suporte para
+     especificar a ordem esperada destes campos.
+     Deve ser definido o parâmetro <xref linkend="guc-datestyle"> como
+     <literal>MDY</literal> para selecionar a interpretação mês-dia-ano,
+     <literal>DMY</literal> para selecionar a interpretação dia-mês-ano, ou
+     <literal>YMD</literal> para selecionar a interpretação ano-mês-dia.
+    </para>
+
+    <para>
+     O <productname>PostgreSQL</productname> é mais flexível no tratamento
+     da entrada de data e hora do que o requerido pelo padrão
+     <acronym>SQL</acronym>.
+     Consulte o <xref linkend="datetime-appendix">
+     para conhecer as regras exatas de análise da entrada de data e hora e os
+     campos texto reconhecidos, incluindo meses, dias da semana e
+     zonas horárias.
+    </para>
+
+    <para>
+     Lembre-se que qualquer entrada literal de data ou hora necessita estar
+     entre apóstrofos, como os textos das cadeias de caracteres. Consulte a
+     <xref linkend="sql-syntax-constants-generic"> para obter informações
+     adicionais. O <acronym>SQL</acronym> requer a seguinte sintaxe
+<synopsis>
+<replaceable>tipo</replaceable> [ (<replaceable>p</replaceable>) ] '<replaceable>valor</replaceable>'
+</synopsis>
+     onde <replaceable>p</replaceable>, na especificação opcional da precisão,
+     é um número inteiro correspondendo ao número de dígitos
+     fracionários do campo de segundos. A precisão pode ser
+     especificada  para os tipos <type>time</type>, <type>timestamp</type> e
+     <type>interval</type>. Os valores permitidos estão mencionados acima.
+     Se não for especificada nenhuma precisão na especificação da constante,
+     a precisão do valor literal torna-se o padrão.
+    </para>
+
+    <sect3>
+    <title>Datas</title>
+
+    <indexterm>
+     <primary>data</primary>
+    </indexterm>
+
+    <para>
+     A <xref linkend="datatype-datetime-date-table">
+     mostra algumas entradas possíveis para o tipo <type>date</type>.
+    </para>
+
+     <table id="datatype-datetime-date-table">
+      <title>Entrada de data</title>
+      <tgroup cols="2">
+       <thead>
+        <row>
+         <entry>Exemplo</entry>
+         <entry>Descrição</entry>
+        </row>
+       </thead>
+       <tbody>
+        <row>
+         <entry>January 8, 1999</entry>
+         <entry>não-ambíguo em qualquer modo de entrada em <varname>datestyle</varname></entry>
+        </row>
+        <row>
+         <entry>1999-01-08</entry>
+         <entry>ISO 8601; 8 de janeiro em qualquer modo
+         (formato recomendado)</entry>
+        </row>
+        <row>
+         <entry>1/8/1999</entry>
+         <entry>8 de janeiro no modo <literal>MDY</literal>;
+          1 de agosto no modo <literal>DMY</literal></entry>
+        </row>
+        <row>
+         <entry>1/18/1999</entry>
+         <entry>18 de janeiro no modo <literal>MDY</literal>;
+          rejeitado nos demais modos</entry>
+        </row>
+        <row>
+         <entry>01/02/03</entry>
+         <entry>2 de janeiro de 2003 no modo <literal>MDY</literal>;
+          1 de fevereiro de 2003 no modo <literal>DMY</literal>;
+          3 de fevereiro de 2001 no modo <literal>YMD</literal>
+         </entry>
+        </row>
+        <row>
+         <entry>1999-Jan-08</entry>
+         <entry>8 de janeiro e qualquer modo</entry>
+        </row>
+        <row>
+         <entry>Jan-08-1999</entry>
+         <entry>January 8 em qualquer modo</entry>
+        </row>
+        <row>
+         <entry>08-Jan-1999</entry>
+         <entry>8 de janeiro em qualquer modo</entry>
+        </row>
+        <row>
+         <entry>99-Jan-08</entry>
+         <entry>8 de janeiro no modo <literal>YMD</literal>, caso contrário errado</entry>
+        </row>
+        <row>
+         <entry>08-Jan-99</entry>
+         <entry>8 de janeiro, porém errado no modo <literal>YMD</literal></entry>
+        </row>
+        <row>
+         <entry>Jan-08-99</entry>
+         <entry>8 de janeiro, porém errado no modo <literal>YMD</literal></entry>
+        </row>
+        <row>
+         <entry>19990108</entry>
+         <entry>ISO 8601; 8 de janeiro de 1999 em qualquer modo</entry>
+        </row>
+        <row>
+         <entry>990108</entry>
+         <entry>ISO 8601; 8 de janeiro de 1999 em qualquer modo</entry>
+        </row>
+        <row>
+         <entry>1999.008</entry>
+         <entry>ano e dia do ano</entry>
+        </row>
+        <row>
+         <entry>J2451187</entry>
+         <entry>dia juliano</entry>
+        </row>
+        <row>
+         <entry>January 8, 99 BC</entry>
+         <entry>ano 99 antes da era comum
+          <footnote>
+           <para>
+            A Era Comum (EC), ou <quote>Common Era (CE)</quote> em inglês, é um
+            termo relativamente novo que tem experimentado um aumento de
+            utilização e se espera que, eventualmente, substitua AD.
+            Este último é uma abreviação de <quote>Anno Domini</quote> em Latim,
+            ou <quote>Ano do Senhor</quote>. Este último se refere ao ano de
+            nascimento aproximado de Yeshua de Nazaré (Jesus Cristo).
+            EC, CE, AD e DC possuem o mesmo valor.
+            <ulink url="http://www.religioustolerance.org/ce.htm">The use of
+            "CE" and "BCE" to identify dates</ulink> (N. do T.)
+           </para>
+          </footnote>
+         </entry>
+        </row>
+       </tbody>
+      </tgroup>
+     </table>
+    </sect3>
+
+    <sect3>
+     <title>Horas</title>
+
+     <indexterm>
+      <primary>hora</primary>
+     </indexterm>
+     <indexterm>
+      <primary>hora sem zona horária</primary>
+     </indexterm>
+     <indexterm>
+      <primary>hora com zona horária</primary>
+     </indexterm>
+
+     <para>
+      Os tipos hora-do-dia são <type>time [ (<replaceable>p</replaceable>) ]
+      without time zone</type> e <type>time [ (<replaceable>p</replaceable>) ]
+      with time zone</type>.  Escrever apenas <type>time</type> equivale a
+      escrever <type>time without time zone</type>.
+     </para>
+
+     <para>
+      Entradas válidas para estes tipos consistem na hora do dia seguida
+      por uma zona horária opcional (Consulte a
+      <xref linkend="datatype-datetime-time-table">
+      e a <xref linkend="datatype-timezone-table">).
+      Se for especificada a zona horária na entrada de
+      <type>time without time zone</type>, esta é ignorada em silêncio.
+     </para>
+
+      <table id="datatype-datetime-time-table">
+       <title>Entrada de hora</title>
+       <tgroup cols="2">
+        <thead>
+         <row>
+          <entry>Exemplo</entry>
+          <entry>Descrição</entry>
+         </row>
+        </thead>
+        <tbody>
+         <row>
+          <entry><literal>04:05:06.789</literal></entry>
+          <entry>ISO 8601</entry>
+         </row>
+         <row>
+          <entry><literal>04:05:06</literal></entry>
+          <entry>ISO 8601</entry>
+         </row>
+         <row>
+          <entry><literal>04:05</literal></entry>
+          <entry>ISO 8601</entry>
+         </row>
+         <row>
+          <entry><literal>040506</literal></entry>
+          <entry>ISO 8601</entry>
+         </row>
+         <row>
+          <entry><literal>04:05 AM</literal></entry>
+          <entry>o mesmo que 04:05; AM não afeta o valor</entry>
+         </row>
+         <row>
+          <entry><literal>04:05 PM</literal></entry>
+          <entry>o mesmo que 16:05; a hora entrada deve ser &lt;= 12</entry>
+         </row>
+         <row>
+          <entry><literal>04:05:06.789-8</literal></entry>
+          <entry>ISO 8601</entry>
+         </row>
+         <row>
+          <entry><literal>04:05:06-08:00</literal></entry>
+          <entry>ISO 8601</entry>
+         </row>
+         <row>
+          <entry><literal>04:05-08:00</literal></entry>
+          <entry>ISO 8601</entry>
+         </row>
+         <row>
+          <entry><literal>040506-08</literal></entry>
+          <entry>ISO 8601</entry>
+         </row>
+         <row>
+          <entry><literal>04:05:06 PST</literal></entry>
+          <entry>zona horária especificada pelo nome</entry>
+         </row>
+        </tbody>
+       </tgroup>
+      </table>
+
+      <table tocentry="1" id="datatype-timezone-table">
+       <title>Entrada de zona horária</title>
+       <tgroup cols="2">
+        <thead>
+         <row>
+          <entry>Exemplo</entry>
+          <entry>Descrição</entry>
+         </row>
+        </thead>
+        <tbody>
+         <row>
+          <entry><literal>PST</literal></entry>
+          <entry>Hora Padrão do Pacífico (<literal>Pacific Standard Time</literal>)</entry>
+         </row>
+         <row>
+          <entry><literal>-8:00</literal></entry>
+          <entry>deslocamento ISO-8601 para PST</entry>
+         </row>
+         <row>
+          <entry><literal>-800</literal></entry>
+          <entry>deslocamento ISO-8601 para PST</entry>
+         </row>
+         <row>
+          <entry><literal>-8</literal></entry>
+          <entry>deslocamento ISO-8601 para PST</entry>
+         </row>
+         <row>
+          <entry><literal>zulu</literal></entry>
+          <entry>Abreviatura militar para UTC</entry>
+         </row>
+         <row>
+          <entry><literal>z</literal></entry>
+          <entry>Forma abreviada de <literal>zulu</literal></entry>
+         </row>
+        </tbody>
+       </tgroup>
+      </table>
+
+     <para>
+     Consulte o <xref linkend="datetime-appendix"> para ver a lista de
+     nomes de zona horária reconhecidos na entrada.
+    </para>
+    </sect3>
+
+    <sect3>
+    <title>Carimbos do tempo</title>
+
+    <indexterm>
+     <primary>carimbo do tempo</primary>
+    </indexterm>
+
+    <indexterm>
+     <primary>carimbo do tempo com zona horária</primary>
+    </indexterm>
+
+    <indexterm>
+     <primary>carimbo do tempo sem zona horária</primary>
+    </indexterm>
+
+     <para>
+      As entradas válidas para os tipos carimbo do tempo são formadas pela
+      concatenação da data com a hora seguida, opcionalmente, pela zona
+      horária, e seguida opcionalmente por <literal>AD</literal> ou
+      <literal>BC</literal> (Como alternativa, <literal>AD</literal> ou
+      <literal>BC</literal> pode aparecer antes da zona horária, mas esta não
+      é a ordem preferida).
+      Portanto,
+
+<programlisting>
+1999-01-08 04:05:06
+</programlisting>
+      e
+<programlisting>
+1999-01-08 04:05:06 -8:00
+</programlisting>
+
+      são valores válidos, que seguem o padrão <acronym>ISO</acronym> 8601.
+      Além desses, é suportado o formato muito utilizado
+
+<programlisting>
+January 8 04:05:06 1999 PST
+</programlisting>
+     </para>
+
+     <para>
+      O padrão <acronym>SQL</acronym> diferencia os literais
+      <type>timestamp without time zone</type> de
+      <type>timestamp with time zone</type> pela existência de
+      <quote>+</quote>; ou <quote>-</quote>. Portanto, de acordo com o padrão,
+      <programlisting>TIMESTAMP '2004-10-19 10:23:54'</programlisting>
+      é um <type>timestamp without time zone</type>, enquanto
+      <programlisting>TIMESTAMP '2004-10-19 10:23:54+02'</programlisting>
+      é um <type>timestamp with time zone</type>.
+      O <productname>PostgreSQL</productname> difere do padrão requerendo que
+      os literais <type>timestamp with time zone</type> sejam digitados
+      explicitamente:
+      <programlisting>TIMESTAMP WITH TIME ZONE '2004-10-19 10:23:54+02'</programlisting>
+      Se o literal não for informado explicitamente como sendo
+      <type>timestamp with time zone</type>, o PostgreSQL ignora em silêncio
+      qualquer indicação de zona horária no literal.
+      Ou seja, o valor resultante de data e hora é derivado dos campos data e
+      hora do valor da entrada, não sendo ajustado conforme a zona horária.
+     </para>
+
+     <para>
+      Para <type>timestamp with time zone</type>, o valor armazenado
+      internamente está sempre em UTC (Tempo Universal Coordenado,
+      tradicionalmente conhecido por Hora Média de Greenwich, <acronym>GMT</>
+      <footnote>
+       <para>
+        GMT &mdash; Greenwich Mean Time ( Hora média de Greenwich);
+        UTC - Tempo Universal Coordenado ( Hora adotada por todos os países que
+        substituiu o GMT a partir de 1972).
+        <ulink url="http://pcdsh01.on.br/Carimbo_ComoFunc.htm">Carimbo do Tempo,
+        Como Funciona ?</ulink>
+       </para>
+      </footnote>
+      ).
+      Um valor de entrada possuindo a zona horária especificada explicitamente
+      é convertido em UTC utilizando o deslocamento apropriado para esta zona
+      horária.
+      Se não for especificada nenhuma zona horária na cadeia de caracteres da
+      entrada, pressupõe-se que está na mesma zona horária indicada pelo
+      parâmetro do sistema <xref linkend="guc-timezone">, sendo convertida em
+      UTC utilizando o deslocamento da zona em <varname>timezone</varname>.
+     </para>
+
+     <para>
+      Quando um valor de <type>timestamp with time zone</type> é enviado para a
+      saída, é sempre convertido de UTC para a zona horária corrente de
+      <varname>timezone</varname>, e mostrado como hora local desta zona.
+      Para ver a hora em outra zona horária, ou se muda
+      <varname>timezone</varname> ou se usa a construção
+      <literal>AT TIME ZONE</literal>
+      (consulte a <xref linkend="functions-datetime-zoneconvert">).
+     </para>
+
+     <para>
+      As conversões entre <type>timestamp without time zone</type> e
+      <type>timestamp with time zone</type> normalmente assumem que os valores
+      de <type>timestamp without time zone</type> devem ser recebidos ou
+      fornecidos como hora local da <varname>timezone</varname>. A referência
+      para uma zona horária diferente pode ser especificada para a conversão
+      utilizando <literal>AT TIME ZONE</literal>.
+     </para>
+    </sect3>
+
+    <sect3>
+     <title>Intervalos</title>
+
+     <indexterm>
+      <primary>intervalo</primary>
+     </indexterm>
+
+      <para>
+       Os valores do tipo <type>interval</type> podem ser escritos utilizando
+       uma das seguintes sintaxes:
+
+<programlisting>
+<optional>@</> <replaceable>quantidade</> <replaceable>unidade</> <optional><replaceable>quantidade</> <replaceable>unidade</>...</> <optional><replaceable>direção</></optional>
+</programlisting>
+
+      onde: <replaceable>quantidade</replaceable> é um número (possivelmente com
+      sinal); <replaceable>unidade</replaceable> é <literal>second</literal>,
+      <literal>minute</literal>, <literal>hour</literal>, <literal>day</literal>,
+      <literal>week</literal>, <literal>month</literal>, <literal>year</literal>,
+      <literal>decade</literal>, <literal>century</literal>,
+      <literal>millennium</literal>, ou abreviaturas ou plurais destas unidades;
+      <replaceable>direção</replaceable> pode ser <literal>ago</literal> (atrás)
+      ou vazio. O sinal de arroba (<literal>@</literal>) é opcional.
+      As quantidades com unidades diferentes são implicitamente adicionadas na
+      conta com o sinal adequado.
+     </para>
+
+     <para>
+      As quantidades de dias, horas, minutos e segundos podem ser especificadas
+      sem informar explicitamente as unidades. Por exemplo,
+      <literal>'1 12:59:10'</literal> é lido do mesmo modo que
+      <literal>'1 day 12 hours 59 min 10 sec'</literal>.
+     </para>
+
+     <para>
+      A precisão opcional <replaceable>p</replaceable> deve estar entre 0 e 6,
+      sendo usado como padrão a precisão do literal da entrada.
+     </para>
+    </sect3>
+
+    <sect3>
+     <title>Valores especiais</title>
+
+     <indexterm>
+      <primary>hora</primary>
+      <secondary>constante</secondary>
+     </indexterm>
+
+     <indexterm>
+      <primary>data</primary>
+      <secondary>constante</secondary>
+     </indexterm>
+
+     <para>
+      Por ser conveniente, o <productname>PostgreSQL</productname> também
+      suporta vários valores especiais para entrada de data e hora, conforme
+      mostrado na <xref linkend="datatype-datetime-special-table">. Os valores
+      <literal>infinity</literal> e <literal>-infinity</literal> possuem
+      representação especial dentro do sistema, sendo mostrados da
+      mesma maneira; porém, os demais são simplesmente notações abreviadas
+      convertidas para valores comuns de data e hora ao serem lidos
+      (Em particular, <literal>now</> e as cadeias de caracteres relacionadas
+      são convertidas para um valor específico de data e hora tão logo são
+      lidas). Todos estes valores devem ser escritos entre apóstrofos
+      quando usados como constantes nos comandos SQL.
+     </para>
+
+      <table id="datatype-datetime-special-table">
+       <title>Entradas especiais de data e hora</title>
+       <tgroup cols="3">
+        <thead>
+         <row>
+          <entry>Cadeia de caracteres entrada</entry>
+          <entry>Tipos válidos</entry>
+          <entry>Descrição</entry>
+         </row>
+        </thead>
+        <tbody>
+         <row>
+          <entry><literal>epoch</literal></entry>
+          <entry><type>date</type>, <type>timestamp</type></entry>
+          <entry>1970-01-01 00:00:00+00 (hora zero do sistema Unix)</entry>
+         </row>
+         <row>
+          <entry><literal>infinity</literal></entry>
+          <entry><type>timestamp</type></entry>
+          <entry>mais tarde que todos os outros carimbos do tempo</entry>
+         </row>
+         <row>
+          <entry><literal>-infinity</literal></entry>
+          <entry><type>timestamp</type></entry>
+          <entry>mais cedo que todos os outros carimbos do tempo</entry>
+         </row>
+         <row>
+          <entry><literal>now</literal></entry>
+          <entry><type>date</type>, <type>time</type>, <type>timestamp</type></entry>
+          <entry>hora de início da transação corrente</entry>
+         </row>
+         <row>
+          <entry><literal>today</literal></entry>
+          <entry><type>date</type>, <type>timestamp</type></entry>
+          <entry>meia-noite de hoje</entry>
+         </row>
+         <row>
+          <entry><literal>tomorrow</literal></entry>
+          <entry><type>date</type>, <type>timestamp</type></entry>
+          <entry>meia-noite de amanhã</entry>
+         </row>
+         <row>
+          <entry><literal>yesterday</literal></entry>
+          <entry><type>date</type>, <type>timestamp</type></entry>
+          <entry>meia-noite de ontem</entry>
+         </row>
+         <row>
+          <entry><literal>allballs</literal></entry>
+          <entry><type>time</type></entry>
+          <entry>00:00:00.00 UTC</entry>
+         </row>
+        </tbody>
+       </tgroup>
+      </table>
+
+     <para>
+      Também podem ser utilizadas as seguintes funções, compatíveis com o padrão
+      <acronym>SQL</acronym>, para obter o valor corrente de data e hora para o
+      tipo de dado correspondente:
+      <literal>CURRENT_DATE</literal>, <literal>CURRENT_TIME</literal>,
+      <literal>CURRENT_TIMESTAMP</literal>, <literal>LOCALTIME</literal> e
+      <literal>LOCALTIMESTAMP</literal>. As últimas quatro aceitam,
+      opcionalmente, a especificação da precisão (consulte também a
+      <xref linkend="functions-datetime-current">).
+      Entretanto, deve ser observado que são funções SQL,
+      <emphasis>não</emphasis> sendo reconhecidas como cadeias de caracteres
+      de entrada de dados.
+     </para>
+
+     <example id="datatype-timestamp-special">
+      <title>Utilização das entradas especiais de data e hora</title>
+      <para>
+       Neste exemplo são mostradas utilizações das entradas especiais de
+       data e hora para o tipo <type>timestamp with time zone</type>.
+       <footnote>
+        <para>
+         Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+        </para>
+       </footnote>
+      </para>
+<screen>
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE t ( c1 TEXT, c2 TIMESTAMP WITH TIME ZONE );</userinput>
+<prompt>=&gt;</prompt> <userinput>BEGIN;</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES ('epoch', 'epoch');</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES ('infinity', 'infinity');</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES ('-infinity', '-infinity');</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES ('now', 'now');</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES ('today', 'today');</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES ('tomorrow', 'tomorrow');</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES ('yesterday', 'yesterday');</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES ('CURRENT_TIMESTAMP', CURRENT_TIMESTAMP);</userinput>
+<prompt>=&gt;</prompt> <userinput>END;</userinput>
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM t;</userinput>
+
+<computeroutput>
+        c1         |              c2
+-------------------+-------------------------------
+ epoch             | 1969-12-31 21:00:00-03
+ infinity          | infinity
+ -infinity         | -infinity
+ now               | 2005-04-19 18:20:35.164293-03
+ today             | 2005-04-19 00:00:00-03
+ tomorrow          | 2005-04-20 00:00:00-03
+ yesterday         | 2005-04-18 00:00:00-03
+ CURRENT_TIMESTAMP | 2005-04-19 18:20:35.164293-03
+(8 linhas)
+</computeroutput>
+</screen>
+     </example>
+
+    </sect3>
+   </sect2>
+
+   <sect2 id="datatype-datetime-output">
+    <title>Saídas de data e hora</title>
+
+    <indexterm>
+     <primary>data</primary>
+     <secondary>formato de saída</secondary>
+     <seealso>formatação</seealso>
+    </indexterm>
+
+    <indexterm>
+     <primary>hora</primary>
+     <secondary>formato de saída</secondary>
+     <seealso>formatação</seealso>
+    </indexterm>
+
+    <para>
+     Utilizando o comando <command>SET datestyle</command> o formato de saída
+     para os tipos de data e hora pode ser definido como um dos quatro estilos
+     ISO 8601, <acronym>SQL</acronym> (Ingres), <literal>POSTGRES</literal>
+     tradicional e <literal>German</literal>. O padrão é o
+     formato <acronym>ISO</acronym> (o padrão <acronym>SQL</acronym> requer a
+     utilização do formato ISO 8601; o nome do formato de saída
+     <quote>SQL</quote> é um acidente histórico).
+     A <xref linkend="datatype-datetime-output-table"> mostra exemplo de cada
+     um dos estilos de saída. A saída dos tipos <type>date</type> e
+     <type>time</type> obviamente utilizam apenas a parte da data ou da hora
+     de acordo com os exemplos fornecidos.
+    </para>
+
+     <table id="datatype-datetime-output-table">
+      <title>Estilos de saída de data e hora</title>
+      <tgroup cols="3">
+       <thead>
+        <row>
+         <entry>Especificação de estilo</entry>
+         <entry>Descrição</entry>
+         <entry>Exemplo</entry>
+        </row>
+       </thead>
+       <tbody>
+        <row>
+         <entry>ISO</entry>
+         <entry>ISO 8601/padrão SQL</entry>
+         <entry>2005-04-21 18:39:28.283566-03</entry>
+        </row>
+        <row>
+         <entry>SQL</entry>
+         <entry>estilo tradicional</entry>
+         <entry>04/21/2005 18:39:28.283566 BRT</entry>
+        </row>
+        <row>
+         <entry>POSTGRES</entry>
+         <entry>estilo original</entry>
+         <entry>Thu Apr 21 18:39:28.283566 2005 BRT</entry>
+        </row>
+        <row>
+         <entry>German</entry>
+         <entry>estilo regional</entry>
+         <entry>21.04.2005 18:39:28.283566 BRT</entry>
+        </row>
+       </tbody>
+      </tgroup>
+     </table>
+
+    <para>
+     Nos estilos <acronym>SQL</acronym> e <literal>POSTGRES</literal>, o dia vem
+     antes do mês se a ordem de campo DMY tiver sido especificada, senão o mês
+     vem antes do dia (veja na <xref linkend="datatype-datetime-input"> como
+     esta especificação também afeta a interpretação dos valores de entrada).
+     A <xref linkend="datatype-datetime-output2-table"> mostra
+     um exemplo.
+    </para>
+
+     <table id="datatype-datetime-output2-table">
+      <title>Convenções de ordem na data</title>
+      <tgroup cols="3">
+       <thead>
+        <row>
+         <entry>Definição de <varname>datestyle</varname></entry>
+         <entry>Ordem de entrada</entry>
+         <entry>Exemplo de saída</entry>
+        </row>
+       </thead>
+       <tbody>
+        <row>
+         <entry><literal>SQL, DMY</></entry>
+         <entry><replaceable>dia</replaceable>/<replaceable>mês</replaceable>/<replaceable>ano</replaceable></entry>
+         <entry>21/04/2005 18:39:28.283566 BRT</entry>
+        </row>
+        <row>
+         <entry><literal>SQL, MDY</></entry>
+         <entry><replaceable>mês</replaceable>/<replaceable>dia</replaceable>/<replaceable>ano</replaceable></entry>
+         <entry>04/21/2005 18:39:28.283566 BRT</entry>
+        </row>
+        <row>
+         <entry><literal>Postgres, DMY</></entry>
+         <entry><replaceable>dia</replaceable>/<replaceable>mês</replaceable>/<replaceable>ano</replaceable></entry>
+         <entry>Thu 21 Apr 18:39:28.283566 2005 BRT</entry>
+        </row>
+       </tbody>
+      </tgroup>
+     </table>
+
+    <para>
+     A saída do tipo <type>interval</type> se parece com o formato da entrada,
+     exceto que as unidades como <literal>century</literal> e
+     <literal>week</literal> são convertidas em anos e dias, e que
+     <literal>ago</literal> é convertido no sinal apropriado.
+     No modo ISO a saída se parece com
+
+<programlisting>
+<optional> <replaceable>quantidade</> <replaceable>unidade</> <optional> ... </> </> <optional> <replaceable>dias</> </> <optional> <replaceable>horas</>:<replaceable>minutos</>:<replaceable>segundos</replaceable> </optional>
+</programlisting>
+    </para>
+
+    <para>
+     Os estilos de data e hora podem ser selecionados pelo usuário
+     utilizando o comando <command>SET datestyle</command>,
+     o parâmetro <xref linkend="guc-datestyle"> no arquivo de configuração
+     <filename>postgresql.conf</filename>, ou a variável de ambiente
+     <envar>PGDATESTYLE</envar> no servidor ou no cliente.
+     A função de formatação <function>to_char</function>
+     (consulte a <xref linkend="functions-formatting">) também pode ser utilizada
+     como uma forma mais flexível de formatar a saída de data e hora.
+    </para>
+   </sect2>
+
+   <sect2 id="datatype-timezones">
+    <title>Zonas horárias</title>
+
+    <indexterm zone="datatype-timezones">
+     <primary>zona horária</primary>
+    </indexterm>
+
+   <para>
+    Zonas horárias e convenções de zonas horárias são influenciadas por
+    decisões políticas, e não apenas pela geometria da Terra. As zonas horárias
+    em torno do mundo se tornaram um tanto padronizadas durante o século XX,
+    mas continuam propensas a mudanças arbitrárias, particularmente com
+    relação a horários de inverno e de verão.
+    Atualmente o <productname>PostgreSQL</productname> suporta as regras de
+    horário de inverno e verão (<literal>daylight-savings rules</literal>)
+    no período de tempo que vai de 1902 até 2038 (correspondendo à faixa
+    completa de tempo do sistema Unix convencional). Datas fora desta faixa são
+    consideradas como estando na <quote>hora padrão</> da zona horária
+    selecionada, sem importar em que parte do ano se encontram.
+   </para>
+
+    <para>
+     O <productname>PostgreSQL</productname> se esforça para ser compatível com
+     as definições do padrão <acronym>SQL</acronym> para o uso típico.
+     Entretanto, o padrão <acronym>SQL</acronym> possui uma combinação única de
+     tipos e funcionalidades para data e hora. Os dois problemas óbvios são:
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        Embora o tipo <type>date</type> não possua zona horária associada, o
+        tipo <type>time</type> pode possuir. As zonas horárias do mundo real
+        possuem pouco significado a menos que estejam associadas a uma data e
+        hora, porque o deslocamento pode variar durante o ano devido ao
+        horário de verão.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        A zona horária padrão é especificada como um deslocamento numérico
+        constante em relação ao <acronym>UTC</acronym>. Não é possível, portanto,
+        fazer ajuste devido ao horário de verão (<acronym>DST</acronym>) ao se
+        realizar aritmética de data e hora entre fronteiras do horário de verão
+        (<acronym>DST</acronym>).
+        <footnote>
+         <para>
+          DST &mdash; <quote>Daylight Saving Time</quote>, também conhecido
+          como Horário de Verão. O DST é utilizado em muitos países como
+          ajuste dos relógios locais, para tirar vantagem da luz natural
+          existente durante os meses de verão. (N. do T.)
+         </para>
+        </footnote>
+       </para>
+      </listitem>
+
+     </itemizedlist>
+    </para>
+
+    <para>
+     Para superar estas dificuldades, recomenda-se utilizar tipos de data e hora
+     contendo tanto a data quanto a hora quando utilizar zonas horárias.
+     Recomenda-se <emphasis>não</emphasis> utilizar o tipo <type>time with
+     time zone</type> (embora seja suportado pelo
+     <productname>PostgreSQL</productname> para os aplicativos legados e para
+     conformidade com o padrão <acronym>SQL</acronym>).
+     O <productname>PostgreSQL</productname> assume a zona horária local
+     para qualquer tipo contendo apenas a data ou a hora.
+    </para>
+
+    <para>
+     Todas as datas e horas com zona horária são armazenadas internamente em
+     <acronym>UTC</acronym>. São convertidas para a hora local na zona
+     especificada pelo parâmetro de configuração <xref linkend="guc-timezone">
+     antes de serem mostradas ao cliente.
+    </para>
+
+    <para>
+     O parâmetro de configuração <xref linkend="guc-timezone"> pode ser definido
+     no arquivo <filename>postgresql.conf</>, ou por qualquer outro meio padrão
+     descrito na <xref linkend="runtime-config">.
+     Existem, também, várias outras formas especiais de defini-lo:
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        Se <varname>timezone</> não for especificada no arquivo de configuração
+        <filename>postgresql.conf</>, nem como uma chave da linha de comando do
+        postmaster, o servidor tenta utilizar o valor da variável de ambiente
+        <envar>TZ</envar> como a zona horária padrão. Se <envar>TZ</envar> não
+        estiver definida, ou não contiver nenhum nome de zona horária conhecido
+        pelo <productname>PostgreSQL</productname>, o servidor tenta determinar
+        a zona horária padrão do sistema operacional verificando o comportamento
+        da função <literal>localtime()</> da biblioteca C. A zona horária
+        padrão é selecionada através da correspondência mais próximas entre as
+        zonas horárias conhecidas pelo <productname>PostgreSQL</productname>.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        O comando <acronym>SQL</acronym> <command>SET TIME ZONE</command>
+        define a zona horária para a sessão. Esta é uma forma alternativa de
+        <command>SET TIMEZONE TO</> com uma sintaxe mais compatível com a
+        especificação SQL.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Se a variável de ambiente <envar>PGTZ</envar> estiver definida no
+        cliente, é utilizada pelos aplicativos <application>libpq</application>
+        para enviar o comando <command>SET TIME ZONE</command> para o
+        servidor durante a conexão.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </para>
+
+   <para>
+    Consulte o <xref linkend="datetime-appendix"> para obter a lista
+    de zonas horárias disponíveis.
+   </para>
+
+   </sect2>
+
+   <sect2 id="datatype-datetime-internals">
+    <title>Internamente</title>
+
+    <para>
+     O <productname>PostgreSQL</productname> utiliza datas Julianas
+     <footnote>
+      <para>
+       Dia Juliano &mdash; É obtido pela contagem de dias a partir de um ponto
+       inicial ao meio dia em Janeiro 4713 B.C. (Dia Juliano Zero). Uma forma
+       de informar que dia é, com a menor ambiguidade possível. ( Este sistema
+       foi criado por Joseph Justus Scaliger, (1540 a 1609), que escolheu seu
+       início ao meio dia em 01 de janeiro de 4713 BC, ano bissexto, ano de
+       indição (ano no qual, pela lei Romana, se fazia o censo das propriedades
+       e dos indivíduos), sendo também domingo, com lua nova. &mdash;
+       Asimov,Isaac ?"Counting the Eons")
+       <ulink url="http://pcdsh01.on.br/GloTerTec.htm#DiaJul">Dia Juliano</ulink>
+      </para>
+     </footnote>
+     para todos os cálculos de data e hora, porque possuem a boa propriedade de
+     predizer/calcular corretamente qualquer data mais recente que 4713 AC
+     até bem distante no futuro, partindo da premissa que o ano possui
+     365,2425 dias.
+    </para>
+
+    <para>
+     As convenções de data anteriores ao século 19 são uma leitura interessante,
+     mas não são suficientemente consistentes para permitir a codificação em
+     rotinas tratadoras de data e hora.
+    </para>
+   </sect2>
+
+  </sect1>
+
+  <sect1 id="datatype-boolean">
+   <title>Tipo booleano</title>
+
+   <indexterm zone="datatype-boolean">
+    <primary>booleano</primary>
+    <secondary>tipo de dado</secondary>
+   </indexterm>
+
+   <indexterm zone="datatype-boolean">
+    <primary>verdade</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-boolean">
+    <primary>falso</primary>
+   </indexterm>
+
+   <para>
+    O <productname>PostgreSQL</productname> disponibiliza o tipo
+    <acronym>SQL</acronym> padrão <type>boolean</type>.
+    O tipo <type>boolean</type> pode possuir apenas um dos dois estados:
+    <quote>verdade</quote> ou <quote>falso</quote>. O terceiro estado,
+    <quote>desconhecido</quote>, é representado pelo
+    valor nulo do <acronym>SQL</acronym>.
+    <footnote>
+     <para>
+      Os sistemas gerenciadores de banco de dados
+      <productname>SQL Server 2000</productname>,
+      <productname>Oracle 10g</productname> e
+      <productname>DB2 8.1</productname>
+      não implementam o tipo de dado <type>boolean</type>. (N. do T.)
+     </para>
+    </footnote>
+    <footnote>
+     <para>
+      O tipo de dado booleano contém os valores verdade distintos
+      <emphasis>Verdade</emphasis> e <emphasis>Falso</emphasis>. A menos que
+      seja proibido pela restrição <literal>NOT NULL</literal>, o tipo de dado
+      booleano também suporta o valor verdade <emphasis>Desconhecido</emphasis>.
+      Esta especificação não faz distinção entre o valor nulo do tipo de dado
+      booleano e o valor verdade <quote>Desconhecido</quote> resultado de um
+      predicado, condição de procura ou expressão de valor booleana do SQL;
+      podem ser trocados um pelo outro significando exatamente a mesma coisa.
+      (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+      ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+     </para>
+    </footnote>
+   </para>
+
+   <para>
+    Os valores literais válidos para o estado <quote>verdade</quote> são:
+    <simplelist>
+     <member><literal>TRUE</literal></member>
+     <member><literal>'t'</literal></member>
+     <member><literal>'true'</literal></member>
+     <member><literal>'y'</literal></member>
+     <member><literal>'yes'</literal></member>
+     <member><literal>'1'</literal></member>
+    </simplelist>
+    Para o estado <quote>falso</quote> podem ser utilizados os seguintes valores:
+    <simplelist>
+     <member><literal>FALSE</literal></member>
+     <member><literal>'f'</literal></member>
+     <member><literal>'false'</literal></member>
+     <member><literal>'n'</literal></member>
+     <member><literal>'no'</literal></member>
+     <member><literal>'0'</literal></member>
+    </simplelist>
+    A utilização das palavras chave <literal>TRUE</literal> e
+    <literal>FALSE</literal> é preferida (e em conformidade com
+    o padrão <acronym>SQL</acronym>).
+   </para>
+
+   <example id="datatype-boolean-example">
+    <title>Utilização do tipo <type>boolean</type></title>
+
+<screen>
+<userinput>
+CREATE TABLE teste1 (a boolean, b text);
+INSERT INTO teste1 VALUES (TRUE, 'sic est');
+INSERT INTO teste1 VALUES (FALSE, 'non est');
+SELECT * FROM teste1;
+</userinput>
+
+<computeroutput>
+ a |    b
+---+---------
+ t | sic est
+ f | non est
+</computeroutput>
+
+<userinput>SELECT * FROM teste1 WHERE a;</userinput>
+
+<computeroutput>
+ a |    b
+---+---------
+ t | sic est
+</computeroutput>
+</screen>
+   </example>
+
+   <para>
+    O <xref linkend="datatype-boolean-example"> mostra que
+    os valores do tipo <type>boolean</type> são exibidos utilizando as letras
+    <literal>t</literal> e <literal>f</literal>.
+   </para>
+
+   <tip>
+    <para>
+     Os valores do tipo <type>boolean</type> não podem ser convertidos
+     diretamente em outros tipos (por exemplo, <literal>CAST
+     (<replaceable>valor_booleano</replaceable> AS integer)</literal> não
+     funciona). A conversão pode ser feita utilizando a expressão
+     <literal>CASE</literal>:
+     <literal>CASE WHEN <replaceable>valor_booleano</replaceable>
+     THEN 'valor se for verdade'
+     ELSE 'valor se for falso' END</literal>.
+     Consulte a <xref linkend="functions-conditional">.
+    </para>
+   </tip>
+
+   <para>
+    O tipo <type>boolean</type> utiliza 1 byte para seu armazenamento.
+   </para>
+
+   <example id="datatype-boolean-orderby">
+    <title>Classificação do tipo <type>boolean</type></title>
+    <para>
+     Segundo o padrão SQL o valor verdade é maior que o valor falso.
+     O <productname>PostgreSQL</productname> considera o valor nulo
+     maior que estes dois, conforme mostrado neste exemplo.
+     <footnote>
+      <para>
+       Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+      </para>
+     </footnote>
+    </para>
+
+<screen>
+<prompt>=&gt;</prompt> <userinput>\pset null -</userinput>
+<prompt>=&gt;</prompt> <userinput>CREATE TABLE t (b BOOLEAN);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES(true);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES(false);</userinput>
+<prompt>=&gt;</prompt> <userinput>INSERT INTO t VALUES(null);</userinput>
+<prompt>=&gt;</prompt> <userinput>SELECT * FROM t ORDER BY b;</userinput>
+
+<computeroutput>
+ b
+---
+ f
+ t
+ -
+(3 linhas)
+</computeroutput>
+</screen>
+   </example>
+
+  </sect1>
+
+  <sect1 id="datatype-geometric">
+   <title>Tipos geométricos</title>
+
+   <para>
+    Os tipos de dado geométricos representam objetos espaciais bidimensionais.
+    A <xref linkend="datatype-geo-table"> mostra os tipos geométricos
+    disponíveis no <productname>PostgreSQL</productname>. O tipo mais
+    fundamental, o ponto, forma a base para todos os outros tipos.
+   </para>
+
+    <table id="datatype-geo-table">
+     <title>Tipos geométricos</title>
+     <tgroup cols="4">
+      <thead>
+       <row>
+        <entry>Nome</entry>
+        <entry>Tamanho de Armazenamento</entry>
+        <entry>Descrição</entry>
+        <entry>Representação</entry>
+       </row>
+      </thead>
+      <tbody>
+       <row>
+        <entry><type>point</type></entry>
+        <entry>16 bytes</entry>
+        <entry>Ponto no plano</entry>
+        <entry>(x,y)</entry>
+       </row>
+       <row>
+        <entry><type>line</type></entry>
+        <entry>32 bytes</entry>
+        <entry>Linha infinita (não totalmente implementado)</entry>
+        <entry>((x1,y1),(x2,y2))</entry>
+       </row>
+       <row>
+        <entry><type>lseg</type></entry>
+        <entry>32 bytes</entry>
+        <entry>Segmento de linha finito</entry>
+        <entry>((x1,y1),(x2,y2))</entry>
+       </row>
+       <row>
+        <entry><type>box</type></entry>
+        <entry>32 bytes</entry>
+        <entry>Caixa retangular</entry>
+        <entry>((x1,y1),(x2,y2))</entry>
+       </row>
+       <row>
+        <entry><type>path</type></entry>
+        <entry>16+16n bytes</entry>
+        <entry>Caminho fechado (semelhante ao polígono)</entry>
+        <entry>((x1,y1),...)</entry>
+       </row>
+       <row>
+        <entry><type>path</type></entry>
+        <entry>16+16n bytes</entry>
+        <entry>Caminho aberto</entry>
+        <entry>[(x1,y1),...]</entry>
+       </row>
+       <row>
+        <entry><type>polygon</type></entry>
+        <entry>40+16n bytes</entry>
+        <entry>Polígono (semelhante ao caminho fechado)</entry>
+        <entry>((x1,y1),...)</entry>
+       </row>
+       <row>
+        <entry><type>circle</type></entry>
+        <entry>24 bytes</entry>
+        <entry>Círculo</entry>
+        <entry>&lt;(x,y),r&gt; (centro e raio)</entry>
+       </row>
+      </tbody>
+     </tgroup>
+    </table>
+
+   <para>
+    Está disponível um amplo conjunto de funções e operadores para realizar
+    várias operações geométricas, como escala, translação, rotação e determinar
+    interseções, conforme explicadas na <xref linkend="functions-geometry">.
+   </para>
+
+   <sect2>
+    <title>Pontos</title>
+
+    <indexterm>
+     <primary>ponto</primary>
+    </indexterm>
+
+    <para>
+     Os pontos são os blocos de construção bidimensionais fundamentais para os
+     tipos geométricos. Os valores do tipo <type>point</type> são especificados
+     utilizando a seguinte sintaxe:
+
+<synopsis>
+( <replaceable>x</replaceable> , <replaceable>y</replaceable> )
+  <replaceable>x</replaceable> , <replaceable>y</replaceable>
+</synopsis>
+
+     onde <replaceable>x</replaceable> e <replaceable>y</replaceable> são as
+     respectivas coordenadas na forma de números de ponto flutuante.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Segmentos de linha</title>
+
+    <indexterm>
+     <primary>lseg</primary>
+    </indexterm>
+
+    <indexterm>
+     <primary>segmento de linha</primary>
+    </indexterm>
+
+    <para>
+     Os segmentos de linha (<type>lseg</type>) são representados por pares de
+     pontos. Os valores do tipo <type>lseg</type> são especificado utilizando a
+     seguinte sintaxe:
+
+<synopsis>
+( ( <replaceable>x1</replaceable> , <replaceable>y1</replaceable> ) , ( <replaceable>x2</replaceable> , <replaceable>y2</replaceable> ) )
+  ( <replaceable>x1</replaceable> , <replaceable>y1</replaceable> ) , ( <replaceable>x2</replaceable> , <replaceable>y2</replaceable> )
+    <replaceable>x1</replaceable> , <replaceable>y1</replaceable>   ,   <replaceable>x2</replaceable> , <replaceable>y2</replaceable>
+</synopsis>
+
+     onde
+     <literal>(<replaceable>x1</replaceable>,<replaceable>y1</replaceable>)</literal>
+     e
+     <literal>(<replaceable>x2</replaceable>,<replaceable>y2</replaceable>)</literal>
+     são os pontos das extremidades do segmento de linha.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Caixas</title>
+
+    <indexterm>
+     <primary>caixa (tipo de dado)</primary>
+    </indexterm>
+
+    <indexterm>
+     <primary>retângulo</primary>
+    </indexterm>
+
+    <para>
+     As caixas são representadas por pares de pontos de vértices opostos
+     da caixa. Os valores do tipo <type>box</type> são especificados utilizando
+     a seguinte sintaxe:
+
+<synopsis>
+( ( <replaceable>x1</replaceable> , <replaceable>y1</replaceable> ) , ( <replaceable>x2</replaceable> , <replaceable>y2</replaceable> ) )
+  ( <replaceable>x1</replaceable> , <replaceable>y1</replaceable> ) , ( <replaceable>x2</replaceable> , <replaceable>y2</replaceable> )
+    <replaceable>x1</replaceable> , <replaceable>y1</replaceable>   ,   <replaceable>x2</replaceable> , <replaceable>y2</replaceable>
+</synopsis>
+
+     onde
+     <literal>(<replaceable>x1</replaceable>,<replaceable>y1</replaceable>)</literal>
+     e
+     <literal>(<replaceable>x2</replaceable>,<replaceable>y2</replaceable>)</literal>
+     são quaisquer vértices opostos da caixa.
+    </para>
+
+    <para>
+     As caixas são mostradas utilizando a primeira sintaxe.
+     Os vértices são reordenados na entrada para armazenar o vértice direito
+     superior e, depois, o vértice esquerdo inferior. Podem ser especificados
+     outros vértices da caixa, mas os vértices esquerdo inferior e direito
+     superior são determinados a partir da entrada e armazenados.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Caminhos</title>
+
+    <indexterm>
+     <primary>caminho (tipo de dado)</primary>
+    </indexterm>
+
+    <para>
+     Os caminhos são representados por listas de pontos conectados. Os caminhos
+     podem ser <firstterm>abertos</firstterm>, onde o primeiro e o último ponto
+     da lista não são considerados conectados, e <firstterm>fechados</firstterm>,
+     onde o primeiro e o último ponto são considerados conectados.
+    </para>
+
+    <para>
+     Os valores do tipo <type>path</type> são especificados utilizando a
+     seguinte sintaxe:
+
+<synopsis>
+( ( <replaceable>x1</replaceable> , <replaceable>y1</replaceable> ) , ... , ( <replaceable>xn</replaceable> , <replaceable>yn</replaceable> ) )
+[ ( <replaceable>x1</replaceable> , <replaceable>y1</replaceable> ) , ... , ( <replaceable>xn</replaceable> , <replaceable>yn</replaceable> ) ]
+  ( <replaceable>x1</replaceable> , <replaceable>y1</replaceable> ) , ... , ( <replaceable>xn</replaceable> , <replaceable>yn</replaceable> )
+  ( <replaceable>x1</replaceable> , <replaceable>y1</replaceable>   , ... ,   <replaceable>xn</replaceable> , <replaceable>yn</replaceable> )
+    <replaceable>x1</replaceable> , <replaceable>y1</replaceable>   , ... ,   <replaceable>xn</replaceable> , <replaceable>yn</replaceable>
+</synopsis>
+
+     onde os pontos são os pontos das extremidades dos segmentos de linha
+     que compõem o caminho. Os colchetes (<literal>[]</literal>) indicam
+     um caminho aberto, enquanto os parênteses (<literal>()</literal>) indicam
+     um caminho fechado.
+    </para>
+
+    <para>
+     Os caminhos são mostrados utilizando a primeira sintaxe.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Polígonos</title>
+
+    <indexterm>
+     <primary>polígono</primary>
+    </indexterm>
+
+    <para>
+     Os polígonos são representados por uma lista de pontos (os vértices do
+     polígono). Provavelmente os polígonos deveriam ser considerados
+     equivalentes aos caminhos fechados, mas são armazenados de forma diferente
+     e possuem um conjunto próprio de rotinas de suporte.
+    </para>
+
+    <para>
+     Os valores do tipo <type>polygon</type> são especificados utilizando a
+     seguinte sintaxe:
+
+<synopsis>
+( ( <replaceable>x1</replaceable> , <replaceable>y1</replaceable> ) , ... , ( <replaceable>xn</replaceable> , <replaceable>yn</replaceable> ) )
+  ( <replaceable>x1</replaceable> , <replaceable>y1</replaceable> ) , ... , ( <replaceable>xn</replaceable> , <replaceable>yn</replaceable> )
+  ( <replaceable>x1</replaceable> , <replaceable>y1</replaceable>   , ... ,   <replaceable>xn</replaceable> , <replaceable>yn</replaceable> )
+    <replaceable>x1</replaceable> , <replaceable>y1</replaceable>   , ... ,   <replaceable>xn</replaceable> , <replaceable>yn</replaceable>
+</synopsis>
+
+     onde os pontos são os pontos das extremidades dos segmentos de linha
+     compondo a fronteira do polígono.
+    </para>
+
+    <para>
+     Os polígonos são mostrados utilizando a primeira sintaxe.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Círculos</title>
+
+    <indexterm>
+     <primary>círculo</primary>
+    </indexterm>
+
+    <para>
+     Os círculos são representados por um ponto central e um raio. Os valores do
+     tipo <type>circle</type> são especificado utilizando a seguinte sintaxe:
+
+<synopsis>
+&lt; ( <replaceable>x</replaceable> , <replaceable>y</replaceable> ) , <replaceable>r</replaceable> &gt;
+( ( <replaceable>x</replaceable> , <replaceable>y</replaceable> ) , <replaceable>r</replaceable> )
+  ( <replaceable>x</replaceable> , <replaceable>y</replaceable> ) , <replaceable>r</replaceable>
+    <replaceable>x</replaceable> , <replaceable>y</replaceable>   , <replaceable>r</replaceable>
+</synopsis>
+
+     onde
+     <literal>(<replaceable>x</replaceable>,<replaceable>y</replaceable>)</literal>
+     é o centro e <replaceable>r</replaceable> é o raio do círculo.
+    </para>
+
+    <para>
+     Os círculos são mostrados utilizando a primeira sintaxe.
+    </para>
+   </sect2>
+
+  </sect1>
+
+  <sect1 id="datatype-net-types">
+   <title>Tipos para endereço de rede</title>
+
+   <indexterm zone="datatype-net-types">
+    <primary>rede</primary>
+    <secondary>tipo de dado</secondary>
+   </indexterm>
+
+   <para>
+    O <productname>PostgreSQL</productname> disponibiliza tipos de dado para
+    armazenar endereços IPv4, IPv6 e MAC, conforme mostrado na
+    <xref linkend="datatype-net-types-table">. É preferível utilizar estes tipos
+    em vez dos tipos de texto puro, porque estes tipos possuem verificação de
+    erro na entrada, além de vários operadores e funções especializadas
+    (consulte <xref linkend="functions-net">).
+   </para>
+
+    <table tocentry="1" id="datatype-net-types-table">
+     <title>Tipos para endereço de rede</title>
+     <tgroup cols="3">
+      <thead>
+       <row>
+        <entry>Nome</entry>
+        <entry>Tamanho de Armazenamento</entry>
+        <entry>Descrição</entry>
+       </row>
+      </thead>
+      <tbody>
+
+       <row>
+        <entry><type>cidr</type></entry>
+        <entry>12 ou 24 bytes</entry>
+        <entry>redes IPv4 e IPv6</entry>
+       </row>
+
+       <row>
+        <entry><type>inet</type></entry>
+        <entry>12 ou 24 bytes</entry>
+        <entry>hospedeiros e redes IPv4 e IPv6</entry>
+       </row>
+
+       <row>
+        <entry><type>macaddr</type></entry>
+        <entry>6 bytes</entry>
+        <entry>endereço MAC</entry>
+       </row>
+
+      </tbody>
+     </tgroup>
+    </table>
+
+   <para>
+    Ao ordenar os tipos de dado <type>inet</type> e <type>cidr</type>,
+    os endereços IPv4 vêm sempre na frente dos endereços IPv6, inclusive
+    os endereços IPv4 encapsulados ou mapeados em endereços IPv6, tais como
+    ::10.2.3.4 ou ::ffff::10.4.3.2.
+   </para>
+
+
+   <sect2 id="datatype-inet">
+    <title><type>inet</type></title>
+
+    <indexterm>
+     <primary>inet (tipo de dado)</primary>
+    </indexterm>
+
+    <para>
+     O tipo de dado <type>inet</type> armazena um endereço de hospedeiro IPv4 ou
+     IPv6 e, opcionalmente, a identificação da sub-rede onde se encontra, tudo
+     em um único campo. A identificação da sub-rede é representada declarando
+     quantos bits do endereço do hospedeiro representam o endereço  de rede (a
+     <quote>máscara de rede</quote>). Se a máscara de rede for 32 e o endereço
+     for IPv4, então o valor não indica uma sub-rede, e sim um único
+     hospedeiro. No IPv6 o comprimento do endereço é de 128 bits e, portanto,
+     128 bits especificam o endereço de um único hospedeiro. Deve ser observado
+     que se for desejado aceitar apenas endereços de rede, deve ser utilizado o
+     tipo <type>cidr</type> em vez do tipo <type>inet</type>.
+    </para>
+
+    <para>
+      O formato de entrada para este tipo é
+      <replaceable class="parameter">endereço/y</replaceable>,
+      onde
+      <replaceable class="parameter">endereço</replaceable>
+      é um endereço IPv4 ou IPv6, e
+      <replaceable class="parameter">y</replaceable>
+      é o número de bits da máscara de rede. Se a parte
+      <replaceable class="parameter">/y</replaceable>
+      for deixada de fora, então a máscara de rede
+      será 32 para IPv4 e 128 para IPv6, e o valor representa
+      um único hospedeiro apenas. Ao ser mostrado, a porção
+      <replaceable class="parameter">/y</replaceable>
+      é suprimida se a máscara de rede especificar apenas um único hospedeiro.
+    </para>
+   </sect2>
+
+   <sect2 id="datatype-cidr">
+    <title><type>cidr</></title>
+
+    <indexterm>
+     <primary>cidr</primary>
+    </indexterm>
+
+    <para>
+     O tipo <type>cidr</type> armazena uma especificação de rede IPv4 ou IPv6.
+     Os formatos de entrada e de saída seguem as convenções do
+     <literal>Classless Internet Domain Routing</literal>
+      <footnote>
+       <para>
+        O CIDR, definido pela RFC1519, elimina o sistema de classes que
+        determinava originalmente a parte de rede de um endereço IP. Como
+        a sub-rede, da qual é uma extensão direta, ele conta com uma máscara
+        de rede explícita para definir o limite entre as partes de rede e de
+        hospedeiro de um endereço. Manual de Administração do Sistema Unix -
+        Evi Nemeth e outros - Bookman. (N. do T.)
+       </para>
+      </footnote>
+     O formato para especificar redes é <replaceable
+     class="parameter">endereço/y</replaceable>, onde <replaceable
+     class="parameter">endereço</replaceable> é a rede representada por um
+     endereço IPv4 ou IPv6, e <replaceable
+     class="parameter">y</replaceable> é o número de bits da máscara de rede. Se
+     <replaceable class="parameter">y</replaceable> for omitido, será calculado
+     utilizando as premissas do sistema de numeração com classes antigo, exceto
+     que será pelo menos suficientemente grande para incluir todos os
+     octetos escritos na entrada.  É errado especificar endereço de rede
+     contendo bits definidos à direita da máscara de rede especificada.
+    </para>
+
+    <para>
+     A <xref linkend="datatype-net-cidr-table"> mostra alguns exemplos.
+    </para>
+
+     <table id="datatype-net-cidr-table">
+      <title>Exemplos de entrada para o tipo<type>cidr</type></title>
+      <tgroup cols="3">
+       <thead>
+        <row>
+         <entry>Entrada <type>cidr</type></entry>
+         <entry>Saída <type>cidr</type></entry>
+         <entry><literal><function>abbrev</function>(<type>cidr</type>)</literal></entry>
+        </row>
+       </thead>
+       <tbody>
+        <row>
+         <entry>192.168.100.128/25</entry>
+         <entry>192.168.100.128/25</entry>
+         <entry>192.168.100.128/25</entry>
+        </row>
+        <row>
+         <entry>192.168/24</entry>
+         <entry>192.168.0.0/24</entry>
+         <entry>192.168.0/24</entry>
+        </row>
+        <row>
+         <entry>192.168/25</entry>
+         <entry>192.168.0.0/25</entry>
+         <entry>192.168.0.0/25</entry>
+        </row>
+        <row>
+         <entry>192.168.1</entry>
+         <entry>192.168.1.0/24</entry>
+         <entry>192.168.1/24</entry>
+        </row>
+        <row>
+         <entry>192.168</entry>
+         <entry>192.168.0.0/24</entry>
+         <entry>192.168.0/24</entry>
+        </row>
+        <row>
+         <entry>128.1</entry>
+         <entry>128.1.0.0/16</entry>
+         <entry>128.1/16</entry>
+        </row>
+        <row>
+         <entry>128</entry>
+         <entry>128.0.0.0/16</entry>
+         <entry>128.0/16</entry>
+        </row>
+        <row>
+         <entry>128.1.2</entry>
+         <entry>128.1.2.0/24</entry>
+         <entry>128.1.2/24</entry>
+        </row>
+        <row>
+         <entry>10.1.2</entry>
+         <entry>10.1.2.0/24</entry>
+         <entry>10.1.2/24</entry>
+        </row>
+        <row>
+         <entry>10.1</entry>
+         <entry>10.1.0.0/16</entry>
+         <entry>10.1/16</entry>
+        </row>
+        <row>
+         <entry>10</entry>
+         <entry>10.0.0.0/8</entry>
+         <entry>10/8</entry>
+        </row>
+        <row>
+         <entry>10.1.2.3/32</entry>
+         <entry>10.1.2.3/32</entry>
+         <entry>10.1.2.3/32</entry>
+        </row>
+        <row>
+         <entry>2001:4f8:3:ba::/64</entry>
+         <entry>2001:4f8:3:ba::/64</entry>
+         <entry>2001:4f8:3:ba::/64</entry>
+        </row>
+        <row>
+         <entry>2001:4f8:3:ba:2e0:81ff:fe22:d1f1/128</entry>
+         <entry>2001:4f8:3:ba:2e0:81ff:fe22:d1f1/128</entry>
+         <entry>2001:4f8:3:ba:2e0:81ff:fe22:d1f1</entry>
+        </row>
+        <row>
+         <entry>::ffff:1.2.3.0/120</entry>
+         <entry>::ffff:1.2.3.0/120</entry>
+         <entry>::ffff:1.2.3/120</entry>
+        </row>
+        <row>
+         <entry>::ffff:1.2.3.0/128</entry>
+         <entry>::ffff:1.2.3.0/128</entry>
+         <entry>::ffff:1.2.3.0/128</entry>
+        </row>
+       </tbody>
+      </tgroup>
+     </table>
+   </sect2>
+
+   <sect2 id="datatype-inet-vs-cidr">
+    <title><type>inet</type> versus <type>cidr</type></title>
+
+    <para>
+    A diferença essencial entre os tipos de dado <type>inet</type> e
+    <type>cidr</type> é que <type>inet</type> aceita valores com bits diferente
+    de zero à direita da máscara de rede, enquanto <type>cidr</type> não aceita.
+    </para>
+
+      <tip>
+        <para>
+        Caso não se goste do formato de saída para os valores de
+        <type>inet</type> ou <type>cidr</type>, deve-se tentar utilizar as
+        funções <function>host</function>(), <function>text</function>() e
+        <function>abbrev</function>().
+        </para>
+      </tip>
+   </sect2>
+
+   <sect2 id="datatype-macaddr">
+    <title><type>macaddr</></>
+
+    <indexterm>
+     <primary>macaddr (tipo de dado)</primary>
+    </indexterm>
+
+    <indexterm>
+     <primary>endereço MAC</primary>
+     <see>macaddr</see>
+    </indexterm>
+
+    <para>
+     O tipo <type>macaddr</type> armazena endereços de MAC
+     <footnote>
+      <para>
+       Forma abreviada de endereço de Controle de Acesso à Mídia
+       (<literal>Media Access Control</literal>),
+       um endereço de hardware que identifica unicamente cada nó da rede.
+       <ulink url="http://www.webopedia.com/TERM/M/MAC_address.html">
+       Webopedia</ulink> (N. do T.)
+      </para>
+     </footnote>
+     , ou seja, endereços de hardware da placa Ethernet (embora os endereços de
+     MAC sejam utilizados para outras finalidades também). A entrada é aceita em
+     vários formatos habituais incluindo
+
+     <simplelist>
+      <member><literal>'08002b:010203'</></member>
+      <member><literal>'08002b-010203'</></member>
+      <member><literal>'0800.2b01.0203'</></member>
+      <member><literal>'08-00-2b-01-02-03'</></member>
+      <member><literal>'08:00:2b:01:02:03'</></member>
+     </simplelist>
+
+     sendo que todos especificam o mesmo endereço.
+     Letras maiúsculas e minúsculas são aceitas para os dígitos de
+     <literal>a</literal> a <literal>f</literal>.
+     A saída é sempre na última forma mostrada.
+    </para>
+
+    <para>
+     Na distribuição do código fonte do <productname>PostgreSQL</productname>,
+     o diretório <filename class="directory">contrib/mac</filename>
+     contém ferramentas que podem ser utilizadas para fazer a correspondência
+     entre endereços de MAC e nomes de fabricantes de hardware.
+    </para>
+   </sect2>
+
+  </sect1>
+
+  <sect1 id="datatype-bit">
+   <title>Tipos para cadeias de bits</title>
+
+   <indexterm zone="datatype-bit">
+    <primary>cadeia de bits</primary>
+    <secondary>tipo de dado</secondary>
+   </indexterm>
+
+   <para>
+    As cadeias de bits são cadeias de zeros e uns. Podem ser usadas para
+    armazenar ou visualizar máscaras de bits. Existem dois tipos de dado para
+    bits no SQL: <type>bit(<replaceable>n</replaceable>)</type> e
+    <type>bit varying(<replaceable>n</replaceable>)</type>, onde
+    <replaceable>n</replaceable> é um número inteiro positivo.
+   </para>
+
+   <para>
+    Os dados para o tipo <type>bit</type> devem possuir exatamente o
+    comprimento <replaceable>n</replaceable>; é errado tentar armazenar cadeias
+    de bits mais curtas ou mais longas. O tipo de dado <type>bit varying</type>
+    possui um comprimento variável até o máximo de <replaceable>n</replaceable>;
+    cadeias mais longas são rejeitadas. Escrever <type>bit</type> sem o
+    comprimento equivale a escrever <literal>bit(1)</literal>, enquanto
+    <type>bit varying</type> sem a especificação do comprimento significa
+    comprimento ilimitado.
+   </para>
+
+   <note>
+    <para>
+     Se for feita uma conversão explícita do valor de uma cadeia de bits para
+     <type>bit(<replaceable>n</replaceable>)</type>, os bits serão truncados ou
+     completados à direita com zeros para ficar exatamente com
+     <replaceable>n</replaceable> bits, sem ocasionar erro. De forma semelhante,
+     se for feita uma conversão explícita do valor de uma cadeia de bits para
+     <type>bit varying(<replaceable>n</replaceable>)</type>, os bits serão
+     truncados à direita se houver mais de <replaceable>n</replaceable> bits.
+    </para>
+   </note>
+
+   <note>
+    <para>
+     Antes do <productname>PostgreSQL</productname> 7.2, os dados do tipo
+     <type>bit</type> eram sempre truncados em silêncio ou completados à direita
+     com zeros, com ou sem uma conversão explícita. Este comportamento foi
+     modificado para ficar em conformidade com o padrão <acronym>SQL</acronym>.
+    </para>
+   </note>
+
+   <para>
+    Consulte a <xref linkend="sql-syntax-bit-strings"> para obter informações
+    sobre a sintaxe das constantes do tipo cadeia de bits. Estão disponíveis
+    operadores lógicos para bit e funções para manipulação de cadeias de bits;
+    consulte o <xref linkend="functions">.
+   </para>
+
+   <example id="datatype-bit-strings-use">
+    <title>Utilização dos tipos para cadeia de bits</title>
+
+<screen>
+<userinput>
+CREATE TABLE teste (a BIT(3), b BIT VARYING(5));
+INSERT INTO teste VALUES (B'101', B'00');
+INSERT INTO teste VALUES (B'10', B'101');
+</userinput>
+<computeroutput>
+ERRO:  comprimento da cadeia de bits 2 não corresponde ao tipo bit(3)
+</computeroutput>
+<userinput>
+INSERT INTO teste VALUES (B'10'::bit(3), B'101');
+SELECT * FROM teste;
+</userinput>
+
+<computeroutput>
+  a  |  b
+-----+-----
+ 101 | 00
+ 100 | 101
+</computeroutput>
+</screen>
+   </example>
+
+  </sect1>
+
+  &array;
+
+  &rowtypes;
+
+  <sect1 id="datatype-oid">
+   <title>Tipos identificadores de objeto</title>
+
+   <indexterm zone="datatype-oid">
+    <primary>identificador de objeto</primary>
+    <secondary>tipo de dado</secondary>
+   </indexterm>
+
+   <indexterm zone="datatype-oid">
+    <primary>oid</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-oid">
+    <primary>regproc</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-oid">
+    <primary>regprocedure</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-oid">
+    <primary>regoper</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-oid">
+    <primary>regoperator</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-oid">
+    <primary>regclass</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-oid">
+    <primary>regtype</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-oid">
+    <primary>xid</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-oid">
+    <primary>cid</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-oid">
+    <primary>tid</primary>
+   </indexterm>
+
+   <para>
+    Os identificadores de objeto (OIDs) são utilizados internamente pelo
+    <productname>PostgreSQL</productname> como chaves primárias em várias
+    tabelas do sistema. Além disso, uma coluna do sistema OID é adicionada às
+    tabelas criadas pelo usuário, a menos que seja especificado
+    <literal>WITHOUT OIDS</literal> na criação da tabela, ou que a variável de
+    configuração <xref linkend="guc-default-with-oids"> esteja definida como
+    falso. O tipo <type>oid</type> representa um identificador de objeto.
+    Também existem diversos tipos aliases para <type>oid</type>:
+    <type>regproc</type>, <type>regprocedure</type>, <type>regoper</type>,
+    <type>regoperator</type>, <type>regclass</type>, e <type>regtype</type>.
+    A <xref linkend="datatype-oid-table"> mostra uma visão geral.
+   </para>
+
+   <para>
+    O tipo <type>oid</type> é implementado atualmente como inteiro de quatro
+    bytes sem sinal. Portanto, não é grande o suficiente para proporcionar
+    unicidade para todo o banco de dados em bancos de dados grandes, ou mesmo
+    em tabelas individuais grandes. Por isso, é desencorajada a utilização da
+    coluna OID de uma tabela criada pelo usuário como chave primária.
+    É melhor usar os OIDs somente para referências às tabelas do sistema.
+   </para>
+
+   <note>
+    <para>
+     Os OIDs são incluídos por padrão nas tabelas criadas pelo usuário no
+     <productname>PostgreSQL &version;</productname>. Entretanto, este
+     comportamento provavelmente mudará em uma versão futura do
+     <productname>PostgreSQL</productname>. Eventualmente, as tabelas criadas
+     pelo usuário não incluirão a coluna do sistema OID, a menos que seja
+     especificado <literal>WITH OIDS</literal> quando a tabela for criada, ou
+     a variável de configuração <varname>default_with_oids</varname> esteja
+     definida como verdade. Se o aplicativo requer a presença da coluna do
+     sistema OID na tabela, deve ser especificado <literal>WITH OIDS</literal>
+     na criação da tabela para garantir a compatibilidade com as versões
+     futuras do <productname>PostgreSQL</productname>.
+    </para>
+   </note>
+
+   <para>
+    O tipo <type>oid</type> possui poucas operações próprias além da comparação.
+    Pode, entretanto, ser convertido em inteiro e, então, manipulado utilizando
+    os operadores padrão para inteiros (Tome cuidado com as possíveis confusões
+    entre inteiros com sinal e sem sinal se isto for feito).
+   </para>
+
+   <para>
+    Os tipos aliases de <type>oid</type> não possuem operações próprias com
+    exceção de rotinas de entrada e saída especializadas. Estas rotinas são
+    capazes de aceitar e mostrar nomes simbólicos para objetos do sistema, em
+    vez do valor numérico puro e simples que o tipo <type>oid</type> usaria.
+    Os tipos aliases permitem uma procura simplificada dos valores de OID para
+    os objetos: por exemplo, para examinar as linhas de
+    <structname>pg_attribute</> relacionadas com a tabela
+    <literal>minha_tabela</literal> pode ser escrito
+<programlisting>
+SELECT * FROM pg_attribute WHERE attrelid = 'minha_tabela'::regclass;
+</programlisting>
+    em vez de
+<programlisting>
+SELECT * FROM pg_attribute
+  WHERE attrelid = (SELECT oid FROM pg_class WHERE relname = 'minha_tabela');
+</programlisting>
+    Apesar de não parecer tão ruim assim, ainda está muito simplificado.
+    Seria necessária uma sub-seleção bem mais complicada para obter
+    o OID correto caso existissem várias tabelas chamadas
+    <literal>minha_tabela</literal> em esquemas diferentes.
+    O conversor de entrada <type>regclass</> trata a procura de tabela de acordo
+    com a configuração de procura de esquema e, portanto, faz a
+    <quote>coisa certa</quote> automaticamente. De forma semelhante, converter
+    o OID da tabela para <type>regclass</> é útil para mostrar simbolicamente
+    o OID numérico.
+   </para>
+
+    <table id="datatype-oid-table">
+     <title>Tipos identificadores de objetos</title>
+     <tgroup cols="4">
+      <thead>
+       <row>
+        <entry>Nome</entry>
+        <entry>Referencia</entry>
+        <entry>Descrição</entry>
+        <entry>Exemplo de valor</entry>
+       </row>
+      </thead>
+
+      <tbody>
+
+       <row>
+        <entry><type>oid</></entry>
+        <entry>qualquer um</entry>
+        <entry>identificador numérico de objeto</entry>
+        <entry><literal>564182</></entry>
+       </row>
+
+       <row>
+        <entry><type>regproc</></entry>
+        <entry><structname>pg_proc</></entry>
+        <entry>nome de função</entry>
+        <entry><literal>sum</></entry>
+       </row>
+
+       <row>
+        <entry><type>regprocedure</></entry>
+        <entry><structname>pg_proc</></entry>
+        <entry>função com tipos dos argumentos</entry>
+        <entry><literal>sum(int4)</></entry>
+       </row>
+
+       <row>
+        <entry><type>regoper</></entry>
+        <entry><structname>pg_operator</></entry>
+        <entry>nome de operador</entry>
+        <entry><literal>+</></entry>
+       </row>
+
+       <row>
+        <entry><type>regoperator</></entry>
+        <entry><structname>pg_operator</></entry>
+        <entry>operador com tipos dos argumentos</entry>
+        <entry><literal>*(integer,integer)</> ou <literal>-(NONE,integer)</></entry>
+       </row>
+
+       <row>
+        <entry><type>regclass</></entry>
+        <entry><structname>pg_class</></entry>
+        <entry>nome da relação</entry>
+        <entry><literal>pg_type</></entry>
+       </row>
+
+       <row>
+        <entry><type>regtype</></entry>
+        <entry><structname>pg_type</></entry>
+        <entry>nome do tipo de dado</entry>
+        <entry><literal>integer</></entry>
+       </row>
+      </tbody>
+     </tgroup>
+    </table>
+
+   <para>
+    Todos os tipos aliases de OID aceitam nomes qualificados pelo esquema, e
+    mostram nomes qualificados pelo esquema na saída se o objeto não puder ser
+    encontrado no caminho de procura corrente sem que esteja qualificado.
+    Os tipos aliases <type>regproc</type> e <type>regoper</type> somente aceitam
+    a entrada de nomes únicos (não sobrecarregados) sendo, portanto,
+    de uso limitado; para a maioria dos casos <type>regprocedure</type> e
+    <type>regoperator</type> são mais apropriados. Em <type>regoperator</type>,
+    os operadores unários são identificados escrevendo <literal>NONE</literal>
+    no lugar do operando não utilizado.
+   </para>
+
+   <para>
+    Outro tipo identificador utilizado pelo sistema é o <type>xid</type>, ou
+    identificador de transação (abreviado como <abbrev>xact</abbrev>).
+    Este é o tipo de dado das colunas do sistema <structfield>xmin</structfield>
+    e <structfield>xmax</structfield>. Os identificadores de transação são
+    quantidades de 32 bits.
+   </para>
+
+   <para>
+    O terceiro tipo identificador é o <type>cid</type>, ou identificador de
+    comando. Este é o tipo de dado das colunas do sistema
+    <structfield>cmin</structfield> e <structfield>cmax</structfield>.
+    Os identificadores de comando também são quantidades de 32 bits.
+   </para>
+
+   <para>
+    O último tipo de identificador utilizado pelo sistema é <type>tid</type>,
+    ou identificador de tupla (identificador de linha). Este é o tipo de dado
+    da coluna do sistema <structfield>ctid</structfield>. O identificador de
+    tupla é um par (número do bloco, índice da tupla dentro do bloco) que
+    identifica a posição física da linha dentro de sua tabela.
+   </para>
+
+   <para>
+    (As colunas do sistema são explicadas mais detalhadamente na
+    <xref linkend="ddl-system-columns">.)
+   </para>
+
+   <example id="datatype-sys-col-remove-dup">
+    <title>Remover as linhas duplicadas da tabela</title>
+    <para>
+     Este exemplo utiliza os OIDs para remover as linhas duplicadas da tabela.
+     As linhas são agrupadas por todas as colunas, exceto OID, permanecendo
+     em cada grupo apenas a linha que possui o menor OID, que supostamente é a
+     primeira linha do grupo que foi inserida.
+     <footnote>
+      <para>
+       Exemplo escrito pelo tradutor, não fazendo parte do manual original.
+      </para>
+     </footnote>
+    </para>
+<screen>
+<userinput>
+CREATE TEMPORARY TABLE a (c1 text, c2 text, c3 text);
+INSERT INTO a VALUES ('x', 'x', 'x');
+INSERT INTO a VALUES ('x', 'x', 'y'); -- 1ª duplicada (fica)
+INSERT INTO a VALUES ('x', 'y', 'x');
+INSERT INTO a VALUES ('x', 'x', 'y'); -- 2ª duplicada (sai)
+INSERT INTO a VALUES ('x', 'x', 'y'); -- 3ª duplicada (sai)
+INSERT INTO a VALUES ('x', 'y', 'y');
+INSERT INTO a VALUES ('y', 'y', 'y'); -- 1ª duplicada (fica)
+INSERT INTO a VALUES ('y', 'y', 'y'); -- 2ª duplicada (sai)
+
+SELECT oid, a.* FROM a;
+</userinput>
+
+<computeroutput>
+   oid   | c1 | c2 | c3
+---------+----+----+----
+ 1665665 | x  | x  | x
+ 1665666 | x  | x  | y
+ 1665667 | x  | y  | x
+ 1665668 | x  | x  | y
+ 1665669 | x  | x  | y
+ 1665670 | x  | y  | y
+ 1665671 | y  | y  | y
+ 1665672 | y  | y  | y
+(8 linhas)
+</computeroutput>
+
+<userinput>
+DELETE FROM a WHERE oid NOT IN
+(SELECT min(oid) FROM a GROUP BY c1, c2, c3);
+
+SELECT oid, a.* FROM a;
+</userinput>
+
+<computeroutput>
+   oid   | c1 | c2 | c3
+---------+----+----+----
+ 1665665 | x  | x  | x
+ 1665666 | x  | x  | y
+ 1665667 | x  | y  | x
+ 1665670 | x  | y  | y
+ 1665671 | y  | y  | y
+(5 linhas)
+</computeroutput>
+</screen>
+   </example>
+  </sect1>
+
+  <sect1 id="datatype-pseudo">
+   <title>Pseudotipos</title>
+
+   <indexterm zone="datatype-pseudo">
+    <primary>record</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-pseudo">
+    <primary>any</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-pseudo">
+    <primary>anyarray</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-pseudo">
+    <primary>anyelement</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-pseudo">
+    <primary>void</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-pseudo">
+    <primary>trigger</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-pseudo">
+    <primary>language_handler</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-pseudo">
+    <primary>cstring</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-pseudo">
+    <primary>internal</primary>
+   </indexterm>
+
+   <indexterm zone="datatype-pseudo">
+    <primary>opaque</primary>
+   </indexterm>
+
+   <para>
+    O sistema de tipos do <productname>PostgreSQL</productname> contém
+    uma série de entradas com finalidades especiais chamadas coletivamente de
+    <firstterm>pseudotipos</firstterm>. Um pseudotipo não pode ser utilizado
+    como o tipo de dado de uma coluna, mas pode ser utilizado para declarar os
+    tipos dos argumentos e dos resultados das funções. Cada um dos pseudotipos
+    disponíveis é útil em situações onde o comportamento da função não
+    corresponde a simplesmente aceitar ou retornar o valor de um tipo de dado
+    específico do <acronym>SQL</acronym>. A
+    <xref linkend="datatype-pseudotypes-table"> lista os pseudotipos existentes.
+   </para>
+
+    <table id="datatype-pseudotypes-table">
+     <title>Pseudotipos</title>
+     <tgroup cols="2">
+      <thead>
+       <row>
+        <entry>Nome</entry>
+        <entry>Descrição</entry>
+       </row>
+      </thead>
+
+      <tbody>
+       <row>
+        <entry><type>any</></entry>
+        <entry>Indica que a função recebe qualquer tipo de dado entrado.</entry>
+       </row>
+
+       <row>
+        <entry><type>anyarray</></entry>
+        <entry>Indica que a função recebe qualquer tipo de dado
+        <literal>array</literal> (Consulte a
+        <xref linkend="extend-types-polymorphic">).</entry>
+       </row>
+
+       <row>
+        <entry><type>anyelement</></entry>
+        <entry>Indica que a função aceita qualquer tipo de dado
+        (Consulte a <xref linkend="extend-types-polymorphic">).</entry>
+       </row>
+
+       <row>
+        <entry><type>cstring</></entry>
+        <entry>Indica que a função recebe ou retorna cadeias de caracteres C
+        terminadas por nulo.</entry>
+       </row>
+
+       <row>
+        <entry><type>internal</></entry>
+        <entry>Indica que a função recebe ou retorna tipos de dado
+        internos do servidor.</entry>
+       </row>
+
+       <row>
+        <entry><type>language_handler</></entry>
+        <entry>Um tratador de chamada de linguagem procedural é declarado como
+        retornando o tipo <type>language_handler</type>.</entry>
+       </row>
+
+       <row>
+        <entry><type>record</></entry>
+        <entry>Identifica uma função que retorna um tipo de linha não
+        especificado.</entry>
+       </row>
+
+       <row>
+        <entry><type>trigger</></entry>
+        <entry>Uma função de gatilho é declarada como retornando o tipo
+        <type>trigger</type>.</entry>
+       </row>
+
+       <row>
+        <entry><type>void</></entry>
+        <entry>Indica que a função não retorna valor.</entry>
+       </row>
+
+       <row>
+        <entry><type>opaque</></entry>
+        <entry>Um nome de tipo obsoleto usado no passado para todas as
+        finalidades acima.</entry>
+       </row>
+      </tbody>
+     </tgroup>
+    </table>
+
+   <para>
+    As funções codificadas em C (tanto nativas quanto carregadas dinamicamente)
+    podem ser declaradas como recebendo ou retornando qualquer um destes
+    pseudotipos de dado. É responsabilidade do autor da função garantir que a
+    função se comporta com segurança quando é utilizado um pseudotipo como
+    tipo do argumento.
+   </para>
+
+   <para>
+    As funções codificadas em linguagens procedurais podem utilizar somente os
+    pseudotipos permitidos pela sua linguagem de implementação. Atualmente,
+    todas as linguagens procedurais proíbem o uso de pseudotipos como tipo do
+    argumento, permitindo apenas <type>void</type> e <type>record</type> como
+    tipo do resultado (além de <type>trigger</type>, quando a função é utilizada
+    como gatilho). Algumas linguagens também suportam funções polimórficas
+    utilizando os tipos <type>anyarray</type> e <type>anyelement</type>.
+   </para>
+
+   <para>
+    O pseudotipo <type>internal</type> é utilizado para declarar funções feitas
+    apenas para serem chamadas internamente pelo sistema de banco de dados,
+    e não chamadas diretamente a partir de uma consulta <acronym>SQL</acronym>.
+    Se a função possui ao menos um tipo de argumento <type>internal</type>
+    então não pode ser chamada por um comando <acronym>SQL</acronym>. Para
+    preservar a segurança de tipo desta restrição é importante seguir esta regra
+    de codificação: não criar nenhuma função declarada como retornando o tipo
+    <type>internal</type>, a não ser que haja pelo menos um argumento do tipo
+    <type>internal</type>.
+   </para>
+
+  </sect1>
+
+ </chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-tabs-mode:nil
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/share/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

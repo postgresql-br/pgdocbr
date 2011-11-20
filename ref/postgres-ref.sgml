@@ -1,0 +1,480 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/postgres-ref.sgml,v 1.45 2004/11/15 06:32:15 neilc Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="APP-POSTGRES">
+ <refmeta>
+  <refentrytitle id="APP-POSTGRES-TITLE"><application>postgres</application></refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Aplicação</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>postgres</refname>
+  <refpurpose>executa o servidor <productname>PostgreSQL</productname> no modo monousuário</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="app-postgres">
+  <primary>programa postgres</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <!-- standalone call -->
+   <command>postgres</command>
+   <arg>-A <group choice="plain"><arg>0</arg><arg>1</arg></group></arg>
+   <arg>-B <replaceable>número_de_buffers</replaceable></arg>
+   <arg>-c <replaceable>nome</replaceable>=<replaceable>valor</replaceable></arg>
+   <arg>-d <replaceable>nível_de_depuração</replaceable></arg>
+   <arg>--describe-config</arg>
+   <arg>-D <replaceable>diretório_de_dados</replaceable></arg>
+   <arg>-e</arg>
+   <arg>-E</arg>
+   <arg>-f<group choice="plain"><arg>s</arg><arg>i</arg><arg>t</arg><arg>n</arg><arg>m</arg><arg>h</arg></group></arg>
+   <arg>-F</arg>
+   <arg>-N</arg>
+   <arg>-o <replaceable>nome_do_arquivo</replaceable></arg>
+   <arg>-O</arg>
+   <arg>-P</arg>
+   <group>
+    <arg>-s</arg>
+    <arg>-t<group choice="plain"><arg>pa</arg><arg>pl</arg><arg>ex</arg></group></arg>
+   </group>
+   <arg>-S <replaceable>memória_de_trabalho</replaceable></arg>
+   <arg>-W <replaceable>segundos</replaceable></arg>
+   <arg>--<replaceable>nome</replaceable>=<replaceable>valor</replaceable></arg>
+   <arg choice="plain"><replaceable>nome_do_banco_de_dados</replaceable></arg>
+   <sbr>
+   <!-- postmaster fork -->
+   <command>postgres</command>
+   <arg>-A <group choice="plain"><arg>0</arg><arg>1</arg></group></arg>
+   <arg>-B <replaceable>número_de_buffers</replaceable></arg>
+   <arg>-c <replaceable>nome</replaceable>=<replaceable>valor</replaceable></arg>
+   <arg>-d <replaceable>nível_de_depuração</replaceable></arg>
+   <arg>-D <replaceable>diretório_de_dados</replaceable></arg>
+   <arg>-e</arg>
+   <arg>-f<group choice="plain"><arg>s</arg><arg>i</arg><arg>t</arg><arg>n</arg><arg>m</arg><arg>h</arg></group></arg>
+   <arg>-F</arg>
+   <arg>-o <replaceable>nome_do_arquivo</replaceable></arg>
+   <arg>-O</arg>
+   <arg>-p <replaceable>nome_do_banco_de_dados</replaceable></arg>
+   <arg>-P</arg>
+   <group>
+    <arg>-s</arg>
+    <arg>-t<group choice="plain"><arg>pa</arg><arg>pl</arg><arg>ex</arg></group></arg>
+   </group>
+   <arg>-S <replaceable>memória_de_trabalho</replaceable></arg>
+   <arg>-v <replaceable>protocolo</replaceable></arg>
+   <arg>-W <replaceable>segundos</replaceable></arg>
+   <arg>--<replaceable>nome</replaceable>=<replaceable>valor</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O executável <command>postgres</command> é o verdadeiro processo servidor
+   <productname>PostgreSQL</productname> que processa os comandos.
+   Normalmente não é chamado diretamente; em vez deste é iniciado o servidor
+   multiusuário <xref linkend="app-postmaster">.
+  </para>
+
+  <para>
+   A segunda forma acima é como o <command>postgres</command> é chamado pelo
+   <xref linkend="app-postmaster"> (somente conceitualmente, porque o
+   <filename>postmaster</filename> e o <filename>postgres</filename> são,
+   na verdade, o mesmo programa); não deve ser chamado diretamente desta
+   maneira. A primeira forma chama o servidor diretamente no modo monousuário
+   interativo. A principal utilização deste modo é durante a inicialização pelo
+   <xref linkend="app-initdb">. Algumas vezes é utilizada para depuração ou
+   para recuperação de desastre.
+  </para>
+
+  <para>
+   Quando chamado no modo interativo a partir da linha de comando, o usuário
+   pode entrar com comandos e os resultados são mostrados na tela, mas de uma
+   forma que é mais útil para os desenvolvedores do que para os usuários finais.
+   Deve-se notar que executar o servidor em modo monousuário não é inteiramente
+   adequado para a depuração do servidor, uma vez que não acontecerá nenhuma
+   comunicação entre processos e bloqueio de fato.
+  </para>
+
+  <para>
+   Ao executar o servidor autônomo, o usuário da sessão será definido como o
+   usuário com o identificador 1. Não é necessário este usuário existir e,
+   portanto, o servidor autônomo pode ser usado para recuperar manualmente
+   certos tipos de dano acidentais dos catálogos do sistema.
+   No modo autônomo são concedidos poderes implícitos de superusuário ao usuário
+   com identificador igual a 1.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Opções</title>
+
+   <para>
+    Quando o <command>postgres</command> é iniciado pelo
+    <xref linkend="app-postmaster">,
+    herda todas as opções definidas por este. Além disso,
+    opções específicas do <command>postgres</command>
+    podem ser passadas pelo <command>postmaster</command>
+    usando a chave <option>-o</option>.
+   </para>
+
+   <para>
+    Pode-se evitar a digitação destas opções definindo um arquivo de
+    configuração. Consulte a <xref linkend="runtime-config"> para obter detalhes.
+    Algumas opções (seguras) também podem ser definidas, por um modo dependente
+    do aplicativo, pelo cliente se conectando.
+    Por exemplo, se a variável de ambiente <envar>PGOPTIONS</envar> estiver
+    definida, então os clientes baseados na <application>libpq</application>
+    passam esta cadeia de caracteres para o servidor, que irá interpretá-la
+    como opções de linha de comando do <command>postgres</command>.
+   </para>
+
+   <refsect2>
+    <title>Finalidade geral</title>
+
+    <para>
+     As opções <option>-A</option>, <option>-B</option>,
+     <option>-c</option>, <option>-d</option>, <option>-D</option>,
+     <option>-F</option> e <option>--<replaceable>nome</replaceable></option>
+     possuem o mesmo significado que no <xref linkend="app-postmaster">, exceto
+     que <literal>-d 0</literal> impede o nível de <literal>log</literal> do
+     <command>postmaster</command> ser propagado para o <command>postgres</command>.
+    </para>
+
+    <variablelist>
+     <varlistentry>
+      <term><option>-e</option></term>
+      <listitem>
+       <para>
+        Define, para os campos de entrada de data, o estilo padrão da data como
+        <quote>European</quote>, que é a ordem <literal>DMY</literal>.
+        Também faz o dia vir antes do mês em certos formatos de saída de data.
+        Consulte a <xref linkend="datatype-datetime"> para obter informações
+        adicionais.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-o</option> <replaceable class="parameter">nome_do_arquivo</replaceable></term>
+      <listitem>
+       <para>
+        Envia toda saída do <literal>log</literal> do servidor para
+        <replaceable class="parameter">nome_do_arquivo</replaceable>.
+        Se o <command>postgres</command> estiver executando sob o
+        <command>postmaster</command> esta opção será ignorada,
+        e a <systemitem>saída de erro</systemitem> (<literal>stderr</literal>) herdada do
+        <command>postmaster</command> será utilizada.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-P</option></term>
+      <listitem>
+       <para>
+        Ignora os índices do sistema ao ler as tabelas do sistema (mas continua
+        atualizando os índices ao modificar as tabelas). É útil ao se fazer a
+        recuperação por causa de índices do sistema corrompidos.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-s</option></term>
+      <listitem>
+       <para>
+        Mostra a informação de tempo, e outras estatísticas, ao final de cada
+        comando. Útil para avaliações ou para definir o número de
+        <literal>buffers</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-S</option> <replaceable class="parameter">memória_de_trabalho</replaceable></term>
+      <listitem>
+       <para>
+        Especifica a quantidade de memória a ser usada pelas ordenações e
+        <literal>hashes</literal> internos, antes de recorrer a arquivos
+        temporários em disco.
+        Consulte a descrição do parâmetro de configuração <varname>work_mem</varname>
+        na <xref linkend="runtime-config-resource-memory">.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+   </refsect2>
+
+   <refsect2>
+    <title>Opções para o modo autônomo</title>
+
+    <variablelist>
+     <varlistentry>
+      <term><replaceable class="parameter">nome_do_banco_de_dados</replaceable></term>
+      <listitem>
+       <para>
+        Especifica o nome do banco de dados a ser acessado. Se for omitido
+        o padrão é o nome do usuário.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-E</option></term>
+      <listitem>
+       <para>
+        Mostra todos os comandos.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-N</option></term>
+      <listitem>
+       <para>
+        Desabilita o uso do caractere de nova-linha como delimitador do comando.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </refsect2>
+
+   <refsect2>
+    <title>Opções semi-internas</title>
+
+    <para>
+     Existem várias outras opções que podem ser especificadas, usadas
+     principalmente para fins de depuração, mostradas apenas para uso pelos
+     desenvolvedores de sistema do <productname>PostgreSQL</productname>.
+     <emphasis>A utilização de qualquer uma destas opções é altamente
+     desaconselhada</emphasis>. Além disso, qualquer uma destas opções
+     poderá mudar ou desaparecer em uma versão futura sem nenhum aviso.
+   </para>
+    <variablelist>
+
+     <varlistentry>
+      <term><option>-f</option> <literal>{ s | i | m | n | h }</literal></term>
+      <listitem>
+       <para>
+        Proíbe o uso de um determinado método de varredura ou de junção:
+        <literal>s</literal> e <literal>i</literal> desabilitam a varredura
+        seqüencial e de índice, respectivamente, enquanto <literal>n</literal>,
+        <literal>m</literal> e <literal>h</literal> desabilitam as junções de
+        laço-aninhado, mesclagem e <literal>hash</literal>, respectivamente.
+       </para>
+
+        <note>
+         <para>
+          Nem as varreduras seqüenciais nem as junções de laço aninhado podem ser
+          desabilitadas completamente; as opções <literal>-fs</literal> e
+          <literal>-fn</literal> simplesmente desencorajam o uso pelo otimizador
+          de planos deste tipo, se houver alguma outra alternativa.
+         </para>
+        </note>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-O</option></term>
+      <listitem>
+       <para>
+        Permite modificar a estrutura das tabelas do sistema.
+        Usada pelo <command>initdb</command>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-p</option> <replaceable class="parameter">nome_do_banco_de_dados</replaceable></term>
+      <listitem>
+       <para>
+        Indica que este processo foi iniciado pelo <command>postmaster</command>
+        e especifica o banco de dados a ser utilizado, etc.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-t</option> <literal>pa[rser] | pl[anner] | e[xecutor]</literal></term>
+      <listitem>
+       <para>
+        Mostra estatísticas de tempo para cada comando, relacionando com cada um
+        dos principais módulos do sistema. Esta opção não pode ser usada junto
+        com a opção <option>-s</option>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-v</option> <replaceable class="parameter">protocolo</replaceable></term>
+      <listitem>
+       <para>
+        Especifica o número da versão do protocolo cliente/servidor
+        a ser usado por esta sessão.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-W</option> <replaceable class="parameter">segundos</replaceable></term>
+      <listitem>
+       <para>
+        Tão logo esta opção seja encontrada, o processo adormece pela
+        quantidade especificada de segundos, dando ao desenvolvedor
+        tempo para anexar o depurador ao processo servidor.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>--describe-config</option></term>
+      <listitem>
+       <para>
+        Esta opção mostra as variáveis de configuração internas do servidor,
+        descrições e padrões, em um formato delimitado por tabulação do
+        <command>COPY</command>. Foi projetado para ser utilizado
+        principalmente por ferramentas de administração.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+   </refsect2>
+ </refsect1>
+
+ <refsect1>
+  <title>Ambiente</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><envar>PGDATA</envar></term>
+
+    <listitem>
+     <para>
+      Local padrão do diretório de dados.
+     </para>
+    </listitem>
+   </varlistentry>
+
+  </variablelist>
+
+  <para>
+   Para as outras variáveis de ambiente, com pouca influência durante o modo
+   monousuário, consulte o <xref linkend="app-postmaster">.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Para cancelar a execução de um comando, deve ser enviado o sinal
+   <literal>SIGINT</literal> para o processo <command>postgres</command>
+   executando este comando.
+  </para>
+
+  <para>
+   Para fazer o <command>postgres</command> recarregar os arquivos de
+   configuração, deve ser enviado o sinal <literal>SIGHUP</literal>.
+   Normalmente é melhor enviar o sinal <literal>SIGHUP</literal> para o
+   <command>postmaster</command> que, por sua vez, enviará o sinal
+   <literal>SIGHUP</literal> para cada um de seus descendentes.
+   Mas em alguns casos pode-se querer que apenas um processo
+   <command>postgres</command> recarregue os arquivos de configuração.
+  </para>
+
+  <para>
+   O <command>postmaster</command> utiliza <literal>SIGTERM</literal> para
+   comunicar a um processo <command>postgres</command> que termine normalmente,
+   e <literal>SIGQUIT</literal> para que termine sem a limpeza normal.
+   Estes sinais <emphasis>não devem</emphasis> ser utilizados pelos usuários.
+   Também não é aconselhável enviar um <literal>SIGKILL</literal> para um
+   processo <command>postgres</command> &mdash; o <command>postmaster</command>
+   vai interpretar como sendo uma queda do <command>postgres</command>, e vai
+   obrigar todos os processos <command>postgres</command> descendentes
+   terminarem como parte de seu procedimento padrão de recuperação de quedas.
+  </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Utilização</title>
+
+   <para>
+    Inicie o servidor autônomo com um comando do tipo:
+<screen>
+<userinput>postgres -D /usr/local/pgsql/data <replaceable>outras_opções</replaceable> meu_banco_de_dados</userinput>
+</screen>
+    Forneça o caminho correto para o diretório do banco de dados com
+    <option>-D</option>, ou garanta que a variável de ambiente
+    <envar>PGDATA</envar> esteja definida.
+    Também especifique o nome do banco de dados em que deseja trabalhar.
+   </para>
+
+   <para>
+    Normalmente, o servidor autônomo trata o caractere de nova-linha como
+    fim da entrada do comando; não existe inteligência sobre ponto-e-vírgula,
+    como existe no <application>psql</application>. Para continuar o comando
+    por várias linhas, deve ser digitado uma contrabarra (\) logo antes
+    de cada nova-linha, exceto a última.
+   </para>
+
+   <para>
+    Mas se for usada a chave de linha de comando <option>-N</option>, o
+    caractere de nova-linha não termina a entrada do comando.
+    Neste caso, o servidor lê a entrada padrão até a marca de fim-de-arquivo
+    (<acronym>EOF</acronym>) e, então, processa a entrada como sendo a
+    cadeia de caracteres de um único comando. A seqüência contrabarra
+    nova-linha não recebe tratamento especial neste caso.
+   </para>
+
+   <para>
+    Para sair da sessão tecle <acronym>EOF</acronym>
+    (<keycombo action="simul"><keycap>Control</keycap><keycap>D</keycap></keycombo>,
+    geralmente). Se for utilizado <option>-N</option>, serão necessários dois
+    <acronym>EOF</acronym> consecutivos para sair.
+   </para>
+
+   <para>
+    Deve ser observado que o servidor autônomo não oferece funcionalidades
+    sofisticadas para edição de linha (por exemplo, não existe o histórico dos
+    comandos).
+   </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <para>
+   <xref linkend="app-initdb">,
+   <xref linkend="app-ipcclean">,
+   <xref linkend="app-postmaster">
+  </para>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

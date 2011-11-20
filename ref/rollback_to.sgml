@@ -1,0 +1,164 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/rollback_to.sgml,v 1.8 2006/09/16 00:30:20 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-ROLLBACK-TO">
+ <refmeta>
+  <refentrytitle id="SQL-ROLLBACK-TO-TITLE">ROLLBACK TO SAVEPOINT</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>ROLLBACK TO SAVEPOINT</refname>
+  <refpurpose>desfaz até o ponto de salvamento</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-rollback-to">
+  <primary>ROLLBACK TO SAVEPOINT</primary>
+ </indexterm>
+
+ <indexterm zone="sql-rollback-to">
+  <primary>ponto de salvamento</primary>
+  <secondary>desfazer</secondary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+ROLLBACK [ WORK | TRANSACTION ] TO [ SAVEPOINT ] <replaceable>ponto_de_salvamento</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   Desfaz todos os comandos que foram executados após o estabelecimento do
+   ponto de salvamento.
+   O ponto de salvamento permanece válido, sendo possível desfazer até este
+   ponto de salvamento novamente se for necessário.
+  </para>
+
+  <para>
+   O comando <command>ROLLBACK TO SAVEPOINT</command> destrói, implicitamente, todos os
+   pontos de salvamento que foram estabelecidos após o ponto de salvamento
+   especificado.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="PARAMETER">ponto_de_salvamento</replaceable></term>
+    <listitem>
+     <para>
+      O ponto de salvamento até onde será desfeito.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Deve ser utilizado o comando
+   <xref linkend="SQL-RELEASE-SAVEPOINT" endterm="SQL-RELEASE-SAVEPOINT-TITLE">
+   para destruir um ponto de salvamento sem descartar os efeitos dos comandos
+   executados após este ponto de salvamento ter sido estabelecido.
+  </para>
+
+  <para>
+   A especificação de um nome de ponto de salvamento que não
+   tenha sido estabelecido anteriormente é um erro.
+  </para>
+
+  <para>
+   Os cursores possuem um comportamento um tanto não transacional com respeito
+   aos pontos de salvamento.
+   Os cursores abertos dentro de um ponto de salvamento serão fechados
+   quando se desfaz até o ponto de salvamento.
+   Se um cursor aberto anteriormente for afetado pelo comando
+   <command>FETCH</command> dentro de um
+   ponto de salvamento, e a transação for desfeita até o ponto de salvamento,
+   a posição do cursor permanece onde o comando <command>FETCH</command> a deixou;
+   ou seja, o comando <command>FETCH</command> não é desfeito.
+   Fechando um cursor, também não o desfaz.
+   Um cursor cuja execução tenha causado a interrupção da transação
+   (<literal>abort</literal>) é colocado no estado de não poder executar e,
+   portanto, embora a transação possa ser restaurada utilizando o comando
+   <command>ROLLBACK TO SAVEPOINT</command> o cursor não pode mais ser usado.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para desfazer os efeitos dos comandos executados após o estabelecimento do
+   <literal>meu_ponto_de_salvamento</literal>:
+<programlisting>
+ROLLBACK TO SAVEPOINT meu_ponto_de_salvamento;
+</programlisting>
+  </para>
+
+  <para>
+   As posições dos cursores não são afetadas por desfazer até o ponto de salvamento:
+<programlisting>
+BEGIN;
+
+DECLARE foo CURSOR FOR SELECT 1 UNION SELECT 2;
+
+SAVEPOINT foo;
+
+FETCH 1 FROM foo;
+ ?column?
+----------
+        1
+
+ROLLBACK TO SAVEPOINT foo;
+
+FETCH 1 FROM foo;
+ ?column?
+----------
+        2
+
+COMMIT;
+</programlisting>
+   </para>
+
+
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O padrão <acronym>SQL</> especifica que a palavra chave <literal>SAVEPOINT</literal>
+   é obrigatória, mas o <productname>PostgreSQL</productname> e o 
+   <productname>Oracle</productname> permitem que seja omitida.
+   O padrão SQL permite apenas <literal>WORK</literal>, e não
+   <literal>TRANSACTION</literal>, como palavra sem efeito
+   (<literal>noise word</literal>) após o <literal>ROLLBACK</literal>.
+   Além disso, o padrão SQL possui a cláusula opcional
+   <literal>AND [ NO ] CHAIN</literal> que não é suportada pelo
+   <productname>PostgreSQL</productname> atualmente.
+   Fora isto, este comando está em conformidade com o padrão SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-begin" endterm="sql-begin-title"></member>
+   <member><xref linkend="sql-commit" endterm="sql-commit-title"></member>
+   <member><xref linkend="sql-release-savepoint" endterm="sql-release-savepoint-title"></member>
+   <member><xref linkend="sql-rollback" endterm="sql-rollback-title"></member>
+   <member><xref linkend="sql-savepoint" endterm="sql-savepoint-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

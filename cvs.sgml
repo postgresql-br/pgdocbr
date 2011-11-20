@@ -1,0 +1,970 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/cvs.sgml,v 1.30 2005/01/06 01:49:22 tgl Exp $
+-->
+
+<appendix id="cvs">
+ <appendixinfo>
+  <authorgroup>
+   <author>
+    <firstname>Marc</firstname>
+    <surname>Fournier</surname>
+   </author>
+   <author>
+    <firstname>Tom</firstname>
+    <surname>Lane</surname>
+   </author>
+   <author>
+    <firstname>Thomas</firstname>
+    <surname>Lockhart</surname>
+   </author>
+  </authorgroup>
+  <date>1999-05-20</date>
+ </appendixinfo>
+
+ <title>O repositório CVS</title>
+
+ <para>
+  O código fonte do <productname>PostgreSQL</productname> é armazenado e
+  gerenciado utilizando o sistema de gerenciamento de código
+  <productname>CVS</productname>.
+  <footnote>
+   <para>
+    Pode ser encontrado um bom tutorial sobre o <productname>CVS</> em
+    <ulink url="http://www.ead.unicamp.br/minicurso/cvs/texto/tabela_conteudo.html">
+    EAD/CCUEC Mini Cursos Virtuais - CVS</ulink>. (N. do T.)
+   </para>
+  </footnote>
+ </para>
+
+ <para>
+  Estão disponíveis pelo menos dois métodos, CVS anônimo e
+  <productname>CVSup</productname>, para trazer a árvore de código
+  <productname>CVS</productname> do servidor
+  <productname>PostgreSQL</productname> para a máquina local.
+ </para>
+
+ <sect1 id="anoncvs">
+  <title>Obtenção do código fonte via CVS anônimo</title>
+
+  <para>
+   Se for desejado se manter atualizado regularmente com os fontes correntes,
+   pode-se trazê-los do servidor <productname>CVS</productname>
+   e depois utilizar o <productname>CVS</productname> para realizar atualizações
+   periódicas.
+  </para>
+
+  <procedure>
+   <title>CVS anônimo</title>
+
+   <step>
+    <para>
+     É necessária uma cópia local do <productname>CVS</productname>, que pode
+     ser obtida em
+     <ulink url="http://www.nongnu.org/cvs/">CVS - Concurrent Versions System</ulink>
+     (o sítio oficial com a última versão), ou em algum sítio de espelho.
+     É recomendada a versão 1.10 ou mais nova.
+     Muitos sistemas operacionais possuem uma versão recente do
+     <application>cvs</application> instalada por padrão.
+    </para>
+   </step>
+
+   <step>
+    <para>
+     Efetuar o <literal>login</literal> inicial no servidor <productname>CVS</>:
+<programlisting>
+cvs -d :pserver:anoncvs@anoncvs.postgresql.org:/projects/cvsroot login
+</programlisting>
+     Será solicitada uma senha; pode ser qualquer coisa, <emphasis>exceto
+     uma cadeia de caracteres vazia</emphasis> (Portanto, não pressione a tecla
+     <literal>Enter</literal> antes de digitar algum caractere - N. do T.).
+    </para>
+
+    <para>
+     Só é necessário realizar esta operação uma única vez, porque a senha é
+     salva no arquivo <literal>.cvspass</literal> no diretório pessoal
+     (<literal>home</literal>).
+    </para>
+   </step>
+
+   <step>
+    <para>
+     Trazer os fontes do <productname>PostgreSQL</productname>:
+<programlisting>
+cvs -z3 -d :pserver:anoncvs@anoncvs.postgresql.org:/projects/cvsroot co -P pgsql
+</programlisting>
+     (<literal>co</literal> é abreviatura de <literal>checkout</>. N. do T.)
+     Este comando coloca os fontes do <productname>PostgreSQL</productname> no
+     subdiretório <filename class="directory">pgsql</filename>
+     do diretório corrente.
+
+     <note>
+      <para>
+       Se for usado um acesso de banda larga à Internet, pode não haver
+       necessidade da opção <option>-z3</option>, que instrui o
+       <productname>CVS</productname> a usar compressão <literal>gzip</> na
+       transferência dos dados, mas em um acesso na velocidade de modem há um
+       ganho substancial.
+      </para>
+     </note>
+    </para>
+
+    <para>
+     A transferência inicial é um pouco mais lenta que simplesmente baixar o
+     arquivo <filename>tar.gz</filename>; estima-se que demore 40 minutos ou
+     mais com um modem de 28.8K. A vantagem do <productname>CVS</productname>
+     não é vista até o momento em que se deseja atualizar o conjunto de
+     arquivos.
+    </para>
+   </step>
+
+   <step>
+    <para>
+     Sempre que for desejado fazer uma atualização para obter os fontes mais
+     recentes no <productname>CVS</productname>, o subdiretório
+     <filename class="directory">pgsql</filename> deve ser tornado o diretório
+     corrente (<command>cd</command>), e executado
+<programlisting>
+$ cvs -z3 update -d -P
+</programlisting>
+     Este procedimento traz somente as alterações realizadas desde a última
+     atualização. Normalmente a atualização demora somente poucos minutos,
+     mesmo em um acesso na velocidade de modem.
+    </para>
+   </step>
+
+   <step>
+    <para>
+     É possível reduzir um pouco a digitação criando o arquivo
+     <filename>.cvsrc</filename> no diretório pessoal contendo:
+<programlisting>
+cvs -z3
+update -d -P
+</programlisting>
+     Este arquivo define a opção global <option>-z3</option> para todos os
+     comandos cvs, e as opções <option>-d</option> e <option>-P</option> para
+     atualizações no cvs. Em seguida, basta executar
+<programlisting>
+$ cvs update
+</programlisting>
+     para atualizar os arquivos.
+    </para>
+   </step>
+  </procedure>
+
+  <caution>
+   <para>
+    Algumas versões mais antigas do <productname>CVS</productname> possuem um
+    erro que faz com que todos os arquivos trazidos sejam armazenados no
+    diretório podendo ser escrito por todos. Caso isto aconteça, é possível
+    fazer algo como
+<programlisting>
+$ chmod -R go-w pgsql
+</programlisting>
+    para definir as permissões de forma apropriada.
+    Este erro foi corrigido no <productname>CVS</productname> versão 1.9.28.
+   </para>
+  </caution>
+
+  <para>
+   O <productname>CVS</productname> pode fazer muitas outras coisas, como trazer
+   versões anteriores dos fontes do <productname>PostgreSQL</productname> em vez
+   de trazer a última versão de desenvolvimento. Para obter informações
+   adicionais deve ser consultado o manual que acompanha o
+   <productname>CVS</productname>, ou deve ser consultado o manual em
+   <ulink url="http://ximbiot.com/cvs/manual/">Version Management with CVS</ulink>.
+  </para>
+ </sect1>
+
+ <sect1 id="cvs-tree">
+  <title>Organização da árvore do CVS</title>
+
+  <para>
+   <note>
+    <title>Autor</title>
+    <para>
+     Escrito por Marc G. Fournier (<email>scrappy@hub.org</email>) em 1998-11-05
+    </para>
+   </note>
+  </para>
+
+  <para>
+   O comando <command>cvs checkout</command> possui um sinalizador,
+   <option>-r</option>, que permite trazer (<literal>checkout</literal>) uma
+   determinada revisão de um módulo. Este sinalizador torna fácil, por exemplo,
+   trazer os fontes que compõem a versão 6_4 do módulo `tc' a qualquer momento:
+
+<programlisting>
+$ cvs checkout -r REL6_4 tc
+</programlisting>
+
+   Este comando é útil, por exemplo, caso alguém diga que existe um erro nesta
+   versão, mas o erro não pode ser encontrado na cópia de trabalho corrente.
+
+   <tip>
+    <para>
+     Também é possível trazer um módulo, como este se encontrava em uma
+     determinada data, utilizando a opção <option>-D</option>.
+    </para>
+   </tip>
+  </para>
+
+  <para>
+   Quando se marca mais de um arquivo com a mesma marca, pode-se pensar na marca
+   (<literal>tag</literal>) como sendo <quote>uma curva traçada através de uma
+   matriz de nome de arquivo versus número de revisão</quote>.
+   <footnote>
+    <para>
+     Número de revisão &mdash;
+     Cada versão do arquivo possui um número de revisão único. Os números de
+     revisão se parecem com <quote>1.1</quote>, <quote>1.2</quote>,
+     <quote>1.3.2.2</quote>, ou mesmo <quote>1.3.2.2.4.5</quote>.
+     Um número de revisão sempre possui um número uniforme de inteiros decimais
+     separados por ponto.
+     Por padrão, a revisão <quote>1.1</quote> é a primeira revisão do arquivo.
+     A cada revisão sucessiva é atribuído um novo número acrescentando um ao
+     número mais à direita. Também é possível haver números contendo mais de um
+     ponto como, por exemplo, <quote>1.3.2.2</quote>. Estas revisões representam
+     revisões em ramificações.
+     <ulink url="http://ximbiot.com/cvs/wiki/index.php?title=CVS--Concurrent_Versions_System_v1.12.12.1:_Revisions">CVS--Concurrent Versions System v1.12.12.1: Revisions</ulink>
+     (N. do T.)
+    </para>
+   </footnote>
+   Digamos que existam 5 arquivos com as seguintes revisões:
+
+<programlisting>
+             arq1    arq2    arq3    arq4    arq5
+
+             1.1     1.1     1.1     1.1  /--1.1*      &lt;-*-  MARCA
+             1.2*-   1.2     1.2    -1.2*-
+             1.3  \- 1.3*-   1.3   / 1.3
+             1.4          \  1.4  /  1.4
+                           \-1.5*-   1.5
+                             1.6
+</programlisting>
+
+   então a marca <literal>MARCA</literal> faz referência a arq1-1.2, arq2-1.3,
+   etc.
+   (continuação tirada do manual do CVS-&gt;)
+   Pode-se imaginar a marca como uma alça presa à curva traçada através das
+   revisões marcadas. Quando se puxa a alça, são trazidas todas as revisões
+   marcadas. Outra forma de enxergar é como sendo uma <quote>visão</quote>
+   através de um conjunto de revisões que é um <quote>plano</quote> ao longo
+   das revisões marcadas, como mostrado abaixo:
+
+<programlisting>
+             arq1    arq2    arq3    arq4    arq5
+                             1.1
+                             1.2
+                     1.1     1.3                       _
+             1.1     1.2     1.4     1.1              /
+             1.2*----1.3*----1.5*----1.2*----1.1     (--- &lt;--- Olhe por aqui
+             1.3             1.6     1.3              \_
+             1.4                     1.4
+                                     1.5
+</programlisting>
+   (&lt;-fim da continuação do manual - N. do T.)
+
+   <note>
+    <para>
+     É o mesmo que criar uma ramificação (<literal>branch</literal>) de versão,
+     sem utilizar a opção <option>-b</option> adicionada ao comando.
+    </para>
+   </note>
+  </para>
+
+  <para>
+   Portanto, para criar a versão 6.4 foi feito
+
+<programlisting>
+$ cd pgsql
+$ cvs tag -b REL6_4
+</programlisting>
+
+   para criar a marca e a ramificação na árvore <literal>RELEASE</literal>.
+  </para>
+
+  <para>
+   Para os que possuem acesso ao <productname>CVS</productname>, é simples
+   criar diretórios para versões diferentes. Primeiro devem ser criados dois
+   subdiretórios, <filename class="directory">RELEASE</filename> e
+   <filename class="directory">CURRENT</filename>, para não confundir
+   as duas coisas. Depois se executa:
+
+<programlisting>
+cd RELEASE
+cvs checkout -P -r REL6_4 pgsql
+cd ../CURRENT
+cvs checkout -P pgsql
+</programlisting>
+
+   que resulta em duas árvores de diretório, <filename>RELEASE/pgsql</filename>
+   e <filename>CURRENT/pgsql</filename>. Deste ponto em diante, o
+   <productname>CVS</productname> acompanha qual ramificação do
+   repositório está em qual árvore de diretório, permitindo atualizações
+   independentes para cada árvore.
+   <footnote>
+    <para>
+     Se for desejado trazer duas ramificações como, por exemplo, REL6_4 e
+     REL7_4_1, é necessário criar os subdiretórios
+     <filename>RELEASE/REL6_4</filename> e
+     <filename>RELEASE/REL7_4_1</filename>, e executar os comandos
+     <quote>cvs checkout -P -r REL6_4 pgsql</quote> e
+     <quote>cvs checkout -P -r REL7_4_1 pgsql</quote>
+     a partir destes subdiretórios. (N. do T.)
+    </para>
+   </footnote>
+  </para>
+
+  <para>
+   Para trabalhar <emphasis>apenas</emphasis> na árvore de fontes
+   <literal>CURRENT</literal>, basta fazer tudo como estava sendo feito antes
+   de começar a colocar marcas de ramificação de versão.
+  </para>
+
+  <para>
+   Após a baixa (<literal>checkout</literal>) inicial de uma ramificação
+
+<programlisting>
+$ cvs checkout -r REL6_4
+</programlisting>
+
+   tudo que é feito dentro desta estrutura de diretório fica restrito a esta
+   ramificação. Se for aplicada uma correção a esta estrutura de diretório e
+   feito um
+
+<programlisting>
+cvs commit
+</programlisting>
+
+   de dentro desta árvore, a correção é aplicada a esta ramificação, e
+   <emphasis>somente</emphasis> a esta ramificação.
+   <footnote>
+    <para>
+     Dentro de cada árvore existe o arquivo <filename>pgsql/CVS/Tag</filename>
+     contendo o nome da ramificação. (N. do T.)
+    </para>
+   </footnote>
+  </para>
+ </sect1>
+
+ <sect1 id="cvsup">
+  <title>Obtenção do código fonte via CVSup</title>
+
+  <para>
+   O <productname>CVSup</productname> é uma alternativa ao uso do CVS anônimo
+   para trazer a árvore de fontes do <productname>PostgreSQL</productname>.
+   O <productname>CVSup</productname> foi desenvolvido por
+   John Polstra (<email>jdp@polstra.com</email>) para
+   distribuir repositórios CVS e outras árvores de arquivos para o
+   <ulink url="http://www.freebsd.org">projeto FreeBSD</ulink>.
+  </para>
+
+  <para>
+   Uma das principais vantagens em utilizar o <productname>CVSup</productname>
+   é que este pode replicar, confiavelmente, <emphasis>todo</emphasis> o
+   repositório CVS no sistema local, permitindo acesso local rápido às operações
+   do CVS, como <option>log</option> e <option>diff</option>.
+   Entre outras vantagens está a sincronização rápida com o servidor
+   <productname>PostgreSQL</productname> devido a um protocolo de transferência
+   de fluxo eficiente, que envia apenas as modificações realizadas desde a
+   última atualização.
+  </para>
+
+  <sect2>
+   <title>Preparação do sistema cliente do CVSup</title>
+
+   <para>
+    São necessárias duas áreas de diretório para o <productname>CVSup</>
+    realizar seu trabalho: um repositório <productname>CVS</productname> local
+    (ou simplesmente uma área de diretório, se estiver sendo trazido um
+    instantâneo em vez do repositório; veja abaixo), e uma área local para
+    registrar as transações do <productname>CVSup</productname>.
+    Estas duas áreas podem coexistir na mesma árvore de diretório.
+   </para>
+
+   <para>
+    Decidir onde se deseja manter a cópia local do repositório
+    <productname>CVS</productname>. Em um dos nossos sistemas foi
+    definido recentemente o repositório em <filename>/home/cvs/</filename>,
+    mas estava sendo mantido anteriormente sob a
+    árvore de desenvolvimento do <productname>PostgreSQL</productname> em
+    <filename>/opt/postgres/cvs/</filename>. Caso se pretenda manter o
+    repositório em <filename>/home/cvs/</filename>, então deve ser colocado
+
+<programlisting>
+setenv CVSROOT /home/cvs
+</programlisting>
+
+    no arquivo <filename>.cshrc</filename> do usuário, ou uma linha semelhante
+    no arquivo <filename>.bashrc</filename> ou <filename>.profile</filename>,
+    dependendo do interpretador de comandos utilizado.
+   </para>
+
+   <para>
+    A área de repositório do <application>cvs</application> deve ser
+    inicializada. Após <envar>CVSROOT</envar> ser definido, então a
+    inicialização pode ser feita com um único comando:
+
+<programlisting>
+$ cvs init
+</programlisting>
+
+    após o qual deve ser visto pelo menos um diretório chamado
+    <filename class="directory">CVSROOT</filename> ao se listar o diretório
+    <envar>CVSROOT</envar>:
+
+<programlisting>
+$ ls $CVSROOT
+CVSROOT/
+</programlisting>
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Execução do cliente do CVSup</title>
+
+   <para>
+    Verificar se o programa <application>cvsup</application> está no caminho de
+    procura; na maioria dos sistemas operacionais é feito digitando
+
+<programlisting>
+which cvsup
+</programlisting>
+
+    Depois, basta executar o <application>cvsup</application> utilizando:
+
+<programlisting>
+$ cvsup -L 2 <replaceable class="parameter">postgres.cvsup</replaceable>
+</programlisting>
+
+    onde <option>-L 2</option> habilita algumas mensagens de status,
+    permitindo monitorar a evolução da atualização,
+    e <replaceable class="parameter">postgres.cvsup</replaceable> é
+    o caminho e nome atribuído ao arquivo de configuração do
+    <productname>CVSup</productname>.
+   </para>
+
+   <para>
+    Abaixo está mostrado um arquivo de configuração do <productname>CVSup</>
+    modificado para uma instalação específica, e que mantém um repositório
+    local <productname>CVS</productname> completo:
+
+<programlisting>
+# This file represents the standard CVSup distribution file
+# for the <productname>PostgreSQL</> ORDBMS project
+# Modified by lockhart@fourpalms.org 1997-08-28
+# - Point to my local snapshot source tree
+# - Pull the full CVS repository, not just the latest snapshot
+#
+# Defaults that apply to all the collections
+*default host=cvsup.postgresql.org
+*default compress
+*default release=cvs
+*default delete use-rel-suffix
+# enable the following line to get the latest snapshot
+#*default tag=.
+# enable the following line to get whatever was specified above or by default
+# at the date specified below
+#*default date=97.08.29.00.00.00
+
+# base directory where CVSup will store its 'bookmarks' file(s)
+# will create subdirectory sup/
+#*default base=/opt/postgres # /usr/local/pgsql
+*default base=/home/cvs
+
+# prefix directory where CVSup will store the actual distribution(s)
+*default prefix=/home/cvs
+
+# complete distribution, including all below
+pgsql
+
+# individual distributions vs 'the whole thing'
+# pgsql-doc
+# pgsql-perl5
+# pgsql-src
+
+</programlisting>
+   </para>
+
+   <para>
+    Na configuração acima, Se for especificada a opção <option>repository</> em
+    vez de <option>pgsql</>, será obtida uma cópia completa de todo o
+    repositório localizado em cvsup.postgresql.org, incluindo o diretório
+    <filename>CVSROOT</filename>. Se isto for feito, provavelmente será desejado
+    excluir os arquivos neste diretório que se desejar modificar localmente,
+    utilizando um arquivo de recusa. Por exemplo, para a configuração acima
+    pode ser criado o arquivo <filename>/home/cvs/sup/repository/refuse</>:
+<programlisting>
+CVSROOT/config*
+CVSROOT/commitinfo*
+CVSROOT/loginfo*
+</programlisting>
+    Para se informar sobre como usar os arquivos de recusa, devem ser
+    consultadas as páginas do manual do <productname>CVSup</>.
+   </para>
+
+   <para>
+    A seguir está mostrado o arquivo de configuração sugerido do
+    <productname>CVSup</productname>, tirado do
+    <ulink url="ftp://ftp.postgresql.org/pub/CVSup/README.cvsup">site de ftp do
+    <productname>PostgreSQL</productname></ulink>, que traz o instantâneo
+    corrente apenas:
+
+<programlisting>
+# This file represents the standard CVSup distribution file
+# for the <productname>PostgreSQL</> ORDBMS project
+#
+# Defaults that apply to all the collections
+*default host=cvsup.postgresql.org
+*default compress
+*default release=cvs
+*default delete use-rel-suffix
+*default tag=.
+
+# base directory where CVSup will store its 'bookmarks' file(s)
+*default base=<replaceable class="parameter">/usr/local/pgsql</replaceable>
+
+# prefix directory where CVSup will store the actual distribution(s)
+*default prefix=<replaceable class="parameter">/usr/local/pgsql</replaceable>
+
+# complete distribution, including all below
+pgsql
+
+# individual distributions vs 'the whole thing'
+# pgsql-doc
+# pgsql-perl5
+# pgsql-src
+
+</programlisting>
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Instalação do CVSup</title>
+
+   <para>
+    O <productname>CVSup</productname> está disponível sob a forma de fonte,
+    binários pré-construídos, e RPMs do Linux . É muito muito mais fácil usar
+    os binários que construir a partir do fonte, principalmente porque é
+    necessário para a construção o muito poderoso, mas muito grande, compilador
+    <productname>Modula-3</productname>.
+   </para>
+
+   <procedure>
+    <title>Instalação do CVSup a partir dos binários</title>
+
+    <para>
+     Podem ser utilizados binários pré-construídos se for utilizada uma
+     plataforma para a qual os binários estão disponíveis no
+     <ulink url="ftp://ftp.postgresql.org/pub">site de ftp do <productname>PostgreSQL</productname></ulink>,
+     ou se estiver utilizando o <productname>FreeBSD</productname>, para o qual
+     o <productname>CVSup</productname> está disponível como um <quote>port</>.
+     <footnote>
+      <para>
+       Para o Debian basta executar <quote>apt-get install cvsup</quote>.
+       (N. do T.)
+      </para>
+     </footnote>
+
+     <note>
+      <para>
+       O <productname>CVSup</productname> foi desenvolvido originalmente como
+       uma ferramenta para distribuição da árvore de fontes do
+       <productname>FreeBSD</productname>. Está disponível como um
+       <quote>port</quote> e, para os usuários do
+       <productname>FreeBSD</productname>, se não for suficiente informar como
+       obter e instalá-lo então, por favor, contribua enviando o procedimento.
+      </para>
+     </note>
+    </para>
+
+    <para>
+     Quando esta documentação foi escrita, haviam binários disponíveis para
+     Alpha/Tru64, ix86/xBSD, HPPA/HP-UX 10.20, MIPS/IRIX, ix86/linux-libc5,
+     ix86/linux-glibc, Sparc/Solaris e Sparc/SunOS.
+    </para>
+
+    <step>
+     <para>
+      Obter o arquivo binário <literal>tar</literal> do
+      <application>cvsup</application> ( para ser um cliente não é necessário
+      <application>cvsupd</application>) apropriado para a plataforma sendo
+      usada.
+     </para>
+
+     <substeps>
+      <step performance="optional">
+       <para>
+        Se estiver sendo utilizado o <productname>FreeBSD</productname>, deve
+        ser instalado o <quote>port</quote> do <productname>CVSup</productname>.
+       </para>
+      </step>
+
+      <step performance="optional">
+       <para>
+        Se estiver sendo utilizada uma outra plataforma, deve ser procurado e
+        baixado o binário apropriado no
+        <ulink url="ftp://ftp.postgresql.org/pub"> sítio de FTP do
+        <productname>PostgreSQL</productname></ulink>.
+       </para>
+      </step>
+     </substeps>
+    </step>
+
+    <step>
+     <para>
+      Analisar o arquivo <literal>tar</literal> para verificar o conteúdo e a
+      estrutura de diretório, se houver alguma. Pelo menos no arquivo
+      <literal>tar</literal> do Linux, o binário estático e as páginas do manual
+      estão incluídas no pacote sem nenhum diretório.
+     </para>
+
+     <substeps>
+      <step>
+       <para>
+        Se o binário estiver no nível mais alto do arquivo <literal>tar</>,
+        então simplesmente deve ser feita a extração do arquivo
+        <literal>tar</literal> no diretório de destino:
+
+<programlisting>
+$ cd /usr/local/bin
+$ tar zxvf /usr/local/src/cvsup-16.0-linux-i386.tar.gz
+$ mv cvsup.1 ../doc/man/man1/
+</programlisting>
+       </para>
+      </step>
+
+      <step>
+       <para>
+        Havendo uma estrutura de diretório no arquivo <literal>tar</literal>,
+        então o arquivo <literal>tar</literal> deve ser extraído dentro do
+        diretório <filename class="directory">/usr/local/src</filename>,
+        e os binários movidos para o local apropriado conforme mostrado acima.
+       </para>
+      </step>
+     </substeps>
+    </step>
+
+    <step>
+     <para>
+      Deve-se garantir que os novos binários podem ser encontrados no caminho
+      de procura.
+
+<programlisting>
+$ rehash
+$ which cvsup
+$ set path=(<replaceable>caminho para o cvsup</replaceable> $path)
+$ which cvsup
+/usr/local/bin/cvsup
+</programlisting>
+     </para>
+    </step>
+   </procedure>
+  </sect2>
+
+  <sect2>
+   <title>Instalação a partir dos fontes</title>
+
+   <para>
+    A instalação do <productname>CVSup</productname> a partir dos arquivos fonte
+    não é totalmente trivial, principalmente porque na maioria dos sistemas é
+    necessário instalar antes o compilador <productname>Modula-3</productname>.
+    Este compilador está disponível como um arquivo <productname>RPM</> para o
+    Linux, um pacote <productname>FreeBSD</productname>, ou como código fonte.
+
+    <note>
+     <para>
+      A instalação do <productname>Modula-3</productname> a partir dos fontes
+      ocupa cerca de 200MB de espaço em disco, que fica reduzido para cerca de
+      50MB de espaço quando os fontes são removidos.</para>
+    </note>
+   </para>
+
+   <procedure>
+    <title>Instalação no Linux</title>
+
+    <step>
+     <para>
+      Instalar o <productname>Modula-3</productname>.
+     </para>
+
+     <substeps>
+      <step>
+       <para>
+        Obter a distribuição do <productname>Modula-3</productname> em
+        <ulink url="http://www.elegosoft.com/pm3/">Polytechnique Montréal
+        Modula-3 (PM3)</ulink>, que está ativamente mantendo o código base
+        desenvolvido originalmente pelo
+        <ulink url="http://www.research.digital.com/SRC/modula-3/html/home.html">DEC Systems Research Center</ulink>.
+        A distribuição do <productname>RPM</productname> do <productname>PM3</>
+        comprimida tem aproximadamente 30MB. Quando este documento foi escrito,
+        a versão 1.1.10-1 instalava sem problemas no RH-5.2, enquanto a versão
+        1.1.11-1 era aparentemente feita para outra versão (RH-6.0?), e não
+        executava no RH-5.2.
+
+        <tip>
+         <para>
+          Este empacotamento de <literal>rpm</literal> em particular possui
+          <emphasis>muitos</emphasis> arquivos <productname>RPM</productname> e,
+          portanto, provavelmente se desejará colocá-los em um diretório
+          separado.
+         </para>
+        </tip>
+       </para>
+      </step>
+
+      <step>
+       <para>
+        Instalar os rpms do <productname>Modula-3</productname>:
+
+<programlisting>
+# rpm -Uvh pm3*.rpm
+</programlisting>
+       </para>
+      </step>
+     </substeps>
+    </step>
+
+    <step>
+     <para>
+     Descompactar a distribuição do cvsup:
+
+<programlisting>
+# cd /usr/local/src
+# tar zxf cvsup-16.0.tar.gz
+</programlisting>
+     </para>
+    </step>
+
+    <step>
+     <para>
+      Construir a distribuição do cvsup, suprimindo a funcionalidade de
+      interface gráfica para evitar a necessidade de bibliotecas do X11:
+
+<programlisting>
+# make M3FLAGS="-DNOGUI"
+</programlisting>
+
+      e, se for desejado construir um binário estático que possa ser movido para
+      sistemas que não possuam o <productname>Modula-3</productname> instalado,
+      tente:
+
+<programlisting>
+# make M3FLAGS="-DNOGUI -DSTATIC"
+</programlisting>
+     </para>
+    </step>
+
+    <step>
+     <para>
+      Instalar o binário construído:
+
+<programlisting>
+# make M3FLAGS="-DNOGUI -DSTATIC" install
+</programlisting>
+     </para>
+    </step>
+   </procedure>
+  </sect2>
+ </sect1>
+</appendix>
+
+<!--
+> It became clear that I had a problem with my m3 installation; some
+> X11 libraries were not being found correctly.
+
+By the way, you can build the client without the GUI by doing this
+in the "client" subdirectory:
+
+    m3build -DNOGUI
+
+If you build it that way, then it doesn't need the X11 libraries and
+it's quite a bit smaller.  The GUI is fun to watch, but it's not
+very useful.  I originally implemented it because it made debugging
+the multi-threaded client program much easier.
+
+To build a statically-linked client, edit <filename>client/src/m3makefile</filename>
+to add <literal>build_standalone()</literal>
+ just before the <literal>program()</literal> entry near
+the end of the file:
+
+<programlisting>
+build_standalone()
+program(cvsup)
+</programlisting>
+
+Then, if cvsup has already been built, remove the machine-specific build directory
+(e.g. <filename>LINUXELF/</filename>) and rebuild:
+
+<programlisting>
+rm -rf LINUXELF
+m3build -DNOGUI -v
+cp -p LINUXELF/cvsup /usr/local/bin
+</programlisting>
+
+> Anyway, with the reinstall and the two-line patch above (and that
+> one include-file _POSIX_SOURCE workaround from the previous try),
+> things built cleanly.
+
+Good!
+
+> Now I just need a server somewhere to test.
+
+If you want to try it out, there are public servers for the FreeBSD
+source repository at cvsup.freebsd.org and cvsup2.freebsd.org.
+Here's a suggested supfile:
+
+*default host=cvsup.freebsd.org compress
+*default release=cvs
+*default base=/home/jdp/cvsup-test	# FIX THIS
+*default delete use-rel-suffix
+# *default tag=.
+src-bin
+
+This will fetch you the source repository for the programs that get
+installed into "/bin".  I chose it because it's one of the smaller
+pieces of the system.  Make an empty directory someplace for
+testing, and change the "FIX THIS" line to specify that directory
+after the "base=".
+
+If you are on a T1 or better, you should probably delete the
+"compress" keyword in the first line.
+
+As shown, it will get the repository (RCS) files.  If you uncomment
+the line containing "tag=." then it will instead check out the
+latest version of each file.  There's a bunch more information about
+what you can do in
+<ulink url="http://www.freebsd.org/handbook/cvsup.html">the CVSup Handbook</ulink>.
+
+There is one other thing I want to send you, but not tonight.  I
+discovered the hard way that you need a malloc package that is
+thread-safe with respect to the Modula-3 threads package.  The
+Modula-3 runtime takes care to do the proper mutual exclusion around
+all calls it makes to malloc.  But if you call certain functions in
+the native C library which in turn call malloc, then the mutual
+exclusion gets bypassed.  This can lead to rare but baffling core
+dumps.
+
+For FreeBSD, I solved this by adding a thread-safe malloc package
+into the Modula-3 runtime.  The package is quite portable, and I'm
+sure it will work well for Linux with very few changes (probably
+none at all).  I want to send it to you along with instructions
+for making it a part of the "libm3core" library.  It's very simple,
+but I've run out of steam for tonight. :-)  Once you have this
+malloc in place, the CVSup system should be rock solid.  We have
+servers that have been up for weeks and have served many thousands
+of clients without any observed problems.
+
+> We hope to have the PostgreSQL tree using CVSup within a month or
+> so, and hope to retire sup in September...
+
+Great!  I'll do my best to help make sure you don't regret it.
+
+John
+
+Tom,
+
+I'm appending the sources for the thread safe version of malloc that
+I told you about.  I believe that it will simply compile and work
+under Linux, but I've never had an opportunity to test it there.
+I urge you to put it into your Modula-3 system; otherwise, you
+are guaranteed to get occasional mysterious core dumps from cvsupd.
+
+As a first step, I'd suggest simply trying to compile it under
+Linux, like this:
+
+    cc -O -c malloc.c
+
+You shouldn't get any errors or warnings.  If you do, contact me
+before you waste any more time on it.
+
+Assuming it compiles OK, copy malloc.c into this directory of your
+Modula-3 source tree:
+
+    m3/m3core/src/runtime/LINUXELF
+
+In that same directory, edit "m3makefile" and add this line to the
+end of the file:
+
+    c_source       ("malloc")
+
+Then chdir up into "m3/m3core" of the Modula-3 tree and type
+"m3build".  (I'm assuming you already have a working Modula-3
+installation.)  After that finishes, become root and type "m3ship"
+to install it.
+
+That's all there is to it.  If you built cvsup and cvsupd to use
+shared libraries, you don't even need to re-link them.  They'll pick
+up the change automatically from the updated shared library.
+
+Let me know if you run into any problems with it.
+
+By the way, this is a very good malloc in its own right.  It's worth
+using even aside from the thread safety of it.
+
+Regards,
+John
+
+I've deposited a statically built cvsup client executable (and man pages
+and test configuration) in
+
+  /pub/incoming/cvsup-15.1-client-linux.tar.gz
+
+This was built and linked on Linux/v2.0.30, RH/v4.2, gnulib/v5.3.12 and
+includes the thread-safe malloc provided by John Polstra. I'll forward
+to you the malloc code and an additional installation e-mail from John.
+
+The Modula-3 installation takes a good bit of room (~50MB?) and the
+build environment is unique to Modula-3, but suprisingly enough it
+pretty much works.
+
+The cvsup Makefiles do not work on my machine (they are not portable
+yet) but each major package (there are 4) can be built without needing
+the makefiles with two commands each. Not difficult at all. John gives
+some hints in his e-mail on how to build a static executable, and on how
+to shrink the size of the executable by leaving out the GUI support.
+Again, easy to do.
+
+My client test case, picking up a sub-tree of the FreeBSD distribution,
+worked flawlessly. I haven't tried running a server.
+
+Thanks to John for getting me going.
+
+                        - Tom
+
+
+For the thread-safe malloc, do the following:
+1) install Modula-3
+2) add the enclosed file "malloc.c" to m3/m3core/src/runtime/LINUXELF
+3) edit the last line of m3makefile in the same directory to add
+     c_source       ("malloc")
+4) do an "m3build" and an m3ship from the appropriate directory.
+
+From what John said, the malloc problem can be noticable for the
+server-side running cvsupd. Clients may not need it.
+
+Unfortunately I seem to have lost John's original good instructions for
+this, so am doing this from memory. May need to ask John to give
+instructions again...
+
+                        - Tom
+
+-->
+
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

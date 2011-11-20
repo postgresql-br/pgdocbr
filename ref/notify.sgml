@@ -1,0 +1,181 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/notify.sgml,v 1.29 2007/01/31 23:26:04 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-NOTIFY">
+ <refmeta>
+  <refentrytitle id="sql-notify-title">NOTIFY</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>NOTIFY</refname>
+  <refpurpose>gera uma notificação</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-notify">
+  <primary>NOTIFY</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+NOTIFY <replaceable class="parameter">nome</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>NOTIFY</command> envia um evento de notificação para todos
+   os aplicativos cliente, que tenham executado anteriormente o comando
+   <command>LISTEN <replaceable class="parameter">nome</replaceable></command>
+   para o nome de notificação especificado, no banco de dados corrente.
+  </para>
+
+  <para>
+   O comando <command>NOTIFY</command> fornece uma forma de sinal simples, ou
+   mecanismo de comunicação entre processos, para um conjunto de processos que
+   acessam o mesmo banco de dados do <productname>PostgreSQL</productname>.
+   Podem ser construídos mecanismos de mais alto nível usando tabelas do banco
+   de dados para passar dados adicionais do notificador para os ouvintes
+   (além do mero nome da notificação).
+  </para>
+
+  <para>
+   A informação passada para o cliente por um evento de notificação inclui o
+   nome da notificação e o <acronym>PID</acronym> do processo servidor da sessão
+   notificadora.
+   É função do projetista do banco de dados definir os nomes das notificações
+   a serem utilizadas em um determinado banco de dados, e o significado de
+   cada uma delas.
+  </para>
+
+  <para>
+   Usualmente, o nome da notificação é o mesmo de alguma tabela do banco de
+   dados, e o evento de notificação essencialmente diz <quote>Eu modifiquei
+   esta tabela, dê uma olhada nela e veja o que há de novo</quote>.
+   Porém, este tipo de associação não é exigida pelos comandos
+   <command>NOTIFY</command> e <command>LISTEN</command>.
+   Por exemplo, um projetista de banco de dados pode usar vários nomes
+   diferentes de notificação para sinalizar diferentes tipos de mudança em
+   uma única tabela.
+  </para>
+
+  <para>
+   Quando o comando <command>NOTIFY</command> é utilizado para sinalizar a
+   ocorrência de mudanças em uma determinada tabela, uma técnica de programação
+   útil é colocar o comando <command>NOTIFY</command> na regra disparada pela
+   atualização da tabela.
+   Assim, a notificação acontece automaticamente quando a tabela é modificada,
+   e o programador do aplicativo não pode acidentalmente esquecer de enviá-la.
+  </para>
+
+  <para>
+   O comando <command>NOTIFY</command> interage com as transações SQL de
+   maneiras importantes.
+   Em primeiro lugar, se o comando <command>NOTIFY</command> for executado
+   dentro de uma transação o evento de notificação não será enviado até que,
+   e a menos que, a transação seja efetivada.
+   Este comportamento é apropriado, porque se a transação for interrompida
+   todos os comandos dentro desta serão sem efeito, incluindo o
+   <command>NOTIFY</command>.
+   Mas, por outro lado, pode ser desconcertante quando se espera que os eventos
+   de notificação sejam enviados imediatamente.
+   Em segundo lugar, se a sessão ouvinte receber um sinal de notificação durante
+   o tempo em que está executando uma transação, o evento de notificação não
+   será entregue ao seu cliente conectado antes que a transação esteja completa
+   (seja efetivada ou interrompida).
+   Novamente o raciocínio é: se a notificação for enviada dentro de uma
+   transação interrompida posteriormente, se deseja que a notificação seja
+   desfeita de alguma maneira &mdash; mas o servidor não pode <quote>pegar de
+   volta</quote> uma notificação após tê-la enviado para o cliente.
+   Portanto, os eventos de notificação somente são entregues entre transações.
+   O resultado final desta situação é que, os aplicativos que utilizam o comando
+   <command>NOTIFY</command> para sinalização em tempo real devem tentar manter
+   suas transações curtas.
+  </para>
+
+  <para>
+   O comando <command>NOTIFY</command> se comporta como os sinais do Unix sob um
+   aspecto importante: se o mesmo nome de notificação for sinalizado diversas
+   vezes em uma sucessão rápida, os receptores podem receber somente um evento
+   de notificação para várias execuções do comando <command>NOTIFY</command>.
+   Portanto, é uma má idéia depender do número de notificações recebidas.
+   Em vez disso, deve ser utilizado o comando <command>NOTIFY</command> para
+   acordar os aplicativos que devem prestar atenção em alguma coisa, e usado um
+   objeto de banco de dados (como uma seqüência) para acompanhar o que
+   aconteceu, ou quantas vezes aconteceu.
+  </para>
+
+  <para>
+   É comum a situação onde o cliente que executa o comando
+   <command>NOTIFY</command> está ouvindo este nome de notificação.
+   Neste caso, este cliente recebe o evento de notificação da mesma forma que
+   todas as outras sessões ouvintes.
+   Dependendo da lógica do aplicativo, pode resultar em um trabalho sem
+   utilidade; por exemplo, ler a tabela do banco de dados para encontrar as
+   mesmas atualizações que esta sessão acabou de fazer.
+   É possível evitar este trabalho adicional verificando se o
+   <acronym>PID</acronym> do processo servidor da sessão notificadora (presente
+   na mensagem do evento de notificação) é o mesmo <acronym>PID</acronym> da
+   própria sessão (disponível pela <application>libpq</application>).
+   Quando forem idênticos, o evento de notificação é o seu próprio trabalho
+   retornando, podendo ser ignorado (Apesar do que foi dito no parágrafo
+   anterior, esta técnica é segura.
+   O <productname>PostgreSQL</productname> mantém as autonotificações separadas
+   das notificações vindas de outras sessões e, portanto, não é possível perder
+   uma notificação externa ignorando as próprias notificações).
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      Nome da notificação a ser sinalizada (qualquer identificador).
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Configurar e executar a seqüência ouvir/notificar usando o aplicativo
+   <application>psql</application>:
+
+<programlisting>
+LISTEN virtual;
+NOTIFY virtual;
+<computeroutput>
+Asynchronous notification "virtual" received from server process with PID 8448.
+</computeroutput>
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Não existe o comando <command>NOTIFY</command> no padrão SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-listen" endterm="sql-listen-title"></member>
+   <member><xref linkend="sql-unlisten" endterm="sql-unlisten-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

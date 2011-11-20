@@ -1,0 +1,210 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/reference.sgml,v 1.60 2006/09/18 19:54:01 tgl Exp $ -->
+
+<part id="reference">
+ <title>Referência</title>
+
+ <partintro>
+  <para>
+   As entradas nesta referência têm por finalidade fornecer, em um espaço
+   razoável, uma síntese formal, completa e abrangente dos respectivos
+   assuntos.
+   Podem ser encontradas mais informações sobre a utilização do
+   <productname>PostgreSQL</productname> sob forma narrativa, de tutorial, ou
+   de exemplos, em outras partes desta documentação.
+   Consulte as referências cruzadas presentes em cada página de referência.
+  </para>
+
+  <para>
+   As entradas de referência também estão disponíveis no formato tradicional
+   <quote><foreignphrase>man pages</foreignphrase></quote> do
+   <systemitem class="osname">Unix</systemitem>.
+  </para>
+ </partintro>
+
+ <reference id="sql-commands">
+  <title>Comandos <acronym>SQL</acronym></title>
+
+  <partintro>
+   <para>
+    Esta parte contém informações de referência para os comandos
+    <acronym>SQL</acronym> suportados pelo
+    <productname>PostgreSQL</productname>.
+    A linguagem é referida de forma geral como <quote>SQL</quote>; informações
+    sobre a conformidade e compatibilidade de cada comando com relação ao
+    padrão podem ser encontradas nas respectivas páginas de referência.
+   </para>
+  </partintro>
+
+   &abort;
+   &alterAggregate;
+   &alterConversion;
+   &alterDatabase;
+   &alterDomain;
+   &alterFunction;
+   &alterGroup;
+   &alterIndex;
+   &alterLanguage;
+   &alterOperator;
+   &alterOperatorClass;
+   &alterRole;
+   &alterSchema;
+   &alterSequence;
+   &alterTable;
+   &alterTableSpace;
+   &alterTrigger;
+   &alterType;
+   &alterUser;
+   &analyze;
+   &begin;
+   &checkpoint;
+   &close;
+   &cluster;
+   &commentOn;
+   &commit;
+   &commitPrepared;
+   &copyTable;
+   &createAggregate;
+   &createCast;
+   &createConstraint;
+   &createConversion;
+   &createDatabase;
+   &createDomain;
+   &createFunction;
+   &createGroup;
+   &createIndex;
+   &createLanguage;
+   &createOperator;
+   &createOperatorClass;
+   &createRole;
+   &createRule;
+   &createSchema;
+   &createSequence;
+   &createTable;
+   &createTableAs;
+   &createTableSpace;
+   &createTrigger;
+   &createType;
+   &createUser;
+   &createView;
+   &deallocate;
+   &declare;
+   &delete;
+   &dropAggregate;
+   &dropCast;
+   &dropConversion;
+   &dropDatabase;
+   &dropDomain;
+   &dropFunction;
+   &dropGroup;
+   &dropIndex;
+   &dropLanguage;
+   &dropOperator;
+   &dropOperatorClass;
+   &dropOwned;
+   &dropRole;
+   &dropRule;
+   &dropSchema;
+   &dropSequence;
+   &dropTable;
+   &dropTableSpace;
+   &dropTrigger;
+   &dropType;
+   &dropUser;
+   &dropView;
+   &end;
+   &execute;
+   &explain;
+   &fetch;
+   &grant;
+   &insert;
+   &listen;
+   &load;
+   &lock;
+   &move;
+   &notify;
+   &prepare;
+   &prepareTransaction;
+   &reassignOwned;
+   &reindex;
+   &releaseSavepoint;
+   &reset;
+   &revoke;
+   &rollback;
+   &rollbackPrepared;
+   &rollbackTo;
+   &savepoint;
+   &select;
+   &selectInto;
+   &set;
+   &setConstraints;
+   &setRole;
+   &setSessionAuth;
+   &setTransaction;
+   &show;
+   &startTransaction;
+   &truncate;
+   &unlisten;
+   &update;
+   &vacuum;
+   &values;
+
+ </reference>
+
+ <reference id="reference-client">
+  <title>Aplicativos cliente do PostgreSQL</title>
+
+  <partintro>
+   <para>
+    Esta parte contém informações de referência para os aplicativos e
+    utilitários clientes do <productname>PostgreSQL</productname>.
+    Nem todos estes comandos são de uso geral, alguns requerem privilégios
+    especiais.
+    A característica comum destes aplicativos é poderem ser executados a partir
+    de qualquer computador, independentemente de onde o servidor de banco de
+    dados está instalado.
+   </para>
+  </partintro>
+
+   &clusterdb;
+   &createdb;
+   &createlang;
+   &createuser;
+   &dropdb;
+   &droplang;
+   &dropuser;
+   &ecpgRef;
+   &pgConfig;
+   &pgDump;
+   &pgDumpall;
+   &pgRestore;
+   &psqlRef;
+   &reindexdb;
+   &vacuumdb;
+
+ </reference>
+
+ <reference id="reference-server">
+  <title>Aplicativos do servidor PostgreSQL</title>
+
+  <partintro>
+   <para>
+    Esta parte contém informações de referência para os aplicativos e
+    utilitários de suporte do servidor <productname>PostgreSQL</productname>.
+    Estes comandos só são úteis quando executados no computador onde o servidor
+    de banco de dados está instalado.
+    Outros programas utilitários estão listados na parte
+    <xref linkend="reference-client">.
+   </para>
+  </partintro>
+
+   &initdb;
+   &ipcclean;
+   &pgControldata;
+   &pgCtl;
+   &pgResetxlog;
+   &postgres;
+   &postmaster;
+
+ </reference>
+
+</part>

@@ -1,0 +1,469 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/advanced.sgml,v 1.53 2007/01/31 20:56:16 momjian Exp $ -->
+
+ <chapter id="tutorial-advanced">
+  <title>Funcionalidades avançadas</title>
+
+  <sect1 id="tutorial-advanced-intro">
+   <title>Introdução</title>
+
+   <para>
+    Nos capítulos anteriores foi descrita a utilização básica da linguagem
+    <acronym>SQL</acronym> para armazenar e acessar dados no
+    <productname>PostgreSQL</productname>. Agora serão mostradas algumas
+    funcionalidades mais avançadas da linguagem <acronym>SQL</acronym> que
+    simplificam a gerência, e evitam a perda e a corrupção dos dados. No final
+    serão vistas algumas extensões do <productname>PostgreSQL</productname>.
+   </para>
+
+   <para>
+    Em certas ocasiões este capítulo faz referência aos exemplos encontrados no
+    <xref linkend="tutorial-sql"> para modificá-los ou melhorá-los, portanto
+    recomenda-se que este capítulo já tenha sido lido. Alguns exemplos
+    do presente capítulo também se encontram no arquivo
+    <filename>advanced.sql</filename> no diretório do tutorial.
+    Este arquivo também contém dados dos exemplos a serem carregados, que não
+    serão repetidos aqui (consulte a <xref linkend="tutorial-sql-intro"> para
+    saber como usar este arquivo).
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-views">
+   <title>Visões</title>
+
+   <indexterm zone="tutorial-views">
+    <primary>visão</primary>
+   </indexterm>
+
+   <para>
+    Reveja as consultas na <xref linkend="tutorial-join">. Supondo que a
+    consulta combinando os registros de clima e de localização das cidades
+    seja de particular interesse para um aplicativo, mas que não se deseja
+    digitar esta consulta toda vez que for necessária, então é possível
+    criar uma <firstterm>visão</firstterm> baseada na consulta, atribuindo um
+    nome a esta consulta pelo qual será possível referenciá-la como se fosse
+    uma tabela comum:
+
+<programlisting>
+CREATE VIEW minha_visao AS
+    SELECT cidade, temp_min, temp_max, prcp, data, localizacao
+        FROM clima, cidades
+        WHERE cidade = nome;
+
+SELECT * FROM minha_visao;
+</programlisting>
+   </para>
+
+   <para>
+    Fazer livre uso de visões é um aspecto chave de um bom projeto de banco de
+    dados SQL. As visões permitem encapsular, atrás de interfaces que não mudam,
+    os detalhes da estrutura das tabelas, que podem mudar na medida em que
+    os aplicativos evoluem.
+   </para>
+
+   <para>
+    As visões podem ser utilizadas em praticamente todos os lugares onde uma
+    tabela real pode ser utilizada. Construir visões baseadas em visões não é raro.
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-fk">
+   <title>Chaves Estrangeiras</title>
+
+   <indexterm zone="tutorial-fk">
+    <primary>chave estrangeira</primary>
+   </indexterm>
+
+   <indexterm zone="tutorial-fk">
+    <primary>integridade referencial</primary>
+   </indexterm>
+
+   <para>
+    Reveja as tabelas <classname>clima</classname> e
+    <classname>cidades</classname> no <xref linkend="tutorial-sql">. Considere
+    o seguinte problema: Desejamos ter certeza que não serão inseridas linhas
+    na tabela <classname>clima</classname> sem que haja um registro
+    correspondente na tabela <classname>cidades</classname>. Isto é chamado de
+    manter a <firstterm>integridade referencial</firstterm> dos dados.
+    Em sistemas de banco de dados muito simples poderia ser implementado
+    (caso fosse) olhando primeiro a tabela <classname>cidades</classname> para
+    verificar se existe a linha correspondente e, depois, inserir ou rejeitar a
+    nova linha de <classname>clima</classname>. Esta abordagem possui vários
+    problemas, e é muito inconveniente, por isso o
+    <productname>PostgreSQL</productname> pode realizar esta operação por você.
+   </para>
+
+   <para>
+    A nova declaração das tabelas ficaria assim:
+
+<programlisting>
+CREATE TABLE cidades (
+        cidade      varchar(80) primary key,
+        localizacao point
+);
+
+CREATE TABLE clima (
+        cidade     varchar(80) references cidades(cidade),
+        temp_min   int,
+        temp_max   int,
+        prcp       real,
+        data       date
+);
+</programlisting>
+
+    Agora, ao se tentar inserir uma linha inválida:
+
+<programlisting>
+INSERT INTO clima VALUES ('Berkeley', 45, 53, 0.0, '1994-11-28');
+</programlisting>
+
+<screen>
+ERROR:  insert or update on table "clima" violates foreign key constraint "clima_cidade_fkey"
+DETAIL:  Key (cidade)=(Berkeley) is not present in table "cidades".
+</screen>
+   </para>
+
+   <para>
+    O comportamento das chaves estrangeiras pode receber ajuste fino
+    no aplicativo. Não iremos além deste exemplo simples neste tutorial,
+    mas consulte o <xref linkend="ddl"> para obter informações adicionais.
+    Com certeza o uso correto de chaves estrangeiras melhora a qualidade
+    dos aplicativos de banco de dados, portanto incentivamos muito que se
+    aprenda a usá-las.
+   </para>
+  </sect1>
+
+
+  <sect1 id="tutorial-transactions">
+   <title>Transações</title>
+
+   <indexterm zone="tutorial-transactions">
+    <primary>transação</primary>
+   </indexterm>
+
+   <para>
+    <firstterm>Transação</firstterm> é um conceito fundamental de todo sistema
+    de banco de dados. O ponto essencial da transação é englobar vários passos
+    em uma única operação de tudo ou nada. Os estados intermediários entre os
+    passos não são vistos pelas demais transações simultâneas e, se ocorrer
+    alguma falha que impeça a transação chegar até o fim, então nenhum dos
+    passos intermediários irá afetar o banco de dados de forma alguma.
+   </para>
+
+   <para>
+    Por exemplo, considere um banco de dados de uma instituição financeira
+    contendo o saldo da conta corrente de vários clientes, assim como o saldo
+    total dos depósitos de cada agência. Suponha que se deseje transferir
+    $100.00 da conta da Alice para a conta do Bob. Simplificando barbaramente,
+    os comandos SQL para esta operação seriam:
+
+<programlisting>
+UPDATE contas SET saldo = saldo - 100.00
+    WHERE nome = 'Alice';
+UPDATE filiais SET saldo = saldo - 100.00
+    WHERE nome = (SELECT nome_filial FROM contas WHERE nome = 'Alice');
+UPDATE contas SET saldo = saldo + 100.00
+    WHERE nome = 'Bob';
+UPDATE filiais SET saldo = saldo + 100.00
+    WHERE nome = (SELECT nome_filial FROM contas WHERE nome = 'Bob');
+</programlisting>
+   </para>
+
+   <para>
+    Os detalhes destes comandos não são importantes aqui; o importante é o fato
+    de existirem várias atualizações distintas envolvidas para realizar uma
+    operação bem simples. A contabilidade quer ter certeza que todas as
+    atualizações são realizadas, ou que nenhuma delas é realizada. Não é
+    interessante uma falha no sistema fazer com que Bob receba $100.00 que não
+    foi debitado da Alice. Também a Alice não continuará sendo uma cliente
+    satisfeita se o dinheiro for debitado da conta dela e não for creditado na
+    de Bob. É necessário garantir que, caso aconteça algo errado no meio da
+    operação, nenhum dos passos executados até este ponto produza efeito.
+    Agrupar as atualizações em uma <firstterm>transação</firstterm> dá esta
+    garantia. Uma transação é dita como sendo <firstterm>atômica</firstterm>:
+    do ponto de vista das outras transações, ou a transação acontece
+    completamente ou nada acontece.
+   </para>
+
+   <para>
+    Desejamos, também, ter a garantia de estando a transação completa e aceita
+    pelo sistema de banco de dados, que esta fique permanentemente gravada,
+    e não seja perdida mesmo no caso de acontecer uma pane logo em seguida.
+    Por exemplo, se estiver sendo registrado saque em dinheiro pelo Bob não se
+    deseja, de forma alguma, que o débito em sua conta corrente desapareça por
+    causa de uma pane ocorrida logo depois dele sair da agência. Um banco de
+    dados transacional garante que todas as atualizações realizadas por
+    uma transação ficam registradas em meio de armazenamento permanente
+    (ou seja, em disco), antes da transação ser considerada completa.
+   </para>
+
+   <para>
+    Outra propriedade importante dos bancos de dados transacionais está muito
+    ligada à noção de atualizações atômicas: quando várias transações estão
+    executando simultaneamente, cada uma delas não deve enxergar as alterações
+    incompletas efetuadas pelas outras. Por exemplo, se uma transação está
+    ocupada totalizando o saldo de todas as agências, não pode ser visto o
+    débito efetuado na agência da Alice mas ainda não creditado na agência do
+    Bob, nem o contrário. Portanto, as transações devem ser tudo ou nada não
+    apenas em termos do efeito permanente no banco de dados, mas também em
+    termos de visibilidade durante o processamento. As atualizações feitas por
+    uma transação em andamento não podem ser vistas pelas outras transações
+    enquanto não terminar, quando todas as atualizações se tornam visíveis
+    ao mesmo tempo.
+   </para>
+
+   <para>
+    No <productname>PostgreSQL</productname> a transação é definida envolvendo
+    os comandos SQL da transação pelos comandos <command>BEGIN</command> e
+    <command>COMMIT</command>. Sendo assim, a nossa transação bancária ficaria:
+
+<programlisting>
+BEGIN;
+UPDATE contas SET saldo = saldo - 100.00
+    WHERE nome = 'Alice';
+-- etc etc
+COMMIT;
+</programlisting>
+   </para>
+
+   <para>
+    Se no meio da transação for decidido que esta não deve ser efetivada
+    (talvez porque tenha sido visto que o saldo da Alice ficou negativo),
+    pode ser executado o comando <command>ROLLBACK</command> em vez do
+    <command>COMMIT</command> para fazer com que todas as atualizações sejam
+    canceladas.
+   </para>
+
+   <para>
+    O <productname>PostgreSQL</productname>, na verdade, trata todo comando SQL
+    como sendo executado dentro de uma transação. Se não for utilizado o comando
+    <command>BEGIN</command>, então cada comando possui um
+    <command>BEGIN</command> e, se der tudo certo, um <command>COMMIT</command>
+    individual envolvendo-o. Um grupo de comandos envolvidos por um
+    <command>BEGIN</command> e um <command>COMMIT</command> é algumas vezes
+    chamado de <firstterm>bloco de transação</firstterm>.
+   </para>
+
+   <note>
+    <para>
+     Algumas bibliotecas cliente emitem um comando <command>BEGIN</command> e um
+     comando <command>COMMIT</command> automaticamente, fazendo com que seja
+     obtido o efeito de um bloco de transação sem ser perguntado. Verifique a
+     documentação da interface utilizada.
+    </para>
+   </note>
+
+   <para>
+    É possível controlar os comandos na transação de uma forma mais granular
+    utilizando os <firstterm>pontos de salvamento</firstterm>
+    (<literal>savepoints</literal>). Os pontos de salvamento permitem
+    cancelar partes da transação seletivamente, e efetivar as demais partes.
+    Após definir o ponto de salvamento, através da instrução
+    <command>SAVEPOINT</command>, é possível cancelar a transação até o ponto
+    de salvamento, se for necessário, usando <command>ROLLBACK TO</command>.
+    Todas as alterações no banco de dados efetuadas entre a definição do ponto
+    de salvamento e o cancelamento são desprezadas, mas as alterações efetuadas
+    antes do ponto de salvamento são mantidas.
+   </para>
+
+   <para>
+    Após cancelar até o ponto de salvamento este ponto de salvamento continua
+    definido e, portanto, é possível cancelar várias vezes. Ao contrário,
+    havendo certeza que não vai ser mais necessário cancelar até o ponto
+    de salvamento, o ponto de salvamento pode ser liberado, para que o
+    sistema possa liberar alguns recursos. Deve-se ter em mente que liberar ou
+    cancelar até um ponto de salvamento libera, automaticamente, todos os
+    ponto de salvamento definidos após o mesmo.
+   </para>
+
+   <para>
+    Tudo isto acontece dentro do bloco de transação e, portanto, nada disso é
+    visto pelas outras sessões do banco de dados. Quando o bloco de transação
+    é efetivado, as ações efetivadas se tornam visíveis como uma unidade para
+    as outras sessões, enquanto as ações canceladas nunca se tornam visíveis.
+   </para>
+
+   <para>
+    Recordando o banco de dados da instituição financeira, suponha que devesse
+    ser debitado $100.00 da conta da Alice e creditado na conta do Bob, mas
+    que foi descoberto em seguida que era para ser creditado na conta do Wally.
+    Isso poderia ser feito utilizando pontos de salvamento como mostrado abaixo:
+
+<programlisting>
+BEGIN;
+UPDATE contas SET saldo = saldo - 100.00
+    WHERE nome = 'Alice';
+SAVEPOINT meu_ponto_de_salvamento;
+UPDATE contas SET saldo = saldo + 100.00
+    WHERE nome = 'Bob';
+-- uai ... o certo é na conta do Wally
+ROLLBACK TO meu_ponto_de_salvamento;
+UPDATE contas SET saldo = saldo + 100.00
+    WHERE nome = 'Wally';
+COMMIT;
+</programlisting>
+   </para>
+
+   <para>
+    Obviamente este exemplo está simplificado ao extremo, mas é possível
+    efetuar um grau elevado de controle sobre a transação através do uso de
+    pontos de salvamento. Além disso, a instrução <command>ROLLBACK TO</command>
+    é a única forma de obter novamente o controle sobre um bloco de transação
+    colocado no estado interrompido devido a um erro, fora cancelar
+    completamente e começar tudo de novo.
+   </para>
+
+  </sect1>
+
+
+  <sect1 id="tutorial-inheritance">
+   <title>Herança</title>
+
+   <indexterm zone="tutorial-inheritance">
+    <primary>herança</primary>
+   </indexterm>
+
+   <para>
+    Herança é um conceito de banco de dados orientado a objeto, que abre
+    novas possibilidades interessantes ao projeto de banco de dados.
+   </para>
+
+   <para>
+    Vamos criar duas tabelas: a tabela <classname>cidades</classname>
+    e a tabela <classname>capitais</classname>. Como é natural, as capitais
+    também são cidades e, portanto, deve existir alguma maneira para mostrar
+    implicitamente as capitais quando todas as cidades são mostradas.
+    Se formos bastante perspicazes, poderemos criar um esquema como este:
+
+<programlisting>
+CREATE TABLE capitais (
+  nome       text,
+  populacao  real,
+  altitude   int,    -- (em pés)
+  estado     char(2)
+);
+
+CREATE TABLE interior (
+  nome       text,
+  populacao  real,
+  altitude   int     -- (em pés)
+);
+
+CREATE VIEW cidades AS
+  SELECT nome, populacao, altitude FROM capitais
+    UNION
+  SELECT nome, populacao, altitude FROM interior;
+</programlisting>
+
+    Este esquema funciona bem para as consultas, mas não é bom
+    quando é necessário atualizar várias linhas, entre outras coisas.
+   </para>
+
+   <para>
+    Esta é uma solução melhor:
+
+<programlisting>
+CREATE TABLE cidades (
+  nome       text,
+  populacao  real,
+  altitude   int     -- (em pés)
+);
+
+CREATE TABLE capitais (
+  estado      char(2)
+) INHERITS (cidades);
+</programlisting>
+   </para>
+
+   <para>
+    Neste caso, as linhas da tabela <classname>capitais</classname>
+    <firstterm>herdam</firstterm> todas as colunas
+    (<structfield>nome</structfield>, <structfield>populacao</structfield> e
+    <structfield>altitude</structfield>) da sua tabela
+    <firstterm>ancestral</firstterm> <classname>cidades</classname>.
+    O tipo da coluna <structfield>nome</structfield> é <type>text</type>, um
+    tipo nativo do <productname>PostgreSQL</productname> para cadeias de
+    caracteres de tamanho variável. As capitais dos estados possuem uma coluna
+    a mais chamada <structfield>estado</>, que armazena a sigla do estado.
+    No <productname>PostgreSQL</productname> uma tabela pode herdar de
+    nenhuma, uma, ou de várias tabelas.
+   </para>
+
+   <para>
+    Por exemplo, a consulta abaixo retorna os nomes de todas as cidades,
+    incluindo as capitais dos estados, localizadas a uma altitude superior
+    a 500 pés:
+
+<programlisting>
+SELECT nome, altitude
+  FROM cidades
+  WHERE altitude &gt; 500;
+</programlisting>
+
+<screen>
+   nome    | altitude
+-----------+----------
+ Las Vegas |     2174
+ Mariposa  |     1953
+ Madison   |      845
+(3 linhas)
+</screen>
+   </para>
+
+   <para>
+    Por outro lado, a consulta abaixo traz todas as cidades que não são
+    capitais de estado e estão situadas a uma altitude superior a 500 pés:
+
+<programlisting>
+SELECT nome, altitude
+    FROM ONLY cidades
+    WHERE altitude &gt; 500;
+</programlisting>
+
+<screen>
+   nome    | altitude
+-----------+----------
+ Las Vegas |     2174
+ Mariposa  |     1953
+(2 linhas)
+</screen>
+   </para>
+
+   <para>
+    Nesta consulta a palavra chave <literal>ONLY</literal> antes de
+    <literal>cidades</literal> indica que a consulta deve ser efetuada apenas
+    na tabela <classname>cidades</classname>, sem incluir as tabelas abaixo de
+    <classname>cidades</classname> na hierarquia de herança. Muitos comandos
+    mostrados até agora &mdash; <command>SELECT</command>,
+    <command>UPDATE</command> e <command>DELETE</command> &mdash; permitem usar
+    a notação <literal>ONLY</literal>.
+   </para>
+
+   <note>
+    <para>
+     Embora a hierarquia seja útil com freqüência, como não está integrada
+     às restrições de unicidade e de chave estrangeira, sua utilidade é
+     limitada. Consulte a <xref linkend="ddl-inherit"> para obter mais detalhes.
+    </para>
+   </note>
+  </sect1>
+
+
+  <sect1 id="tutorial-conclusion">
+   <title>Conclusão</title>
+
+   <para>
+    O <productname>PostgreSQL</productname> possui muitas funcionalidades não
+    abordadas neste tutorial introdutório, o qual está orientado para os
+    usuários com pouca experiência na linguagem <acronym>SQL</acronym>. Estas
+    funcionalidades são mostradas com mais detalhes no restante deste livro.
+   </para>
+
+   <para>
+    Se for necessário mais material introdutório, por favor visite o
+    <ulink url="http://www.postgresql.org">sítio</ulink> do PostgreSQL na Web
+    para obter indicações sobre onde encontrar este material.
+   </para>
+  </sect1>
+ </chapter>

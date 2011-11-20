@@ -1,0 +1,4870 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/libpq.sgml,v 1.178 2005/01/14 00:23:21 momjian Exp $
+-->
+
+ <chapter id="libpq">
+  <title>libpq - Biblioteca C</title>
+
+  <indexterm zone="libpq">
+   <primary>libpq</primary>
+  </indexterm>
+
+  <indexterm zone="libpq">
+   <primary>C</primary>
+  </indexterm>
+
+  <para>
+   A <application>libpq</application> é a interface do programador de aplicativo
+   <acronym>C</acronym> com o <productname>PostgreSQL</>.
+   A <application>libpq</> é um conjunto de funções de biblioteca que permitem
+   os programas clientes passar comandos para o  servidor
+   <productname>PostgreSQL</productname>, e receber os resultados destes
+   comandos.
+  </para>
+
+  <para>
+   A <application>libpq</> também é o mecanismo subjacente de várias outras
+   interfaces de aplicativo do <productname>PostgreSQL</>, incluindo as escritas
+   para C++, Perl, Python, Tcl e <application>ECPG</>.
+   Portanto, alguns aspectos do comportamento da <application>libpq</> são
+   importantes para aqueles que utilizam um destes pacotes. Em particular,
+   a <xref linkend="libpq-envars">,
+   a <xref linkend="libpq-pgpass"> e
+   a <xref linkend="libpq-ssl">
+   descrevem o comportamento visível aos usuários de qualquer aplicativo que
+   utiliza a <application>libpq</>.
+  </para>
+
+  <para>
+   No final deste capítulo são incluídos alguns programas curtos
+   (<xref linkend="libpq-example">) para mostrar como se escreve programas que
+   utilizam a <application>libpq</application>. Também existem vários exemplos
+   completos de aplicativos <application>libpq</application> no diretório
+   <filename>src/test/examples</filename> da distribuição do código fonte.
+  </para>
+
+  <para>
+   Os programas cliente que utilizam a <application>libpq</application> devem
+   incluir o arquivo de cabeçalho <filename>libpq-fe.h</filename>,
+   <indexterm><primary>libpq-fe.h</></>
+   e devem ligar com a biblioteca <application>libpq</application>.
+  </para>
+
+ <sect1 id="libpq-connect">
+  <title>Funções de controle da conexão com o banco de dados</title>
+
+  <para>
+   As funções a seguir lidam com o estabelecimento da conexão com o servidor
+   <productname>PostgreSQL</productname>. Um programa aplicativo pode manter
+   várias conexões abertas ao mesmo tempo (um motivo para isso ser feito é
+   o acesso a mais de um banco de dados). Cada conexão é representada por um
+   objeto <structname>PGconn</structname>,
+   <indexterm><primary>PGconn</primary></indexterm>
+   obtido a partir da função <function>PQconnectdb</function> ou
+   <function>PQsetdbLogin</>. Deve ser observado que estas funções sempre
+   retornam um ponteiro de objeto não nulo, a menos que não haja memória
+   suficiente para alocar o objeto <structname>PGconn</structname>.
+   Antes de enviar comandos pelo objeto de conexão, deve ser chamada a função
+   <function>PQstatus</> para verificar se a conexão foi bem-sucedida.
+
+   <variablelist>
+    <varlistentry>
+     <term><function>PQconnectdb</function><indexterm><primary>PQconnectdb</></></term>
+     <listitem>
+      <para>
+       Estabelece uma nova conexão com o servidor de banco de dados.
+<synopsis>
+PGconn *PQconnectdb(const char *conninfo);
+</synopsis>
+</para>
+
+<para>
+   Esta função abre uma nova conexão com o servidor de banco de dados utilizando
+   os parâmetros presentes da cadeia de caracteres <literal>conninfo</literal>.
+   Diferentemente de <function>PQsetdbLogin</> mostrada abaixo, o conjunto de
+   parâmetros pode ser estendido sem mudar a assinatura da função, portanto
+   deve-se dar preferência na programação de novos aplicativos ao uso desta
+   função (ou de suas análogas não bloqueantes <function>PQconnectStart</> e
+   <function>PQconnectPoll</function>).
+   </para>
+
+   <para>
+   A cadeia de caracteres passada pode estar vazia, caso em que será utilizado o
+   valor padrão de todos os parâmetros, ou pode conter a definição de um ou mais
+   parâmetros separados por espaço em branco.
+   Cada definição de parâmetro tem a forma <literal>palavra_chave = valor</>.
+   Os espaços em torno do sinal de igual são opcionais.
+   Para escrever um valor vazio, ou um valor contendo espaços, o valor deve ser
+   colocado entre apóstrofos como, por exemplo,
+   <literal>palavra_chave = 'um valor'</literal>.
+   Apóstrofos e contra-barras dentro do valor devem receber escape de
+   contra-barra, ou seja, <literal>\'</literal> e <literal>\\</literal>.
+   </para>
+
+   <para>
+    As palavras chave de parâmetro reconhecidas no momento são:
+
+   <variablelist>
+    <varlistentry>
+     <term><literal>host</literal></term>
+     <listitem>
+     <para>
+      Nome do hospedeiro para se conectar.
+      <indexterm><primary>nome do hospedeiro</primary></>
+      Se o nome começar por uma barra, especifica a comunicação com um
+      domínio-Unix, em vez de uma comunicação TCP/IP; neste caso, valor é o
+      nome do diretório onde o arquivo de soquete será armazenado.
+      O comportamento padrão quando não se especifica o parâmetro
+      <literal>host</literal> é conectar a um soquete do domínio-Unix
+      <indexterm><primary>soquete do domínio Unix</></>
+      no diretório <filename>/tmp</filename> (ou qualquer que tenha sido o
+      diretório de soquete especificado quando o <productname>PostgreSQL</> foi
+      construído).
+      Nas máquinas sem soquete de domínio-Unix, o padrão é conectar ao
+      <literal>localhost</>.
+     </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>hostaddr</literal></term>
+     <listitem>
+     <para>
+      Endereço numérico de IP do hospedeiro a ser feita a conexão.
+      Deve estar no formato padrão de endereço IPv4 como, por exemplo,
+      <literal>172.28.40.9</>.
+      Havendo suporte a IPv6 na máquina, então estes endereços também podem ser
+      utilizados.
+      Quando se especifica para este parâmetro uma cadeia de caracteres não
+      vazia, é sempre utilizada uma comunicação TCP/IP.
+     </para>
+     <para>
+      A utilização de <literal>hostaddr</> em vez de <literal>host</> permite
+      o aplicativo evitar a procura do hospedeiro pelo nome, que pode ser
+      importante nos aplicativos com restrição de tempo.
+      Entretanto, a autenticação Kerberos requer o nome do hospedeiro.
+      Portanto, o que vem a seguir se aplica:
+      Quando se especifica <literal>host</> e não se especifica
+      <literal>hostaddr</>, ocorre a procura do hospedeiro pelo nome.
+      Quando se especifica <literal>hostaddr</> e não se especifica
+      <literal>host</>, o valor de <literal>hostaddr</> fornece o endereço
+      remoto.
+      Quando se utiliza o Kerberos, ocorre uma procura pelo nome reversa, para
+      obter o nome do hospedeiro para o Kerberos.
+      Quando se especifica tanto <literal>host</> quanto <literal>hostaddr</>,
+      o valor de <literal>hostaddr</> fornece o endereço remoto; o valor de
+      <literal>host</> é ignorado, a menos que se utilize o Kerberos, quando o
+      valor é utilizado para autenticação pelo Kerberos (Deve ser observado que
+      a autenticação não deverá ser bem-sucedida se for passado para a
+      <application>libpq</application> um nome de hospedeiro que não corresponde
+      ao nome da máquina em <literal>hostaddr</>).
+      Além disso, é utilizado <literal>host</> para identificar a conexão,
+      em vez de <literal>hostaddr</>, no arquivo <filename>~/.pgpass</>
+      (consulte a <xref linkend="libpq-pgpass">).
+     </para>
+     <para>
+      Se não for especificado o nome do hospedeiro, nem o endereço do
+      hospedeiro, a <application>libpq</application> faz a conexão usando um
+      soquete do domínio-Unix local; nas máquinas sem soquetes do domínio-Unix
+      é feita uma tentativa de conexão com <literal>localhost</>.
+     </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>port</literal></term>
+     <listitem>
+     <para>
+      Número da porta para se conectar no hospedeiro servidor, ou a extensão do
+      nome do arquivo de soquete para as conexões com o domínio-Unix.
+      <indexterm><primary>porta</></>
+     </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>dbname</literal></term>
+     <listitem>
+     <para>
+      O nome do banco de dados. Por padrão o mesmo nome do usuário.
+     </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>user</literal></term>
+     <listitem>
+     <para>
+      O nome do usuário do <productname>PostgreSQL</> para se conectar.
+      Por padrão o mesmo nome do usuário do sistema operacional que está
+      executando o aplicativo.
+     </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>password</literal></term>
+     <listitem>
+     <para>
+      A senha a ser utilizada se o servidor requerer autenticação por senha.
+     </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>connect_timeout</literal></term>
+     <listitem>
+     <para>
+      Tempo máximo para aguardar pela conexão, em segundos (escrito como uma
+      cadeia de caracteres contendo um número inteiro decimal). Zero, ou não
+      especificado, significa aguardar indefinidamente. Não se recomenda
+      utilizar um tempo limite inferior a 2 segundos.
+     </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>options</literal></term>
+     <listitem>
+      <para>
+       Opções de linha de comando a serem passadas para o servidor.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>tty</literal></term>
+     <listitem>
+     <para>
+      Ignorado (no passado especificava para onde enviar a saída de depuração
+      do servidor).
+     </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>sslmode</literal></term>
+     <listitem>
+      <para>
+       Esta opção determina se, ou com que prioridade, será negociada uma
+       conexão <acronym>SSL</> com o servidor.
+       Existem quatro modos:
+       <literal>disable</> (desabilitado) tenta apenas uma conexão
+       <acronym>SSL</> não criptografada;
+       <literal>allow</> (permitido) negocia, tentando primeiro uma conexão
+       não-<acronym>SSL</>, depois, se não for bem-sucedido, tenta uma conexão
+       <acronym>SSL</>;
+       <literal>prefer</> (preferido) (o padrão) negocia, tentando primeiro uma
+       conexão <acronym>SSL</>, depois, se não for bem-sucedido, tenta uma
+       conexão não <acronym>SSL</> regular;
+       <literal>require</> (requerido) tenta apenas uma conexão <acronym>SSL</>.
+      </para>
+
+      <para>
+       Quando o <productname>PostgreSQL</> é compilado sem suporte a SSL a
+       utilização da opção <literal>require</> causa um erro, enquanto as
+       opções <literal>allow</> e <literal>prefer</> serão aceitas, mas a
+       <application>libpq</> não vai tentar de fato uma conexão
+       <acronym>SSL</>.
+       <indexterm><primary>SSL</><secondary sortas="libpq">com libpq</></indexterm>
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>requiressl</literal></term>
+     <listitem>
+      <para>
+       Esta opção está em obsolescência em favor da definição de
+       <literal>sslmode</>.
+      </para>
+
+      <para>
+       Se for definido como 1, é requerida uma conexão <acronym>SSL</acronym>
+       com o servidor (equivale ao modo <literal>require</> de
+       <literal>sslmode</>). A <application>libpq</> recusa se conectar se o
+       servidor não aceitar uma conexão <acronym>SSL</acronym>. Se for definido
+       como 0 (o padrão), a <application>libpq</> negocia o tipo de conexão com
+       o servidor (equivale ao modo <literal>prefer</> de <literal>sslmode</>).
+       O <productname>PostgreSQL</> é compilado com suporte a SSL.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>service</literal></term>
+     <listitem>
+     <para>
+      Nome do serviço
+      <footnote>
+       <para>
+        serviço &mdash; arquivo de configuração de conexão &mdash;
+        Um serviço é um conjunto de parâmetros de conexão com nome.
+        Podem ser especificados vários serviços no arquivo.
+        Cada serviço começa pelo nome do serviço entre colchetes.
+        As linhas seguintes contêm parâmetros de configuração de conexão com a
+        forma "parâmetro=valor". As linhas que começam por '#' são comentários.
+        (N. do T.)
+       </para>
+      </footnote>
+      a ser utilizado para obter parâmetros adicionais.
+      Especifica um nome de serviço no arquivo <filename>pg_service.conf</>,
+      que reúne parâmetros de conexão adicionais.
+      Permite que os aplicativos especifiquem somente o nome do serviço, para que
+      a manutenção dos parâmetros de conexão seja feita de forma centralizada.
+      Para obter informações sobre como configurar este arquivo deve ser visto o
+      arquivo <filename>share/pg_service.conf.sample</> no diretório de
+      instalação.
+     </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+
+   Se algum dos parâmetros não for especificado, então será verificada a
+   variável de ambiente correspondente (consulte a <xref linkend="libpq-envars">).
+   Se a variável de ambiente também não estiver especificada, então são
+   utilizados os padrões nativos.
+   </para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><function>PQsetdbLogin</function><indexterm><primary>PQsetdbLogin</></></term>
+  <listitem>
+   <para>
+       Estabelece uma nova conexão com o servidor de banco de dados.
+<synopsis>
+PGconn *PQsetdbLogin(const char *pghost,
+                     const char *pgport,
+                     const char *pgoptions,
+                     const char *pgtty,
+                     const char *dbName,
+                     const char *login,
+                     const char *pwd);
+</synopsis>
+</para>
+
+<para>
+   É a função antecessora de <function>PQconnectdb</function> com um número
+   fixo de parâmetros. Possui a mesma funcionalidade, exceto que os parâmetros
+   que faltam sempre recebem os valores padrão. Deve ser escrito
+   <symbol>NULL</symbol>, ou uma cadeia de caracteres vazia, em qualquer um
+   dos parâmetros fixos que vai receber o valor padrão.
+   </para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><function>PQsetdb</function><indexterm><primary>PQsetdb</></></term>
+  <listitem>
+   <para>
+   Estabelece uma nova conexão com o servidor de banco de dados.
+<synopsis>
+PGconn *PQsetdb(char *pghost,
+                char *pgport,
+                char *pgoptions,
+                char *pgtty,
+                char *dbName);
+</synopsis>
+</para>
+
+<para>
+   Esta é uma macro que chama <function>PQsetdbLogin</function> com ponteiros
+   nulos para os parâmetros <parameter>login</> e <parameter>pwd</>.
+   É fornecida para manter a compatibilidade com programas muito antigos.
+   </para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><function>PQconnectStart</function><indexterm><primary>PQconnectStart</></></term>
+  <term><function>PQconnectPoll</function><indexterm><primary>PQconnectPoll</></></term>
+  <listitem>
+  <para>
+   <indexterm><primary>conexão não-bloqueante</primary></indexterm>
+   Estabelece uma conexão com o servidor de banco de dados de uma forma
+   não-bloqueante.
+
+<synopsis>
+PGconn *PQconnectStart(const char *conninfo);
+</synopsis>
+<synopsis>
+PostgresPollingStatusType PQconnectPoll(PGconn *conn);
+</synopsis>
+</para>
+  <para>
+   Estas duas funções são utilizadas para abrir uma conexão com o servidor de
+   banco de dados, de uma maneira que o fluxo de execução do aplicativo não
+   fica bloqueado devido a E/S remota enquanto esta operação é realizada.
+   O ponto central desta abordagem é que o aguardo pelo término da operação de
+   E/S pode ocorrer dentro do laço principal do aplicativo, em vez de dentro
+   da função <function>PQconnectdb</>, de forma que o aplicativo possa
+   gerenciar esta operação em paralelo com outras atividades.
+  </para>
+  <para>
+   A conexão com o banco de dados é feita utilizando os parâmetros encontrados
+   na cadeia de caracteres <literal>conninfo</literal>, passada para a função
+   <function>PQconnectStart</function>. Esta cadeia de caracteres possui o mesmo
+   formato descrito acima para <function>PQconnectdb</function>.
+  </para>
+  <para>
+   Nem <function>PQconnectStart</> nem <function>PQconnectPoll</> bloqueiam,
+   desde que certas condições sejam respeitadas:
+   <itemizedlist>
+    <listitem>
+     <para>
+      Utilização dos parâmetros <literal>hostaddr</> e <literal>host</> de uma
+      forma apropriada para garantir que não sejam realizadas procura pelo nome,
+      nem procura pelo nome reversa. Para obter detalhes deve-se ver a
+      documentação destes parâmetros sob <function>PQconnectdb</function> acima.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Se for chamada a função <function>PQtrace</function>, deve-se garantir
+      que o objeto de fluxo, para onde é feita a depuração, não bloqueie.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Deve-se garantir que o soquete está no status apropriado antes de chamar
+      a função <function>PQconnectPoll</function>, conforme descrito abaixo.
+     </para>
+    </listitem>
+   </itemizedlist>
+  </para>
+
+  <para>
+   Para iniciar uma solicitação de conexão não bloqueante, deve-se executar
+   <literal>conn = PQconnectStart("<replaceable>connection_info_string</>")</>.
+   Se <varname>conn</varname> for nulo, então a <application>libpq</> não foi
+   capaz de alocar uma nova estrutura <structname>PGconn</>.
+   Senão é retornado um ponteiro para <structname>PGconn</> válido (embora ainda
+   não represente uma conexão válida com o banco de dados). Após retornar da
+   função <function>PQconnectStart</function>, deve-se executar
+   <literal>status = PQstatus(conn)</literal>. Se <varname>status</varname> for
+   igual a <symbol>CONNECTION_BAD</symbol>, então a função
+   <function>PQconnectStart</> não foi bem-sucedida.
+  </para>
+  <para>
+   Se a função <function>PQconnectStart</> for bem-sucedida, o próximo estágio
+   é uma verificação cíclica da <application>libpq</> para prosseguir com a
+   seqüência de conexão.
+   Deve ser utilizada a função <function>PQsocket(conn)</function> para obter o
+   descritor do soquete subjacente à conexão com o banco de dados.
+   Ciclo: Se a função <function>PQconnectPoll(conn)</function> retornar
+   <symbol>PGRES_POLLING_READING</symbol>, aguardar até o soquete ficar pronto
+   para ser lido (conforme indicado por <function>select()</>,
+   <function>poll()</>, ou uma função do sistema semelhante).
+   Em seguida chamar <function>PQconnectPoll(conn)</function> novamente.
+   Caso contrário, se <function>PQconnectPoll(conn)</function> retornar
+   <symbol>PGRES_POLLING_WRITING</symbol>, aguardar até o soquete ficar pronto
+   para escrita, em seguida chamar <function>PQconnectPoll(conn)</function>
+   novamente.
+   Caso ainda seja necessário chamar <function>PQconnectPoll</function>, isto é,
+   logo após chamar <function>PQconnectStart</function>, o comportamento deve
+   ser o mesmo como se esta função tivesse retornado da última vez
+   <symbol>PGRES_POLLING_WRITING</symbol>.
+   Este ciclo deve continuar até que <function>PQconnectPoll(conn)</function>
+   retorne <symbol>PGRES_POLLING_FAILED</symbol>, indicando que o procedimento
+   de conexão falhou, ou <symbol>PGRES_POLLING_OK</symbol>, indicando que a
+   conexão foi bem sucedida.
+  </para>
+
+  <para>
+    O status da conexão pode ser verificado a qualquer momento chamando
+    <function>PQstatus</>. Se retornar <symbol>CONNECTION_BAD</>, então o
+    procedimento de conexão falhou; se retornar <function>CONNECTION_OK</>,
+    então a conexão está pronta. Estes dois status podem ser detectados
+    igualmente a partir do valor retornado por <function>PQconnectPoll</>,
+    descrita acima. Também podem ocorrer outros status durante (e apenas
+    durante) o procedimento de conexão assíncrona. Estes status indicam o
+    estágio corrente do procedimento de conexão, podendo ser útil para fornecer
+    informações para o usuário, por exemplo. Estes status são:
+
+    <variablelist>
+     <varlistentry>
+      <term><symbol>CONNECTION_STARTED</symbol></term>
+      <listitem>
+       <para>
+        Aguardando a conexão ser estabelecida.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><symbol>CONNECTION_MADE</symbol></term>
+      <listitem>
+       <para>
+        Conexão OK; aguardando para enviar.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><symbol>CONNECTION_AWAITING_RESPONSE</symbol></term>
+      <listitem>
+       <para>
+        Aguardando resposta do servidor.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><symbol>CONNECTION_AUTH_OK</symbol></term>
+      <listitem>
+       <para>
+        Autenticação recebida; aguardando a inicialização do servidor terminar.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><symbol>CONNECTION_SSL_STARTUP</symbol></term>
+      <listitem>
+       <para>
+        Negociando criptografia SSL.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><symbol>CONNECTION_SETENV</symbol></term>
+      <listitem>
+       <para>
+        Negociando definições de parâmetro dirigida pelo ambiente.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+
+    Deve ser observado que embora estas constantes continuarão existindo
+    (para manter a compatibilidade), um aplicativo nunca deve depender de suas
+    ocorrências em uma determinada ordem, ou mesmo que aconteçam, ou que o
+    status sempre seja um destes valores documentados. O aplicativo deve
+    proceder de forma parecida com a mostrada abaixo:
+<programlisting>
+switch(PQstatus(conn))
+{
+    case CONNECTION_STARTED:
+        status = "Conectando...";
+        break;
+
+    case CONNECTION_MADE:
+        status = "Conectado ao servidor...";
+        break;
+.
+.
+.
+    default:
+        status = "Conectando...";
+}
+</programlisting>
+  </para>
+
+  <para>
+   O parâmetro de conexão <literal>connect_timeout</literal> é ignorado quando
+   se utiliza <function>PQconnectPoll</function>; o aplicativo é responsável por
+   decidir quando decorreu uma quantidade excessiva de tempo.
+   Caso contrário, a função <function>PQconnectStart</function> seguida por
+   <function>PQconnectPoll</function> seria equivalente à função
+   <function>PQconnectdb</function>.
+  </para>
+
+  <para>
+   Deve ser observado que quando a função <function>PQconnectStart</function>
+   retorna um ponteiro não nulo, deve-se chamar a função
+   <function>PQfinish</function> ao se terminar de utilizá-la, para que seja
+   liberada a estrutura e todos os blocos de memória associados. Isto deve ser
+   feito mesmo que a tentativa de conexão falhe ou seja abandonada.
+  </para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><function>PQconndefaults</function><indexterm><primary>PQconndefaults</></></term>
+  <listitem>
+   <para>
+   Retorna as opções de conexão padrão.
+<synopsis>
+PQconninfoOption *PQconndefaults(void);
+
+typedef struct
+{
+    char   *keyword;   /* A palavra chave da opção */
+    char   *envvar;    /* O nome da variável de ambiente alternativa de falha */
+    char   *compiled;  /* O nome do valor padrão compilado alternativo de falha */
+    char   *val;       /* Valor corrente da opção, ou NULL */
+    char   *label;     /* Rótulo para o campo no diálogo de conexão */
+    char   *dispchar;  /* Caractere a ser mostrado para este campo
+                          no diálogo de conexão. Os valores são:
+                          ""        Mostrar o valor entrado como ele é
+                          "*"       Campo de senha - esconder o valor
+                          "D"       Opção de depuração - não mostrar por padrão */
+    int     dispsize;  /* Tamanho do campo em caracteres para o diálogo */
+} PQconninfoOption;
+</synopsis>
+</para>
+
+<para>
+   Retorna uma matriz de opções de conexão. Pode ser utilizado para determinar
+   todas as opções possíveis de <function>PQconnectdb</function> e seus valores
+   padrão corrente. O valor retornado aponta para uma matriz de estruturas
+   <structname>PQconninfoOption</structname>, que termina por uma entrada
+   possuindo um ponteiro nulo para <structfield>keyword</>. Deve ser observado
+   que os valores padrão corrente (campos <structfield>val</structfield>)
+   dependem das variáveis de ambiente e outro contexto. A chamada deve tratar
+   os dados das opções de conexão como somente para leitura.
+   </para>
+
+   <para>
+    Após a matriz de opções ser processada, esta deve ser liberada passando-a
+    para <function>PQconninfoFree</function>. Caso não seja feito, haverá um
+    pequeno vazamento de memória (<literal>memory leak</literal>) em cada
+    chamada à função <function>PQconndefaults</function>.
+   </para>
+
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><function>PQfinish</function><indexterm><primary>PQfinish</></></term>
+  <listitem>
+   <para>
+   Fecha a conexão com o servidor. Também libera a memória utilizada pelo
+   objeto <structname>PGconn</structname>.
+<synopsis>
+void PQfinish(PGconn *conn);
+</synopsis>
+</para>
+
+<para>
+   Deve ser observado que mesmo quando a tentativa de conexão com o servidor
+   falha (conforme indicado por <function>PQstatus</function>), o aplicativo
+   deve chamar a função <function>PQfinish</function> para liberar a memória
+   utilizada pelo objeto <structname>PGconn</structname>. O ponteiro para
+   <structname>PGconn</> não deve ser utilizado novamente após a função
+   <function>PQfinish</function> ter sido chamada.
+   </para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><function>PQreset</function><indexterm><primary>PQreset</></></term>
+  <listitem>
+   <para>
+   Reinicia o canal de comunicação com o servidor.
+<synopsis>
+void PQreset(PGconn *conn);
+</synopsis>
+</para>
+
+<para>
+   Esta função fecha a conexão com o servidor e tenta restabelecer uma nova
+   conexão com o mesmo servidor, usando exatamente os mesmos parâmetros
+   utilizados anteriormente. Pode ser útil para recuperação de erro quando a
+   conexão de trabalho é perdida.
+   </para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><function>PQresetStart</function><indexterm><primary>PQresetStart</></></term>
+  <term><function>PQresetPoll</function><indexterm><primary>PQresetPoll</></></term>
+  <listitem>
+   <para>
+    Reinicia o canal de comunicação com o servidor, de uma maneira não
+    bloqueante.
+<synopsis>
+int PQresetStart(PGconn *conn);
+</synopsis>
+<synopsis>
+PostgresPollingStatusType PQresetPoll(PGconn *conn);
+</synopsis>
+</para>
+
+<para>
+    Estas funções fecham a conexão com o servidor e tentam restabelecer uma nova
+    conexão com o mesmo servidor, usando exatamente os mesmos parâmetros
+    utilizados anteriormente. Pode ser útil para recuperação de erro quando a
+    conexão de trabalho é perdida. Diferem da função <function>PQreset</>
+    (acima) por atuarem de uma maneira não bloqueante. Estas funções sofrem as
+    mesmas restrições das funções <function>PQconnectStart</> e
+    <function>PQconnectPoll</>.
+   </para>
+   <para>
+    Para começar o reinício de conexão deve ser chamada a função
+    <function>PQresetStart</function>. Se retornar 0, o reinício falhou. Se
+    retornar 1 verificar ciclicamente o reinício utilizando a função
+    <function>PQresetPoll</function> exatamente da mesma maneira como seria
+    criada a conexão utilizando <function>PQconnectPoll</function>.
+   </para>
+  </listitem>
+ </varlistentry>
+
+ </variablelist>
+</para>
+</sect1>
+
+<sect1 id="libpq-status">
+<title>Funções de status da conexão</title>
+
+  <para>
+   Estas funções podem ser utilizadas para indagar o status de um
+   objeto de conexão com banco de dados existente.
+  </para>
+
+<tip>
+<para>
+<indexterm><primary>libpq-fe.h</></>
+<indexterm><primary>libpq-int.h</></>
+Os programadores de aplicativos <application>libpq</application> devem tomar o
+cuidado de manter a abstração da <structname>PGconn</structname>.
+Devem ser utilizadas as funções de acesso descritas abaixo para obter o
+conteúdo de <structname>PGconn</structname>.
+Deve-se evitar a referência direta aos campos da estrutura
+<structname>PGconn</structname>, porque estão sujeitos a mudanças futuras
+(A partir da versão 6.4 do <productname>PostgreSQL</productname>, a definição
+da <type>struct</type> por trás de <structname>PGconn</> não é fornecida nem
+mesmo em <filename>libpq-fe.h</filename>.
+Caso exista um código antigo acessando diretamente os campos de
+<structname>PGconn</structname>, pode-se continuar usando esta forma
+incluindo também <filename>libpq-int.h</filename>, mas encoraja-se que o código
+seja corrigido em breve).
+</para>
+</tip>
+
+<para>
+As funções abaixo retornam valores dos parâmetros estabelecidos durante a
+conexão. Estes valores são fixos durante a vida do objeto
+<structname>PGconn</structname>.
+
+<variablelist>
+<varlistentry>
+<term><function>PQdb</function><indexterm><primary>PQdb</></></term>
+<listitem>
+<para>
+         Retorna o nome do banco de dados da conexão.
+<synopsis>
+char *PQdb(const PGconn *conn);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQuser</function><indexterm><primary>PQuser</></></term>
+<listitem>
+<para>
+         Retorna o nome do usuário da conexão.
+<synopsis>
+char *PQuser(const PGconn *conn);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQpass</function><indexterm><primary>PQpass</></></term>
+<listitem>
+<para>
+         Retorna a senha da conexão.
+<synopsis>
+char *PQpass(const PGconn *conn);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQhost</function><indexterm><primary>PQhost</></></term>
+<listitem>
+<para>
+         Retorna o nome do hospedeiro servidor da conexão.
+<synopsis>
+char *PQhost(const PGconn *conn);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQport</function><indexterm><primary>PQport</></></term>
+<listitem>
+<para>
+         Retorna a porta da conexão.
+<synopsis>
+char *PQport(const PGconn *conn);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQtty</function><indexterm><primary>PQtty</></></term>
+<listitem>
+<para>
+         Retorna o <acronym>TTY</acronym> de depuração da conexão
+         (Está obsoleto, uma vez que o servidor não presta mais atenção
+         na definição de <acronym>TTY</acronym>, mas a função permanece
+         para manter a compatibilidade com as versões anteriores).
+<synopsis>
+char *PQtty(const PGconn *conn);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQoptions</function><indexterm><primary>PQoptions</></></term>
+<listitem>
+<para>
+       Retorna as opções de linha de comando passadas no pedido de conexão.
+<synopsis>
+char *PQoptions(const PGconn *conn);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+As funções abaixo retornam informações de status que podem mudar devido a
+operações executadas no objeto <structname>PGconn</structname>.
+
+<variablelist>
+<varlistentry>
+<term><function>PQstatus</function><indexterm><primary>PQstatus</></></term>
+<listitem>
+<para>
+         Retorna o status da conexão.
+<synopsis>
+ConnStatusType PQstatus(const PGconn *conn);
+</synopsis>
+</para>
+
+      <para>
+       O status pode ser um entre um conjunto de valores.
+       Entretanto, somente dois destes valores são vistos fora de um
+       procedimento de conexão assíncrono:
+       <literal>CONNECTION_OK</literal> e <literal>CONNECTION_BAD</literal>.
+       Uma conexão bem-sucedida com o banco de dados possui o status
+       <literal>CONNECTION_OK</literal>.
+       Uma tentativa de conexão com o banco de dados mal-sucedida possui o
+       status <literal>CONNECTION_BAD</literal>.
+       Normalmente, um status OK permanece assim até
+       <function>PQfinish</function>, mas uma falha na conexão pode resultar
+       em uma mudança prematura para o status <literal>CONNECTION_BAD</literal>.
+       Neste caso, o aplicativo pode tentar a recuperação chamando
+       <function>PQreset</function>.
+      </para>
+
+      <para>
+       Com relação aos outros códigos de status que podem ser encontrados, devem
+       ser vistas as descrições de <function>PQconnectStart</> e
+       <function>PQconnectPoll</>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+<varlistentry>
+<term><function>PQtransactionStatus</function><indexterm><primary>PQtransactionStatus</></></term>
+<listitem>
+<para>
+         Retorna o status corrente da transação no servidor.
+<synopsis>
+PGTransactionStatusType PQtransactionStatus(const PGconn *conn);
+</synopsis>
+
+O status pode ser <literal>PQTRANS_IDLE</literal> (ocioso no momento),
+<literal>PQTRANS_ACTIVE</literal> (o comando está sendo executado),
+<literal>PQTRANS_INTRANS</literal> (ocioso, em um bloco de transação válido),
+ou <literal>PQTRANS_INERROR</literal> (ocioso, em um bloco de transação que
+falhou).
+Se a conexão estiver ruim é relatado <literal>PQTRANS_UNKNOWN</literal>.
+Somente é relatado <literal>PQTRANS_ACTIVE</literal> quando tiver sido enviado
+para o servidor um comando que ainda não está completo.
+</para>
+<caution>
+<para>
+A função <function>PQtransactionStatus</> retorna resultados incorretos quando
+é utilizada em um servidor <productname>PostgreSQL</productname> 7.3 com o
+parâmetro <literal>autocommit</> definido como desabilitado.
+A funcionalidade de auto-efetivação do lado servidor entrou em obsolescência,
+não existindo mais em versões posteriores do servidor.
+</para>
+</caution>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQparameterStatus</function><indexterm><primary>PQparameterStatus</></></term>
+<listitem>
+<para>
+         Procura a definição corrente do parâmetro no servidor.
+<synopsis>
+const char *PQparameterStatus(const PGconn *conn, const char *paramName);
+</synopsis>
+
+Certos valores de parâmetros são relatados pelo servidor automaticamente no
+início da conexão, ou sempre que seus valores mudam.
+A função <function>PQparameterStatus</> pode ser utilizada para indagar
+estas definições.
+Retorna o valor corrente do parâmetro caso este seja conhecido, ou
+<symbol>NULL</symbol> se o parâmetro não for conhecido.
+</para>
+
+<para>
+Os parâmetros relatados na versão corrente incluem
+<literal>server_version</>,
+<literal>server_encoding</>,
+<literal>client_encoding</>,
+<literal>is_superuser</>,
+<literal>session_authorization</>,
+<literal>DateStyle</>,
+<literal>TimeZone</> e
+<literal>integer_datetimes</>
+(<literal>server_encoding</>, <literal>TimeZone</> e
+<literal>integer_datetimes</> não eram relatados nas versões anteriores a 8.0).
+Deve ser observado que
+<literal>server_version</>,
+<literal>server_encoding</> e
+<literal>integer_datetimes</>
+não podem mudar após a inicialização.
+</para>
+
+<para>
+Os servidores com protocolo pré-3.0 não relatam as definições dos parâmetros,
+mas, de qualquer forma, a <application>libpq</> inclui lógica para obter os
+valores de <literal>server_version</> e <literal>client_encoding</>.
+Encoraja-se que os aplicativos utilizem a função <function>PQparameterStatus</>,
+em vez de código <foreignphrase>ad hoc</foreignphrase>
+<footnote>
+ <simpara>
+  <literal>ad hoc</literal> &mdash; para isso, para esse caso.
+  Novo Dicionário Aurélio da Língua Portuguesa. (N. do T.)
+ </simpara>
+</footnote>
+para determinar estes valores (Entretanto, deve-se estar ciente que, em uma
+conexão pré-3.0, quando se muda <literal>client_encoding</> através de
+<command>SET</> após o início da conexão, isto não é refletido pela função
+<function>PQparameterStatus</>). Para <literal>server_version</> deve ser vista
+também a função <function>PQserverVersion</>, que retorna a informação de uma
+forma numérica muito mais fácil para fazer a comparação.
+</para>
+
+<para>
+Embora o ponteiro retornado seja declarado como <literal>const</>, na verdade
+aponta para um armazenamento mutável associado à estrutura
+<literal>PGconn</literal>.
+Não é prudente assumir que o ponteiro permaneça válido entre os comandos.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQprotocolVersion</function><indexterm><primary>PQprotocolVersion</></></term>
+<listitem>
+<para>
+         Indaga o protocolo cliente/servidor sendo utilizado.
+<synopsis>
+int PQprotocolVersion(const PGconn *conn);
+</synopsis>
+Os aplicativos podem fazer uso desta função para determinar se certas
+funcionalidades são suportadas.
+Atualmente os valores possíveis são 2 (protocolo 2.0), 3 (protocolo 3.0),
+ou zero (conexão mal-sucedida). Isto não muda após a conexão ser completada,
+mas teoricamente pode mudar durante um reinício de conexão.
+Normalmente, é utilizado o protocolo 3.0 ao ser feita a comunicação com
+servidores <productname>PostgreSQL</productname> 7.4 ou posteriores;
+os servidores pré-7.4 suportam apenas o protocolo 2.0
+(O protocolo 1.0 está obsoleto não sendo suportado pela
+<application>libpq</application>).
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQserverVersion</function><indexterm><primary>PQserverVersion</></></term>
+<listitem>
+<para>
+         Retorna um inteiro representando a versão do servidor.
+<synopsis>
+int PQserverVersion(const PGconn *conn);
+</synopsis>
+Os aplicativos podem utilizar esta função para determinar a versão do servidor
+de banco de dados ao qual estão conectados. O número é formado convertendo o
+número principal, secundário e de revisão (<literal>major</literal>,
+<literal>minor</literal> e <literal>revision</literal>) da versão em
+números decimais de dois dígitos, e juntando estes números.
+Por exemplo, a versão 7.4.2 é retornada como 70402, e a versão
+8.1 será retornada como 80100 (os zeros à esquerda não são mostrados).
+Retorna zero se a conexão estiver ruim.
+</para>
+</listitem>
+</varlistentry>
+
+    <varlistentry>
+     <term><function>PQerrorMessage</function><indexterm><primary>PQerrorMessage</></></term>
+     <listitem>
+      <para>
+       <indexterm><primary>mensagem de erro</primary></>
+       Retorna a mensagem de erro mais recente ocasionada por uma operação
+       nesta conexão.
+<synopsis>
+char *PQerrorMessage(const PGconn *conn);
+</synopsis>
+      </para>
+
+      <para>
+       Quase todas as funções da <application>libpq</> definem mensagem para
+       a função <function>PQerrorMessage</function> quando falham.
+       Deve ser observado que pela convenção da <application>libpq</application>,
+       um resultado da função <function>PQerrorMessage</function> que não esteja
+       vazio inclui uma nova-linha no final. Quem chama não deve liberar o
+       resultado diretamente. O resultado será liberado quando o tratador de
+       <structname>PGconn</structname> associado for passado para a função
+       <function>PQfinish</function>. Não deve ser esperado que a cadeia de
+       caracteres do resultado permaneça a mesma entre operações na estrutura
+       <literal>PGconn</literal>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><function>PQsocket</function><indexterm><primary>PQsocket</></></term>
+     <listitem>
+      <para>
+       Obtém o número descritor do arquivo do soquete de conexão com o servidor.
+       Um descritor válido será maior ou igual a 0; um resultado com valor -1
+       indica que no momento não existe conexão aberta com o servidor (Isto não
+       muda durante a operação normal, mas pode mudar durante a definição ou
+       reinício da conexão).
+<synopsis>
+int PQsocket(const PGconn *conn);
+</synopsis>
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><function>PQbackendPID</function><indexterm><primary>PQbackendPID</></></term>
+     <listitem>
+      <para>
+       Retorna o <acronym>ID</acronym> do processo (PID)
+       <indexterm>
+        <primary>PID</primary>
+        <secondary>determinação do PID do processo servidor</secondary>
+        <tertiary>na libpq</tertiary>
+       </indexterm>
+       do servidor que trata a conexão.
+<synopsis>
+int PQbackendPID(const PGconn *conn);
+</synopsis>
+</para>
+
+<para>
+       O <acronym>PID</acronym> do servidor é útil para fins de depuração
+       e para comparação com as mensagens do <command>NOTIFY</command>
+       (que incluem o <acronym>PID</acronym> do processo servidor que está
+       fazendo a notificação). Deve ser observado que o <acronym>PID</acronym>
+       pertence ao processo que executa no hospedeiro servidor de banco de
+       dados, e não no hospedeiro local!
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><function>PQgetssl</function><indexterm><primary>PQgetssl</></></term>
+     <listitem>
+      <para>
+       <indexterm><primary>SSL</><secondary sortas="libpq">na libpq</secondary></indexterm>
+       Retorna a estrutura SSL utilizada na conexão, ou nulo se não estiver
+       sendo utilizada a SSL.
+<synopsis>
+SSL *PQgetssl(const PGconn *conn);
+</synopsis>
+</para>
+
+<para>
+       Esta estrutura pode ser utilizada para verificar os níveis de
+       criptografia, verificar os certificados do servidor, e outras informações.
+       Para obter informações sobre esta estrutura, deve ser consultada a
+       documentação do <productname>OpenSSL</productname>.
+      </para>
+      <para>
+       Para ser obtido o protótipo correto desta função, deve ser definido
+       <symbol>USE_SSL</symbol>. Quando isto é feito, também é incluído
+       automaticamente <filename>ssl.h</filename> do
+       <productname>OpenSSL</productname>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+</variablelist>
+</para>
+
+</sect1>
+
+<sect1 id="libpq-exec">
+<title>Funções de execução de comando</title>
+
+<para>
+Uma vez que a conexão com o servidor de banco de dados tenha sido estabelecida
+com sucesso, são usadas as funções descritas abaixo para executar comandos e
+consultas <acronym>SQL</acronym>.
+</para>
+
+<sect2 id="libpq-exec-main">
+  <title>Funções principais</title>
+
+<para>
+<variablelist>
+<varlistentry>
+<term><function>PQexec</function><indexterm><primary>PQexec</></></term>
+<listitem>
+<para>
+          Submete um comando ao servidor e aguarda pelo resultado.
+<synopsis>
+PGresult *PQexec(PGconn *conn, const char *command);
+</synopsis>
+</para>
+
+<para>
+          Retorna um ponteiro para <structname>PGresult</structname>, ou
+          um ponteiro nulo. Geralmente é retornado um ponteiro não nulo,
+          exceto nas condições de falta de memória ou erros graves, como a
+          impossibilidade de enviar o comando para o servidor. Caso seja
+          retornado um ponteiro nulo, este deve ser tratado como um resultado
+          <symbol>PGRES_FATAL_ERROR</symbol>. Deve ser utilizada a função
+          <function>PQerrorMessage</function> para obter informações adicionais
+          sobre erros deste tipo.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+É permitido incluir vários comandos <acronym>SQL</acronym> (separados por
+ponto-e-vírgula) na cadeia de caracteres do comando.
+Quando são enviados vários comandos na mesma chamada à <function>PQexec</>,
+estes são processados em uma única transação, a menos que existam comandos
+<command>BEGIN</command> e <command>COMMIT</command> explícitos incluídos na
+cadeia de caracteres enviada, para dividi-la em várias transações.
+Entretanto, deve ser observado que a estrutura <structname>PGresult</structname>
+retornada descreve apenas o resultado do último comando da cadeia de caracteres
+executado.
+Se um dos comandos falhar, o processamento da cadeia de caracteres é
+interrompido neste comando, e a estrutura <structname>PGresult</structname>
+retornada descreve a condição de erro.
+</para>
+
+<para>
+<variablelist>
+<varlistentry>
+<term><function>PQexecParams</function><indexterm><primary>PQexecParams</></></term>
+<listitem>
+<para>
+          Submete um comando ao servidor e aguarda pelo resultado,
+          com a capacidade de passar parâmetros separadamente do texto
+          do comando <acronym>SQL</acronym>.
+<synopsis>
+PGresult *PQexecParams(PGconn *conn,
+                       const char *command,
+                       int nParams,
+                       const Oid *paramTypes,
+                       const char * const *paramValues,
+                       const int *paramLengths,
+                       const int *paramFormats,
+                       int resultFormat);
+</synopsis>
+</para>
+
+<para>
+A função <function>PQexecParams</> é semelhante à função <function>PQexec</>,
+mas oferece uma funcionalidade adicional: os valores dos parâmetros podem ser
+especificados separadamente da cadeia de caracteres do comando, e pode ser
+solicitado que o resultado do comando retorne no modo texto ou binário.
+A função <function>PQexecParams</> é suportada apenas pelas conexões
+que utilizam o protocolo 3.0 ou mais recente; falha quando é utilizado o
+protocolo 2.0.
+</para>
+
+<para>
+Quando são utilizados parâmetros, estes são referenciados na cadeia de
+caracteres do comando como <literal>$1</>, <literal>$2</>, etc.
+<parameter>nParams</> é o número de parâmetros fornecidos; é o comprimento das
+matrizes <parameter>paramTypes[]</>, <parameter>paramValues[]</>,
+<parameter>paramLengths[]</> e <parameter>paramFormats[]</> (Os ponteiros para
+as matrizes podem ser <symbol>NULL</symbol> quando <parameter>nParams</>
+for zero). <parameter>paramTypes[]</> especifica, por OID, os tipos de dado a
+serem atribuídos aos símbolos dos parâmetros. Se <parameter>paramTypes</> for
+<symbol>NULL</symbol>, ou algum determinado elemento da matriz for zero,
+o servidor atribui o tipo de dado para o símbolo do parâmetro da mesma maneira
+que faria para um literal cadeia de caracteres sem tipo.
+<parameter>paramValues[]</> especifica os valores dos parâmetros.
+Nesta matriz um ponteiro nulo significa que o parâmetro correspondente é nulo;
+senão o ponteiro aponta para uma cadeia de caracteres de texto terminada por
+zero (para o formato texto), ou dados binários no formato esperado pelo
+servidor (para formato binário).
+<parameter>paramLengths[]</> especifica o comprimento dos dados dos parâmetros
+com formato binário. É ignorado para parâmetros nulos e parâmetros com formato
+texto. O ponteiro para a matriz pode ser nulo quando não há parâmetros binários.
+<parameter>paramFormats[]</> especifica se os parâmetros são do tipo texto
+(colocando-se o valor zero na matriz), ou binário (colocando-se o valor um na
+matriz). Se o ponteiro para a matriz for nulo, presume-se que todos os
+parâmetros sejam do tipo texto.
+<parameter>resultFormat</> é zero para os resultados serem recebidos no formato
+texto, ou um para os resultados serem recebidos no formato binário (Atualmente
+não há como receber colunas de resultado diferentes com formatos diferentes,
+embora isto seja possível no protocolo subjacente).
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+A principal vantagem da função <function>PQexecParams</> sobre a função
+<function>PQexec</> é que os valores dos parâmetros podem ficar separados
+da cadeia de caracteres de comando, evitando a necessidade de colocar
+escapes e apóstrofos, que é entediante e sujeito a erros.
+
+Diferentemente de <function>PQexec</>, a função <function>PQexecParams</>
+permite no máximo um comando <acronym>SQL</acronym> em uma cadeia de caracteres
+(Pode existir mais de um ponto-e-vírgula na cadeia de caracteres, mas não mais
+de um comando não vazio). Esta é uma limitação do protocolo subjacente,
+mas possui alguma utilidade como defesa adicional contra ataques de injeção-SQL.
+</para>
+
+<para>
+<variablelist>
+<varlistentry>
+<term><function>PQprepare</function><indexterm><primary>PQprepare</></></term>
+<listitem>
+<para>
+          Submete uma solicitação para criar uma declaração preparada com os
+          parâmetros fornecidos, e aguarda completar.
+<synopsis>
+PGresult *PQprepare(PGconn *conn,
+                    const char *stmtName,
+                    const char *query,
+                    int nParams,
+                    const Oid *paramTypes);
+</synopsis>
+</para>
+
+<para>
+A função <function>PQprepare</> cria uma declaração preparada para execução
+posterior através de <function>PQexecPrepared</>.
+Esta funcionalidade permite que comandos a serem utilizados repetidas vezes
+sejam analisados e planejados somente uma vez, em vez de cada vez que são
+utilizados.
+A função <function>PQprepare</> é suportada apenas pelas conexões
+que utilizam o protocolo 3.0 ou mais recente; falha quando é utilizado o
+protocolo 2.0.
+</para>
+
+<para>
+Esta função cria uma declaração preparada chamada <parameter>stmtName</>
+a partir da cadeia de caracteres <parameter>query</>, que deve conter um único
+comando <acronym>SQL</acronym>.
+<parameter>stmtName</> pode ser igual a <literal>""</> para ser criada uma
+declaração sem nome, caso em que uma declaração sem nome pré-existente é
+substituída automaticamente; de outra forma, ocasiona erro se o nome da
+declaração já estiver definida na sessão corrente.
+Se for usado algum parâmetro, estes devem ser referenciados no comando como
+<literal>$1</>, <literal>$2</>, etc.
+<parameter>nParams</> é o número de parâmetros para os quais os tipos são
+previamente especificados na matriz <parameter>paramTypes[]</> (O ponteiro para
+a matriz pode ser nulo quando <symbol>NULL</symbol> quando <parameter>nParams</>
+for zero).
+<parameter>paramTypes[]</> especifica, por OID, os tipos de dado a
+serem atribuídos aos símbolos dos parâmetros. Se <parameter>paramTypes</> for
+<symbol>NULL</symbol>, ou algum determinado elemento da matriz for zero,
+o servidor atribui o tipo de dado para o símbolo do parâmetro da mesma maneira
+que faria para um literal cadeia de caracteres sem tipo.
+Além disso, o comando pode utilizar símbolos de parâmetro com números maiores
+que <parameter>nParams</>; os tipos de dado para estes símbolos também serão
+inferidos.
+</para>
+
+<para>
+Da mesma forma que na função <function>PQexec</>, o resultado normalmente é
+um objeto <structname>PGresult</structname> cujo conteúdo indica sucesso ou
+falha do lado servidor. Um resultado nulo indica falta de memória ou
+incapacidade enviar o comando.
+Deve ser utilizada a função <function>PQerrorMessage</function> para obter mais
+informações sobre erros deste tipo.
+</para>
+
+<para>
+No presente momento não há nenhuma forma de determinar o verdadeiro tipo de dado
+inferido para qualquer parâmetro cujo tipo não foi especificado através de
+<parameter>paramTypes[]</>. Esta é uma omissão da <application>libpq</> que,
+provavelmente, será corrigida em uma versão futura.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+As declarações preparadas a serem utilizadas pela função
+<function>PQexecPrepared</function> também podem ser criadas utilizando
+declarações <command>PREPARE</command> do <acronym>SQL</acronym> (Mas a função
+<function>PQprepare</> é mais flexível, uma vez que não requer que os tipos
+dos parâmetros sejam previamente especificados). Além disso, embora não haja
+nenhuma função na <application>libpq</> para remover uma declaração preparada,
+a declaração <command>DEALLOCATE</> do <acronym>SQL</acronym> pode ser utilizada
+para esta finalidade.
+</para>
+
+<para>
+<variablelist>
+<varlistentry>
+<term><function>PQexecPrepared</function><indexterm><primary>PQexecPrepared</></></term>
+<listitem>
+<para>
+          Envia uma solicitação para executar uma declaração preparada com
+          determinados parâmetros, e aguarda pelo resultado.
+<synopsis>
+PGresult *PQexecPrepared(PGconn *conn,
+                         const char *stmtName,
+                         int nParams,
+                         const char * const *paramValues,
+                         const int *paramLengths,
+                         const int *paramFormats,
+                         int resultFormat);
+</synopsis>
+</para>
+
+<para>
+A função <function>PQexecPrepared</> é semelhante à função
+<function>PQexecParams</function>, mas o comando a ser executado é especificado
+fornecendo-se o nome de uma declaração previamente preparada, em vez de
+fornecer a cadeia de caracteres do comando.
+Esta funcionalidade permite que comandos a serem utilizados repetidas vezes
+sejam analisados e planejados somente uma vez, em vez de cada vez que são
+utilizados.
+A declaração deve ter sido preparada anteriormente na sessão corrente.
+A função <function>PQprepare</> é suportada apenas pelas conexões
+que utilizam o protocolo 3.0 ou mais recente; falha quando é utilizado o
+protocolo 2.0.
+</para>
+
+<para>
+Os parâmetros são idênticos aos da função <function>PQexecParams</function>,
+exceto que é fornecido o nome da declaração preparada em vez da cadeia de
+caracteres do comando, e o parâmetro <parameter>paramTypes[]</> não está
+presente (não é necessário, uma vez que os tipos dos parâmetros da declaração
+preparada foram determinados quando esta foi criada).
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+A estrutura <structname>PGresult</structname>
+<indexterm><primary>PGresult</primary></indexterm>
+encapsula o resultado retornado pelo servidor.
+Os programadores de aplicativos <application>libpq</application> devem tomar o
+cuidado de manter a abstração de <structname>PGresult</structname>.
+Devem ser utilizadas as funções de acesso abaixo para obter o conteúdo de
+<structname>PGresult</structname>. Deve ser evitado a referência direta aos
+campos da estrutura <structname>PGresult</structname>, porque estes estão
+sujeitos a modificações futuras.
+
+<variablelist>
+<varlistentry>
+<term><function>PQresultStatus</function><indexterm><primary>PQresultStatus</></></term>
+<listitem>
+<para>
+          Retorna o status do resultado do comando.
+<synopsis>
+ExecStatusType PQresultStatus(const PGresult *res);
+</synopsis>
+</para>
+
+<para>
+A função <function>PQresultStatus</function> pode retornar um dos seguintes
+valores:
+
+<variablelist>
+ <varlistentry>
+  <term><literal>PGRES_EMPTY_QUERY</literal></term>
+  <listitem>
+   <para>A cadeia de caracteres enviada ao servidor estava vazia.</para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><literal>PGRES_COMMAND_OK</literal></term>
+  <listitem>
+   <para>Término bem-sucedido de um comando que não retorna dados.</para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><literal>PGRES_TUPLES_OK</literal></term>
+  <listitem>
+   <para>Término bem-sucedido de um comando que retorna dados (como
+   <command>SELECT</> ou <command>SHOW</>).</para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><literal>PGRES_COPY_OUT</literal></term>
+  <listitem>
+   <para>Transferência de dados para fora do servidor iniciada <literal>(Copy Out)</literal>.</para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><literal>PGRES_COPY_IN</literal></term>
+  <listitem>
+   <para>Transferência de dados para dentro do servidor iniciada <literal>(Copy In)</literal>.</para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><literal>PGRES_BAD_RESPONSE</literal></term>
+  <listitem>
+   <para>A resposta do servidor não foi compreendida.</para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><literal>PGRES_NONFATAL_ERROR</literal></term>
+  <listitem>
+   <para>Ocorreu um erro não fatal (nota ou advertência).</para>
+  </listitem>
+ </varlistentry>
+
+ <varlistentry>
+  <term><literal>PGRES_FATAL_ERROR</literal></term>
+  <listitem>
+   <para>Ocorreu um erro fatal.</para>
+  </listitem>
+ </varlistentry>
+</variablelist>
+
+Se o status do resultado for <literal>PGRES_TUPLES_OK</literal>, então podem
+ser utilizadas as funções descritas abaixo para obter as linhas retornadas
+pela consulta. Deve ser observado que um comando <command>SELECT</command> que
+não retorna nenhuma linha ainda assim mostra <literal>PGRES_TUPLES_OK</literal>.
+<literal>PGRES_COMMAND_OK</literal> é utilizado em comandos que nunca retornam
+linhas (<command>INSERT</command>, <command>UPDATE</command>, etc.).
+Uma resposta do tipo <literal>PGRES_EMPTY_QUERY</literal> pode indicar um
+erro no programa cliente.
+</para>
+
+<para>
+Um resultado com o status <symbol>PGRES_NONFATAL_ERROR</symbol> nunca será
+retornado diretamente por <function>PQexec</function> ou outra função de
+execução de comandos; em vez disso, os resultados deste tipo são passados para
+o processador de observações (consulte a <xref linkend="libpq-notice-processing">).
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQresStatus</function><indexterm><primary>PQresStatus</></></term>
+<listitem>
+<para>
+        Converte o tipo enumerado retornado pela função
+        <function>PQresultStatus</function> em uma constante cadeia de
+        caracteres que descreve o código do status. Quem chama não deve
+        liberar o resultado.
+<synopsis>
+char *PQresStatus(ExecStatusType status);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQresultErrorMessage</function><indexterm><primary>PQresultErrorMessage</></></term>
+<listitem>
+<para>
+Retorna a mensagem de erro associada ao comando, ou uma cadeia de caracteres
+vazia caso não tenha havido erro.
+<synopsis>
+char *PQresultErrorMessage(const PGresult *res);
+</synopsis>
+Caso tenha havido um erro, a cadeia de caracteres retornada inclui um caractere
+de nova-linha no final. Quem chama não deve liberar o resultado diretamente.
+O resultado será liberado quando o tratador <structname>PGresult</structname>
+associado for passado para a função <function>PQclear</function>.
+</para>
+
+<para>
+Uma chamada a <function>PQerrorMessage</function> imediatamente após a chamada a
+<function>PQexec</function> ou <function>PQgetResult</function> (na mesma
+conexão), retorna a mesma cadeia de caracteres que
+<function>PQresultErrorMessage</function> (no resultado). Entretanto, a
+estrutura <structname>PGresult</structname> retém a mensagem de erro até ser
+destruída, enquanto a mensagem de erro da conexão muda quando as operações
+seguintes são realizadas. Deve ser utilizada a função
+<function>PQresultErrorMessage</function> quando se deseja conhecer o status
+associado a uma determinada estrutura <structname>PGresult</structname>;
+deve ser utilizada a função <function>PQerrorMessage</function> quando se
+deseja conhecer o status da última operação na conexão.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQresultErrorField</function><indexterm><primary>PQresultErrorField</></></term>
+<listitem>
+<para>
+Retorna um campo individual de um relato de erro.
+<synopsis>
+char *PQresultErrorField(const PGresult *res, int fieldcode);
+</synopsis>
+O parâmetro <parameter>fieldcode</> é um identificador de campo de erro;
+devem ser vistos os símbolos listados abaixo. Retorna <symbol>NULL</symbol>
+quando <structname>PGresult</structname> não é um resultado de erro ou de
+advertência, ou não inclui o campo especificado. Os valores dos campos
+normalmente não incluem o caractere de nova-linha no final. Quem chama não deve
+liberar o resultado diretamente. O resultado será liberado quando o tratador
+da estrutura <structname>PGresult</> associado for passado para a função
+<function>PQclear</function>.
+</para>
+
+<para>
+Estão disponíveis os seguintes códigos de campo:
+<variablelist>
+
+<varlistentry>
+<term><symbol>PG_DIAG_SEVERITY</></term>
+<listitem>
+<para>
+A severidade; o conteúdo do campo pode ser <literal>ERROR</>,
+<literal>FATAL</> ou <literal>PANIC</> (em uma mensagem de erro), ou
+<literal>WARNING</>, <literal>NOTICE</>, <literal>DEBUG</>,
+<literal>INFO</> ou <literal>LOG</> (em uma mensagem de observação), ou uma
+tradução localizada de um destes valores. Sempre presente.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+ <indexterm>
+  <primary>códigos de erro</primary>
+  <secondary>libpq</secondary>
+ </indexterm>
+<term><symbol>PG_DIAG_SQLSTATE</>
+</term>
+<listitem>
+<para>
+O código SQLSTATE do erro, que identifica o tipo de erro ocorrido; pode ser
+utilizado pelos aplicativos clientes para realizar operações específicas
+(como o tratamento de erros) em resposta a um erro do banco de dados.
+Para obter a lista dos códigos SQLSTATE possíveis, deve ser visto o
+<xref linkend="errcodes-appendix">. Este campo não muda com o idioma,
+e está sempre presente.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><symbol>PG_DIAG_MESSAGE_PRIMARY</></term>
+<listitem>
+<para>
+A principal mensagem de erro humanamente legível (tipicamente uma linha).
+Sempre presente.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><symbol>PG_DIAG_MESSAGE_DETAIL</></term>
+<listitem>
+<para>
+Detalhe: uma mensagem de erro secundário opcional contendo mais detalhes sobre
+o problema. Pode ter várias linhas.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><symbol>PG_DIAG_MESSAGE_HINT</></term>
+<listitem>
+<para>
+Dica: uma sugestão opcional sobre o que fazer para resolver o problema.
+Tem por intenção diferir do detalhe por oferecer conselho (potencialmente
+não apropriado), em vez de simples fatos. Pode ter várias linhas.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><symbol>PG_DIAG_STATEMENT_POSITION</></term>
+<listitem>
+<para>
+Uma cadeia de caracteres contendo um inteiro decimal que indica a posição
+do cursor de erro, como um índice dentro da cadeia de caracteres original da
+declaração. O primeiro caractere possui o índice 1, e as posições são medidas
+em caracteres e não em bytes.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><symbol>PG_DIAG_INTERNAL_POSITION</></term>
+<listitem>
+<para>
+É definido da mesma maneira que o campo <symbol>PG_DIAG_STATEMENT_POSITION</>,
+mas é utilizado quando a posição do cursor se refere a um comando gerado
+internamente, em vez de um comando submetido pelo cliente.
+O campo <symbol>PG_DIAG_INTERNAL_QUERY</> sempre está presente quando este campo
+está presente.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><symbol>PG_DIAG_INTERNAL_QUERY</></term>
+<listitem>
+<para>
+O texto do comando gerado internamente que falhou.
+Pode ser, por exemplo, um comando <acronym>SQL</acronym> emitido por uma função
+<application>PL/pgSQL</application>.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><symbol>PG_DIAG_CONTEXT</></term>
+<listitem>
+<para>
+Uma indicação do contexto em que o erro ocorreu.
+Atualmente inclui o histórico da pilha de chamada
+(<literal>call stack traceback</literal>) das funções da linguagem procedural
+e dos comandos gerados internamente.
+O histórico contém uma entrada por linha, com a mais recente na frente.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><symbol>PG_DIAG_SOURCE_FILE</></term>
+<listitem>
+<para>
+O nome do arquivo do local do código fonte onde o erro foi relatado.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><symbol>PG_DIAG_SOURCE_LINE</></term>
+<listitem>
+<para>
+O número da linha do local do código fonte onde o erro foi relatado.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><symbol>PG_DIAG_SOURCE_FUNCTION</></term>
+<listitem>
+<para>
+O nome da função do código fonte que relatou o erro.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+O cliente é responsável pela formatação da informação mostrada, conforme suas
+necessidades; em particular, as linhas longas devem ser quebradas conforme
+seja necessário.
+Os caracteres de nova-linha que aparecem nos campos de mensagem de erro devem
+ser tratados como quebra de parágrafo, e não como quebra de linha.
+</para>
+
+<para>
+As mensagens de erro geradas internamente pela <application>libpq</application>
+possuem mensagem primária e severidade, mas tipicamente nenhum outro campo.
+Os erros retornados por um servidor com protocolo pré-3.0 incluem mensagem
+primária e severidade, e algumas vezes mensagem de detalhe, mas nenhum outro
+campo.
+</para>
+
+<para>
+Deve ser observado que os campos de erro estão disponíveis apenas nos objetos
+<structname>PGresult</structname>, e não nos objetos
+<structname>PGconn</structname>; não existe nenhuma função chamada
+<function>PQerrorField</function>.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQclear</function><indexterm><primary>PQclear</></></term>
+<listitem>
+<para>
+          Libera o armazenamento associado a <structname>PGresult</structname>.
+          Todo resultado de comando deve ser liberado através de
+          <function>PQclear</function> quando não for mais necessário.
+<synopsis>
+void PQclear(PGresult *res);
+</synopsis>
+</para>
+
+<para>
+          O objeto <structname>PGresult</structname> pode ser mantido pelo
+          tempo que for necessário; não precisa ir embora quando se submete um
+          novo comando, nem mesmo quando se fecha a conexão. Para liberá-lo,
+          deve ser chamada a função <function>PQclear</function>.
+          Caso não seja feito acarreta perda de memória pelo aplicativo.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQmakeEmptyPGresult</function><indexterm><primary>PQmakeEmptyPGresult</></></term>
+<listitem>
+<para>
+          Constrói um objeto <structname>PGresult</structname> vazio com o
+          status fornecido.
+<synopsis>
+PGresult* PQmakeEmptyPGresult(PGconn *conn, ExecStatusType status);
+</synopsis>
+</para>
+
+<para>
+Esta é uma função interna da <application>libpq</> para alocar e inicializar um
+objeto <structname>PGresult</structname> vazio. É exportado porque alguns
+aplicativos encontram utilidade na geração de objetos de resultado (em particular
+objetos com status de erro). Se <parameter>conn</parameter> não for nulo, e
+<parameter>status</> indica um erro, a mensagem de erro corrente da conexão
+especificada é copiada para  <structname>PGresult</structname>.
+Deve ser observado que no final a função <function>PQclear</function> deverá
+ser chamada para o objeto, da mesma forma que com a estrutura
+<structname>PGresult</structname> retornada pela própria
+<application>libpq</application>.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+</sect2>
+
+<sect2 id="libpq-exec-select-info">
+  <title>Obtenção da informação de resultado do comando</title>
+
+<para>
+Estas funções são utilizadas para extrair informações do objeto
+<structname>PGresult</structname> que representa o resultado de um comando
+bem-sucedido (ou seja, um comando com o status
+<literal>PGRES_TUPLES_OK</literal>). Para os objetos com outros valores de
+status, estas funções agem como se o resultado tivesse zero linhas e zero
+colunas.
+</para>
+
+<variablelist>
+<varlistentry>
+<term><function>PQntuples</function><indexterm><primary>PQntuples</></></term>
+<listitem>
+<para>
+          Retorna o número de linhas (tuplas) presentes no resultado do comando.
+<synopsis>
+int PQntuples(const PGresult *res);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQnfields</function><indexterm><primary>PQnfields</></></term>
+<listitem>
+<para>
+          Retorna o número de colunas (campos) de cada linha presente no
+          resultado do comando.
+<synopsis>
+int PQnfields(const PGresult *res);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQfname</function><indexterm><primary>PQfname</></></term>
+<listitem>
+<para>
+Retorna o nome da coluna associado a um determinado número de coluna.
+Os números das colunas começam por zero.
+Quem chama não deve liberar o resultado diretamente.
+O resultado é liberado quando o tratador de <structname>PGresult</structname>
+associado é passado para a função <function>PQclear</function>.
+<synopsis>
+char *PQfname(const PGresult *res,
+              int column_number);
+</synopsis>
+</para>
+
+<para>
+Retorna <symbol>NULL</symbol> quando o número da coluna está fora do intervalo.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQfnumber</function><indexterm><primary>PQfnumber</></></term>
+<listitem>
+<para>
+          Retorna o número da coluna associado a um determinado nome de coluna.
+<synopsis>
+int PQfnumber(const PGresult *res,
+              const char *column_name);
+</synopsis>
+</para>
+
+<para>
+        Retorna -1 se o nome fornecido não corresponder a nenhuma coluna.
+</para>
+
+<para>
+        O nome fornecido é tratado da mesma maneira que um identificador de um
+        comando <acronym>SQL</acronym>, ou seja, as letras são convertidas em
+        minúsculas a menos que estejam entre aspas. Por exemplo, dada a
+        saída da consulta gerada pelo comando <acronym>SQL</acronym>
+<programlisting>
+select 1 as FOO, 2 as "BAR";
+</programlisting>
+        seriam obtidos os seguintes resultados:
+<programlisting>
+PQfname(res, 0)              <lineannotation>foo</lineannotation>
+PQfname(res, 1)              <lineannotation>BAR</lineannotation>
+PQfnumber(res, "FOO")        <lineannotation>0</lineannotation>
+PQfnumber(res, "foo")        <lineannotation>0</lineannotation>
+PQfnumber(res, "BAR")        <lineannotation>-1</lineannotation>
+PQfnumber(res, "\"BAR\"")    <lineannotation>1</lineannotation>
+</programlisting>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQftable</function><indexterm><primary>PQftable</></></term>
+<listitem>
+<para>
+ Retorna o OID da tabela da qual a coluna especificada foi trazida.
+ Os números das colunas começam por 0.
+<synopsis>
+Oid PQftable(const PGresult *res,
+             int column_number);
+</synopsis>
+</para>
+
+<para>
+Retorna <literal>InvalidOid</> se o número da coluna estiver fora do intervalo,
+ou se a coluna especificada não for uma referência simples a uma coluna de
+tabela, ou quando é utilizado um protocolo anterior ao 3.0.
+Pode ser consultada a tabela <literal>pg_class</literal> para determinar
+exatamente qual tabela é referenciada.
+</para>
+
+<para>
+          O tipo <type>Oid</type> e a constante <literal>InvalidOid</literal>
+          são definidas quando é incluído o arquivo de cabeçalho da
+          <application>libpq</application>. Ambos serão algum tipo inteiro.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQftablecol</function><indexterm><primary>PQftablecol</></></term>
+<listitem>
+<para>
+ Retorna o número da coluna (dentro de sua tabela), da coluna que produz a
+ coluna de resultado da consulta especificada.
+ Os números de coluna dos resultados das consultas começam por 0, mas as colunas
+ das tabela possuem números diferentes de zero.
+<synopsis>
+int PQftablecol(const PGresult *res,
+                int column_number);
+</synopsis>
+</para>
+
+<para>
+Retorna zero se o número da coluna estiver fora do intervalo, ou se a coluna
+especificada não for uma referência simples a uma coluna de tabela, ou quando
+é utilizado um protocolo anterior ao 3.0.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQfformat</function><indexterm><primary>PQfformat</></></term>
+<listitem>
+<para>
+ Retorna o código do formato que indica o formato de uma determinada coluna.
+ Os números das colunas começam por 0.
+<synopsis>
+int PQfformat(const PGresult *res,
+              int column_number);
+</synopsis>
+</para>
+
+<para>
+Código de forma zero indica representação textual dos dados, enquanto o código
+de formato um indica representação binária (os outros códigos estão reservados
+para definições futuras).
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQftype</function><indexterm><primary>PQftype</></></term>
+<listitem>
+<para>
+          Retorna o tipo de dado associado com o número de coluna especificado.
+          O inteiro retornado é o número de OID interno do tipo.
+          Os números de coluna começam por 0.
+<synopsis>
+Oid PQftype(const PGresult *res,
+            int column_number);
+</synopsis>
+</para>
+
+<para>
+Pode ser consultada a tabela do sistema <literal>pg_type</literal> para obter
+os nomes e propriedades de vários tipos de dado. Os <acronym>OID</acronym>s
+dos tipos de dado nativos estão definidos no arquivo
+<filename>src/include/catalog/pg_type.h</filename> na árvore do código fonte.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQfmod</function><indexterm><primary>PQfmod</></></term>
+<listitem>
+<para>
+          Retorna o modificador de tipo da coluna associada com o número de
+          coluna especificado.
+          Os números de coluna começam por 0.
+<synopsis>
+int PQfmod(const PGresult *res,
+           int column_number);
+</synopsis>
+</para>
+
+<para>
+A interpretação dos valores de modificador é específica do tipo;
+tipicamente indicam os limites de precisão ou de tamanho.
+O valor -1 é utilizado para indicar <quote>nenhuma informação disponível</quote>.
+A maior parte dos tipos de dado não utilizam modificadores, e neste caso o valor
+é sempre -1.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQfsize</function><indexterm><primary>PQfsize</></></term>
+<listitem>
+<para>
+          Retorna o tamanho, em bytes, da coluna associada ao número de
+          coluna especificado.
+          Os números de coluna começam por 0.
+<synopsis>
+int PQfsize(const PGresult *res,
+            int column_number);
+</synopsis>
+</para>
+
+<para>
+A função <function>PQfsize</> retorna o espaço alocado para esta coluna na
+linha do banco de dados ou, em outras palavras, o tamanho da representação
+interna do servidor do tipo de dado (Na verdade, não é muito útil para os
+clientes).
+Um valor negativo indica que o tipo de dado é de tamanho variável.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQbinaryTuples</function><indexterm><primary>PQbinaryTuples</></></term>
+<listitem>
+<para>
+Retorna 1 se a estrutura <structname>PGresult</> contém dados binários, e 0
+se contém dados na forma de texto.
+<synopsis>
+int PQbinaryTuples(const PGresult *res);
+</synopsis>
+</para>
+
+<para>
+Esta função está em obsolescência (exceto para uso na conexão com
+<command>COPY</>), porque é possível que uma única estrutura
+<structname>PGresult</structname> contenha dados na forma de texto para algumas
+colunas, e dados binários em outras colunas.
+É preferida a função <function>PQfformat</function>.
+A função <function>PQbinaryTuples</function> retorna 1 somente se todas as
+colunas do resultado forem binárias (formato 1).
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQgetvalue</function><indexterm><primary>PQgetvalue</></></term>
+<listitem>
+<para>
+            Retorna um único valor de campo de uma linha de
+            <structname>PGresult</structname>. Os números das linhas e das
+            colunas começam por 0. Quem chama não deve liberar o resultado
+            diretamente. O resultado será liberado quando o tratador de
+            <structname>PGresult</> associado for passado para a função
+            <function>PQclear</function>.
+<synopsis>
+char *PQgetvalue(const PGresult *res,
+                 int row_number,
+                 int column_number);
+</synopsis>
+</para>
+
+<para>
+Para os dados no formato texto, a representação dos valores retornados por
+<function>PQgetvalue</function> é uma cadeia de caracteres terminada por nulo
+do valor do campo.
+Para os dados no formato binário, o valor está na representação binária
+determinada pelas funções <function>typsend</function> e
+<function>typreceive</function> do tipo de dado (Na verdade, neste caso o valor
+é seguido por um byte zero também, mas normalmente isto não é útil, uma vez que
+o valor pode conter nulos incorporados).
+</para>
+
+<para>
+É retornada uma cadeia de caracteres vazia se o valor do campo for nulo.
+Deve ser vista a função <function>PQgetisnull</> para distinguir valores
+nulos de cadeias de caracteres vazias.
+</para>
+
+<para>
+O ponteiro retornado por <function>PQgetvalue</function> aponta para um
+armazenamento que faz parte da estrutura <structname>PGresult</structname>.
+O dado apontado não deve ser modificado, e os dados devem ser explicitamente
+copiados para outro local de armazenamento se forem ser utilizados após o
+tempo de vida da própria estrutura <structname>PGresult</structname>.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQgetisnull</function><indexterm><primary>PQgetisnull</></></term>
+<indexterm><primary>valor nulo</primary><secondary sortas="libpq">na libpq</></indexterm><listitem>
+<para>
+           Testa o campo com relação ao valor nulo.
+           Os números de linha e de coluna começam por 0.
+<synopsis>
+int PQgetisnull(const PGresult *res,
+                int row_number,
+                int column_number);
+</synopsis>
+</para>
+
+<para>
+Esta função retorna 1 se o campo for nulo, e 0 se contiver um valor não nulo
+(Deve ser observado que a função <function>PQgetvalue</function> retorna uma
+cadeia de caracteres vazia, e não um ponteiro nulo, para um campo nulo).
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQgetlength</function><indexterm><primary>PQgetlength</></></term>
+<listitem>
+<para>
+          Retorna o verdadeiro comprimento do valor do campo em bytes.
+          Os números de linha e de coluna começam por 0.
+<synopsis>
+int PQgetlength(const PGresult *res,
+                int row_number,
+                int column_number);
+</synopsis>
+</para>
+
+<para>
+Este é o verdadeiro comprimento dos dados para o valor de dado em particular,
+ou seja, o tamanho do objeto apontado por <function>PQgetvalue</function>.
+Para dados no formato texto, é o mesmo que <function>strlen()</function>.
+Para o formato binário, esta é uma informação essencial.
+Deve ser observado que <emphasis>não</emphasis> se deve depender da função
+<function>PQfsize</function> para obter o verdadeiro comprimento de dado.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQprint</function><indexterm><primary>PQprint</></></term>
+<listitem>
+<para>
+          Imprime todas as colunas e, opcionalmente, os nomes das colunas,
+          para um fluxo de saída especificado.
+<synopsis>
+void PQprint(FILE *fout,      /* fluxo de saída */
+             const PGresult *res,
+             const PQprintOpt *po);
+
+typedef struct {
+    pqbool  header;      /* print output field headings and row count */
+    pqbool  align;       /* fill align the fields */
+    pqbool  standard;    /* old brain dead format */
+    pqbool  html3;       /* output HTML tables */
+    pqbool  expanded;    /* expand tables */
+    pqbool  pager;       /* use pager for output if needed */
+    char    *fieldSep;   /* field separator */
+    char    *tableOpt;   /* attributes for HTML table element */
+    char    *caption;    /* HTML table caption */
+    char    **fieldName; /* null-terminated array of replacement field names */
+} PQprintOpt;
+</synopsis>
+</para>
+
+<para>
+Esta função era anteriormente utilizada por <application>psql</application>
+para imprimir os resultados das consultas, mas este não é mais o caso.
+Deve ser observado que esta função assume que todos os dados estão no formato
+texto.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</sect2>
+
+<sect2 id="libpq-exec-nonselect">
+  <title>Obter informações do resultado de outros comandos</title>
+
+<para>
+Estas funções são utilizadas para extrair informações de objetos
+<structname>PGresult</structname> que não são resultados do comando
+<command>SELECT</command>.
+</para>
+
+<variablelist>
+<varlistentry>
+<term><function>PQcmdStatus</function><indexterm><primary>PQcmdStatus</></></term>
+<listitem>
+<para>
+          Retorna a marca de status do comando <acronym>SQL</acronym>
+          que gerou <structname>PGresult</structname>.
+<synopsis>
+char *PQcmdStatus(PGresult *res);
+</synopsis>
+</para>
+<para>
+Normalmente é apenas o nome do comando, mas pode incluir dados adicionais
+como o número de linhas processadas. Quem chama não deve liberar o resultado
+diretamente. O resultado será liberado quando o tratador de
+<structname>PGresult</structname> associado for passado para a função
+<function>PQclear</function>.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQcmdTuples</function><indexterm><primary>PQcmdTuples</></></term>
+<listitem>
+<para>
+          Retorna o número de linhas afetadas pelo comando
+          <acronym>SQL</acronym>.
+<synopsis>
+char *PQcmdTuples(PGresult *res);
+</synopsis>
+</para>
+
+<para>
+          Esta função retorna a cadeia de caracteres que contém o número de
+          linhas afetadas pela declaração <acronym>SQL</acronym> que gerou
+          <structname>PGresult</structname>. Esta função pode ser utilizada
+          apenas após a execução dos comandos <command>INSERT</>,
+          <command>UPDATE</>, <command>DELETE</>, <command>MOVE</> e
+          <command>FETCH</>, ou em um <command>EXECUTE</> de uma declaração
+          preparada que contenha um comando <command>INSERT</>,
+          <command>UPDATE</> ou <command>DELETE</>. Se o comando que gerou
+          <structname>PGresult</structname> for alguma coisa diferente,
+          a função <function>PQcmdTuples</function> retorna uma cadeia de
+          caracteres vazia. Quem chama não deve liberar o valor retornado
+          <structname>PGresult</> associado for passado para a função
+          <function>PQclear</function>.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQoidValue</function><indexterm><primary>PQoidValue</></></term>
+<listitem>
+<para>
+          Retorna o OID
+          <indexterm><primary>OID</primary><secondary>na libpq</secondary></indexterm>
+          da linha inserida, se o comando <acronym>SQL</acronym> foi um
+          <command>INSERT</command> que inseriu exatamente uma linha numa tabela
+          que possui OIDs, ou um <command>EXECUTE</command> de uma declaração
+          preparada contendo um comando <command>INSERT</command> apropriado.
+          Senão, esta função retorna <literal>InvalidOid</literal>.
+          Esta função também retorna <literal>InvalidOid</literal> se a tabela
+          afetada pelo comando <command>INSERT</command> não contiver OIDs.
+<synopsis>
+Oid PQoidValue(const PGresult *res);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQoidStatus</function><indexterm><primary>PQoidStatus</></></term>
+<listitem>
+<para>
+          Retorna uma cadeia de caracteres com o OID da linha inserida, se o
+          comando <acronym>SQL</acronym> foi um <command>INSERT</command>
+          que inseriu exatamente uma linha, ou um <command>EXECUTE</command>
+          de uma declaração preparada contendo um comando
+          <command>INSERT</command> apropriado (A cadeia de caracteres será
+          <literal>0</literal> se o comando <command>INSERT</command> não
+          inserir exatamente uma linha, ou se a tabela de destino não possuir
+          OIDs). Se o comando não for um <command>INSERT</command>, é retornada
+          uma cadeia de caracteres vazia.
+<synopsis>
+char *PQoidStatus(const PGresult *res);
+</synopsis>
+</para>
+
+<para>
+Esta função está em obsolescência em favor da função
+<function>PQoidValue</function>. Não é segura quanto a
+vários fluxos de execução (<literal>threads</>).
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</sect2>
+
+<sect2 id="libpq-exec-escape-string">
+  <title>Escapes em cadeia de caracteres incluídas em comandos SQL</title>
+
+   <indexterm zone="libpq-exec-escape-string"><primary>PQescapeString</></>
+   <indexterm zone="libpq-exec-escape-string"><primary>escapes em cadeia de caracteres</></>
+
+<para>
+A função <function>PQescapeString</function> coloca escapes em cadeia de
+caracteres a serem utilizadas dentro de comandos <acronym>SQL</acronym>;
+É útil quando são inseridos valores de dados como constantes literais em
+comandos <acronym>SQL</acronym>. Certos caracteres (como apóstrofos e
+contrabarras) devem receber escape para evitar que sejam interpretados de
+forma especial pelo analisador de <acronym>SQL</acronym>.
+A função <function>PQescapeString</> realiza esta operação.
+</para>
+
+<tip>
+<para>
+É de especial importância fazer o escape apropriado ao se trabalhar com
+cadeias de caracteres que foram recebidas de fonte não segura. Senão,
+existe um risco de segurança: fica-se vulnerável ao ataque de
+<quote>injeção-SQL</quote>, onde comandos <acronym>SQL</acronym> indesejados
+são introduzidos no banco de dados.
+</para>
+</tip>
+
+<para>
+Deve ser observado que não é necessário, nem correto, fazer o escape quando os
+valores dos dados são passados como parâmetros em separado para a função
+<function>PQexecParams</> ou suas rotinas relacionadas.
+
+<synopsis>
+size_t PQescapeString (char *to, const char *from, size_t length);
+</synopsis>
+</para>
+
+<para>
+O parâmetro <parameter>from</parameter> aponta para o primeiro caractere da
+cadeia de caracteres que vai receber escapes, e o parâmetro
+<parameter>length</parameter> especifica o número de caracteres desta cadeia de
+caracteres. Não é requerido um byte zero para terminar, e este não deve ser
+contado em <parameter>length</parameter> (Se um byte zero terminador for
+encontrado antes que <parameter>length</parameter> bytes sejam processados,
+a função <function>PQescapeString</> pára no zero; o comportamento é, portanto,
+bem semelhante ao da função <function>strncpy</function>).
+O parâmetro <parameter>to</parameter> deve apontar para um
+<literal>buffer</literal> capaz de conter pelo menos um caractere a mais que
+o dobro do valor de <parameter>length</parameter>, senão o comportamento é
+indefinido. Uma chamada à função <function>PQescapeString</> escreve uma versão
+com escapes da cadeia de caracteres <parameter>from</> para o
+<literal>buffer</literal> <parameter>to</>, substituindo os caracteres especiais
+para que estes não possam causar nenhum problema, e adicionando o byte zero
+terminador. Os apóstrofos que devem envolver os literais cadeia de caracteres
+do <productname>PostgreSQL</productname> não são incluídos na cadeia de
+caracteres do resultado; estes devem ser colocados no comando
+<acronym>SQL</acronym> onde o resultado é inserido.
+</para>
+<para>
+A função <function>PQescapeString</> retorna o número de caracteres escritos
+no parâmetro <parameter>to</parameter>, sem incluir o byte zero terminador.
+</para>
+<para>
+O comportamento torna-se indefinido quando há superposição do parâmetro
+<parameter>to</parameter> com o parâmetro <parameter>from</parameter>.
+</para>
+</sect2>
+
+
+ <sect2 id="libpq-exec-escape-bytea">
+  <title>Escapes em cadeias binárias incluídas em comandos SQL</title>
+
+  <indexterm zone="libpq-exec-escape-bytea">
+   <primary>bytea</>
+   <secondary sortas="libpq">na libpq</>
+  </indexterm>
+
+  <variablelist>
+  <varlistentry>
+  <term><function>PQescapeBytea</function><indexterm><primary>PQescapeBytea</></></term>
+  <listitem>
+  <para>
+   Faz escape em dados binários a serem utilizados dentro de comandos
+   <acronym>SQL</acronym> com o tipo <type>bytea</type>. Assim como em
+   <function>PQescapeString</function>, somente é utilizada ao inserir dados
+   diretamente na cadeia de caracteres do comando <acronym>SQL</acronym>.
+<synopsis>
+unsigned char *PQescapeBytea(const unsigned char *from,
+                             size_t from_length,
+                             size_t *to_length);
+</synopsis>
+</para>
+
+<para>
+   Certos valores de byte <emphasis>devem</emphasis> receber escape (mas todos
+   os valores de byte <emphasis>podem</emphasis> receber escape) quando
+   utilizados como parte de um literal <type>bytea</type> em uma declaração
+   <acronym>SQL</acronym>. Em geral, para fazer o escape de um byte, este é
+   convertido em um número octal de três dígitos igual ao valor do octeto,
+   e precedido por duas contrabarras. Os caracteres  apóstrofo (<literal>'</>)
+   e contrabarra (<literal>\</>) possuem alternativas especiais de seqüência de
+   escape. Para obter informações adicionais deve ser consultada a
+   <xref linkend="datatype-binary">. A função <function>PQescapeBytea</function>
+   realiza esta operação, fazendo escape apenas do menor número de bytes
+   necessários.
+  </para>
+
+  <para>
+   O parâmetro <parameter>from</parameter> aponta para o primeiro byte da
+   cadeia de caracteres que vai receber os escapes, e o parâmetro
+   <parameter>from_length</parameter> fornece o número de bytes nesta cadeia
+   binária (Um byte zero terminador não é necessário nem contado).
+   O parâmetro <parameter>to_length</parameter> aponta para uma variável
+   que conterá o comprimento da cadeia de caracteres com escapes resultante.
+   O comprimento da cadeia de caracteres resultante inclui o byte zero
+   terminador do resultado.
+  </para>
+
+  <para>
+   A função <function>PQescapeBytea</> retorna uma versão com escapes da
+   cadeia binária do parâmetro <parameter>from</parameter> na memória alocada
+   pela função <function>malloc()</function>. Esta memória deve ser liberada
+   através da função <function>PQfreemem</> quando o resultado não for mais
+   necessário.
+   A cadeia retornada possui todos os caracteres especiais substituídos para
+   que possam ser adequadamente processados pelo analisador de literal
+   cadeia de caracteres do <productname>PostgreSQL</productname>, e pela função
+   de entrada de <type>bytea</type>. O byte zero terminador também é adicionado.
+   Os apóstrofos que devem envolver os literais cadeia de caracteres do
+   <productname>PostgreSQL</productname> não fazem parte da cadeia de caracteres
+   do resultado.
+  </para>
+  </listitem>
+  </varlistentry>
+
+  <varlistentry>
+  <term><function>PQunescapeBytea</function><indexterm><primary>PQunescapeBytea</></></term>
+  <listitem>
+  <para>
+   Converte a representação com escapes dos dados binários em dados binários
+   &mdash; o inverso da função <function>PQescapeBytea</function>.
+   Isto é necessário ao receber dados <type>bytea</type> no formato texto,
+   mas não quando for recebido no formato binário.
+
+<synopsis>
+unsigned char *PQunescapeBytea(const unsigned char *from, size_t *to_length);
+</synopsis>
+</para>
+
+<para>
+   O parâmetro <parameter>from</parameter> aponta para uma cadeia de caracteres
+   com escapes como a que pode ser retornada pela função
+   <function>PQgetvalue</function> quando esta é aplicada a uma coluna
+   <type>bytea</type>. A função <function>PQunescapeBytea</function> converte
+   esta representação em cadeia de caracteres na representação binária.
+   É retornado um ponteiro para um <literal>buffer</literal> alocado pela função
+   <function>malloc()</function>, ou nulo se ocorrer um erro, e coloca o tamanho
+   do <literal>buffer</literal> no parâmetro <parameter>to_length</parameter>.
+   O resultado deve ser liberado através da função <function>PQfreemem</function>
+   quando não for mais necessário.
+  </para>
+  </listitem>
+  </varlistentry>
+
+  <varlistentry>
+  <term><function>PQfreemem</function><indexterm><primary>PQfreemem</></></term>
+  <listitem>
+  <para>
+   Libera a memória alocada pela <application>libpq</application>.
+<synopsis>
+void PQfreemem(void *ptr);
+</synopsis>
+</para>
+
+<para>
+   Libera a memória alocada pela <application>libpq</application>, em particular
+   pelas funções <function>PQescapeBytea</function>,
+   <function>PQunescapeBytea</function>, e <function>PQnotifies</function>.
+   É necessária pelo Microsoft Windows, que não consegue liberar memória entre
+   DLLs, a menos que sejam utilizadas DLLs com vários fluxos de execução
+   (<literal>multithreaded</literal>) (<option>/MD</option> no VC6).
+   Nas outras plataformas, esta função é a mesma função da biblioteca padrão
+   <function>free()</function>.
+  </para>
+  </listitem>
+  </varlistentry>
+  </variablelist>
+
+ </sect2>
+</sect1>
+
+<sect1 id="libpq-async">
+<title>Processamento de comandos assíncronos</title>
+
+  <indexterm zone="libpq-async"><primary>nonblocking connection</></>
+
+<para>
+A função <function>PQexec</function> é adequada para a submissão de comandos
+em aplicativos normais, síncronos. Entretanto, possui algumas deficiências
+importantes para alguns usuários:
+
+<itemizedlist>
+<listitem>
+<para>
+A função <function>PQexec</function> aguarda o comando completar.
+O aplicativo pode ter outra tarefa para realizar (tal como manter a interface
+do usuário) e, neste caso, não deseja ficar bloqueado aguardando pela resposta.
+</para>
+</listitem>
+<listitem>
+<para>
+Uma vez que a execução do aplicativo cliente fica suspensa enquanto este aguarda
+pelo resultado, é difícil para o aplicativo cliente decidir que gostaria de
+cancelar o comando em andamento (Pode ser feito através de um tratador de
+sinais, mas não de outra forma).
+</para>
+</listitem>
+<listitem>
+<para>
+A função <function>PQexec</function> pode retornar apenas uma estrutura
+<structname>PGresult</structname>. Se a cadeia de caracteres submetida contiver
+vários comandos <acronym>SQL</acronym>, então todas as estruturas
+<structname>PGresult</structname>, menos a última, são desconsideradas pela
+função <function>PQexec</function>.
+</para>
+</listitem>
+</itemizedlist>
+</para>
+
+<para>
+Os aplicativos insatisfeitos com estas limitações podem, em vez desta, utilizar
+as funções subjacentes a partir das quais <function>PQexec</function> é
+construída: <function>PQsendQuery</function> e <function>PQgetResult</function>.
+Também existem as funções
+<function>PQsendQueryParams</function>,
+<function>PQsendPrepare</function> e
+<function>PQsendQueryPrepared</function>,
+que podem ser utilizadas com <function>PQgetResult</function> para duplicar
+as funcionalidades de
+<function>PQexecParams</function>,
+<function>PQprepare</function> e
+<function>PQexecPrepared</function>,
+respectivamente.
+
+<variablelist>
+<varlistentry>
+<term><function>PQsendQuery</function><indexterm><primary>PQsendQuery</></></term>
+<listitem>
+<para>
+          Submete o comando ao servidor sem aguardar pelos resultados.
+          Retorna 1 quando o envio do comando é bem-sucedido, e 0 caso contrário
+          (neste caso, deve ser usada a função <function>PQerrorMessage</>
+          para obter informações adicionais sobre a falha).
+<synopsis>
+int PQsendQuery(PGconn *conn, const char *command);
+</synopsis>
+
+          Após uma chamada bem-sucedida à função <function>PQsendQuery</>,
+          deve ser chamada a função <function>PQgetResult</function> uma ou mais
+          vezes para obter os resultados. A função <function>PQsendQuery</>
+          não deve ser chamada novamente (na mesma conexão), até que a função
+          <function>PQgetResult</function> retorne um ponteiro nulo,
+          indicando que o comando completou.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQsendQueryParams</function><indexterm><primary>PQsendQueryParams</></></term>
+<listitem>
+<para>
+          Submete o comando e os parâmetros em separado para o servidor, sem
+          aguardar pelos resultados.
+<synopsis>
+int PQsendQueryParams(PGconn *conn,
+                      const char *command,
+                      int nParams,
+                      const Oid *paramTypes,
+                      const char * const *paramValues,
+                      const int *paramLengths,
+                      const int *paramFormats,
+                      int resultFormat);
+</synopsis>
+
+        É equivalente à função <function>PQsendQuery</function>, exceto que
+        os parâmetros podem ser especificados separados da cadeia de caracteres
+        do comando. Os parâmetros da função são tratados de forma idêntica aos
+        da função <function>PQexecParams</function>. Da mesma forma que a função
+        <function>PQexecParams</function>, não funciona em conexões com
+        protocolo 2.0, e permite apenas um comando na cadeia de caracteres de
+        comando.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQsendPrepare</><indexterm><primary>PQsendPrepare</></></term>
+<listitem>
+<para>
+        Envia uma solicitação para criar uma declaração preparada com os
+        parâmetros fornecidos, sem aguardar completar.
+<synopsis>
+int PQsendPrepare(PGconn *conn,
+                  const char *stmtName,
+                  const char *query,
+                  int nParams,
+                  const Oid *paramTypes);
+</synopsis>
+
+        Esta é a versão assíncrona da função <function>PQprepare</function>:
+        retorna 1 se for capaz de enviar a solicitação, e 0 caso contrário.
+        Após uma chamada bem sucedida, deve ser chamada a função
+        <function>PQgetResult</function> para determinar se a criação da
+        declaração preparada no servidor foi bem-sucedida.
+        Os parâmetros desta função são tratados de maneira idêntica aos da
+        função <function>PQprepare</function>. Da mesma forma que a função
+        <function>PQprepare</function>, não funciona em conexões com
+        protocolo 2.0.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQsendQueryPrepared</function><indexterm><primary>PQsendQueryPrepared</></></term>
+<listitem>
+<para>
+          Envia solicitação para executar a declaração preparada com os
+          parâmetros fornecidos, sem aguardar pelos resultados.
+<synopsis>
+int PQsendQueryPrepared(PGconn *conn,
+                        const char *stmtName,
+                        int nParams,
+                        const char * const *paramValues,
+                        const int *paramLengths,
+                        const int *paramFormats,
+                        int resultFormat);
+</synopsis>
+
+        Semelhante à função <function>PQsendQueryParams</function>, mas o
+        comando a ser executado é especificado pelo nome da declaração preparada
+        anteriormente, em vez de fornecer a cadeia de caracteres do comando.
+        Os parâmetros desta função são tratados de maneira idêntica aos da
+        função <function>PQexecPrepared</function>. Da mesma forma que a função
+        <function>PQexecPrepared</function>, não funciona em conexões com
+        protocolo 2.0.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQgetResult</function><indexterm><primary>PQgetResult</></></term>
+<listitem>
+<para>
+          Aguarda o próximo resultado de uma chamada anterior a
+          <function>PQsendQuery</function>,
+          <function>PQsendQueryParams</function>,
+          <function>PQsendPrepare</function> ou
+          <function>PQsendQueryPrepared</function>, e retorna o resultado.
+          Retorna um ponteiro nulo quando o comando está completo e
+          não haverão mais resultados.
+<synopsis>
+PGresult *PQgetResult(PGconn *conn);
+</synopsis>
+</para>
+
+<para>
+          A função <function>PQgetResult</function> deve ser chamada repetidas
+          vezes até que retorne um ponteiro nulo, indicando que o comando
+          completou (Se for chamada quando nenhum comando estiver ativo, a
+          função <function>PQgetResult</function> apenas retorna o ponteiro
+          nulo de uma vez). Cada resultado não-nulo da função
+          <function>PQgetResult</function> deve ser processado usando as mesmas
+          funções de acesso a <structname>PGresult</> descritas anteriormente.
+          Não se deve esquecer de liberar cada objeto de resultado através de
+          <function>PQclear</function> após terminar de usá-lo.
+          Deve ser observado que a função <function>PQgetResult</function>
+          somente bloqueia se um comando estiver ativo, e os dados de resposta
+          necessários ainda não foram lidos por
+          <function>PQconsumeInput</function>.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+A utilização da função <function>PQsendQuery</function> juntamente com a função
+<function>PQgetResult</function> resolve um dos problemas da função
+<function>PQexec</function>: Se uma cadeia de caracteres de comando incluir
+vários comandos <acronym>SQL</acronym>, os resultados destes comandos podem ser
+obtidos individualmente (Isto permite uma forma simples de processamento
+sobreposto, da seguinte maneira: o cliente pode estar tratando os resultados
+de um comando, enquanto o servidor ainda está trabalhando em comandos
+posteriores na mesma cadeia de caracteres de comando). Entretanto, chamar
+<function>PQgetResult</function> ainda faz com que o cliente fique bloqueado
+até que o servidor complete o próximo comando <acronym>SQL</acronym>.
+Isto pode ser evitado pelo uso apropriado de mais duas funções:
+
+<variablelist>
+<varlistentry>
+<term><function>PQconsumeInput</function><indexterm><primary>PQconsumeInput</></></term>
+<listitem>
+<para>
+          Se estiver disponível uma entrada vinda do servidor, receber esta
+          entrada.
+<synopsis>
+int PQconsumeInput(PGconn *conn);
+</synopsis>
+</para>
+
+<para>
+A função <function>PQconsumeInput</function> normalmente retorna 1, indicando
+<quote>nenhum erro</quote>, mas retorna 0 caso tenha acontecido algum
+problema (neste caso a função <function>PQerrorMessage</function> pode ser
+consultada). Deve ser observado que o resultado não informa se algum dado de
+entrada foi realmente coletado. Após chamar a função
+<function>PQconsumeInput</function>, o aplicativo pode verificar
+<function>PQisBusy</function> e/ou <function>PQnotifies</function> para ver
+se seu estado mudou.
+</para>
+<para>
+A função <function>PQconsumeInput</function> pode ser chamada mesmo que o
+aplicativo ainda não esteja preparado para tratar o resultado ou a notificação.
+A função lê os dados disponíveis e guarda em um <literal>buffer</literal>,
+fazendo, portanto, com que uma indicação de pronto-para-ler da função
+<function>select()</function> desapareça. O aplicativo pode, portanto,
+utilizar a função <function>PQconsumeInput</function> para limpar a condição
+da função <function>select()</function> imediatamente, e depois examinar os
+resultados quando achar melhor.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQisBusy</function><indexterm><primary>PQisBusy</></></term>
+<listitem>
+<para>
+Retorna 1 se o comando estiver ocupado, ou seja, a função
+<function>PQgetResult</function> fica bloqueada aguardando pela entrada.
+O retorno do valor 0 indica que a função <function>PQgetResult</function>
+pode ser chamada com garantia que não vai bloquear.
+<synopsis>
+int PQisBusy(PGconn *conn);
+</synopsis>
+</para>
+
+<para>
+A função <function>PQisBusy</function> não tenta por si mesma ler os dados do
+servidor; portanto, a função <function>PQconsumeInput</function> deve ser
+chamada antes, ou o estado de ocupado nunca vai terminar.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+Um aplicativo utilizando estas funções tipicamente tem um laço principal que usa
+a função <function>select()</function> ou <function>poll()</> para aguardar
+por todas as condições que deve responder. Uma das condições é entrada
+disponível vinda do servidor, que em termos da função
+<function>select()</function> significa dados legíveis no descritor de arquivo
+identificado pela função <function>PQsocket</function>.
+Quando o laço principal detecta uma entrada pronta, deve chamar a função
+<function>PQconsumeInput</function> para ler a entrada. Depois pode chamar
+<function>PQisBusy</function>, seguida por <function>PQgetResult</function>,
+se <function>PQisBusy</function> retornar falso (0). Também pode chamar
+<function>PQnotifies</function> para detectar mensagens de
+<command>NOTIFY</command> (consulte a <xref linkend="libpq-notify">).
+</para>
+
+<para>
+Um cliente que utiliza as funções
+<function>PQsendQuery</function>/<function>PQgetResult</function> também pode
+tentar cancelar um comando que ainda está sendo processado pelo servidor;
+consulte a <xref linkend="libpq-cancel">. Mas a despeito do valor retornado por
+<function>PQcancel</function>, o aplicativo deve continuar com a seqüência
+normal de leitura de resultado utilizando <function>PQgetResult</function>.
+Um cancelamento bem-sucedido simplesmente faz com que o comando termine mais
+cedo do que faria de outra maneira.
+</para>
+
+<para>
+Utilizando as funções descritas acima é possível evitar o bloqueio ao aguardar
+pela entrada vindo do servidor. Entretanto, ainda é possível que o aplicativo
+fique bloqueado aguardando para enviar a saída para o servidor. Isto é
+relativamente incomum, mas pode acontecer se forem enviados comandos
+<acronym>SQL</acronym> ou valores de dados muito longos (Entretanto, é muito
+mais provável quando o aplicativo envia dados através do comando
+<command>COPY IN</command>). Para evitar esta possibilidade, e obter uma
+operação com o banco de dados totalmente sem bloqueio, podem ser utilizadas as
+seguintes funções adicionais.
+
+<variablelist>
+<varlistentry>
+ <term><function>PQsetnonblocking</function><indexterm><primary>PQsetnonblocking</></></term>
+ <listitem>
+   <para>
+    Define o status da conexão como bloqueante ou não.
+<synopsis>
+int PQsetnonblocking(PGconn *conn, int arg);
+</synopsis>
+</para>
+
+<para>
+    Define o status da conexão como não bloqueante se <parameter>arg</parameter>
+    for igual a 1, ou bloqueante se <parameter>arg</parameter> for igual a 0.
+    Retorna 0 se for bem-sucedida, ou -1 se houver um erro.
+   </para>
+   <para>
+    No estado não bloqueante, a chamada a <function>PQsendQuery</function>,
+    <function>PQputline</function>, <function>PQputnbytes</function> e
+    <function>PQendcopy</function> não bloqueia, mas em vez disso retorna um
+    erro se precisarem ser chamadas novamente.
+   </para>
+   <para>
+    Deve ser observado que a função <function>PQexec</function> não respeita o
+    modo não bloqueante; se for chamada, age do modo bloqueante de qualquer
+    maneira.
+   </para>
+ </listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQisnonblocking</function><indexterm><primary>PQisnonblocking</></></term>
+<listitem>
+<para>
+       Retorna o status da conexão com o banco de dados como bloqueante ou não.
+<synopsis>
+int PQisnonblocking(const PGconn *conn);
+</synopsis>
+</para>
+
+<para>
+       Retorna 1 se a conexão estiver definida no modo não bloqueante, e
+       0 se bloqueante.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQflush</function><indexterm><primary>PQflush</></></term>
+<listitem>
+<para>
+Tenta descarregar qualquer dado de saída enfileirado para o servidor.
+Retorna 0 se for bem sucedido (ou se a fila de envio estiver vazia), -1
+se falhar por alguma razão, ou 1 se não for capaz de enviar todos os dados
+ainda na fila de envio (este caso somente pode ocorrer se a conexão não for
+bloqueante).
+<synopsis>
+int PQflush(PGconn *conn);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+Após enviar qualquer comando ou dado por uma conexão não bloqueante, deve ser
+chamada a função <function>PQflush</function>. Se retornar 1, deve ser
+aguardado até que o soquete esteja pronto-para-escrita, e chamá-la novamente;
+repetir até que retorne 0.  Uma vez que a função <function>PQflush</function>
+retorne 0, deve-se aguardar para que o soquete esteja pronto-para-leitura, e
+depois ler a resposta conforme descrito acima.
+</para>
+
+</sect1>
+
+<sect1 id="libpq-cancel">
+<title>Cancelamento de comandos em andamento</title>
+
+<indexterm zone="libpq-cancel"><primary>cancelamento</><secondary>comando SQL</></>
+
+<para>
+Utilizando as funções descritas nesta seção, um aplicativo cliente pode
+solicitar o cancelamento de um comando que ainda está sendo processado pelo
+servidor.
+
+<variablelist>
+<varlistentry>
+<term><function>PQgetCancel</function><indexterm><primary>PQgetCancel</></></term>
+<listitem>
+<para>
+          Cria uma estrutura de dados contendo as informações necessárias para
+          cancelar um comando enviado através de uma determinada conexão com o
+          banco de dados.
+<synopsis>
+PGcancel *PQgetCancel(PGconn *conn);
+</synopsis>
+</para>
+
+<para>
+A função <function>PQgetCancel</function> cria o objeto <structname>PGcancel</>
+<indexterm><primary>PGcancel</></>
+a partir do objeto de conexão <structname>PGconn</structname>.
+Retorna nulo se o parâmetro <parameter>conn</parameter> fornecido for nulo,
+ou se for uma conexão inválida.
+O objeto <structname>PGcancel</> é uma estrutura opaca que não foi feita para
+ser acessada diretamente pelo aplicativo; somente pode ser passado para a função
+<function>PQcancel</function> ou <function>PQfreeCancel</function>.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQfreeCancel</function><indexterm><primary>PQfreeCancel</></></term>
+<listitem>
+<para>
+          Libera a estrutura de dados criada pela função
+          <function>PQgetCancel</function>.
+<synopsis>
+void PQfreeCancel(PGcancel *cancel);
+</synopsis>
+</para>
+
+<para>
+A função <function>PQfreeCancel</function> libera o objeto de dados previamente
+criado pela função <function>PQgetCancel</function>.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQcancel</function><indexterm><primary>PQcancel</></></term>
+<listitem>
+<para>
+          Solicita ao servidor que abandone o processamento do comando corrente.
+<synopsis>
+int PQcancel(PGcancel *cancel, char *errbuf, int errbufsize);
+</synopsis>
+</para>
+
+<para>
+O valor retornado será igual a 1 quando o envio da solicitação de cancelamento
+for bem-sucedido, e 0 caso contrário.
+Se não for bem-sucedido, o parâmetro <parameter>errbuf</> será preenchido com
+uma mensagem de erro explicando o motivo. O parâmetro <parameter>errbuf</> deve
+ser uma matriz de caracteres do tamanho <parameter>errbufsize</parameter>
+(o tamanho recomendado é de 256 bytes).
+</para>
+
+<para>
+Entretanto, o envio bem-sucedido não garante que a solicitação tenha algum
+efeito. Se o cancelamento for efetivo, o comando corrente termina mais cedo
+e retorna um resultado de erro. Se o cancelamento falhar (digamos, porque o
+servidor já tenha terminado de processar o comando), então não haverá
+nenhum resultado visível.
+</para>
+
+<para>
+A função <function>PQcancel</function> pode ser chamada com segurança a partir
+de um tratador de sinais, se o parâmetro <parameter>errbuf</parameter> for uma
+variável local do tratador de sinais. No que diz respeito à função
+<function>PQcancel</function>, o objeto <structname>PGcancel</structname>
+é apenas para leitura, portanto esta função também pode ser chamada a partir de
+um fluxo de execução (<literal>thread</literal>) separado do fluxo de execução
+que manipula o objeto <structname>PGconn</structname>.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+<variablelist>
+<varlistentry>
+<term><function>PQrequestCancel</function><indexterm><primary>PQrequestCancel</></></term>
+<listitem>
+<para>
+          Solicita ao servidor que abandone o processamento do comando corrente.
+<synopsis>
+int PQrequestCancel(PGconn *conn);
+</synopsis>
+</para>
+
+<para>
+A função <function>PQrequestCancel</function> é uma variante em  obsolescência
+da função <function>PQcancel</function>. Esta função opera diretamente no objeto
+<structname>PGconn</structname>, e no caso de falha armazena a mensagem de erro
+no objeto <structname>PGconn</structname> (de onde a mensagem pode ser extraída
+pela função <function>PQerrorMessage</function>). Embora a funcionalidade seja a
+mesma, esta abordagem cria perigos para programas com vários fluxos de execução
+e para tratadores de sinais, por ser possível que a sobrescrita da mensagem
+de erro de <structname>PGconn</structname> atrapalhe a operação atualmente em
+andamento na conexão.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+</sect1>
+
+<sect1 id="libpq-fastpath">
+<title>A interface de caminho-rápido</title>
+
+<indexterm zone="libpq-fastpath"><primary>caminho rápido</></>
+
+<para>
+O <productname>PostgreSQL</productname> disponibiliza uma interface de caminho
+rápido (<literal>fast-path</literal>) para enviar chamadas simples de função
+para o servidor.
+</para>
+
+<tip>
+<para>
+Esta interface está um tanto obsoleta, porque pode ser obtido um desempenho
+semelhante e uma funcionalidade melhor definindo uma declaração preparada para
+a chamada da função. Então, a execução da declaração com transmissão binária
+dos parâmetros e resultados substitui a chamada de função de caminho rápido.
+</para>
+</tip>
+
+<para>
+A função <function>PQfn</function>
+<indexterm><primary>PQfn</primary></indexterm>
+solicita a execução da função do servidor através da interface de caminho rápido:
+<synopsis>
+PGresult *PQfn(PGconn *conn,
+               int fnid,
+               int *result_buf,
+               int *result_len,
+               int result_is_int,
+               const PQArgBlock *args,
+               int nargs);
+
+typedef struct {
+    int len;
+    int isint;
+    union {
+        int *ptr;
+        int integer;
+    } u;
+} PQArgBlock;
+</synopsis>
+</para>
+
+<para>
+     O argumento <parameter>fnid</> é o OID da função a ser executada.
+     Os parâmetros <parameter>args</> e <parameter>nargs</> definem os
+     parâmetros a serem passados para a função; estes parâmetros devem
+     corresponder a lista declarada de argumentos da função.
+     Quando o campo <parameter>isint</> da estrutura do parâmetro tem o
+     valor verdade, o valor de <parameter>u.integer</parameter> é enviado para
+     o servidor como um inteiro do comprimento indicado (devendo ser 1, 2 ou 4
+     bytes); ocorre a troca apropriada de bytes. Quando <parameter>isint</> tem
+     o valor falso, o número de bytes indicados por <parameter>*u.ptr</> é
+     enviado sem processamento; os dados devem estar no formato esperado pelo
+     servidor para transmissão binária do tipo de dado do argumento da função.
+     O parâmetro <parameter>result_buf</parameter> é o <literal>buffer</literal>
+     no qual é colocado o valor do retornado. Quem chama deve alocar espaço
+     suficiente para armazenar o valor retornado (Não há verificação!)
+     O real comprimento do resultado é retornado no inteiro apontado por
+     <parameter>result_len</parameter>. Se for esperado um resultado inteiro de
+     1, 2 ou 4 bytes, <parameter>result_is_int</parameter> deve ser definido
+     com o valor 1, senão com o valor 0.
+     Definir <parameter>result_is_int</parameter> como 1 faz com que a
+     <application>libpq</application> faça a troca de bytes do valor, caso seja
+     necessário, para que este seja entregue como um valor do tipo
+     <type>int</type> apropriado para a máquina cliente. Quando o valor de
+     <parameter>result_is_int</> é igual a 0, a cadeia de bytes no formato
+     binário enviada pelo servidor é retornada sem modificações.
+</para>
+
+<para>
+A função <function>PQfn</function> sempre retorna um ponteiro válido para
+<structname>PGresult</structname>. O status do resultado deve ser
+verificado antes do resultado ser utilizado. Quem chama é responsável por
+liberar <structname>PGresult</structname> através da função
+<function>PQclear</function>, quando esta não for mais necessária.
+</para>
+
+<para>
+Deve ser observado que não é possível tratar argumentos nulos, resultados nulos,
+nem resultados de conjunto de valores nulos quando se utiliza esta interface.
+</para>
+
+</sect1>
+
+<sect1 id="libpq-notify">
+<title>Notificação assíncrona</title>
+
+  <indexterm zone="libpq-notify">
+   <primary>NOTIFY</primary>
+   <secondary>na libpq</secondary>
+  </indexterm>
+
+<para>
+O <productname>PostgreSQL</productname> disponibiliza notificação assíncrona
+através dos comandos <command>LISTEN</command> e <command>NOTIFY</command>.
+A sessão cliente registra seu interesse por uma determinada notificação através
+do comando <command>LISTEN</command> (e pára de ouvir através do comando
+<command>UNLISTEN</command>). Todas as sessões ouvindo uma determinada
+condição são notificadas assincronamente quando o comando
+<command>NOTIFY</command>, com este nome de condição, é executado por qualquer
+sessão. Não é passada nenhuma informação adicional para quem ouve.
+Portanto, qualquer dado que precise ser comunicado é transferido, usualmente,
+através de uma tabela do banco de dados. Normalmente, o nome da condição é o
+mesmo da tabela associada, mas não é necessário que haja nenhuma tabela
+associada.
+</para>
+
+<para>
+Os aplicativos da <application>libpq</application> submetem os comandos
+<command>LISTEN</command> e <command>UNLISTEN</command> como comandos
+<acronym>SQL</acronym> comuns. A chegada das mensagens <command>NOTIFY</command>
+podem ser detectadas em seguida chamando a função <function>PQnotifies</>.
+<indexterm><primary>PQnotifies</primary></indexterm>
+</para>
+
+<para>
+          A função <function>PQnotifies</function> retorna a próxima notificação
+          de uma lista de mensagens de notificação não tratadas recebidas do
+          servidor. Retorna um ponteiro nulo caso não haja mais notificações
+          pendentes. Uma vez que a notificação seja retornada pela função
+          <function>PQnotifies</function>, esta é considerada tratada e
+          removida da lista de notificações.
+<synopsis>
+PGnotify *PQnotifies(PGconn *conn);
+
+typedef struct pgNotify {
+    char *relname;              /* nome da condição de notificação */
+    int  be_pid;                /* ID de processo do processo servidor */
+    char *extra;                /* parâmetro de notificação */
+} PGnotify;
+</synopsis>
+Após processar um objeto <structname>PGnotify</structname> retornado por
+<function>PQnotifies</function>, deve-se ter certeza que este é liberado através
+de <function>PQfreemem</function>. É suficiente liberar o ponteiro para
+<structname>PGnotify</structname>; os campos
+<structfield>relname</structfield> e <structfield>extra</structfield>
+não representam alocações separadas
+(No momento, o campo <structfield>extra</structfield> não é utilizado e sempre
+aponta para uma cadeia de caracteres vazia).
+</para>
+
+<note>
+<para>
+ No <productname>PostgreSQL</productname> 6.4 e posteriores,
+ o campo <structfield>be_pid</structfield> é relativo ao processo servidor
+ fazendo a notificação, enquanto nas versões anteriores era sempre o
+ <acronym>PID</acronym> do próprio processo servidor.
+</para>
+</note>
+
+<para>
+O <xref linkend="libpq-example-2"> mostra um programa exemplo que demonstra
+a utilização da notificação assíncrona.
+</para>
+
+<para>
+Na verdade, a função <function>PQnotifies</function> não lê os dados do
+servidor; apenas retorna as mensagens previamente absorvidas por outra função da
+<application>libpq</application>. Nas versões anteriores da
+<application>libpq</application>, a única maneira de garantir a recepção a tempo
+das mensagens de <command>NOTIFY</> era submetendo comandos constantemente,
+mesmo vazios, e depois verificando <function>PQnotifies</function> após cada
+<function>PQexec</function>. Embora isto ainda funcione, está em obsolescência
+e é um desperdício de poder de processamento.
+</para>
+
+<para>
+Uma maneira melhor de verificar as mensagens de <command>NOTIFY</command>,
+quando não há comando útil a ser executado, é chamar
+<function>PQconsumeInput</function> e depois verificar
+<function>PQnotifies</function>.
+Pode ser utilizada a função <function>select()</function> para aguardar os
+dados chegarem do servidor, portanto usando ciclos da <acronym>CPU</acronym>
+a menos que haja algo a ser feito (Deve ser vista a função
+<function>PQsocket</function> para obter o número do descritor do arquivo a ser
+utilizado com a função <function>select()</function>).
+Deve ser observado que funciona bem se forem submetidos comandos através de
+<function>PQsendQuery</function>/<function>PQgetResult</function>, ou
+simplesmente utilizada a função <function>PQexec</function>. Entretanto, não se
+deve esquecer de verificar <function>PQnotifies</function> após cada
+<function>PQgetResult</function> ou <function>PQexec</function>, para ver
+se chegou alguma notificação durante o processamento do comando.
+</para>
+
+</sect1>
+
+<sect1 id="libpq-copy">
+<title>Funções associadas ao comando <command>COPY</command></title>
+
+<indexterm zone="libpq-copy">
+ <primary>COPY</primary>
+ <secondary>com a libpq</secondary>
+</indexterm>
+
+<para>
+ No <productname>PostgreSQL</productname> o comando <command>COPY</command>
+ possui opções para ler ou escrever na conexão de rede utilizada pela
+ <application>libpq</application>. As funções descritas nesta seção permitem
+ que os aplicativos aproveitem as vantagens desta capacidade, fornecendo ou
+ recebendo dados copiados.
+</para>
+
+<para>
+ No processamento global, primeiro o aplicativo envia um comando
+ <command>COPY</command> do <acronym>SQL</acronym> através da função
+ <function>PQexec</function>, ou através de uma função equivalente a esta.
+ A resposta a este comando, se não houver erro, é um objeto
+ <structname>PGresult</structname> contendo o código de status
+ <literal>PGRES_COPY_OUT</literal> ou <literal>PGRES_COPY_IN</literal>
+ (dependendo da direção especificada para a cópia). Depois, o aplicativo deve
+ utilizar as funções descritas nesta seção para receber ou transmitir as linhas
+ de dados. Quando a transferência de dados estiver completa, será retornado
+ outro objeto <structname>PGresult</> indicando se a transferência foi bem
+ ou mal-sucedida. O status será <literal>PGRES_COMMAND_OK</literal> para
+ transferência bem-sucedida, ou <literal>PGRES_FATAL_ERROR</literal> caso ocorra
+ algum problema. Neste ponto, podem ser enviados outros comandos
+ <acronym>SQL</acronym> através da função <function>PQexec</function> (Não é
+ possível executar outros comandos <acronym>SQL</acronym> utilizando a mesma
+ conexão enquanto a operação de cópia estiver em andamento).
+</para>
+
+<para>
+ Se o comando <command>COPY</command> for executado através da função
+ <function>PQexec</function> em uma cadeia de caracteres podendo conter outros
+ comandos, o aplicativo deve continuar recebendo os resultados através da função
+ <function>PQgetResult</> após terminar a seqüência do <command>COPY</command>.
+ Somente quando a função <function>PQgetResult</> retorna <symbol>NULL</symbol>
+ tem-se certeza que a cadeia de caracteres de comando da função
+ <function>PQexec</function> está concluída, e é seguro executar mais comandos.
+</para>
+
+<para>
+ As funções desta seção somente devem ser executadas após receber o status
+ <literal>PGRES_COPY_OUT</literal> ou <literal>PGRES_COPY_IN</literal> no
+ resultado de <function>PQexec</function> ou <function>PQgetResult</function>.
+</para>
+
+<para>
+ O objeto <structname>PGresult</structname> contendo um destes valores no status
+ possui dados adicionais sobre a operação <command>COPY</command> iniciando.
+ Este dados adicionais estão disponíveis através de funções também utilizadas
+ com os resultados dos comandos na conexão:
+
+<variablelist>
+<varlistentry>
+<term><function>PQnfields</function><indexterm><primary>PQnfields</><secondary>com COPY</secondary></></term>
+<listitem>
+<para>
+          Retorna o número de colunas (campos) a serem copiados.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQbinaryTuples</function><indexterm><primary>PQbinaryTuples</><secondary>com COPY</secondary></></term>
+<listitem>
+<para>
+                0 indica que o formato global da cópia é textual (linhas
+                separadas pelo caractere de nova-linha, colunas separadas
+                pelo separador de caracteres, etc).
+                1 indica que o formato global da cópia é binário.
+                Para obter informações adicionais deve ser consultado o comando
+                <xref linkend="sql-copy" endterm="sql-copy-title">.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQfformat</function><indexterm><primary>PQfformat</><secondary>com COPY</secondary></></term>
+<listitem>
+<para>
+          Retorna o código do formato (0 para texto, 1 para binário) associado
+          com cada coluna da operação de cópia. Os códigos de formato por-coluna
+          são sempre iguais a zero quando o formato global da cópia é textual,
+          mas o formato binário permite tanto colunas binárias quanto texto
+          (Entretanto, na implementação corrente do comando <command>COPY</>,
+          somente estão presentes colunas binárias na cópia binária; portanto,
+          no momento os formatos por-coluna sempre correspondem ao formato
+          global).
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<note>
+<para>
+Estes valores de dados adicionais somente estão disponíveis quando se utiliza
+o protocolo 3.0.
+Quando se utiliza o protocolo 2.0, todas estas funções retornam 0.
+</para>
+</note>
+
+<sect2 id="libpq-copy-send">
+  <title>Funções para enviar os dados do COPY</title>
+
+<para>
+ Estas funções são utilizadas para enviar os dados durante
+ <literal>COPY FROM STDIN</literal>, e falham quando são chamadas em conexões
+ que não se encontram no estado <literal>COPY_IN</>.
+</para>
+
+<variablelist>
+<varlistentry>
+<term><function>PQputCopyData</function><indexterm><primary>PQputCopyData</></></term>
+<listitem>
+<para>
+ Envia dados para o servidor durante o estado <literal>COPY_IN</literal>.
+<synopsis>
+int PQputCopyData(PGconn *conn,
+                  const char *buffer,
+                  int nbytes);
+</synopsis>
+</para>
+
+<para>
+Transmite para o servidor os dados do <command>COPY</command> no
+<parameter>buffer</parameter> especificado, com comprimento
+<parameter>nbytes</parameter>. O resultado será igual a 1 se o dado for enviado,
+zero se não for enviado porque a tentativa bloquearia (este caso somente é
+possível se a conexão for no modo não bloqueante), ou -1 caso ocorra um erro
+(Quando o valor retornado for igual a -1 deverá ser utilizada a função
+<function>PQerrorMessage</function> para obter detalhes. Se o valor retornado
+for igual a zero, deve-se aguardar por pronto-para-escrever e tentar novamente).
+</para>
+
+<para>
+O aplicativo pode dividir o fluxo de dados do <command>COPY</command> em cargas
+de <literal>buffer</literal> de qualquer tamanho conveniente. As fronteiras do
+<literal>buffer</literal> de carga não possuem significado semântico ao enviar.
+O conteúdo do fluxo de dados deve corresponder ao formato esperado pelo comando
+<command>COPY</command>; para obter detalhes deve ser visto o comando
+<xref linkend="sql-copy" endterm="sql-copy-title">.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term>
+<function>PQputCopyEnd</function>
+<indexterm><primary>PQputCopyEnd</primary></indexterm>
+</term>
+<listitem>
+<para>
+ Envia a indicação de fim de dados para o servidor durante o estado
+ <literal>COPY_IN</literal>.
+<synopsis>
+int PQputCopyEnd(PGconn *conn,
+                 const char *errormsg);
+</synopsis>
+</para>
+
+<para>
+Termina a operação <literal>COPY_IN</literal> com sucesso se
+<parameter>errormsg</parameter> for <symbol>NULL</symbol>.
+Se <parameter>errormsg</parameter> não for <symbol>NULL</symbol>, então o
+<command>COPY</command> é obrigado a falhar, com a cadeia de caracteres
+apontada por <parameter>errormsg</parameter> usada como mensagem de erro
+(Entretanto, não se deve assumir que virá do servidor uma determinada mensagem,
+porque o servidor pode falhar na execução do comando <command>COPY</command>
+por seus próprios motivos. Também deve ser observado que forçar a falha não
+funciona quando se utiliza conexões com protocolo pré-3.0).
+</para>
+
+<para>
+O resultado será igual a 1 se o dado de terminação for enviado, zero se não for
+enviado porque a tentativa bloquearia (este caso somente é possível se a
+conexão for no modo não bloqueante), ou -1 caso ocorra um erro
+(Quando o valor retornado for igual a -1 deverá ser utilizada a função
+<function>PQerrorMessage</function> para obter detalhes. Se o valor retornado
+for igual a zero, deve-se aguardar por pronto-para-escrever e tentar novamente).
+</para>
+
+<para>
+Após uma chamada bem-sucedida à função <function>PQputCopyEnd</function>, deve
+ser chamada a função <function>PQgetResult</function> para obter o status final
+do resultado do comando <command>COPY</command>. Deve-se aguardar por este
+resultado da maneira usual. Em seguida voltar à operação normal.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</sect2>
+
+<sect2 id="libpq-copy-receive">
+  <title>Funções para receber os dados do COPY</title>
+
+<para>
+ Estas funções são utilizadas para receber os dados durante
+ <literal>COPY TO STDOUT</literal>, e falham quando são chamadas em conexões
+ que não se encontram no estado <literal>COPY_OUT</literal>.
+</para>
+
+<variablelist>
+<varlistentry>
+<term><function>PQgetCopyData</function><indexterm><primary>PQgetCopyData</></></term>
+<listitem>
+<para>
+ Recebe dados do servidor durante o estado <literal>COPY_OUT</literal>.
+<synopsis>
+int PQgetCopyData(PGconn *conn,
+                  char **buffer,
+                  int async);
+</synopsis>
+</para>
+
+<para>
+Tenta obter outra linha de dados do servidor durante o <command>COPY</command>.
+Os dados são sempre retornados uma linha de cada vez; se estiver disponível
+apenas uma linha parcial, esta não é retornada. O retorno bem-sucedido da linha
+de dados envolve a alocação de um bloco de memória para conter os dados.
+O parâmetro <parameter>buffer</parameter> deve ser diferente de
+<symbol>NULL</symbol>. O parâmetro <parameter>*buffer</parameter> é definido
+para apontar para a memória alocada, ou para <symbol>NULL</symbol> nos casos em
+que nenhum <literal>buffer</literal> é retornado.
+Um <literal>buffer</literal> de resultado diferente de <symbol>NULL</symbol>
+deve ser liberado através da função <function>PQfreemem</function> quando
+não for mais necessário.
+</para>
+
+<para>
+Quando uma linha é retornada com sucesso, o valor retornado é o número de bytes
+de dados na linha (sempre será maior que zero). A cadeia de caracteres retornada
+é sempre terminada por nulo, embora provavelmente somente será útil para o
+comando <command>COPY</command> no formato texto. Um resultado igual a zero
+indica que o comando <command>COPY</command> ainda se encontra em andamento,
+mas que nenhuma linha está disponível no momento (isto somente é possível quando
+o parâmetro <parameter>async</parameter> é igual a verdade). O resultado com
+valor -1 indica que o comando <command>COPY</command> chegou ao fim.
+O resultado -2 indica que ocorreu um erro (deve ser consultada a função
+<function>PQerrorMessage</function> para saber o motivo).
+</para>
+
+<para>
+Quando o valor do parâmetro <parameter>async</parameter> é igual a verdade
+(diferente de zero), a função <function>PQgetCopyData</function> não bloqueia
+aguardando pela entrada, e retorna zero se o comando <command>COPY</command>
+ainda estiver em andamento mas não existir nenhuma linha completa disponível
+(Neste caso deve-se aguardar por pronto-para-ler antes de tentar novamente;
+não importa se foi chamada a função <function>PQconsumeInput</function>).
+Quando <parameter>async</parameter> é falso (zero), a função
+<function>PQgetCopyData</function> bloqueia até que haja dados disponíveis,
+ou que a operação complete.
+</para>
+
+<para>
+Após a função <function>PQgetCopyData</function> retornar o valor -1, deve-se
+chamar a função <function>PQgetResult</function> para obter o status do
+resultado final do comando <command>COPY</command>. Deve-se aguardar por este
+resultado da maneira usual. Em seguida voltar à operação normal.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</sect2>
+
+<sect2 id="libpq-copy-deprecated">
+  <title>Funções obsoletas para o COPY</title>
+
+<para>
+ Estas funções representam métodos antigos para tratar o comando
+ <command>COPY</command>. Embora ainda funcionem, estão em obsolescência devido
+ a um fraco tratamento de erros, métodos inconvenientes para detectar o fim
+ dos dados, e falta de suporte para transferências binárias e não bloqueantes.
+</para>
+
+<variablelist>
+<varlistentry>
+<term><function>PQgetline</function><indexterm><primary>PQgetline</></></term>
+<listitem>
+<para>
+          Lê uma linha terminada pelo caractere nova-linha
+          (transmitida pelo servidor) em um <literal>buffer</literal>
+          cadeia de caracteres com comprimento <parameter>length</parameter>.
+<synopsis>
+int PQgetline(PGconn *conn,
+              char *buffer,
+              int length);
+</synopsis>
+</para>
+
+<para>
+Esta função copia até <parameter>length</parameter>-1 caracteres para o
+<literal>buffer</literal> e converte o caractere nova-linha terminador em um
+byte zero. A função <function>PQgetline</function> retorna <symbol>EOF</symbol>
+no final da entrada, 0 se toda a linha já foi lida, e 1 se o
+<literal>buffer</literal> estiver cheio mas o caractere nova-linha terminador
+ainda não foi lido.
+</para>
+<para>
+Deve ser observado que o aplicativo precisa verificar se a nova linha consiste
+nos dois caracteres <literal>\.</literal>, indicando que o servidor terminou
+de enviar os resultados do comando <command>COPY</command>.
+Se o aplicativo puder receber linhas com comprimento maior que
+<parameter>length</parameter>-1 caracteres, deve-se tomar o cuidado que este
+reconheça <literal>\.</literal> corretamente (e, por exemplo, não confunda
+o final de uma linha de dados longa com a linha terminadora).
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQgetlineAsync</function><indexterm><primary>PQgetlineAsync</></></term>
+<listitem>
+<para>
+          Lê uma linha de dados do <command>COPY</command>
+          (transmitida pelo servidor) em um <literal>buffer</literal>
+          sem bloquear.
+<synopsis>
+int PQgetlineAsync(PGconn *conn,
+                   char *buffer,
+                   int bufsize);
+</synopsis>
+</para>
+
+<para>
+Esta função é semelhante à função <function>PQgetline</function>, mas pode ser
+utilizada por aplicativos que devem ler os dados do <command>COPY</command>
+assincronamente, ou seja, sem bloquear.
+Uma vez emitido o comando <command>COPY</command> e obtida uma resposta
+<literal>PGRES_COPY_OUT</literal>, o aplicativo deve chamar
+<function>PQconsumeInput</function> e <function>PQgetlineAsync</function>
+até que o sinal de fim dos dados seja detectado.
+</para>
+<para>
+Ao contrário de <function>PQgetline</function>, esta função recebe a
+responsabilidade de detectar o fim dos dados.
+</para>
+<para>
+A cada chamada, <function>PQgetlineAsync</function> retorna dados se estiver
+disponível no <literal>buffer</literal> de entrada da
+<application>libpq</application> uma linha de dados completa.
+Senão, nenhum dado é retornado até que o restante da linha chegue.
+A função retorna -1 quando a marca de fim-de-dados-de-cópia
+(<literal>end-of-copy-data</literal>) é reconhecida, ou 0 quando não há dados
+disponíveis, ou um número positivo indicando o número de bytes de dados
+retornados. Se for retornado -1, quem chamou deve chamar
+<function>PQendcopy</function> em seguida, e depois retornar ao processamento
+normal.
+</para>
+<para>
+Os dados retornados não vão além da fronteira dos dados da linha.
+Se for possível, é retornada uma linha inteira de cada vez.
+Mas se o <literal>buffer</literal> oferecido por quem chama for muito pequeno
+para guardar uma linha enviada pelo servidor, então são retornados dados
+parciais da linha. Com dados no formato texto isto pode ser detectado testando
+se o último byte retornado é <literal>\n</literal>, ou não (Em um comando
+<command>COPY</command> binário, será necessária a análise do formato real dos
+dados do <command>COPY</> para fazer uma determinação equivalente).
+A cadeia de caracteres retornada não é terminada por nulo (Se for desejado
+adicionar um nulo terminador, deve-se ter certeza de passar
+<parameter>bufsize</parameter> com tamanho de um caractere a menos que espaço
+realmente disponível).
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQputline</function><indexterm><primary>PQputline</></></term>
+<listitem>
+<para>
+Envia uma cadeia de caracteres terminada por nulo para o servidor.
+Retorna 0 quando é bem-sucedida, e <symbol>EOF</symbol> quando não consegue
+enviar a cadeia de caracteres.
+<synopsis>
+int PQputline(PGconn *conn,
+              const char *string);
+</synopsis>
+</para>
+
+<para>
+O fluxo de dados do <command>COPY</command> enviado por uma série de chamadas
+à função <function>PQputline</function> possui o mesmo formato que o retornado
+pela função <function>PQgetlineAsync</function>, exceto que os aplicativos não
+são obrigados a enviar uma linha de dados por chamada à função
+<function>PQputline</function>; não há problema em se enviar uma linha parcial,
+ou várias linhas por chamada.
+</para>
+
+<note>
+<para>
+Antes do protocolo 3.0 do <productname>PostgreSQL</productname>, era necessário
+que o aplicativo enviasse explicitamente os dois caracteres <literal>\.</literal>
+como linha final para indicar ao servidor que tinha terminado de enviar os dados
+do comando <command>COPY</>. Embora isto ainda funcione, está em obsolescência
+e pode ser esperado que seja removido o significado especial de
+<literal>\.</literal> em uma versão futura. Basta chamar a função
+<function>PQendcopy</function> após ter enviado os dados.
+</para>
+</note>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQputnbytes</function><indexterm><primary>PQputnbytes</></></term>
+<listitem>
+<para>
+Envia uma cadeia de caracteres não terminada por nulo para o servidor.
+Retorna 0 quando é bem-sucedida, e <symbol>EOF</symbol> quando não consegue
+enviar a cadeia de caracteres.
+<synopsis>
+int PQputnbytes(PGconn *conn,
+                const char *buffer,
+                int nbytes);
+</synopsis>
+</para>
+
+<para>
+É exatamente igual a <function>PQputline</function>, exceto que o
+<literal>buffer</literal> dos dados não precisa ser terminado por nulo,
+uma vez que o número de bytes a serem enviados é especificado diretamente.
+Deve ser utilizada esta função quando se envia dados binários.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQendcopy</function><indexterm><primary>PQendcopy</></></term>
+<listitem>
+<para>
+ Sincroniza com o servidor.
+<synopsis>
+int PQendcopy(PGconn *conn);
+</synopsis>
+ Esta função aguarda até que o servidor tenha terminado de copiar.
+ Deve ser chamada quando a última cadeia de caracteres já tiver sido enviada
+ para o servidor utilizando <function>PQputline</function>, ou quando a última
+ cadeia de caracteres tiver sido recebida do servidor utilizando
+ <function>PGgetline</function>. Deve ser chamada ou o servidor ficará
+ <quote>fora de sincronia</quote> com o cliente. Após o retorno desta função,
+ o servidor está pronto para receber o próximo comando <acronym>SQL</acronym>.
+ Retorna o valor 0 ao término bem-sucedido, ou um valor diferente de zero
+ caso contrário (Quando o valor retornado for diferente de zero, deve ser
+ utilizada a função <function>PQerrorMessage</function> para obter detalhes).
+</para>
+
+<para>
+Quando se usa <function>PQgetResult</function>, o aplicativo deve responder ao
+resultado <literal>PGRES_COPY_OUT</literal> executando
+<function>PQgetline</function> repetidamente, seguida por
+<function>PQendcopy</function> após ter encontrado a linha terminadora.
+Depois deve voltar ao laço <function>PQgetResult</function> até que
+<function>PQgetResult</function> retorne um ponteiro nulo.
+De forma semelhante, um resultado <literal>PGRES_COPY_IN</literal> é processado
+por uma série de chamadas a <function>PQputline</function> seguida por
+<function>PQendcopy</function>, e depois retornar ao laço
+<function>PQgetResult</function>. Este arranjo garante que o comando
+<command>COPY</command> incorporado a uma série de comandos
+<acronym>SQL</acronym> será executado de maneira correta.
+</para>
+
+<para>
+Os aplicativos antigos provavelmente enviam o comando <command>COPY</command>
+através da função <function>PQexec</function> e assumem que a transação está
+terminada após <function>PQendcopy</function>.
+Isto funciona de maneira correta somente se o comando <command>COPY</command>
+for o único comando <acronym>SQL</acronym> na cadeia de caracteres do comando.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</sect2>
+
+</sect1>
+
+<sect1 id="libpq-control">
+<title>Funções de controle</title>
+
+<para>
+Estas funções controlam diversos detalhes de comportamento da
+<application>libpq</>.
+</para>
+
+<variablelist>
+<varlistentry>
+<term><function>PQsetErrorVerbosity</function><indexterm><primary>PQsetErrorVerbosity</></></term>
+<listitem>
+<para>
+Determina a verbosidade das mensagens retornadas pelas funções
+<function>PQerrorMessage</function> e <function>PQresultErrorMessage</function>.
+<synopsis>
+typedef enum {
+    PQERRORS_TERSE,
+    PQERRORS_DEFAULT,
+    PQERRORS_VERBOSE
+} PGVerbosity;
+
+PGVerbosity PQsetErrorVerbosity(PGconn *conn, PGVerbosity verbosity);
+</synopsis>
+A função <function>PQsetErrorVerbosity</> define o modo de verbosidade, e
+retorna a definição anterior da conexão. No modo <firstterm>TERSE</firstterm>
+(sucinto), as mensagens retornadas incluem apenas a severidade, o texto primário
+e a posição; normalmente cabe em apenas uma linha. O modo padrão produz
+mensagens que incluem os itens acima mais os campos detalhe, dica e contexto
+(pode abranger várias linhas). O modo <firstterm>VERBOSE</> inclui todos os
+campos disponíveis. Mudar a verbosidade não afeta as mensagens disponíveis nos
+objetos <structname>PGresult</structname> já existentes, somente afeta os
+objetos criados após a mudança.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQtrace</function><indexterm><primary>PQtrace</></></term>
+<listitem>
+<para>
+          Habilita o envio do rastreamento da comunicação cliente/servidor
+          para um arquivo de depuração.
+<synopsis>
+void PQtrace(PGconn *conn, FILE *stream);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term><function>PQuntrace</function><indexterm><primary>PQuntrace</></></term>
+<listitem>
+<para>
+          Desabilita o rastreamento iniciado por <function>PQtrace</function>.
+<synopsis>
+void PQuntrace(PGconn *conn);
+</synopsis>
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+
+</sect1>
+
+<sect1 id="libpq-notice-processing">
+<title>Processamento de notas</title>
+
+<indexterm zone="libpq-notice-processing">
+ <primary>processamento de notas</primary>
+ <secondary>na libpq</secondary>
+</indexterm>
+
+<para>
+As mensagens de nota e advertência geradas pelo servidor não são retornadas
+pelas funções que executam os comandos, uma vez que não implicam em falha do
+comando. Em vez disso, são passadas para uma função tratadora, e a execução
+prossegue normalmente após o retorno do tratador. A função padrão para tratar
+notas envia a mensagem para <filename>stderr</filename>, mas o aplicativo pode
+mudar este comportamento fornecendo sua própria função tratadora.
+</para>
+
+<para>
+Por motivos históricos existem dois níveis de tratamento de notas, chamados
+receptor de notas e processador de notas. O comportamento padrão é o receptor
+formatar a nota e passar a cadeia de caracteres para o processador de notas,
+para que este faça a exibição. Entretanto, um aplicativo que decida fornecer
+seu próprio receptor de notas, tipicamente ignora a camada do processador de
+notas e apenas realiza todo o trabalho no receptor de notas.
+</para>
+
+<para>
+A função <function>PQsetNoticeReceiver</function>
+<indexterm><primary>receptor de notas</></><indexterm><primary>PQsetNoticeReceiver</></>
+define ou consulta o receptor de notas corrente para o objeto de conexão.
+De maneira semelhante, a função <function>PQsetNoticeProcessor</function>
+<indexterm><primary>processador de notas</></><indexterm><primary>PQsetNoticeProcessor</></>
+define ou consulta o processador de notas corrente.
+
+<synopsis>
+typedef void (*PQnoticeReceiver) (void *arg, const PGresult *res);
+
+PQnoticeReceiver
+PQsetNoticeReceiver(PGconn *conn,
+                    PQnoticeReceiver proc,
+                    void *arg);
+
+typedef void (*PQnoticeProcessor) (void *arg, const char *message);
+
+PQnoticeProcessor
+PQsetNoticeProcessor(PGconn *conn,
+                     PQnoticeProcessor proc,
+                     void *arg);
+</synopsis>
+
+Estas funções retornam o ponteiro para a função receptora de notas ou
+processadora de notas anterior, e definem o novo valor.
+
+Se for fornecido um ponteiro de função nulo nenhuma ação é realizada,
+mas é retornado o ponteiro corrente.
+</para>
+
+<para>
+Quando é recebida uma mensagem de nota ou advertência vinda do servidor, ou
+gerada internamente pela <application>libpq</application>, a função receptora de
+notas é chamada. A mensagem é passada na forma de um
+<structname>PGresult</structname> <symbol>PGRES_NONFATAL_ERROR</symbol>
+(Permite ao receptor extrair os campos individualmente utilizando a função
+<function>PQresultErrorField</>, ou a mensagem completa pré-formatada utilizando
+a função <function>PQresultErrorMessage</>).
+O mesmo ponteiro vazio passado para a função
+<function>PQsetNoticeReceiver</function> também é passado
+(Este ponteiro pode ser utilizado para acessar estados específicos do
+aplicativo, caso haja necessidade).
+</para>
+
+<para>
+O receptor padrão de notas simplesmente extrai a mensagem (utilizando a função
+<function>PQresultErrorMessage</>), e passa para o processador de notas.
+</para>
+
+<para>
+O processador de notas é responsável por tratar as mensagens de nota e
+advertência fornecidas na forma de texto. É passada a cadeia de caracteres do
+texto da mensagem (incluindo um caractere de nova-linha no final), mais um
+ponteiro vazio que é o mesmo passado para a função
+<function>PQsetNoticeProcessor</function>
+(Este ponteiro pode ser utilizado para acessar estados específicos do
+aplicativo, caso haja necessidade).
+</para>
+
+<para>
+O processador de notas padrão é simplesmente
+<programlisting>
+static void
+defaultNoticeProcessor(void *arg, const char *message)
+{
+    fprintf(stderr, "%s", message);
+}
+</programlisting>
+</para>
+
+<para>
+Uma vez definido um receptor ou processador de notas, deve-se esperar que sejam
+chamados enquanto os objetos
+<structname>PGconn</structname> ou <structname>PGresult</structname> que acessam
+os mesmos existam. Na criação de um objeto <structname>PGresult</structname>,
+os ponteiros para o tratador de notas corrente de
+<structname>PGconn</structname> são copiados para
+<structname>PGresult</structname>, para um possível uso por parte de funções
+como <function>PQgetvalue</function>.
+</para>
+
+</sect1>
+
+<sect1 id="libpq-envars">
+<title>Variáveis de Ambiente</title>
+
+<indexterm zone="libpq-envars">
+ <primary>variáveis de ambiente</primary>
+</indexterm>
+
+<para>
+As seguintes variáveis de ambiente podem ser utilizadas para selecionar o
+valor padrão dos parâmetros de conexão a serem utilizados pelas funções
+<function>PQconnectdb</function>, <function>PQsetdbLogin</function> e
+<function>PQsetdb</function>, se não for especificado nenhum valor no código
+que faz a chamada. É útil para evitar prender as informações de conexão com o
+banco de dados ao código dos aplicativos cliente, por exemplo.
+
+<itemizedlist>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGHOST</envar></primary>
+</indexterm>
+<envar>PGHOST</envar> define o nome do servidor de banco de dados.
+Se começar por uma barra, especifica uma comunicação no domínio Unix em vez de
+uma comunicação TCP/IP; o valor é então o nome do diretório no qual o arquivo
+de soquete é armazenado (na configuração padrão de instalação seria
+<filename>/tmp</filename>).
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGHOSTADDR</envar></primary>
+</indexterm>
+<envar>PGHOSTADDR</envar> especifica o endereço numérico de IP do servidor de
+banco de dados. Pode ser definido adicionalmente a <envar>PGHOST</envar>,
+para evitar o trabalho extra de procura no DNS. Para obter detalhes sobre como
+interagem, deve ser consultada a documentação relativa aos parâmetros da função
+<function>PQconnectdb</function> acima.
+</para>
+<para>
+Quando não é definido <envar>PGHOST</envar> nem <envar>PGHOSTADDR</envar>,
+o comportamento padrão é conectar utilizando o soquete do domínio Unix local;
+em máquinas sem soquetes do domínio Unix, a <application>libpq</application>
+tenta a conexão com <literal>localhost</literal>.
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGPORT</envar></primary>
+</indexterm>
+<envar>PGPORT</envar> define o número da porta TCP, ou a extensão do arquivo de
+soquete do domínio Unix para a comunicação com o servidor
+<productname>PostgreSQL</productname>.
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGDATABASE</envar></primary>
+</indexterm>
+<envar>PGDATABASE</envar> define o nome do banco de dados do
+<productname>PostgreSQL</productname>.
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGUSER</envar></primary>
+</indexterm>
+<envar>PGUSER</envar>
+define o nome de usuário utilizado para conectar ao banco de dados.
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGPASSWORD</envar></primary>
+</indexterm>
+<envar>PGPASSWORD</envar>
+define a senha utilizada se o servidor requerer autenticação por senha.
+Esta variável de ambiente está em obsolescência por motivos de segurança;
+em seu lugar deve ser considerado o uso do arquivo
+<filename>~/.pgpass</filename> (consulte a <xref linkend="libpq-pgpass">).
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGSERVICE</envar></primary>
+</indexterm>
+<envar>PGSERVICE</envar>
+define o nome do serviço a ser procurado em
+<filename>pg_service.conf</filename>. Oferece uma forma abreviada para definir
+todos os parâmetros.
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGREALM</envar></primary>
+</indexterm>
+<envar>PGREALM</envar> define o <literal>realm</literal> do Kerberos a ser
+utilizado com o <productname>PostgreSQL</productname>, se for diferente do
+<literal>realm</literal> local. Se a variável de ambiente <envar>PGREALM</envar>
+for definida, os aplicativos da <application>libpq</application> tentam a
+autenticação com os servidores para este <literal>realm</literal>, e utilizam
+arquivos de tíquete separados para evitar conflito com arquivos de tíquete
+locais. Esta variável de ambiente somente é utilizada quando é escolhida pelo
+servidor a autenticação Kerberos.
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGOPTIONS</envar></primary>
+</indexterm>
+<envar>PGOPTIONS</envar> define opções adicionais em tempo de execução para
+o servidor <productname>PostgreSQL</productname>.
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGSSLMODE</envar></primary>
+</indexterm>
+<envar>PGSSLMODE</envar> determina se, e com que prioridade, será negociada uma
+conexão <acronym>SSL</> com o servidor. Existem quatro modos:
+<literal>disable</literal> tenta apenas uma conexão <acronym>SSL</acronym> não
+criptografada; <literal>allow</> negocia, tentando primeiro uma conexão
+não-<acronym>SSL</> e depois, se falhar, tenta uma conexão
+<acronym>SSL</acronym>; <literal>prefer</literal> (o padrão) negocia, tentando
+primeiro uma conexão <acronym>SSL</acronym> e depois, se falhar, uma conexão
+normal não-<acronym>SSL</acronym>; <literal>require</literal> somente tenta uma
+conexão <acronym>SSL</acronym>. Se o <productname>PostgreSQL</productname> for
+compilado sem suporte a <acronym>SSL</acronym>, <literal>require</literal>
+causa um erro, enquanto as opções <literal>allow</literal> e
+<literal>prefer</literal> são aceitas, mas na verdade a
+<application>libpq</application> não tenta uma conexão <acronym>SSL</acronym>.
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGREQUIRESSL</envar></primary>
+</indexterm>
+<envar>PGREQUIRESSL</envar> define se a conexão deve ser feita através da
+<acronym>SSL</acronym>, ou não. Se for definida como <quote>1</quote>,
+a <application>libpq</application> recusa a conexão se o servidor não aceitar
+uma conexão <acronym>SSL</acronym> (equivale a <literal>sslmode</literal>
+<literal>prefer</literal>).
+Esta opção está em obsolescência em favor da definição de
+<literal>sslmode</literal>, e somente está disponível quando o
+<productname>PostgreSQL</productname> é compilado com suporte a
+<acronym>SSL</acronym>.
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGCONNECT_TIMEOUT</envar></primary>
+</indexterm>
+<envar>PGCONNECT_TIMEOUT</envar> define o número máximo de segundos que a
+<application>libpq</application> aguarda na tentativa de conectar ao servidor
+<productname>PostgreSQL</productname>. Se não estiver definida, ou se for
+definida como zero, a <application>libpq</application> aguarda indefinidamente.
+Não se recomenda colocar o tempo para ficar aguardando inferior a 2 segundos.
+</para>
+</listitem>
+</itemizedlist>
+</para>
+
+<para>
+As seguintes variáveis de ambiente podem ser utilizadas para especificar o
+comportamento padrão para cada sessão do <productname>PostgreSQL</productname>
+(Também devem ser vistas as maneiras de se definir o comportamento padrão
+por usuário e por banco de dados nos comandos
+<xref linkend="sql-alteruser" endterm="sql-alteruser-title"> e
+<xref linkend="sql-alterdatabase" endterm="sql-alterdatabase-title">).
+
+<itemizedlist>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGDATESTYLE</envar></primary>
+</indexterm>
+<envar>PGDATESTYLE</envar>
+define o estilo padrão para a representação de data/hora
+(Equivale a <literal>SET datestyle TO ...</literal>).
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGTZ</envar></primary>
+</indexterm>
+<envar>PGTZ</envar>
+define a zona horária padrão.
+(Equivale a <literal>SET timezone TO ...</literal>).
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGCLIENTENCODING</envar></primary>
+</indexterm>
+<envar>PGCLIENTENCODING</envar>
+define a codificação padrão do conjunto de caracteres do cliente
+(Equivale a <literal>SET client_encoding TO ...</literal>).
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGGEQO</envar></primary>
+</indexterm>
+<envar>PGGEQO</envar>
+define o modo padrão para o otimizador de comandos genético
+(Equivale a <literal>SET geqo TO ...</literal>.)
+</para>
+</listitem>
+</itemizedlist>
+
+Para obter informações sobre os valores corretos destas variáveis de ambiente,
+deve ser visto o comando <xref linkend="sql-set" endterm="sql-set-title">
+do <acronym>SQL</acronym>.
+</para>
+
+<para>
+As seguintes variáveis de ambiente determinam o comportamento interno da
+<application>libpq</application>; elas substituem os padrões de compilação.
+
+<itemizedlist>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGSYSCONFDIR</envar></primary>
+</indexterm>
+<envar>PGSYSCONFDIR</envar>
+define o diretório que contém o arquivo <filename>pg_service.conf</filename>.
+</para>
+</listitem>
+<listitem>
+<para>
+<indexterm>
+ <primary><envar>PGLOCALEDIR</envar></primary>
+</indexterm>
+<envar>PGLOCALEDIR</envar>
+define o diretório que contém os arquivos <literal>locale</> para as mensagens
+de internacionalização.
+</para>
+</listitem>
+</itemizedlist>
+</para>
+
+</sect1>
+
+
+<sect1 id="libpq-pgpass">
+<title>O arquivo de senhas</title>
+
+<indexterm zone="libpq-pgpass">
+ <primary>arquivo de senhas</primary>
+</indexterm>
+<indexterm zone="libpq-pgpass">
+ <primary>.pgpass</primary>
+</indexterm>
+
+<para>
+O arquivo <filename>.pgpass</filename>, armazenado na pasta base
+(<literal>home</literal>) do usuário, é um arquivo que contém senhas a serem
+utilizadas se a conexão requisitar uma senha (e a senha não tiver sido
+especificada de outra maneira). No <productname>Microsoft Windows</productname>
+o arquivo se chama <filename>%APPDATA%\postgresql\pgpass.conf</filename> (onde
+<filename>%APPDATA%</filename> se refere ao subdiretório de dados do aplicativo
+no perfil do usuário).
+</para>
+
+<para>
+Este arquivo deve conter linhas com o seguinte formato:
+<synopsis>
+<replaceable>nome_do_hospedeiro</replaceable>:<replaceable>porta</replaceable>:<replaceable>nome_do_banco_de_dados</replaceable>:<replaceable>nome_do_usuário</replaceable>:<replaceable>senha</replaceable>
+</synopsis>
+Os quatro primeiros valores podem ser um literal, ou <literal>*</literal> para
+corresponder a qualquer coisa. É utilizada a senha da primeira linha que
+corresponder aos parâmetros da conexão corrente (portanto, as entradas mais
+específicas devem ser colocadas primeiro quando são utilizados curingas).
+Se a entrada precisar conter os caracteres <literal>:</literal> ou
+<literal>\</literal>, estes caracteres devem receber o escape de
+<literal>\</literal>.
+</para>
+
+<para>
+As permissões de acesso ao arquivo <filename>.pgpass</filename> não devem
+permitir o acesso por todos os usuários ou para grupos; isto é conseguido pelo
+comando <command>chmod 0600 ~/.pgpass</command>.
+Se as permissões forem mais rígidas que esta, o arquivo será ignorado
+(Entretanto, atualmente as permissões não são verificadas no
+<productname>Microsoft Windows</productname>).
+</para>
+</sect1>
+
+
+<sect1 id="libpq-ssl">
+<title>Suporte a SSL</title>
+
+<indexterm zone="libpq-ssl">
+ <primary>SSL</primary>
+</indexterm>
+
+  <para>
+   Para aumentar a segurança, o <productname>PostgreSQL</productname> possui
+   suporte nativo ao uso de conexões <acronym>SSL</acronym> para criptografar
+   a comunicação cliente/servidor . Para obter detalhes sobre as
+   funcionalidades do <acronym>SSL</acronym> do lado servidor, deve ser
+   vista a <xref linkend="ssl-tcp">.
+  </para>
+
+  <para>
+   Se o servidor requisitar um certificado do cliente, a
+   <application>libpq</application> envia o certificado presente no arquivo
+   <filename>~/.postgresql/postgresql.crt</filename> armazenado na
+   pasta base do usuário. O arquivo de chave privada correspondente
+   <filename>~/.postgresql/postgresql.key</filename> também deve estar presente,
+   e não pode ser legível por todos os usuários
+   (No <productname>Microsoft Windows</productname> estes arquivos se chamam
+   <filename>%APPDATA%\postgresql\postgresql.crt</filename> e
+   <filename>%APPDATA%\postgresql\postgresql.key</filename>).
+  </para>
+
+  <para>
+   Se o arquivo <filename>~/.postgresql/root.crt</filename> estiver presente
+   no diretório base do usuário, a <application>libpq</application> utiliza a
+   lista de certificados armazenada neste arquivo para verificar o certificado
+   do servidor (No <productname>Microsoft Windows</productname> o arquivo se
+   chama <filename>%APPDATA%\postgresql\root.crt</filename>).
+   A conexão <acronym>SSL</acronym> falha se o servidor não apresentar o
+   certificado; portanto, para utilizar esta funcionalidade o servidor também
+   deve possuir uma arquivos <filename>root.crt</filename>.
+  </para>
+</sect1>
+
+
+<sect1 id="libpq-threading">
+<title>Comportamento dos programas com fluxo de execução</title>
+
+<indexterm zone="libpq-threading">
+ <primary>fluxo de execução</primary>
+ <secondary>com a libpq</secondary>
+</indexterm>
+
+<para>
+A <application>libpq</application> é reentrante e segura quanto a fluxos de
+execução (<literal>thread-safe</literal>), quando é utilizada a opção de linha
+de comando <literal>--enable-thread-safety</literal> do
+<filename>configure</filename> na construção da distribuição do
+<productname>PostgreSQL</productname>. Além disso, ao se compilar o código do
+aplicativo, podem ser necessárias opções adicionais de linha de comando do
+compilador.
+Para obter informações sobre como construir aplicativos com fluxos de
+execução deve ser consultada a documentação do sistema, ou procurar no arquivo
+<filename>src/Makefile.global</filename> por <literal>PTHREAD_CFLAGS</literal>
+e <literal>PTHREAD_LIBS</literal>.
+</para>
+
+<para>
+Uma restrição é que dois fluxos não devem tentar manipular o mesmo objeto
+<structname>PGconn</structname> ao mesmo tempo. Em particular, não é possível
+emitir comandos concorrentes, através do mesmo objeto de conexão, a partir de
+fluxos de execução diferentes (Se for necessário executar comandos simultâneos,
+devem ser utilizadas várias conexões).
+</para>
+
+<para>
+Os objetos <structname>PGresult</>, após serem criados, são apenas para leitura
+e, portanto, podem ser passados livremente entre os fluxos.
+</para>
+
+<para>
+As funções em obsolescência
+<function>PQrequestCancel</function>,
+<function>PQoidStatus</function> e
+<function>fe_setauthsvc</function>
+não são seguras quanto a fluxos de execução, não devendo ser utilizadas em
+programas com vários fluxos de execução.
+A função <function>PQrequestCancel</function> pode ser substituída pela função
+<function>PQcancel</function>.
+A função <function>PQoidStatus</function> pode ser substituída pela função
+<function>PQoidValue</function>.
+Na verdade, não há nenhuma boa razão para se chamar a função
+<function>fe_setauthsvc</function>.
+</para>
+
+<para>
+Os aplicativos <application>libpq</application> que utilizam o método de
+autenticação <literal>crypt</literal> dependem da função
+<literal>crypt()</literal>
+<indexterm><primary>crypt</primary><secondary>segurança quanto a fluxos de execução</secondary></indexterm>
+do sistema operacional, que geralmente não é segura quanto a fluxos de execução.
+É melhor utilizar o método <literal>md5</literal>, que é seguro quanto a
+fluxos de execução em todas as plataformas.
+</para>
+
+<para>
+Ocorrendo problemas em aplicativos com fluxos de execução, deve ser
+executado o programa <filename>src/tools/thread</filename> para verificar se
+a plataforma utilizada possui funções não seguras quanto a fluxos de execução.
+Este programa é executado pelo <filename>configure</filename>, mas para as
+distribuições binárias a biblioteca sendo utilizada pode não corresponder à
+biblioteca utilizada para construir os binários.
+</para>
+</sect1>
+
+
+ <sect1 id="libpq-build">
+  <title>Construção de programas que utilizam a libpq</title>
+
+  <indexterm zone="libpq-build">
+   <primary>compilação</primary>
+   <secondary>aplicativos libpq</secondary>
+  </indexterm>
+
+  <para>
+   Para construir (ou seja, compilar e ligar) um programa que utiliza a
+   <application>libpq</application>, é necessário realizar as seguintes
+   atividades:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Incluir o arquivo de cabeçalho <filename>libpq-fe.h</filename>:
+<programlisting>
+#include &lt;libpq-fe.h&gt;
+</programlisting>
+      Quando isto não é feito, normalmente são recebidas mensagens de erro do
+      compilador semelhantes a:
+<screen>
+<computeroutput>
+foo.c: In function `main':
+foo.c:34: `PGconn' undeclared (first use in this function)
+foo.c:35: `PGresult' undeclared (first use in this function)
+foo.c:54: `CONNECTION_BAD' undeclared (first use in this function)
+foo.c:68: `PGRES_COMMAND_OK' undeclared (first use in this function)
+foo.c:95: `PGRES_TUPLES_OK' undeclared (first use in this function)
+</computeroutput>
+</screen>
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Adicionar o diretório onde os arquivos de cabeçalho do
+      <productname>PostgreSQL</productname> estão armazenados à lista de
+      diretórios procurados, fornecendo a opção
+      <literal>-I<replaceable>diretório</replaceable></literal> para o
+      compilador (Em alguns casos o compilador procura o diretório em questão
+      por padrão, podendo-se omitir esta opção). Por exemplo,
+      a linha de comando do compilador pode se parecer com:
+<programlisting>
+cc -c -I/usr/local/pgsql/include testprog.c
+</programlisting>
+      Se estiver sendo utilizado o arquivo <literal>Makefile</literal>, então
+      a opção deve ser adicionada à variável <varname>CPPFLAGS</varname>:
+<programlisting>
+CPPFLAGS += -I/usr/local/pgsql/include
+</programlisting>
+     </para>
+
+     <para>
+      Havendo possibilidade do programa ser compilado por outros usuários,
+      então o local do diretório não deve ser fixado desta maneira.
+      Em vez disso, pode ser executado o utilitário <command>pg_config</command>
+      <indexterm><primary>pg_config</primary><secondary sortas="libpq">com a libpq</secondary></indexterm>
+      para descobrir onde estão os arquivos de cabeçalho no sistema local:
+<screen>
+<prompt>$</prompt> pg_config --includedir
+<computeroutput>/usr/local/include</computeroutput>
+</screen>
+     </para>
+
+     <para>
+      A falta da especificação correta desta opção para o compilador resulta em
+      uma mensagem de erro do tipo:
+<screen>
+<computeroutput>
+testlibpq.c:8:22: libpq-fe.h: Arquivo ou diretório não encontrado
+</computeroutput>
+</screen>
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Ao se ligar o programa final, deve ser especificada a opção
+      <literal>-lpq</literal> para que a biblioteca
+      <application>libpq</application> seja procurada na ligação, assim como a
+      opção <literal>-L<replaceable>diretório</replaceable></literal> para
+      adicionar o diretório onde a biblioteca <application>libpq</application>
+      reside à lista de diretórios a serem procurados por <literal>-l</literal>
+      (Novamente, o compilador procura em alguns diretórios por padrão).
+      Para o máximo de portabilidade, a opção <option>-L</option> deve ser
+      colocada antes da opção <option>-lpq</option>. Por exemplo:
+<programlisting>
+cc -o testprog testprog1.o testprog2.o -L/usr/local/pgsql/lib -lpq
+</programlisting>
+     </para>
+
+     <para>
+      O diretório da biblioteca pode ser descoberto utilizando
+      <command>pg_config</command> também:
+<screen>
+<prompt>$</prompt> pg_config --libdir
+<computeroutput>/usr/local/pgsql/lib</computeroutput>
+</screen>
+     </para>
+
+     <para>
+      As mensagens de erro apontando problemas nesta área se parecem com o
+      seguinte.
+<screen>
+<computeroutput>
+testlibpq.o(.text+0xd): In function `exit_nicely':
+: undefined reference to `PQfinish'
+testlibpq.o(.text+0x5b): In function `main':
+: undefined reference to `PQconnectdb'
+testlibpq.o(.text+0x6c): In function `main':
+: undefined reference to `PQstatus'
+...
+</computeroutput>
+</screen>
+      Isto significa que <option>-lpq</option> foi esquecido.
+<screen>
+<computeroutput>
+/usr/bin/ld: cannot find -lpq
+</computeroutput>
+</screen>
+      Isto significa que a opção <option>-L</option> foi esquecida, ou que não
+      foi especificado o diretório correto.
+     </para>
+    </listitem>
+   </itemizedlist>
+  </para>
+
+  <para>
+   <indexterm><primary>libpq-int.h</primary></indexterm>
+   Se o código fizer referência ao arquivo de cabeçalho
+   <filename>libpq-int.h</filename>, e você se recusa a corrigir o código para
+   que não faça mais, do <productname>PostgreSQL</productname> 7.2 em diante
+   este arquivo pode ser encontrado em
+   <filename><replaceable>includedir</replaceable>/postgresql/internal/libpq-int.h</filename>,
+   portanto será necessário acrescentar a opção <option>-I</option> apropriada
+   à linha de comando do compilador.
+  </para>
+
+ </sect1>
+
+
+ <sect1 id="libpq-example">
+  <title>Programas exemplo</title>
+
+  <para>
+   Estes exemplos, e outros, podem ser encontrados no diretório
+   <filename>src/test/examples</filename> na distribuição do código fonte.
+  </para>
+
+  <example id="libpq-example-1">
+   <title>Programa exemplo da <application>libpq</application> nº 1</title>
+
+   <para>
+<programlisting>
+/*
+ * testlibpq.c
+ *
+ *      Testa a versão C da LIBPQ, a biblioteca de interface com o POSTGRES
+ */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include "libpq-fe.h"
+
+static void
+exit_nicely(PGconn *conn)
+{
+    PQfinish(conn);
+    exit(1);
+}
+
+int
+main(int argc, char **argv)
+{
+    const char  *conninfo;
+    PGconn      *conn;
+    PGresult    *res;
+    int         nFields;
+    int         i,
+                j;
+
+    /*
+     * Se o usuário fornecer o parâmetro na linha de comando, este é
+     * utilizado na cadeia de caracteres conninfo; senão, o padrão é
+     * definir dbname=template1 e utilizar as variáveis de ambiente,
+     * ou o valor padrão, para todos os outros parâmetros de conexão.
+     */
+    if (argc &gt; 1)
+        conninfo = argv[1];
+    else
+        conninfo = "dbname = template1";
+
+    /* Realizar a conexão com o banco de dados */
+    conn = PQconnectdb(conninfo);
+
+    /* Verificar se a conexão com o servidor foi bem-sucedida */
+    if (PQstatus(conn) != CONNECTION_OK)
+    {
+        fprintf(stderr, "A conexão com o banco de dados falhou: %s",
+            PQerrorMessage(conn));
+        exit_nicely(conn);
+    }
+
+    /*
+     * O caso de teste envolve a utilização de um cursor, motivo pelo qual
+     * é necessário estar dentro de um bloco de transação. Tudo poderia
+     * ser feito com uma única execução de "select * from pg_database"
+     * utilizando a função PQexec(), mas seria muito trivial para servir
+     * como um bom exemplo.
+     */
+
+    /* Iniciar o bloco de transação */
+    res = PQexec(conn, "BEGIN");
+    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    {
+        fprintf(stderr, "O comando BEGIN falhou: %s", PQerrorMessage(conn));
+        PQclear(res);
+        exit_nicely(conn);
+    }
+
+    /*
+     * Para evitar vazamento de memória é necessário chamar PQclear PGresult
+     * sempre que este não é mais necessário.
+     */
+    PQclear(res);
+
+    /*
+     * Trazer as linhas de pg_database, o catálogo de bancos de dados
+     */
+    res = PQexec(conn, "DECLARE myportal CURSOR FOR select * from pg_database");
+    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    {
+        fprintf(stderr, "DECLARE CURSOR falhou: %s", PQerrorMessage(conn));
+        PQclear(res);
+        exit_nicely(conn);
+    }
+    PQclear(res);
+
+    res = PQexec(conn, "FETCH ALL IN myportal");
+    if (PQresultStatus(res) != PGRES_TUPLES_OK)
+    {
+        fprintf(stderr, "FETCH ALL falhou: %s", PQerrorMessage(conn));
+        PQclear(res);
+        exit_nicely(conn);
+    }
+
+    /* primeiro, imprimir os nomes dos atributos */
+    nFields = PQnfields(res);
+    for (i = 0; i &lt; nFields; i++)
+        printf("%-15s", PQfname(res, i));
+    printf("\n");
+
+    /* em seguida, imprimir as linhas */
+    for (i = 0; i &lt; PQntuples(res); i++)
+    {
+        for (j = 0; j &lt; nFields; j++)
+            printf("%-15s", PQgetvalue(res, i, j));
+        printf("\n");
+    }
+
+    PQclear(res);
+
+    /* fechar o portal ... sem se importar com a verificação de erros ... */
+    res = PQexec(conn, "CLOSE myportal");
+    PQclear(res);
+
+    /* encerrar a transação */
+    res = PQexec(conn, "END");
+    PQclear(res);
+
+    /* fechar a conexão com o banco de dados e limpar */
+    PQfinish(conn);
+
+    return 0;
+}
+</programlisting>
+   </para>
+
+   <para>
+    Execução do programa com o comando <acronym>SQL</acronym> mudado para
+    <quote><literal>DECLARE myportal CURSOR FOR select datname, datistemplate,
+    datallowconn from pg_database where datdba=1</literal></quote>:
+    <footnote>
+     <para>
+       Acréscimo feito pelo tradutor.
+     </para>
+    </footnote>
+<screen>
+<prompt>$ </prompt><userinput>gcc testlibpq.c -o testlibpq \</userinput>
+<prompt>&gt; </prompt><userinput>-I /usr/local/pgsql/include/ \</userinput>
+<prompt>&gt; </prompt><userinput>-L /usr/local/pgsql/lib/ -lpq</userinput>
+<prompt>$ </prompt><userinput>./testlibpq "host=localhost user=teste password=teste dbname=teste"</userinput>
+
+<computeroutput>
+datname        datistemplate  datallowconn
+template1      t              t
+template0      t              f
+</computeroutput>
+</screen>
+   </para>
+  </example>
+
+  <example id="libpq-example-2">
+   <title>Programa exemplo da <application>libpq</application> nº 2</title>
+
+   <para>
+<programlisting>
+/*
+ * testlibpq2.c
+ *
+ *      Teste da interface de notificação assíncrona
+ *
+ * Este programa deve ser iniciado e, depois, usando o psql em outra janela
+ * deve ser executado:
+ *   NOTIFY TBL2;
+ * Deve ser repetido quatro vezes para que este programa termine.
+ *
+ * Ou, para aprimorar, deve-se tentar:
+ * carregar o banco de dados com os seguintes comandos
+ * (presentes no arquivo src/test/examples/testlibpq2.sql):
+ *
+ *   CREATE TABLE TBL1 (i int4);
+ *
+ *   CREATE TABLE TBL2 (i int4);
+ *
+ *   CREATE RULE r1 AS ON INSERT TO TBL1 DO
+ *     (INSERT INTO TBL2 VALUES (new.i); NOTIFY TBL2);
+ *
+ * e executar este comando quatro vezes:
+ *
+ *   INSERT INTO TBL1 VALUES (10);
+ */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;sys/time.h&gt;
+#include "libpq-fe.h"
+
+static void
+exit_nicely(PGconn *conn)
+{
+    PQfinish(conn);
+    exit(1);
+}
+
+int
+main(int argc, char **argv)
+{
+    const char *conninfo;
+    PGconn     *conn;
+    PGresult   *res;
+    PGnotify   *notify;
+    int        nnotifies;
+
+    /*
+     * Se o usuário fornecer o parâmetro na linha de comando, este é
+     * utilizado na cadeia de caracteres conninfo; senão, o padrão é
+     * definir dbname=template1 e utilizar as variáveis de ambiente,
+     * ou o valor padrão, para todos os outros parâmetros de conexão.
+     */
+    if (argc &gt; 1)
+        conninfo = argv[1];
+    else
+        conninfo = "dbname = template1";
+
+    /* Realizar a conexão com o banco de dados */
+    conn = PQconnectdb(conninfo);
+
+    /* Verificar se a conexão com o servidor foi bem-sucedida */
+    if (PQstatus(conn) != CONNECTION_OK)
+    {
+        fprintf(stderr, "A conexão com o banco de dados falhou: %s",
+            PQerrorMessage(conn));
+        exit_nicely(conn);
+    }
+
+    /*
+     * Emitir o comando LISTEN para habilitar as notificações
+     * das regras de NOTIFY.
+     */
+    res = PQexec(conn, "LISTEN TBL2");
+    if (PQresultStatus(res) != PGRES_COMMAND_OK)
+    {
+        fprintf(stderr, "O comando LISTEN falhou: %s", PQerrorMessage(conn));
+        PQclear(res);
+        exit_nicely(conn);
+    }
+
+    /*
+     * Para evitar vazamento de memória é necessário chamar PQclear PGresult
+     * sempre que este não é mais necessário.
+     */
+    PQclear(res);
+
+    /* Sair após receber quatro notificações. */
+    nnotifies = 0;
+    while (nnotifies &lt; 4)
+    {
+        /*
+         * Adormecer até que alguma coisa aconteça na conexão.
+         * É utilizado select(2) para aguardar pela entrada, mas
+         * também poderia ser utilizado poll() ou algo semelhante.
+         */
+        int     sock;
+        fd_set  input_mask;
+
+        sock = PQsocket(conn);
+
+        if (sock &lt; 0)
+            break;                  /* não deve acontecer */
+
+        FD_ZERO(&amp;input_mask);
+        FD_SET(sock, &amp;input_mask);
+
+        if (select(sock + 1, &amp;input_mask, NULL, NULL, NULL) &lt; 0)
+        {
+            fprintf(stderr, "select() falhou: %s\n", strerror(errno));
+            exit_nicely(conn);
+        }
+
+        /* Verificar a entrada */
+        PQconsumeInput(conn);
+        while ((notify = PQnotifies(conn)) != NULL)
+        {
+            fprintf(stderr,
+                "ASYNC NOTIFY '%s' recebida do servidor com pid %d\n",
+                 notify-&gt;relname, notify-&gt;be_pid);
+            PQfreemem(notify);
+            nnotifies++;
+        }
+    }
+
+    fprintf(stderr, "Terminado.\n");
+
+    /* fechar a conexão com o banco de dados e limpar */
+    PQfinish(conn);
+
+    return 0;
+}
+</programlisting>
+   </para>
+
+   <para>
+    Execução do programa exemplo:
+    <footnote>
+     <para>
+       Acréscimo feito pelo tradutor.
+     </para>
+    </footnote>
+<screen>
+<prompt>$ </prompt><userinput>gcc testlibpq2.c -o testlibpq2 \</userinput>
+<prompt>&gt; </prompt><userinput>-I /usr/local/pgsql/include/ \</userinput>
+<prompt>&gt; </prompt><userinput>-L /usr/local/pgsql/lib/ -lpq</userinput>
+<prompt>$ </prompt><userinput>./testlibpq2</userinput>
+
+<computeroutput>
+ASYNC NOTIFY 'tbl2' recebida do servidor com pid 5685
+ASYNC NOTIFY 'tbl2' recebida do servidor com pid 5685
+ASYNC NOTIFY 'tbl2' recebida do servidor com pid 5685
+ASYNC NOTIFY 'tbl2' recebida do servidor com pid 5685
+Terminado.
+</computeroutput>
+</screen>
+   </para>
+  </example>
+
+  <example id="libpq-example-3">
+   <title>Programa exemplo da <application>libpq</application> nº 3</title>
+
+   <para>
+<programlisting>
+/*
+ * testlibpq3.c
+ *
+ *      Teste de parâmetros fora-de-linha e E/S binária
+ *
+ * Antes de executar este exemplo, o banco de dados deve ser carregado
+ * com os seguintes comandos
+ * (fornecidos no arquivo src/test/examples/testlibpq3.sql):
+ *
+ * CREATE TABLE test1 (i int4, t text, b bytea);
+ *
+ * INSERT INTO test1 values (1, 'joe''s place', '\\000\\001\\002\\003\\004');
+ * INSERT INTO test1 values (2, 'ho there', '\\004\\003\\002\\001\\000');
+ *
+ * A saída esperada é:
+ *
+ * tupla 0: possui
+ *  i = (4 bytes) 1
+ *  t = (11 bytes) 'joe's place'
+ *  b = (5 bytes) \000\001\002\003\004
+ *
+ */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;sys/types.h&gt;
+#include "libpq-fe.h"
+
+/* for ntohl/htonl */
+#include &lt;netinet/in.h&gt;
+#include &lt;arpa/inet.h&gt;
+
+
+static void
+exit_nicely(PGconn *conn)
+{
+    PQfinish(conn);
+    exit(1);
+}
+
+int
+main(int argc, char **argv)
+{
+    const char  *conninfo;
+    PGconn      *conn;
+    PGresult    *res;
+    const char  *paramValues[1];
+    int         i,
+                j;
+    int         i_fnum,
+                t_fnum,
+                b_fnum;
+
+    /*
+     * Se o usuário fornecer o parâmetro na linha de comando, este é
+     * utilizado na cadeia de caracteres conninfo; senão, o padrão é
+     * definir dbname=template1 e utilizar as variáveis de ambiente,
+     * ou o valor padrão, para todos os outros parâmetros de conexão.
+     */
+    if (argc &gt; 1)
+        conninfo = argv[1];
+    else
+        conninfo = "dbname = template1";
+
+    /* Make a connection to the database */
+    conn = PQconnectdb(conninfo);
+
+    /* Check to see that the backend connection was successfully made */
+    if (PQstatus(conn) != CONNECTION_OK)
+    {
+        fprintf(stderr, "Connection to database failed: %s",
+               PQerrorMessage(conn));
+        exit_nicely(conn);
+    }
+
+    /*
+     * O objetivo deste programa é mostrar a utilização de PQexecParams()
+     * com parâmetros fora-de-linha, assim como a transmissão binária dos
+     * resultados. Utilizando parâmetros fora-de-linha pode-se evitar o
+     * trabalho entediante de colocar apóstrofos e escapes. Deve ser
+     * observado que não é necessário fazer nada especial com o apóstrofo
+     * presente no valor do parâmetro.
+     */
+
+    /* Abaixo está o valor do parâmetro fora-de-linha */
+    paramValues[0] = "joe's place";
+
+    res = PQexecParams(conn,
+                       "SELECT * FROM test1 WHERE t = $1",
+                       1,           /* um parâmetro */
+                       NULL,        /* o servidor deduz o tipo do parâmetro */
+                       paramValues,
+                       NULL,        /* não é necessário o comprimento do
+                                       parâmetro, porque é texto */
+                       NULL,        /* o padrão é todos os parâmetros no
+                                       formato texto */
+                       1);          /* solicitar resultados binários */
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK)
+    {
+        fprintf(stderr, "SELECT falhou: %s", PQerrorMessage(conn));
+        PQclear(res);
+        exit_nicely(conn);
+    }
+
+    /* Utilizar PQfnumber para evitar assumir a ordem dos campos no resultado */
+    i_fnum = PQfnumber(res, "i");
+    t_fnum = PQfnumber(res, "t");
+    b_fnum = PQfnumber(res, "b");
+
+    for (i = 0; i &lt; PQntuples(res); i++)
+    {
+        char    *iptr;
+        char    *tptr;
+        char    *bptr;
+        int     blen;
+        int     ival;
+
+        /* Obter os valores dos campos (ignorada a possibilidade de serem nulos) */
+        iptr = PQgetvalue(res, i, i_fnum);
+        tptr = PQgetvalue(res, i, t_fnum);
+        bptr = PQgetvalue(res, i, b_fnum);
+
+        /*
+         * A representação de INT4 está na ordem de bytes da rede,
+         * sendo melhor transformar para a ordem de bytes local.
+         */
+        ival = ntohl(*((uint32_t *) iptr));
+
+        /*
+         * A representação binária de TEXT é texto, e como a libpq anexa
+         * um byte zero, funciona perfeitamente bem como uma cadeia de
+         * caracteres C.
+         *
+         * A representação binária de BYTEA é um grupo de bytes, podendo
+         * incluir nulos, portanto é necessário prestar atenção no
+         * comprimento do campo.
+         */
+        blen = PQgetlength(res, i, b_fnum);
+
+        printf("tupla %d: possui\n", i);
+        printf(" i = (%d bytes) %d\n",
+               PQgetlength(res, i, i_fnum), ival);
+        printf(" t = (%d bytes) '%s'\n",
+               PQgetlength(res, i, t_fnum), tptr);
+        printf(" b = (%d bytes) ", blen);
+        for (j = 0; j &lt; blen; j++)
+            printf("\\%03o", bptr[j]);
+        printf("\n\n");
+    }
+
+    PQclear(res);
+
+    /* fechar a conexão com o banco de dados e limpar */
+    PQfinish(conn);
+
+    return 0;
+}
+</programlisting>
+   </para>
+
+   <para>
+    Execução do programa exemplo:
+    <footnote>
+     <para>
+       Acréscimo feito pelo tradutor.
+     </para>
+    </footnote>
+<screen>
+<prompt>$ </prompt><userinput>gcc testlibpq3.c -o testlibpq3 \</userinput>
+<prompt>&gt; </prompt><userinput>-I /usr/local/pgsql/include/ \</userinput>
+<prompt>&gt; </prompt><userinput>-L /usr/local/pgsql/lib/ -lpq</userinput>
+<prompt>$ </prompt><userinput>./testlibpq3 "host=localhost user=teste password=teste dbname=teste"</userinput>
+
+<computeroutput>
+tupla 0: possui
+ i = (4 bytes) 1
+ t = (11 bytes) 'joe's place'
+ b = (5 bytes) \000\001\002\003\004
+</computeroutput>
+</screen>
+   </para>
+  </example>
+
+ </sect1>
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

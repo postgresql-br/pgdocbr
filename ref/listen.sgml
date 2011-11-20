@@ -1,0 +1,123 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/listen.sgml,v 1.21 2003/11/29 19:51:39 pgsql Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-LISTEN">
+ <refmeta>
+  <refentrytitle id="SQL-LISTEN-TITLE">LISTEN</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>LISTEN</refname>
+  <refpurpose>ouve uma notificação</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-listen">
+  <primary>LISTEN</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+LISTEN <replaceable class="parameter">nome</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>LISTEN</command> registra a sessão corrente como
+   ouvinte da condição de notificação <replaceable
+   class="PARAMETER">nome</replaceable>.
+   Se a sessão corrente já estiver registrada como ouvinte desta
+   condição de notificação, nada é feito.
+  </para>
+
+  <para>
+   Sempre que o comando  <command>NOTIFY <replaceable
+   class="PARAMETER">nome</replaceable></command> é executado, tanto
+   por esta sessão quanto por outra conectada ao mesmo banco de dados,
+   todas as sessões ouvindo esta condição de notificação no momento são
+   notificadas, e cada uma por sua vez notifica seu aplicativo cliente
+   conectado. Consulte a documentação do comando <command>NOTIFY</command>
+   para obter informações adicionais.
+  </para>
+
+  <para>
+   A sessão pode cancelar o registro para uma determinada condição de
+   notificação utilizando o comando <command>UNLISTEN</command>. Os registros da
+   sessão como ouvinte são automaticamente removidos quando a sessão termina.
+  </para>
+
+  <para>
+   O método que o aplicativo cliente deve usar para detectar eventos de
+   notificação depende da interface de programação de aplicativos (API) do
+   <productname>PostgreSQL</productname> que o aplicativo usa.
+   Quando usa a biblioteca <application>libpq</application> o aplicativo executa
+   o comando <command>LISTEN</command> como um comando SQL comum, e depois deve
+   chamar periodicamente a função <function>PQnotifies</function> para descobrir
+   se algum evento de notificação foi recebido.
+   Outras interfaces, como a <application>libpgtcl</application>, fornecem
+   métodos de mais alto nível para tratar os eventos de notificação;
+   na verdade, usando a <application>libpgtcl</application> o programador do
+   aplicativo não deve nem mesmo executar o comando <command>LISTEN</command> ou
+   <command>UNLISTEN</command> diretamente. Consulte a documentação da interface
+   sendo usada para obter mais detalhes.
+  </para>
+
+  <para>
+   O comando <xref linkend="sql-notify" endterm="sql-notify-title">
+   contém uma explicação mais extensa sobre a utilização do comando
+   <command>LISTEN</command> e do comando <command>NOTIFY</command>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome da condição de notificação (qualquer identificador).
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Configurar e executar a seqüência ouvir/notificar
+   a partir do <application>psql</application>:
+
+<programlisting>
+LISTEN virtual;
+NOTIFY virtual;
+Asynchronous notification "virtual" received from server process with PID 8448.
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Não existe o comando <command>LISTEN</command> no padrão SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-notify" endterm="sql-notify-title"></member>
+   <member><xref linkend="sql-unlisten" endterm="sql-unlisten-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

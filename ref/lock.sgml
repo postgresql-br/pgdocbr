@@ -1,0 +1,247 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/lock.sgml,v 1.47 2005/04/28 21:47:10 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-LOCK">
+ <refmeta>
+  <refentrytitle id="sql-lock-title">LOCK</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>LOCK</refname>
+  <refpurpose>bloqueia uma tabela</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-lock">
+  <primary>LOCK</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+LOCK [ TABLE ] <replaceable class="parameter">nome</replaceable> [, ...] [ IN <replaceable class="parameter">modo_de_bloqueio</replaceable> MODE ] [ NOWAIT ]
+
+onde <replaceable class="PARAMETER">modo_de_bloqueio</replaceable> é um entre:
+
+    ACCESS SHARE | ROW SHARE | ROW EXCLUSIVE | SHARE UPDATE EXCLUSIVE
+    | SHARE | SHARE ROW EXCLUSIVE | EXCLUSIVE | ACCESS EXCLUSIVE
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>LOCK TABLE</command> obtém um bloqueio no nível de tabela
+   aguardando, quando necessário, pela liberação de qualquer bloqueio conflitante.
+   Se for especificado <literal>NOWAIT</literal>, então o comando
+   <command>LOCK TABLE</command> não fica aguardando para obter o bloqueio
+   desejado: se não conseguir obter o bloqueio imediatamente, o comando é
+   interrompido e um erro é emitido.
+   Uma vez obtido, o bloqueio é mantido pelo restante da transação corrente
+   (Não existe o comando <command>UNLOCK TABLE</command>; os bloqueios são
+   sempre liberados no final da transação).
+  </para>
+
+  <para>
+   Ao obter automaticamente o bloqueio para os comandos que fazem referência a
+   tabelas, o <productname>PostgreSQL</productname> sempre utiliza o modo de
+   bloqueio menos restritivo possível.
+   O comando <command>LOCK TABLE</command> serve para os casos onde é necessário
+   um modo de bloqueio mais restritivo.
+   Por exemplo, suponha que um aplicativo executa uma transação no nível de
+   isolamento <literal>READ COMMITTED</literal>, e precisa garantir que os dados
+   da tabela permaneçam estáveis durante a transação.
+   Para conseguir esta situação pode ser obtido o modo de bloqueio
+   <literal>SHARE</literal> na tabela antes de realizar a consulta.
+   Isto impede a alteração concorrente dos dados, garantindo que
+   as próximas operações de leitura na tabela vão enxergar uma visão estável de
+   dados efetivados, porque o modo de bloqueio <literal>SHARE</literal> conflita
+   com o modo de bloqueio <literal>ROW EXCLUSIVE</literal> obtido por quem está
+   escrevendo, fazendo com que o comando
+   <command>LOCK TABLE <replaceable class="PARAMETER">nome</replaceable>
+   IN SHARE MODE</command> aguarde todas as transações que obtiveram bloqueio no
+   modo <literal>ROW EXCLUSIVE</literal> efetivarem ou desfazerem suas
+   modificações.
+   Portanto, quando este bloqueio é obtido não existem escritas não efetivadas
+   pendentes; além disso, nenhuma transação pode começar enquanto o bloqueio não
+   for liberado.
+  </para>
+
+  <para>
+   Para obter um efeito semelhante ao executar uma transação no nível de
+   isolamento serializável, é necessário executar o comando
+   <command>LOCK TABLE</command> antes de executar qualquer comando
+   <command>SELECT</> ou de modificação de dado.
+   A visão dos dados de uma transação serializável é congelada no momento em
+   que seu primeiro comando <command>SELECT</> ou de modificação de dados
+   começa. Um comando <command>LOCK TABLE</command> posterior na transação
+   ainda vai impedir escritas concorrentes &mdash; mas não vai garantir que
+   o que é lido pela transação corresponde aos últimos valores efetivados.
+  </para>
+
+  <para>
+   Se uma transação deste tipo altera os dados da tabela, então deve ser
+   utilizado o modo de bloqueio <literal>SHARE ROW EXCLUSIVE</literal> em vez do
+   modo <literal>SHARE</literal>, para garantir que somente uma transação deste
+   tipo executa de cada vez. Sem isto, é possível ocorrer um impasse
+   (<literal>deadlock</literal>): duas transações podem obter o modo de bloqueio
+   <literal>SHARE</literal>, e depois ficarem impossibilitadas de obter o
+   bloqueio no modo <literal>ROW EXCLUSIVE</literal> para realizar suas
+   modificações (Deve ser observado que os bloqueios da própria transação nunca
+   entram em conflito e, portanto, a transação pode obter o modo
+   <literal>ROW EXCLUSIVE</literal> enquanto mantém o modo de bloqueio
+   <literal>SHARE</literal> &mdash; mas não se outra transação estiver com o
+   modo de bloqueio <literal>SHARE</literal>).
+   Para evitar os impasses, deve ser garantido que as transações obtêm o
+   bloqueio dos mesmos objetos na mesma ordem e, se vários modos de bloqueio
+   estão envolvidos para um único objeto, as transações devem sempre obter
+   o modo mais restritivo primeiro.
+  </para>
+
+  <para>
+   Mais informações sobre os modos de bloqueio e estratégias de bloqueio
+   podem ser encontradas na <xref linkend="explicit-locking">.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema)
+      da tabela existente a ser bloqueada.
+     </para>
+
+     <para>
+      O comando <literal>LOCK TABLE a, b;</literal> é equivalente a
+      <literal>LOCK TABLE a; LOCK TABLE b;</literal>. As tabelas são bloqueadas
+      uma a uma na ordem especificada no comando <command>LOCK</command>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">modo_de_bloqueio</replaceable></term>
+    <listitem>
+     <para>
+      O modo de bloqueio especifica os bloqueios com os quais este modo conflita.
+      Os modos de bloqueio estão descritos na <xref linkend="explicit-locking">.
+     </para>
+
+     <para>
+      Se não for especificado nenhum modo de bloqueio, então
+      <literal>ACCESS EXCLUSIVE</literal>, o modo mais restritivo, é usado.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>NOWAIT</literal></term>
+    <listitem>
+     <para>
+      Especifica que o comando <command>LOCK TABLE</command> não deve aguardar
+      pela liberação dos bloqueios conflitantes: se os bloqueios especificados
+      não puderem ser obtidos imediatamente, a transação é interrompida.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+   <para>
+    O comando <literal>LOCK TABLE ... IN ACCESS SHARE MODE</literal> requer o
+    privilégio <literal>SELECT</literal> na tabela de destino.
+    Todas as outras formas do comando <command>LOCK</command> requerem os privilégios
+    <literal>UPDATE</literal> e/ou <literal>DELETE</literal>.
+   </para>
+
+   <para>
+    O comando <command>LOCK TABLE</command> é útil apenas dentro de um bloco
+    de transação (par <command>BEGIN</command>/<command>COMMIT</command>), uma vez que o
+    bloqueio é liberado tão logo a transação termine.
+    Um comando <command>LOCK TABLE</command> aparecendo fora de um bloco de transação
+    forma uma transação auto-contida e, portanto, o bloqueio é liberado tão
+    logo seja obtido.
+   </para>
+
+  <para>
+   O comando <command>LOCK TABLE</command> trata somente de bloqueios no nível
+   de tabela e, portanto, os nomes dos modos contendo <literal>ROW</literal>
+   são todos equivocados. Os nomes destes modos devem ser lidos geralmente como
+   indicando a intenção de obter um bloqueio no nível de linha dentro da tabela
+   bloqueada. Também, o modo <literal>ROW EXCLUSIVE</literal> é um bloqueio de
+   tabela compartilhável. Deve-se ter em mente que todos os modos de bloqueio
+   possuem semântica idêntica no que diz respeito ao <command>LOCK TABLE</command>,
+   diferindo apenas nas regras sobre quais modos conflitam com quais modos.
+   Para obter informações sobre como obter um bloqueio real no nível de linha
+   deve ser consultada a <xref linkend="locking-rows"> e a
+   <xref linkend="sql-for-update-share" endterm="sql-for-update-share-title">
+   na documentação de referência do comando <command>SELECT</command>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Obter o bloqueio no modo <literal>SHARE</literal> da tabela que contém a
+   chave primária, antes de fazer uma inserção na tabela que contém a chave
+   estrangeira:
+
+<programlisting>
+BEGIN WORK;
+LOCK TABLE filmes IN SHARE MODE;
+SELECT id FROM filmes
+    WHERE nome = 'Guerra Nas Estrelas - Episódio I - A Ameaça Fantasma';
+-- Executar ROLLBACK se a linha não for encontrada
+INSERT INTO filmes_comentarios_usuario VALUES
+    (_id_, 'Maravilhoso! Eu estava aguardando por isto há muito tempo!');
+COMMIT WORK;
+</programlisting>
+  </para>
+
+  <para>
+   Obter o bloqueio no modo <literal>SHARE ROW EXCLUSIVE</literal> da tabela que
+   contém a chave primária antes de realizar a operação de exclusão:
+
+<programlisting>
+BEGIN WORK;
+LOCK TABLE filmes IN SHARE ROW EXCLUSIVE MODE;
+DELETE FROM filmes_comentarios_usuario WHERE id IN
+    (SELECT id FROM filmes WHERE avaliacao &lt; 5);
+DELETE FROM filmes WHERE avaliacao &lt; 5;
+COMMIT WORK;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Não existe o comando <command>LOCK TABLE</command> no padrão SQL, que em seu
+   lugar usa o comando <command>SET TRANSACTION</command> para especificar os
+   níveis de concorrência das transações.
+   O <productname>PostgreSQL</productname> também suporta esta funcionalidade;
+   consulte o comando <xref linkend="SQL-SET-TRANSACTION"
+   endterm="SQL-SET-TRANSACTION-TITLE"> para obter detalhes.
+  </para>
+
+  <para>
+   Exceto pelos modos de bloqueio <literal>ACCESS SHARE</literal>,
+   <literal>ACCESS EXCLUSIVE</literal> e <literal>SHARE UPDATE EXCLUSIVE</literal>,
+   os modos de bloqueio do <productname>PostgreSQL</productname> e a sintaxe do
+   comando <command>LOCK TABLE</command> são compatíveis com as presentes no
+   <productname>Oracle</productname>.
+  </para>
+ </refsect1>
+</refentry>

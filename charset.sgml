@@ -1,0 +1,1015 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/charset.sgml,v 2.48 2005/01/04 00:05:44 momjian Exp $ -->
+
+<chapter id="charset">
+ <title>Idioma</>
+
+ <para>
+  Este capítulo descreve as funcionalidades de idioma (<literal>locale</literal>)
+  disponíveis do ponto de vista do administrador. O suporte a idioma no
+  <productname>PostgreSQL</productname> é realizado de duas maneiras:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Utilizando as funcionalidades de idioma do sistema operacional, para
+      fornecer ordem de classificação, formatação de números, tradução das
+      mensagens, e outros aspectos específicos do idioma.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Disponibilizando no servidor <productname>PostgreSQL</productname> vários
+      conjuntos de caracteres diferentes, incluindo conjuntos de caracteres
+      de vários bytes, para permitir o armazenamento de textos em todos os
+      idiomas, e provendo a tradução de conjuntos de caracteres entre
+      o cliente e o servidor.
+     </para>
+    </listitem>
+   </itemizedlist>
+  </para>
+
+ <sect1 id="locale">
+  <title>Suporte a idioma</title>
+
+  <indexterm zone="locale"><primary>idioma</primary></>
+
+  <para>
+   O suporte a <firstterm>idioma</firstterm> se refere a um aplicativo que
+   respeita as preferências culturais com relação ao alfabeto, classificação,
+   formatação de números, etc. O <productname>PostgreSQL</productname> utiliza
+   as facilidades de idioma ISO C e <acronym>POSIX</acronym> padrão
+   fornecidas pelo sistema operacional do servidor. Para obter informações
+   adicionais deve ser consultada a documentação do sistema utilizado.
+  </para>
+
+  <sect2>
+   <title>Visão geral</title>
+
+   <para>
+    O suporte a idioma é inicializado, automaticamente, quando o
+    agrupamento de bancos de dados é criado utilizando o utilitário
+    <command>initdb</command>. Por padrão, o <command>initdb</command> inicializa
+    o agrupamento de bancos de dados com a definição de idioma do ambiente
+    onde executa; portanto, se o sistema operacional estiver definido para
+    utilizar o mesmo idioma desejado para o agrupamento de bancos de dados,
+    então não é necessário ser feito mais nada. Se for desejado utilizar um
+    idioma diferente (ou não houver certeza do idioma definido no
+    sistema operacional), pode ser informado ao <command>initdb</command> qual
+    é o idioma desejado através da opção <option>--locale</option>.
+    Por exemplo:
+<programlisting>
+initdb --locale=pt_BR
+</programlisting>
+   </para>
+
+   <para>
+    Este exemplo define o idioma como Português (<literal>pt</literal>)
+    conforme falado no Brasil (<literal>BR</literal>). Outras possibilidades são
+    <literal>en_US</literal> (Inglês dos Estados Unidos) e
+    <literal>fr_CA</literal> (Francês do Canadá). Se o idioma permitir
+    utilizar mais de um conjunto de caracteres, então a especificação
+    ficará parecida com esta: <literal>pt_BR.ISO8859-1</literal>.
+    Quais idiomas estão disponíveis no sistema operacional, e quais são os
+    seus nomes, depende do que é disponibilizado pelo distribuidor do sistema
+    operacional, e do que foi instalado (Na maioria dos sistemas o comando
+    <literal>locale -a</literal> mostra a relação de idiomas disponíveis).
+   </para>
+
+   <para>
+    Ocasionalmente é útil combinar regras de idiomas diferentes como,
+    por exemplo, regras de classificação do Inglês com mensagens em Português.
+    Para que isto seja possível, existe um conjunto de subcategorias de
+    idioma controlando somente certos aspectos das regras de idioma.
+
+    <informaltable>
+     <tgroup cols="2">
+      <tbody>
+       <row>
+        <entry><envar>LC_COLLATE</></>
+        <entry>Ordem de classificação das cadeias de caracteres
+         <footnote>
+          <para>
+           <literal>collation</literal>; <literal>collating sequence</literal>
+           &mdash; Um método para comparar duas cadeias de caracteres
+           comparáveis. Todo conjunto de caracteres possui seu
+           <literal>collation</literal> padrão. (Second Informal Review Draft)
+           ISO/IEC 9075:1992, Database Language SQL- July 30, 1992. (N. do T.)
+          </para>
+         </footnote>
+         <footnote>
+          <para>
+           <productname>SQL Server</productname> &mdash;
+           <literal>collation</literal>: se refere ao conjunto de regras que
+           determinam como os dados são classificados e comparados.
+           Microsoft SQL Server 2000 Introduction - Part No. X05-88268.
+           (N. do T.)
+          </para>
+         </footnote>
+        </entry>
+       </row>
+       <row>
+        <entry><envar>LC_CTYPE</></>
+        <entry>Classificação dos caracteres (O que é uma letra? Sua letra maiúscula equivalente?)
+         <footnote>
+          <para>
+           <literal>LC_CTYPE</literal> &mdash;
+           Define a classificação do caractere, conversão maiúscula/minúscula,
+           e outros atributos do caractere.
+           <ulink url="http://publibn.boulder.ibm.com/doc_link/en_US/a_doc_lib/files/aixfiles/LC_CTYPE.htm">
+           LC_CTYPE Category for the Locale Definition Source File Format</ulink> (N. do T.)
+          </para>
+         </footnote>
+        </entry>
+       </row>
+       <row>
+        <entry><envar>LC_MESSAGES</></>
+        <entry>Idioma das mensagens</>
+       </row>
+       <row>
+        <entry><envar>LC_MONETARY</></>
+        <entry>Formatação das quantias monetárias</>
+       </row>
+       <row>
+        <entry><envar>LC_NUMERIC</></>
+        <entry>Formatação dos números</>
+       </row>
+       <row>
+        <entry><envar>LC_TIME</></>
+        <entry>Formatação das datas e das horas</>
+       </row>
+      </tbody>
+     </tgroup>
+    </informaltable>
+
+    No utilitário <command>initdb</command> os nomes das categorias se traduzem
+    em nomes de opção que mudam a escolha de idioma para uma determinada
+    categoria. Por exemplo, para definir o idioma como sendo Francês do
+    Canadá, mas utilizar as regras dos E.U.A para formatar valores monetários,
+    deve ser utilizado
+    <literal>initdb --locale=fr_CA --lc-monetary=en_US</literal>.
+   </para>
+
+   <para>
+    Se for desejado que o sistema se comporte como não tendo suporte a
+    idioma, devem ser utilizados os idiomas especiais
+    <literal>C</literal> ou <literal>POSIX</literal>.
+   </para>
+
+   <para>
+    Os valores de algumas categorias de idioma devem permanecer fixos por
+    toda a existência do agrupamento de bancos de dados. Ou seja, uma vez
+    executado o utilitário <command>initdb</command> não pode mais haver
+    alteração dos valores definidos para estas categorias. Estas categorias são
+    <literal>LC_COLLATE</literal> e <literal>LC_CTYPE</literal>, que afetam a
+    ordem de classificação dos índices e, portanto, devem permanecer fixas
+    ou os índices das colunas de texto vão ficar corrompidos.
+    O <productname>PostgreSQL</productname> impõe esta restrição registrando os
+    valores de <envar>LC_COLLATE</envar> e <envar>LC_CTYPE</envar> usados pelo
+    <command>initdb</command>. O servidor adota estes dois valores,
+    automaticamente, na inicialização.
+   </para>
+
+   <para>
+    Quando o servidor está em execução as demais categorias de idioma podem
+    ser alteradas como se desejar, definindo as variáveis de configuração em
+    tempo de execução que possuem o mesmo nome das categorias de idioma
+    (consulte a <xref linkend="runtime-config-client-format"> para obter detalhes).
+    Na verdade, os padrões escolhidos pelo utilitário <command>initdb</command>
+    são escritos no arquivo de configuração <filename>postgresql.conf</filename>
+    apenas para servirem como padrão quando o servidor é inicializado.
+    Se forem removidas as atribuições presentes no arquivo
+    <filename>postgresql.conf</filename>, o servidor herdará as definições do
+    ambiente de execução.
+   </para>
+
+   <para>
+    Deve ser observado que o comportamento de idioma do servidor é
+    determinado pelas variáveis de ambiente enxergadas pelo servidor, e não
+    pelo ambiente de qualquer um dos clientes. Portanto, antes de inicializar o
+    servidor deve-se tomar o cuidado de configurar as definições de idioma
+    corretamente. Uma conseqüência deste fato é que, se o cliente e o servidor
+    forem configurados com idiomas diferentes, as mensagens poderão
+    ser mostradas em idiomas diferentes dependendo de onde forem originadas.
+   </para>
+
+   <note>
+    <para>
+     Quando se fala em herdar o idioma do ambiente de execução, isto
+     significa o seguinte na maioria dos sistemas operacionais: Para uma
+     determinada categoria de idioma, como o agrupamento, as seguintes
+     variáveis de ambiente são consultadas, nesta ordem, até ser encontrada uma
+     com valor definido: <envar>LC_ALL</envar>, <envar>LC_COLLATE</envar>
+     (a variável correspondente à respectiva categoria) e <envar>LANG</envar>.
+     Se nenhuma destas variáveis de ambiente estiver definida, então o padrão é
+     utilizar o idioma <literal>C</literal>.
+    </para>
+
+    <para>
+     Algumas bibliotecas de idioma de mensagem também examinam a variável
+     de ambiente <envar>LANGUAGE</envar>, que prevalece sobre todas as outras
+     definições de idioma para a finalidade de definir o idioma das
+     mensagens. Em caso de dúvida, deve ser consultada a documentação do sistema
+     operacional para obter informações adicionais, em particular a documentação
+     sobre <application>gettext</application>.
+    </para>
+   </note>
+
+   <para>
+    Para habilitar as mensagens traduzidas para o idioma preferido do usuário,
+    deve ser habilitado o <acronym>NLS</acronym> (suporte a idioma nacional) em
+    tempo de construção. Esta escolha independe dos outros suportes a idioma.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Comportamento</>
+
+   <para>
+    O suporte a idioma exerce influência sobre as seguintes funcionalidades:
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       Ordem de classificação das consultas que utilizam a cláusula
+       <command>ORDER BY</command>.
+       <indexterm><primary>ORDER BY</primary><secondary>e idioma</secondary></indexterm>
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       A capacidade de utilizar índices com a cláusula <literal>LIKE</>.
+       <indexterm><primary>LIKE</><secondary>e idioma</secondary></indexterm>
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       A família de funções <function>to_char</function>.
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+
+   <para>
+    A desvantagem de utilizar idiomas diferentes de <literal>C</literal> e
+    <literal>POSIX</literal> no <productname>PostgreSQL</> é o impacto no
+    desempenho. Torna a manipulação de caracteres mais lenta, e impede a
+    utilização de índices comuns na cláusula <literal>LIKE</literal>.
+    <emphasis>Por estes motivos, a utilização de idioma deve ser feita
+    somente quando for realmente necessária</emphasis>.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Problemas</>
+
+   <para>
+    Se, apesar do que foi explicado acima, o suporte a idioma não funcionar,
+    deve ser verificado no sistema operacional se o suporte a idioma está
+    configurado de forma correta. Pode ser utilizado o comando
+    <literal>locale -a</literal> para verificar quais idiomas estão
+    instalados no sistema operacional, caso este comando esteja disponível no
+    sistema operacional utilizado.
+    <footnote>
+     <para>
+      O comando <literal>locale -a</literal> executado no
+      <systemitem class="osname">Fedora Core 3</systemitem> mostrou a seguinte
+      relação: aa_DJ, aa_DJ.iso88591, aa_ER, aa_ER@saaho, aa_ER.utf8,
+      aa_ER.utf8@saaho, aa_ET, aa_ET.utf8, af_ZA, af_ZA.iso88591, ... ,
+      portuguese, POSIX, pt_BR, pt_BR.iso88591, pt_BR.utf8, pt_PT, pt_PT@euro,
+      pt_PT.iso88591, pt_PT.iso885915@euro, pt_PT.utf8, ... ,
+      zu_ZA, zu_ZA.iso88591, zu_ZA.utf8. (N. do T.)
+     </para>
+    </footnote>
+   </para>
+
+   <para>
+    Deve ser verificado se o <productname>PostgreSQL</productname> está
+    realmente utilizando o idioma que se pensa que esteja utilizando.
+    As definições de <envar>LC_COLLATE</envar> e <envar>LC_CTYPE</envar> são
+    determinadas quando o utilitário <command>initdb</command> é executado,
+    não podendo ser mudadas sem que o <command>initdb</command> seja executado
+    novamente. Outras definições de idioma, incluindo
+    <envar>LC_MESSAGES</envar> e <envar>LC_MONETARY</envar>, são determinadas
+    inicialmente a partir do ambiente onde o servidor é posto em execução.
+    As definições ativas de idioma podem ser verificadas utilizando o
+    comando <command>SHOW</command>.
+   </para>
+
+   <para>
+    Na distribuição do código fonte, o diretório
+    <filename class="directory">src/test/locale</filename> contém um conjunto
+    de testes para o suporte a idioma do
+    <productname>PostgreSQL</productname>.
+   </para>
+
+   <para>
+    Como é obvio, os aplicativos cliente que tratam os erros gerados pelo
+    servidor analisando o texto da mensagem de erro terão problemas quando as
+    mensagens do servidor estiverem em outro idioma. Os autores destes
+    aplicativos são aconselhados a utilizar o esquema de códigos de erro
+    para tratar erros, em vez dos textos das mensagens.
+   </para>
+
+   <para>
+    A manutenção dos catálogos de mensagens traduzidas requer o esforço contínuo
+    de muitos voluntários que desejam ver o <productname>PostgreSQL</productname>
+    falando bem o seu idioma. Se as mensagens no seu idioma não estiverem
+    disponíveis atualmente, ou se não estiverem inteiramente traduzidas, sua
+    ajuda será apreciada. Se desejar ajudar, consulte o <xref linkend="nls"> ou
+    escreva para a lista de discussão dos desenvolvedores.
+   </para>
+  </sect2>
+ </sect1>
+
+
+ <sect1 id="multibyte">
+  <title>Suporte a conjuntos de caracteres</title>
+
+  <indexterm zone="multibyte"><primary>conjunto de caracteres</primary></>
+
+  <para>
+   No <productname>PostgreSQL</productname> o suporte a conjuntos de caracteres
+   permite armazenar textos usando vários conjuntos de caracteres, incluindo
+   conjuntos de caracteres de um único byte, como a série ISO 8859, e conjuntos
+   de caracteres de vários bytes, como o <acronym>EUC</acronym>
+   (<literal>Extended Unix Code</literal>), Unicode e o código interno
+   <literal>Mule</literal>.
+   Todos os conjuntos de caracteres podem ser utilizados de forma transparente
+   no servidor (Se forem utilizadas funções de extensão de terceiros, vai
+   depender do código destas funções utilizadas ter sido escrito corretamente).
+   O conjunto de caracteres padrão é selecionado durante a inicialização do
+   agrupamento de bancos de dados do <productname>PostgreSQL</productname>,
+   feito pelo utilitário <command>initdb</command>.
+   Ao se criar um banco de dados através do utilitário
+   <command>createdb</command>, ou através do comando
+   <command>CREATE DATABASE</command> da linguagem SQL, pode ser escolhido um
+   conjunto de caracteres diferente do padrão do agrupamento.
+   Portanto, podem haver vários bancos de dados, cada um com um conjunto de
+   caracteres diferentes.
+  </para>
+
+   <sect2 id="multibyte-charset-supported">
+    <title>Conjuntos de caracteres aceitos</title>
+
+    <para>
+     A <xref linkend="charset-table"> mostra os conjuntos de caracteres
+     disponíveis para uso no servidor.
+    </para>
+
+     <table id="charset-table">
+      <title>Conjuntos de caracteres do servidor</title>
+      <tgroup cols="2">
+       <thead>
+        <row>
+         <entry>Nome</entry>
+         <entry>Descrição</entry>
+        </row>
+       </thead>
+       <tbody>
+        <row>
+         <entry><literal>SQL_ASCII</literal></entry>
+         <entry><acronym>ASCII</acronym></entry>
+        </row>
+        <row>
+         <entry><literal>EUC_JP</literal></entry>
+         <entry><acronym>EUC</> Japonês</entry>
+        </row>
+        <row>
+         <entry><literal>EUC_CN</literal></entry>
+         <entry><acronym>EUC</> Chinês</entry>
+        </row>
+        <row>
+         <entry><literal>EUC_KR</literal></entry>
+         <entry><acronym>EUC</> Coreano</entry>
+        </row>
+        <row>
+         <entry><literal>JOHAB</literal></entry>
+         <entry><acronym>EUC</> Coreano (baseado em Hangle)</entry>
+        </row>
+        <row>
+         <entry><literal>EUC_TW</literal></entry>
+         <entry><acronym>EUC</acronym> Tailandês</entry>
+        </row>
+        <row>
+         <entry><literal>UNICODE</literal></entry>
+         <entry>Unicode (<acronym>UTF</acronym>-8)
+          <footnote>
+           <para>
+            UTF8 é a forma de codificação de caracteres especificada na
+            ISO/IEC 10646-1, Anexo D, na qual cada caractere é codificado
+            de um a quatro octetos.
+            (ISO-ANSI Working Draft) Foundation (SQL/Foundation), August 2003,
+            ISO/IEC JTC 1/SC 32, 25-jul-2003, ISO/IEC 9075-2:2003 (E) (N. do T.)
+           </para>
+          </footnote>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>MULE_INTERNAL</literal></entry>
+         <entry>Código interno Mule</entry>
+        </row>
+        <row>
+         <entry><literal>LATIN1</literal></entry>
+         <entry>ISO 8859-1/<acronym>ECMA</> 94 (Alfabeto latino nº 1)</entry>
+        </row>
+        <row>
+         <entry><literal>LATIN2</literal></entry>
+         <entry>ISO 8859-2/<acronym>ECMA</> 94 (Alfabeto latino nº 2)</entry>
+        </row>
+        <row>
+         <entry><literal>LATIN3</literal></entry>
+         <entry>ISO 8859-3/<acronym>ECMA</> 94 (Alfabeto latino nº 3)</entry>
+        </row>
+        <row>
+         <entry><literal>LATIN4</literal></entry>
+         <entry>ISO 8859-4/<acronym>ECMA</> 94 (Alfabeto latino nº 4)</entry>
+        </row>
+        <row>
+         <entry><literal>LATIN5</literal></entry>
+         <entry>ISO 8859-9/<acronym>ECMA</> 128 (Alfabeto latino nº 5)</entry>
+        </row>
+        <row>
+         <entry><literal>LATIN6</literal></entry>
+         <entry>ISO 8859-10/<acronym>ECMA</> 144 (Alfabeto latino nº 6)</entry>
+        </row>
+        <row>
+         <entry><literal>LATIN7</literal></entry>
+         <entry>ISO 8859-13 (Alfabeto latino nº 7)</entry>
+        </row>
+        <row>
+         <entry><literal>LATIN8</literal></entry>
+         <entry>ISO 8859-14 (Alfabeto latino nº 8)</entry>
+        </row>
+        <row>
+         <entry><literal>LATIN9</literal></entry>
+         <entry>ISO 8859-15 (Alfabeto latino nº 9)</entry>
+        </row>
+        <row>
+         <entry><literal>LATIN10</literal></entry>
+         <entry>ISO 8859-16/<acronym>ASRO</> SR 14111 (Alfabeto latino nº 10)</entry>
+        </row>
+        <row>
+         <entry><literal>ISO_8859_5</literal></entry>
+         <entry>ISO 8859-5/<acronym>ECMA</> 113 (Latino/Cirílico)</entry>
+        </row>
+        <row>
+         <entry><literal>ISO_8859_6</literal></entry>
+         <entry>ISO 8859-6/<acronym>ECMA</> 114 (Latino/Arábico)</entry>
+        </row>
+        <row>
+         <entry><literal>ISO_8859_7</literal></entry>
+         <entry>ISO 8859-7/<acronym>ECMA</> 118 (Latino/Grego)</entry>
+        </row>
+        <row>
+         <entry><literal>ISO_8859_8</literal></entry>
+         <entry>ISO 8859-8/<acronym>ECMA</> 121 (Latino/Hebreu)</entry>
+        </row>
+        <row>
+         <entry><literal>KOI8</literal></entry>
+         <entry><acronym>KOI</acronym>8-R(U)</entry>
+        </row>
+        <row>
+         <entry><literal>ALT</literal></entry>
+         <entry>Windows CP866</entry>
+        </row>
+        <row>
+         <entry><literal>WIN874</literal></entry>
+         <entry>Windows CP874 (Thai)</entry>
+        </row>
+        <row>
+         <entry><literal>WIN1250</literal></entry>
+         <entry>Windows CP1250</entry>
+        </row>
+        <row>
+         <entry><literal>WIN</literal></entry>
+         <entry>Windows CP1251</entry>
+        </row>
+        <row>
+         <entry><literal>WIN1256</literal></entry>
+         <entry>Windows CP1256 (Arábico)</entry>
+        </row>
+        <row>
+         <entry><literal>TCVN</literal></entry>
+         <entry><acronym>TCVN</>-5712/Windows CP1258 (Vietnamês)</entry>
+        </row>
+       </tbody>
+      </tgroup>
+     </table>
+
+    <important>
+     <para>
+      Por engano, antes do <productname>PostgreSQL 7.2</productname>
+      <literal>LATIN5</literal> significava ISO 8859-5. A partir da versão 7.2
+      <literal>LATIN5</literal> passou a significar ISO 8859-9.
+      Caso exista um banco de dados <literal>LATIN5</literal> criado pela versão
+      7.1 ou anterior, e for desejado migrar para a versão 7.2 ou posterior,
+      deve haver cuidado com relação a esta modificação.
+     </para>
+    </important>
+
+     <para>
+      Nem todas as <acronym>API</acronym>s suportam todos os conjuntos de
+      caracteres listados. Por exemplo, o driver de JDBC do
+      <productname>PostgreSQL</productname> não aceita
+      <literal>MULE_INTERNAL</literal>, <literal>LATIN6</literal>,
+      <literal>LATIN8</literal> e <literal>LATIN10</literal>.
+     </para>
+    </sect2>
+
+   <sect2>
+    <title>Definição do conjunto de caracteres</title>
+
+    <para>
+     O utilitário <command>initdb</command> define o conjunto de caracteres
+     padrão para o agrupamento de bancos de dados do
+     <productname>PostgreSQL</productname>. Por exemplo,
+
+<programlisting>
+initdb -E EUC_JP
+</programlisting>
+
+     define o conjunto de caracteres padrão (codificação) como
+     <literal>EUC_JP</literal> (Código Unix Estendido para Japonês).
+     Pode ser utilizado <option>--encoding</option> em vez de
+     <option>-E</option>, se for preferido digitar a forma mais longa das opções.
+     Se não for fornecida nem a opção <option>-E</option> nem a opção
+     <option>--encoding</option>, é utilizado <literal>SQL_ASCII</literal>.
+    </para>
+
+    <para>
+     Pode ser criado um banco de dados com um conjunto de caracteres diferente:
+
+<programlisting>
+createdb -E EUC_KR coreano
+</programlisting>
+
+     Este comando cria um banco de dados chamado <literal>coreano</literal> que
+     utiliza o conjunto de caracteres <literal>EUC_KR</literal>. Outra forma de
+     se fazer é através do comando SQL:
+
+<programlisting>
+CREATE DATABASE coreano WITH ENCODING 'EUC_KR';
+</programlisting>
+
+     A codificação usada no banco de dados é armazenada no catálogo do sistema
+     <literal>pg_database</literal>. Pode ser vista utilizando a opção
+     <option>-l</option> ou o comando <command>\l</command>
+     do <command>psql</command>.
+
+<screen>
+<prompt>$</prompt> <userinput>psql -l</userinput>
+
+<computeroutput>
+        Lista de bancos de dados
+Banco de Dados |  Dono   |   Codificação
+---------------+---------+---------------
+ euc_cn        | t-ishii | EUC_CN
+ euc_jp        | t-ishii | EUC_JP
+ euc_kr        | t-ishii | EUC_KR
+ euc_tw        | t-ishii | EUC_TW
+ mule_internal | t-ishii | MULE_INTERNAL
+ regression    | t-ishii | SQL_ASCII
+ template1     | t-ishii | EUC_JP
+ test          | t-ishii | EUC_JP
+ unicode       | t-ishii | UNICODE
+(9 linhas)
+</computeroutput>
+</screen>
+    </para>
+
+    <important>
+     <para>
+      Embora possa ser especificado para o banco de dados qualquer codificação
+      desejada, não é razoável escolher uma codificação que não é a esperada
+      para o idioma escolhido. As definições de
+      <literal>LC_COLLATE</literal> e <literal>LC_CTYPE</literal>
+      implicam em uma determinada codificação e, por isso, é possível que as
+      operações dependentes do idioma (como a classificação) interpretem
+      de forma errada os dados que estiverem em uma codificação incompatível.
+     </para>
+
+     <para>
+      Uma vez que as definições de idioma são congeladas pelo utilitário
+      <command>initdb</>, a flexibilidade aparente de utilizar codificações
+      diferentes em bancos de dados diferentes é mais teórica do que real.
+      É provável que estes mecanismos sejam revistos em uma versão futura do
+      <productname>PostgreSQL</productname>.
+     </para>
+
+     <para>
+      Uma maneira de utilizar várias configurações com segurança é definir o
+      idioma como <literal>C</> ou <literal>POSIX</> ao executar o
+      <command>initdb</> acabando, assim, com qualquer preocupação real com
+      relação a idioma.
+     </para>
+    </important>
+   </sect2>
+
+   <sect2>
+    <title>Conversão automática do conjunto de caracteres entre cliente e servidor</title>
+
+    <para>
+     O <productname>PostgreSQL</productname> suporta a conversão automática
+     de conjuntos de caracteres entre o cliente e o servidor, para determinados
+     conjuntos de caracteres. A informação de conversão é armazenada no
+     catálogo do sistema <literal>pg_conversion</literal>. Podem ser criadas
+     novas conversões utilizando o comando <command>CREATE CONVERSION</command>.
+     O <productname>PostgreSQL</productname> possui algumas conversões
+     pré-definidas, conforme mostrado na
+     <xref linkend="multibyte-translation-table">.
+    </para>
+
+     <table id="multibyte-translation-table">
+      <title>Conversões de conjuntos de caracteres cliente/servidor</title>
+      <tgroup cols="2">
+       <thead>
+        <row>
+         <entry>Conjunto de caracteres do servidor</entry>
+         <entry>Conjuntos de caracteres do cliente aceitos</entry>
+        </row>
+       </thead>
+       <tbody>
+        <row>
+         <entry><literal>SQL_ASCII</literal></entry>
+         <entry><literal>SQL_ASCII</literal>, <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>EUC_JP</literal></entry>
+         <entry><literal>EUC_JP</literal>, <literal>SJIS</literal>,
+         <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>EUC_CN</literal></entry>
+         <entry><literal>EUC_CN</literal>, <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>EUC_KR</literal></entry>
+         <entry><literal>EUC_KR</literal>, <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>JOHAB</literal></entry>
+         <entry><literal>JOHAB</literal>, <literal>UNICODE</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>EUC_TW</literal></entry>
+         <entry><literal>EUC_TW</literal>, <literal>BIG5</literal>,
+         <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>LATIN1</literal></entry>
+         <entry><literal>LATIN1</literal>, <literal>UNICODE</literal>
+         <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>LATIN2</literal></entry>
+         <entry><literal>LATIN2</literal>, <literal>WIN1250</literal>,
+         <literal>UNICODE</literal>,
+         <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>LATIN3</literal></entry>
+         <entry><literal>LATIN3</literal>, <literal>UNICODE</literal>,
+         <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>LATIN4</literal></entry>
+         <entry><literal>LATIN4</literal>, <literal>UNICODE</literal>,
+         <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>LATIN5</literal></entry>
+         <entry><literal>LATIN5</literal>, <literal>UNICODE</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>LATIN6</literal></entry>
+         <entry><literal>LATIN6</literal>, <literal>UNICODE</literal>,
+         <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>LATIN7</literal></entry>
+         <entry><literal>LATIN7</literal>, <literal>UNICODE</literal>,
+         <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>LATIN8</literal></entry>
+         <entry><literal>LATIN8</literal>, <literal>UNICODE</literal>,
+         <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>LATIN9</literal></entry>
+         <entry><literal>LATIN9</literal>, <literal>UNICODE</literal>,
+         <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>LATIN10</literal></entry>
+         <entry><literal>LATIN10</literal>, <literal>UNICODE</literal>,
+         <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>ISO_8859_5</literal></entry>
+         <entry><literal>ISO_8859_5</literal>,
+         <literal>UNICODE</literal>,
+         <literal>MULE_INTERNAL</literal>,
+         <literal>WIN</literal>,
+         <literal>ALT</literal>,
+         <literal>KOI8</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>ISO_8859_6</literal></entry>
+         <entry><literal>ISO_8859_6</literal>,
+         <literal>UNICODE</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>ISO_8859_7</literal></entry>
+         <entry><literal>ISO_8859_7</literal>,
+         <literal>UNICODE</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>ISO_8859_8</literal></entry>
+         <entry><literal>ISO_8859_8</literal>,
+         <literal>UNICODE</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>UNICODE</literal></entry>
+         <entry>
+         <literal>EUC_JP</literal>, <literal>SJIS</literal>,
+         <literal>EUC_KR</literal>, <literal>UHC</literal>, <literal>JOHAB</literal>,
+         <literal>EUC_CN</literal>, <literal>GBK</literal>,
+         <literal>EUC_TW</literal>, <literal>BIG5</literal>,
+         <literal>LATIN1</literal> até <literal>LATIN10</literal>,
+         <literal>ISO_8859_5</literal>,
+         <literal>ISO_8859_6</literal>,
+         <literal>ISO_8859_7</literal>,
+         <literal>ISO_8859_8</literal>,
+         <literal>WIN</literal>, <literal>ALT</literal>,
+         <literal>KOI8</literal>,
+         <literal>WIN1256</literal>,
+         <literal>TCVN</literal>,
+         <literal>WIN874</literal>,
+         <literal>GB18030</literal>,
+         <literal>WIN1250</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>MULE_INTERNAL</literal></entry>
+         <entry><literal>EUC_JP</literal>, <literal>SJIS</literal>,
+          <literal>EUC_KR</literal>, <literal>EUC_CN</literal>,
+          <literal>EUC_TW</literal>, <literal>BIG5</literal>,
+          <literal>LATIN1</literal> até <literal>LATIN5</literal>,
+          <literal>WIN</literal>, <literal>ALT</literal>,
+          <literal>WIN1250</literal>,
+          <literal>BIG5</literal>, <literal>ISO_8859_5</literal>,
+          <literal>KOI8</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>KOI8</literal></entry>
+         <entry><literal>ISO_8859_5</literal>, <literal>WIN</literal>,
+         <literal>ALT</literal>, <literal>KOI8</literal>,
+         <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>ALT</literal></entry>
+         <entry><literal>ISO_8859_5</literal>, <literal>WIN</literal>,
+         <literal>ALT</literal>, <literal>KOI8</literal>,
+         <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>WIN874</literal></entry>
+         <entry><literal>WIN874</literal>,
+         <literal>UNICODE</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>WIN1250</literal></entry>
+         <entry><literal>LATIN2</literal>, <literal>WIN1250</literal>,
+         <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>WIN</literal></entry>
+         <entry><literal>ISO_8859_5</literal>, <literal>WIN</literal>,
+         <literal>ALT</literal>, <literal>KOI8</literal>,
+         <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>WIN1256</literal></entry>
+         <entry><literal>WIN1256</literal>,
+         <literal>UNICODE</literal>
+         </entry>
+        </row>
+        <row>
+         <entry><literal>TCVN</literal></entry>
+         <entry><literal>TCVN</literal>,
+         <literal>UNICODE</literal>
+         </entry>
+        </row>
+       </tbody>
+      </tgroup>
+     </table>
+
+    <para>
+     Para habilitar a conversão automática entre os conjuntos de caracteres,
+     deve ser informado ao <productname>PostgreSQL</productname> o conjunto de
+     caracteres (codificação) que se deseja utilizar no cliente.
+     Existem diversas maneiras de fazer:
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        Utilizando o comando <command>\encoding</command> no
+        <application>psql</application>.
+        O <command>\encoding</command> permite mudar a codificação do cliente
+        dinamicamente. Por exemplo, para mudar a codificação para
+        <literal>SJIS</literal> deve ser executado:
+
+<programlisting>
+\encoding SJIS
+</programlisting>
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Utilizando as funções da biblioteca <application>libpq</application>.
+        O comando <command>\encoding</command> na verdade chama
+        <function>PQsetClientEncoding()</function> para esta finalidade:
+
+<synopsis>
+int PQsetClientEncoding(PGconn *<replaceable>conexão</replaceable>, const char *<replaceable>codificação</replaceable>);
+</synopsis>
+
+        Onde <replaceable>conexão</replaceable> é a conexão com o servidor,
+        e <replaceable>codificação</replaceable> é a codificação que se deseja
+        utilizar. Se for bem-sucedida a definição da codificação pela função,
+        esta retorna 0, senão retorna -1. A codificação corrente para a conexão
+        pode ser obtida utilizando:
+
+<synopsis>
+int PQclientEncoding(const PGconn *<replaceable>conexão</replaceable>);
+</synopsis>
+
+        Deve ser observado que é retornado o ID da codificação, e não uma
+        cadeia de caracteres simbólica como <literal>EUC_JP</literal>.
+        Para converter o ID da codificação no nome da codificação
+        deve ser utilizado:
+
+<synopsis>
+char *pg_encoding_to_char(int <replaceable>id_codificação</replaceable>);
+</synopsis>
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Utilizando o comando <command>SET client_encoding TO</command>.
+
+        A definição da codificação do cliente pode ser feita através do comando SQL:
+
+<programlisting>
+SET CLIENT_ENCODING TO '<replaceable>valor</replaceable>';
+</programlisting>
+
+        Também pode ser utilizada a sintaxe <literal>SET NAMES</literal>
+        do padrão SQL para esta finalidade:
+
+<programlisting>
+SET NAMES '<replaceable>valor</replaceable>';
+</programlisting>
+
+        Para consultar a codificação corrente do cliente:
+
+<programlisting>
+SHOW client_encoding;
+</programlisting>
+
+        Para voltar à codificação padrão:
+
+<programlisting>
+RESET client_encoding;
+</programlisting>
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Utilizando a variável de ambiente <envar>PGCLIENTENCODING</envar>.
+        Se a variável de ambiente <envar>PGCLIENTENCODING</envar> estiver
+        definida no ambiente do cliente, esta codificação de cliente é
+        selecionada automaticamente quando é feita a conexão com o servidor
+        (Pode ser mudada depois utilizando um dos métodos mencionados acima).
+       </para>
+      </listitem>
+
+      <listitem>
+      <para>
+       Utilizando a variável de configuração <xref linkend="guc-client-encoding">.
+       Se a variável <varname>client_encoding</varname> estiver definida,
+       esta codificação do cliente é selecionada automaticamente quando é feita
+       a conexão com o servidor (Pode ser mudada depois utilizando um dos
+       métodos mencionados acima).
+       </para>
+      </listitem>
+
+     </itemizedlist>
+    </para>
+
+    <para>
+     Se não for possível converter um determinado caractere &mdash;
+     suponha que seja escolhido <literal>EUC_JP</literal> para o servidor e
+     <literal>LATIN1</literal> para o cliente, então alguns caracteres Japoneses
+     não poderão ser convertidos em <literal>LATIN1</literal> &mdash; este
+     caractere será transformado nos valores hexadecimais de seus bytes entre
+     parênteses como, por exemplo, <literal>(826C)</literal>.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Leitura adicional</title>
+
+    <para>
+     Abaixo estão mostrados bons lugares para começar a aprender
+     os vários tipos de sistema de codificação.
+
+     <variablelist>
+      <varlistentry>
+       <term><ulink url="ftp://ftp.ora.com/pub/examples/nutshell/ujip/doc/cjk.inf"></ulink></term>
+
+       <listitem>
+        <para>
+         Estão mostradas na seção 3.2 explicações detalhadas sobre
+         <literal>EUC_JP</literal>, <literal>EUC_CN</literal>,
+         <literal>EUC_KR</literal> e <literal>EUC_TW</literal>.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term><ulink url="http://www.unicode.org/"></ulink></term>
+
+       <listitem>
+        <para>
+         O sítio na Web do Consórcio Unicode
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term>RFC 2044</term>
+
+       <listitem>
+        <para>
+         Onde o <acronym>UTF</acronym>-8 é definido.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
+    </para>
+   </sect2>
+
+  </sect1>
+
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

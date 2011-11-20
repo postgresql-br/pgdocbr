@@ -1,0 +1,85 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/load.sgml,v 1.21 2005/01/04 00:39:53 tgl Exp $
+-->
+
+<refentry id="SQL-LOAD">
+ <refmeta>
+  <refentrytitle id="SQL-LOAD-TITLE">LOAD</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>LOAD</refname>
+  <refpurpose>carrega ou recarrega um arquivo de biblioteca compartilhada</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-load">
+  <primary>LOAD</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+LOAD '<replaceable class="parameter">nome_do_arquivo</replaceable>'
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="sql-load-description">
+  <title>Descrição</title>
+
+  <para>
+   Este comando carrega um arquivo de biblioteca compartilhada no espaço de
+   endereçamento do servidor <productname>PostgreSQL</productname>. Se o arquivo
+   tiver sido carregado anteriormente, primeiro é descarregado.
+   Este comando é útil, principalmente, para descarregar
+   e recarregar um arquivo de biblioteca compartilhada modificado após
+   ter sido carregado pelo servidor. Para usar a biblioteca compartilhada,
+   as funções na mesma devem ser declaradas usando o comando
+   <xref linkend="sql-createfunction" endterm="sql-createfunction-title">.
+  </para>
+
+  <para>
+   O nome do arquivo é especificado da mesma forma que os nomes de bibliotecas
+   compartilhadas no comando
+   <xref linkend="sql-createfunction" endterm="sql-createfunction-title">;
+   em particular, pode-se confiar no caminho de procura e na adição automática
+   da extensão de nome de arquivo de biblioteca compartilhada padrão do
+   sistema. Consulte a <xref linkend="xfunc"> para obter informações adicionais
+   sobre este assunto.
+  </para>
+ </refsect1>
+
+ <refsect1 id="sql-load-compat">
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>LOAD</command> é uma extensão do
+   <application>PostgreSQL</application>.
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <para>
+   <xref linkend="sql-createfunction" endterm="sql-createfunction-title">
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

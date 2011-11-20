@@ -1,0 +1,417 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/fetch.sgml,v 1.40 2007/02/01 00:28:19 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-FETCH">
+ <refmeta>
+  <refentrytitle id="SQL-FETCH-TITLE">FETCH</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>FETCH</refname>
+  <refpurpose>traz linhas de uma consulta usando um cursor</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-fetch">
+  <primary>FETCH</primary>
+ </indexterm>
+
+ <indexterm zone="sql-fetch">
+  <primary>cursor</primary>
+  <secondary>FETCH</secondary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+FETCH [ <replaceable class="parameter">direção</replaceable> { FROM | IN } ] <replaceable class="parameter">nome_do_cursor</replaceable>
+
+onde <replaceable class="PARAMETER">direção</replaceable>
+pode ser omitida ou pode ser um dentre:
+
+    NEXT
+    PRIOR
+    FIRST
+    LAST
+    ABSOLUTE <replaceable class="parameter">contador</replaceable>
+    RELATIVE <replaceable class="parameter">contador</replaceable>
+    <replaceable class="parameter">contador</replaceable>
+    ALL
+    FORWARD
+    FORWARD <replaceable class="parameter">contador</replaceable>
+    FORWARD ALL
+    BACKWARD
+    BACKWARD <replaceable class="parameter">contador</replaceable>
+    BACKWARD ALL
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>FETCH</command> traz linhas utilizando um cursor
+   previamente criado.
+  </para>
+
+  <para>
+   O cursor possui uma posição associada, a qual é utilizada pelo comando
+   <command>FETCH</command>.
+   A posição do cursor pode ser: antes da primeira linha, em uma determinada
+   linha, ou após a última linha do resultado da consulta.
+   Ao ser criado, o cursor fica posicionado antes da primeira linha.
+   Após trazer algumas linhas, o cursor fica posicionado na linha trazida mais
+   recentemente.
+   Se o comando <command>FETCH</command> ultrapassar o final das linhas
+   disponíveis, então o cursor fica posicionado após a última linha, ou antes da
+   primeira linha se estiver trazendo para trás.
+   Os comandos <command>FETCH ALL</command> e <command>FETCH BACKWARD
+   ALL</command> sempre deixam o cursor posicionado após a última linha ou
+   antes da primeira linha, respectivamente.
+  </para>
+
+  <para>
+   As formas <literal>NEXT</literal>, <literal>PRIOR</literal>,
+   <literal>FIRST</literal>, <literal>LAST</literal>,
+   <literal>ABSOLUTE</literal> e <literal>RELATIVE</literal> trazem
+   uma única linha após mover o cursor de forma apropriada. Se a linha
+   não existir, um resultado vazio é retornado, e o cursor é deixado
+   posicionado antes da primeira linha ou após a última linha,
+   conforme seja apropriado.
+  </para>
+
+  <para>
+   As formas que utilizam <literal>FORWARD</literal> e
+   <literal>BACKWARD</literal> trazem o número indicado de linhas movendo o
+   cursor para frente ou para trás, deixando o cursor posicionado na última
+   linha retornada; ou após/antes de todas as linhas se o <replaceable
+   class="PARAMETER">contador</replaceable> exceder o número
+   de linhas disponíveis.
+  </para>
+
+  <para>
+   <literal>RELATIVE 0</literal>, <literal>FORWARD 0</literal> e
+   <literal>BACKWARD 0</literal> requerem que seja trazida a linha corrente
+   sem mover o cursor, ou seja, traz novamente a linha trazida mais recentemente.
+   Sempre é bem-sucedido, a menos que o cursor esteja posicionado antes da
+   primeira linha ou após a última linha; nestes casos, nenhuma linha é retornada.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">direção</replaceable></term>
+    <listitem>
+     <para>
+      Define a <replaceable class="PARAMETER">direção</replaceable>
+      para trazer e o número de linhas a serem trazidas. Pode
+      ser um entre os seguintes:
+
+      <variablelist>
+       <varlistentry>
+        <term><literal>NEXT</literal></term>
+        <listitem>
+         <para>
+          Traz a próxima linha. Este é o padrão se a <replaceable
+          class="PARAMETER">direção</replaceable> for omitida.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>PRIOR</literal></term>
+        <listitem>
+         <para>
+          Traz a linha anterior.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>FIRST</literal></term>
+        <listitem>
+         <para>
+          Traz a primeira linha da consulta
+          (o mesmo que <literal>ABSOLUTE 1</literal>).
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>LAST</literal></term>
+        <listitem>
+         <para>
+          Traz a última linha da consulta
+          (o mesmo que <literal>ABSOLUTE -1</literal>).
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>ABSOLUTE <replaceable class="parameter">contador</replaceable></literal></term>
+        <listitem>
+         <para>
+          Traz a <replaceable class="PARAMETER">contador</replaceable>-ésima
+          linha da consulta, ou a <literal>abs(<replaceable
+          class="PARAMETER">contador</replaceable>)</literal>-ésima linha
+          a partir do fim se
+          <replaceable class="PARAMETER">contador</replaceable> for negativo.
+          Posiciona antes da primeira linha ou após a última linha se o
+          <replaceable class="PARAMETER">contador</replaceable> estiver fora do
+          intervalo; em particular, <literal>ABSOLUTE 0</literal> posiciona
+          antes da primeira linha.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>RELATIVE <replaceable class="parameter">contador</replaceable></literal></term>
+        <listitem>
+         <para>
+          Traz a <replaceable class="PARAMETER">contador</replaceable>-ésima
+          linha à frente, ou a <literal>abs(<replaceable
+          class="PARAMETER">contador</replaceable>)</literal>-ésima linha atrás
+          se o <replaceable class="PARAMETER">contador</replaceable> for
+          negativo. <literal>RELATIVE 0</literal> traz novamente a
+          linha corrente, se houver.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><replaceable class="parameter">contador</replaceable></term>
+        <listitem>
+         <para>
+          Traz as próximas <replaceable class="PARAMETER">contador</replaceable>
+          linhas (o mesmo que <literal>FORWARD
+          <replaceable class="PARAMETER">contador</replaceable></literal>).
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>ALL</literal></term>
+        <listitem>
+         <para>
+          Traz todas as linhas restantes
+          (o mesmo que <literal>FORWARD ALL</literal>).
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>FORWARD</literal></term>
+        <listitem>
+         <para>
+          Traz a próxima linha (o mesmo que <literal>NEXT</literal>).
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>FORWARD <replaceable class="parameter">contador</replaceable></literal></term>
+        <listitem>
+         <para>
+          Traz as próximas <replaceable class="PARAMETER">contador</replaceable>
+          linhas. <literal>FORWARD 0</literal> traz novamente a linha corrente.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>FORWARD ALL</literal></term>
+        <listitem>
+         <para>
+          Traz todas as linhas restantes.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>BACKWARD</literal></term>
+        <listitem>
+         <para>
+          Traz a linha anterior (o mesmo que <literal>PRIOR</literal>).
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>BACKWARD <replaceable class="parameter">contador</replaceable></literal></term>
+        <listitem>
+         <para>
+          Traz as <replaceable class="PARAMETER">contador</replaceable> linhas
+          anteriores (varrendo para trás). <literal>BACKWARD 0</literal> traz
+          novamente a linha corrente.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>BACKWARD ALL</literal></term>
+        <listitem>
+         <para>
+          Traz todas as linhas anteriores (varrendo para trás).
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">contador</replaceable></term>
+    <listitem>
+     <para>
+      O <replaceable class="PARAMETER">contador</replaceable> é uma
+      constante inteira, possivelmente com sinal, que determina a posição
+      ou o número de linhas a serem trazidas. Para os casos
+      <literal>FORWARD</literal> e <literal>BACKWARD</literal>, especificar um
+      <replaceable class="PARAMETER">contador</replaceable> negativo é
+      equivalente a mudar o sentido de <literal>FORWARD</literal> e
+      <literal>BACKWARD</literal>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">nome_do_cursor</replaceable></term>
+    <listitem>
+     <para>
+      O nome de um cursor aberto.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Saídas</title>
+
+  <para>
+   Ao terminar bem-sucedido, o comando <command>FETCH</command>
+   retorna uma linha de fim de comando na forma
+<programlisting>
+FETCH <replaceable class="parameter">contador</replaceable>
+</programlisting>
+   O <replaceable class="parameter">contador</replaceable> é o número de
+   linhas trazidas (possivelmente zero). Deve ser observado que no
+   <application>psql</application> a linha de fim de comando não é
+   exibida, uma vez que o <application>psql</application> mostra as
+   linhas trazidas em seu lugar.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   O cursor deve ser declarado com a opção <literal>SCROLL</literal>
+   se houver intenção de utilizar qualquer variante do comando
+   <command>FETCH</command> que não seja <command>FETCH NEXT</command> ou
+   <command>FETCH FORWARD</command> com um contador positivo.
+   Para consultas simples o <productname>PostgreSQL</productname> permite trazer
+   para trás usando cursores não declarados com <literal>SCROLL</literal>, mas
+   é bom não confiar neste comportamento. Se o cursor for declarado com
+   <literal>NO SCROLL</literal>, então trazer para trás não é permitido.
+  </para>
+
+  <para>
+   Trazer com <literal>ABSOLUTE</literal> não é nem um pouco mais rápido
+   que navegar para a linha desejada usando um movimento relativo:
+   a implementação subjacente necessita de qualquer maneira percorrer todas as
+   linhas intermediárias.
+   Buscas absolutas negativas são piores ainda: a consulta precisa ser lida até
+   o fim para encontrar a última linha, e depois percorrida para trás a partir
+   deste ponto. Entretanto, voltar para o início da consulta (como com
+   <literal>FETCH ABSOLUTE 0</literal>) é rápido.
+  </para>
+
+  <para>
+   O comando <xref linkend="sql-declare" endterm="sql-declare-title">
+   é utilizado para definir o cursor. Deve ser utilizado o comando
+   <xref linkend="sql-move" endterm="sql-move-title">
+   para mudar a posição do cursor sem trazer dados.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   O exemplo a seguir percorre uma tabela usando um cursor:
+
+<programlisting>
+BEGIN WORK;
+
+-- Definir o cursor:
+DECLARE liahona SCROLL CURSOR FOR SELECT * FROM filmes;
+
+-- Trazer as 5 primeiras linhas do cursor liahona:
+FETCH FORWARD 5 FROM liahona;
+
+ cod   |          titulo         | did | data_prod  |   tipo   | duracao
+-------+-------------------------+-----+------------+----------+---------
+ BL101 | The Third Man           | 101 | 1949-12-23 | Drama    | 01:44
+ BL102 | The African Queen       | 101 | 1951-08-11 | Romance  | 01:43
+ JL201 | Une Femme est une Femme | 102 | 1961-03-12 | Romance  | 01:25
+ P_301 | Vertigo                 | 103 | 1958-11-14 | Ação     | 02:08
+ P_302 | Becket                  | 103 | 1964-02-03 | Drama    | 02:28
+
+-- Trazer a linha anterior:
+FETCH PRIOR FROM liahona;
+
+ cod   |  titulo | did | data_prod  |  tipo  | duracao
+-------+---------+-----+------------+--------+---------
+ P_301 | Vertigo | 103 | 1958-11-14 |  Ação  | 02:08
+
+-- Fechar o cursor e terminar a transação:
+CLOSE liahona;
+COMMIT WORK;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O padrão SQL define o comando <command>FETCH</command> apenas para
+   uso na linguagem SQL incorporada (<literal>embedded</literal>).
+   Esta variante do <command>FETCH</command> descrita aqui retorna os dados como
+   se fossem o resultado de um comando <command>SELECT</command>, em vez de
+   colocar nas variáveis da máquina. Fora este ponto, o comando
+   <command>FETCH</command> possui total compatibilidade ascendente
+   com o padrão SQL.
+  </para>
+
+  <para>
+   As formas do comando <command>FETCH</command> envolvendo
+   <literal>FORWARD</literal> e <literal>BACKWARD</literal>, assim bem como
+   todas as formas de <literal>FETCH <replaceable
+   class="PARAMETER">contador</replaceable></literal> e <literal>FETCH
+   ALL</literal>, na qual o <literal>FORWARD</literal> está implícito,
+   são extensões do <productname>PostgreSQL</productname>.
+  </para>
+
+  <para>
+   O padrão SQL permite apenas o <literal>FROM</literal> precedendo o nome do
+   cursor; a opção para utilizar <literal>IN</literal> é uma extensão.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-close" endterm="sql-close-title"></member>
+   <member><xref linkend="sql-declare" endterm="sql-declare-title"></member>
+   <member><xref linkend="sql-move" endterm="sql-move-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

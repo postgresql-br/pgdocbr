@@ -1,0 +1,105 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/move.sgml,v 1.29 2005/01/04 00:39:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-MOVE">
+ <refmeta>
+  <refentrytitle id="SQL-MOVE-TITLE">MOVE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>MOVE</refname>
+  <refpurpose>posiciona o cursor</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-move">
+  <primary>MOVE</primary>
+ </indexterm>
+
+ <indexterm zone="sql-move">
+  <primary>cursor</primary>
+  <secondary>MOVE</secondary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+MOVE [ <replaceable class="parameter">direção</replaceable> { FROM | IN } ] <replaceable class="parameter">nome_do_cursor</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>MOVE</command> reposiciona o cursor sem trazer dados.
+   O comando <command>MOVE</command> funciona exatamente como o comando
+   <xref linkend="sql-fetch" endterm="sql-fetch-title">, exceto que apenas
+   posiciona o cursor sem retornar linhas.
+  </para>
+
+  <para>
+   Consulte o comando
+   <xref linkend="sql-fetch" endterm="sql-fetch-title">
+   para obter detalhes sobre a sintaxe e utilização.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Saídas</title>
+
+  <para>
+   Ao terminar bem-sucedido, o comando <command>MOVE</command>
+   retorna uma linha de fim de comando na forma
+<programlisting>
+MOVE <replaceable class="parameter">contador</replaceable>
+</programlisting>
+   O <replaceable class="parameter">contador</replaceable> é o número de linhas
+   que o comando <xref linkend="sql-fetch" endterm="sql-fetch-title"> com os
+   mesmos parâmetros teria retornado (possivelmente zero).
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+<programlisting>
+BEGIN WORK;
+DECLARE liahona CURSOR FOR SELECT * FROM filmes;
+
+-- Pular as primeiras 5 linhas:
+MOVE FORWARD 5 IN liahona;
+MOVE 5
+
+-- Trazer a sexta linha no cursor liahona:
+FETCH 1 FROM liahona;
+ cod   | titulo | did | data_prod  |  tipo  | duracao
+-------+--------+-----+------------+--------+---------
+ P_303 | 48 Hrs | 103 | 1982-10-22 | Action | 01:37
+(1 linha)
+
+-- Fechar o cursor liahona e terminar a transação:
+CLOSE liahona;
+COMMIT WORK;
+</programlisting>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Não existe o comando <command>MOVE</command> no padrão SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-close" endterm="sql-close-title"></member>
+   <member><xref linkend="sql-declare" endterm="sql-declare-title"></member>
+   <member><xref linkend="sql-fetch" endterm="sql-fetch-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

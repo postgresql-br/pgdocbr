@@ -1,0 +1,268 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/update.sgml,v 1.32 2005/01/09 05:57:45 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-UPDATE">
+ <refmeta>
+  <refentrytitle id="SQL-UPDATE-TITLE">UPDATE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>UPDATE</refname>
+  <refpurpose>atualiza linhas de uma tabela</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-update">
+  <primary>UPDATE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+UPDATE [ ONLY ] <replaceable class="parameter">tabela</replaceable> SET <replaceable class="parameter">coluna</replaceable> = { <replaceable class="parameter">expressão</replaceable> | DEFAULT } [, ...]
+    [ FROM <replaceable class="parameter">lista_do_from</replaceable> ]
+    [ WHERE <replaceable class="parameter">condição</replaceable> ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>UPDATE</command> muda os valores das colunas especificadas
+   em todas as linhas que satisfazem a condição. Somente as colunas a serem
+   modificadas precisam ser mencionadas na cláusula <literal>SET</literal>; as
+   colunas que não são modificadas explicitamente mantêm seus valores anteriores.
+  </para>
+
+  <para>
+   Por padrão, o comando <command>UPDATE</command> atualiza
+   linhas na tabela especificada e nas suas tabelas descendentes.
+   Se for desejado atualizar apenas a tabela especificada,
+   deve ser utilizada a cláusula <literal>ONLY</literal>.
+  </para>
+
+  <para>
+   Existem duas maneiras de modificar uma tabela utilizando informações contidas
+   em outras tabelas do banco de dados: usando subseleções, ou especificando
+   tabelas adicionais na cláusula <literal>FROM</literal>. A técnica mais
+   apropriada depende das circunstâncias específicas.
+  </para>
+
+  <para>
+   É necessário possuir o privilégio <literal>UPDATE</literal> na tabela
+   para atualizá-la, assim como o privilégio <literal>SELECT</literal>
+   em todas as tabelas cujos valores são lidos pela
+   <replaceable class="parameter">expressão</replaceable> ou pela
+   <replaceable class="parameter">condição</replaceable>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">tabela</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) da tabela a ser atualizada.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">coluna</replaceable></term>
+    <listitem>
+     <para>
+      O nome de uma coluna da <replaceable class="PARAMETER">tabela</replaceable>.
+      O nome da coluna pode ser qualificado pelo nome de um subcampo ou índice
+      de matriz, se for necessário.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">expressão</replaceable></term>
+    <listitem>
+     <para>
+      Uma expressão a ser atribuída à coluna. A expressão pode usar
+      o valor antigo desta e de outras colunas da tabela.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>DEFAULT</literal></term>
+    <listitem>
+     <para>
+      Define o valor da coluna como o seu valor padrão (que é nulo se nenhuma
+      expressão padrão específica tiver sido atribuída à coluna).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">lista_do_from</replaceable></term>
+    <listitem>
+     <para>
+      Uma lista de expressões de tabela, que permite aparecerem colunas de
+      outras tabelas na condição <literal>WHERE</literal> e nas expressões de
+      atualização.
+      É semelhante à lista de tabelas que pode ser especificada na cláusula
+      <xref linkend="sql-from" endterm="sql-from-title"> do comando
+      <command>SELECT</command>.
+      Deve ser observado que a tabela de destino não deve aparecer na
+      <replaceable>lista_do_from</replaceable>, a menos que se deseje uma autojunção
+      (na qual deve aparecer com um aliás na <replaceable>lista_do_from</replaceable>).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">condição</replaceable></term>
+    <listitem>
+     <para>
+      Uma expressão que retorna um valor do tipo <type>boolean</type>.
+      Somente são atualizadas as linhas para as quais esta expressão retorna
+      <literal>true</literal>.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Saídas</title>
+
+  <para>
+   Ao terminar bem-sucedido, o comando <command>UPDATE</command>
+   retorna uma linha de fim de comando na forma
+<screen>
+UPDATE <replaceable class="parameter">contador</replaceable>
+</screen>
+   O <replaceable class="parameter">contador</replaceable> é o número de linhas
+   atualizadas. Se <replaceable class="parameter">contador</replaceable> for
+   0, nenhuma linha corresponde à
+   <replaceable class="parameter">condição</replaceable>
+   (o que não é considerado um erro).
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Quando a cláusula <literal>FROM</literal> está presente o que acontece,
+   essencialmente, é que é feita a junção da tabela de destino com as tabelas
+   mencionadas na <replaceable>lista_do_from</replaceable>, e cada linha
+   produzida pela junção representa uma operação de atualização para a tabela
+   de destino.
+   Ao usar a cláusula <literal>FROM</literal> deve-se garantir que a junção produz,
+   no máximo, uma linha de saída para cada linha a ser modificada.
+   Em outras palavras, a linha de destino não deve ser juntada com mais de uma
+   linha das outras tabelas, porque senão somente uma das linhas da junção
+   será utilizada para atualizar a linha de destino, mas qual delas será
+   utilizada não é prontamente previsível.
+  </para>
+
+  <para>
+   Devido a esta indeterminação, é mais seguro fazer referência a outras tabelas
+   somente dentro de subseleções, embora seja mais difícil de ler e mais lento
+   do que a utilização da junção.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Mudar a palavra <literal>Drama</literal> para <literal>Dramático</literal> na
+   coluna <literal>tipo</literal> da tabela <literal>filmes</literal>:
+
+<programlisting>
+UPDATE filmes SET tipo = 'Dramático' WHERE tipo = 'Drama';
+</programlisting>
+  </para>
+
+  <para>
+   Ajustar as entradas de temperatura e redefinir a precipitação com seu valor
+   padrão em uma linha da tabela <literal>clima</literal>:
+
+<programlisting>
+UPDATE clima SET temp_min = temp_min+1, temp_max = temp_min+15, precipitacao = DEFAULT
+  WHERE cidade = 'São Francisco' AND data = '2003-07-03';
+</programlisting>
+  </para>
+
+  <para>
+   Incrementar o contador de vendas do vendedor que gerencia a conta da
+   Corporação Acme, usando a sintaxe da cláusula <literal>FROM</literal>:
+<programlisting>
+UPDATE empregados SET contador_de_vendas = contador_de_vendas + 1 FROM contas
+  WHERE contas.nome = 'Corporação Acme'
+  AND empregados.id = contas.vendedor;
+</programlisting>
+
+   Realizar a mesma operação utilizando uma subseleção na cláusula
+   <literal>WHERE</literal>:
+<programlisting>
+UPDATE empregados SET contador_de_vendas = contador_de_vendas + 1 WHERE id =
+  (SELECT vendedor FROM contas WHERE nome = 'Corporação Acme');
+</programlisting>
+
+   Tentar inserir um novo item no estoque junto com a quantidade em estoque.
+   Se o item já existir, em vez inserir, atualizar o contador do item em estoque.
+   Para fazer isto sem que a transação falhe é utilizado ponto de salvamento.
+<programlisting>
+BEGIN;
+-- outras operações
+SAVEPOINT sp1;
+INSERT INTO vinhos VALUES('Chateau Lafite 2003', '24');
+-- Assumindo que o comando acima falhe devido à violação de chave única,
+-- serão executados os comandos abaixo:
+ROLLBACK TO sp1;
+UPDATE vinhos SET estoque = estoque + 24 WHERE nome_do_vinho = 'Chateau Lafite 2003';
+-- prosseguir com a otras operações e, eventualmente,
+COMMIT;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Este comando está em conformidade com o padrão <acronym>SQL</acronym>,
+   exceto pela cláusula <literal>FROM</literal> que é uma extensão do
+   <productname>PostgreSQL</productname>.
+  </para>
+
+  <para>
+   Alguns outros sistemas de bancos de dados oferecem uma opção
+   <literal>FROM</literal>, onde a tabela de destino é supostamente listada
+   novamente dentro da cláusula <literal>FROM</literal>.
+   Não é desta forma que o <productname>PostgreSQL</productname> interpreta
+   a cláusula <literal>FROM</literal>. Deve-se tomar cuidado ao portar
+   aplicativos que utilizam esta extensão.
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

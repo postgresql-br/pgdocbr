@@ -1,0 +1,470 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_function.sgml,v 1.64 2005/01/04 00:39:53 tgl Exp $
+-->
+
+<refentry id="SQL-CREATEFUNCTION">
+ <refmeta>
+  <refentrytitle id="SQL-CREATEFUNCTION-TITLE">CREATE FUNCTION</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE FUNCTION</refname>
+  <refpurpose>cria uma função</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createfunction">
+  <primary>CREATE FUNCTION</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE [ OR REPLACE ] FUNCTION <replaceable class="parameter">nome</replaceable> ( [ [ <replaceable class="parameter">nome_do_argumento</replaceable> ] <replaceable class="parameter">tipo_do_argumento</replaceable> [, ...] ] )
+    RETURNS <replaceable class="parameter">tipo_retornado</replaceable>
+  { LANGUAGE <replaceable class="parameter">nome_da_linguagem</replaceable>
+    | IMMUTABLE | STABLE | VOLATILE
+    | CALLED ON NULL INPUT | RETURNS NULL ON NULL INPUT | STRICT
+    | [ EXTERNAL ] SECURITY INVOKER | [ EXTERNAL ] SECURITY DEFINER
+    | AS '<replaceable class="parameter">definição</replaceable>'
+    | AS '<replaceable class="parameter">arquivo_objeto</replaceable>', '<replaceable class="parameter">símbolo_de_vinculação</replaceable>'
+  } ...
+    [ WITH ( <replaceable class="parameter">atributo</replaceable> [, ...] ) ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="sql-createfunction-description">
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE FUNCTION</command> cria uma função.
+   O comando <command>CREATE OR REPLACE FUNCTION</command> cria
+   uma função, ou substitui uma função existente.
+  </para>
+
+  <para>
+    Se o nome do esquema for incluído então a função é criada no
+    esquema especificado, senão é criada no esquema corrente.
+    O nome da nova função não deve ser igual ao de outra função existente
+    com argumentos do mesmo tipo, no mesmo esquema. Entretanto, funções
+    com argumentos de tipos diferentes podem ter o mesmo nome, o que é chamado
+    de <firstterm>sobrecarga</firstterm> (<literal>overload</literal>).
+  </para>
+
+  <para>
+   Para atualizar a definição de uma função existente deve ser usado o comando
+   <command>CREATE OR REPLACE FUNCTION</command>. Não é
+   possível mudar o nome ou os tipos dos argumentos da função
+   desta maneira; se for tentado, será criada uma nova função distinta.
+   O comando <command>CREATE OR REPLACE FUNCTION</command> também
+   não permite mudar o tipo de dado retornado por uma função existente;
+   para fazer isto a função deve ser removida e recriada.
+  </para>
+
+  <para>
+   Se a função for removida e recriada, a nova função não é mais a mesma
+   entidade que era antes; será necessário remover as regras, visões, gatilhos,
+   etc. que fazem referência à função antiga. Use o comando
+   <command>CREATE OR REPLACE FUNCTION</command> para mudar a definição de uma
+   função sem invalidar os objetos que fazem referência à função.
+  </para>
+
+  <para>
+   O usuário que cria a função se torna o seu dono.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+   <variablelist>
+
+    <varlistentry>
+     <term><replaceable class="parameter">nome</replaceable></term>
+
+     <listitem>
+      <para>
+       O nome (opcionalmente qualificado pelo esquema) da função a ser criada.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable class="parameter">nome_do_argumento</replaceable></term>
+
+     <listitem>
+      <para>
+       O nome de um argumento. Algumas linguagens (atualmente apenas PL/pgSQL)
+       deixam usar o nome no corpo da função. Para as demais linguagens o nome
+       do argumento é apenas uma documentação adicional.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable class="parameter">tipo_do_argumento</replaceable></term>
+
+     <listitem>
+      <para>
+       Os tipos de dado dos argumentos da função (opcionalmente qualificados
+       pelo esquema), caso existam. O tipo de dado do argumento pode ser um tipo
+       base, composto, ou domínio, ou pode fazer referência ao tipo de uma
+       coluna de tabela.
+      </para>
+      <para>
+       Dependendo da linguagem de implementação também pode ser permitido
+       especificar <quote>pseudotipos</quote> como <type>cstring</type>.
+       Pseudotipos indicam que o tipo verdadeiro do argumento não está
+       completamente especificado, ou está fora do conjunto comum de tipos de
+       dado SQL.
+      </para>
+      <para>
+       O tipo de dado da coluna é referenciado escrevendo
+       <literal><replaceable
+       class="parameter">nome_da_tabela</replaceable>.<replaceable
+       class="parameter">nome_da_coluna</replaceable>%TYPE</literal>;
+       a utilização desta notação pode, algumas vezes, ajudar a tornar a função
+       independente das mudanças ocorridas na definição da tabela.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable class="parameter">tipo_retornado</replaceable></term>
+
+     <listitem>
+      <para>
+       O tipo de dado retornado (opcionalmente qualificados pelo esquema),
+       que pode ser um tipo base, tipo composto ou domínio, ou pode fazer
+       referência ao tipo de uma coluna de tabela.
+       Dependendo da linguagem de implementação também pode ser permitido
+       especificar <quote>pseudotipos</quote>, como <type>cstring</type>.
+      </para>
+      <para>
+       O modificador <literal>SETOF</literal>
+       indica que a função retorna um conjunto de
+       itens, em vez de um único item.
+      </para>
+      <para>
+       O tipo de dado da coluna é referenciado escrevendo
+       <literal><replaceable
+       class="parameter">nome_da_tabela</replaceable>.<replaceable
+       class="parameter">nome_da_coluna</replaceable>%TYPE</literal>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable class="parameter">nome_da_linguagem</replaceable></term>
+
+     <listitem>
+      <para>
+       O nome da linguagem usada para implementar a função.
+       Pode ser <literal>SQL</literal>, <literal>C</literal>,
+       <literal>internal</literal>, ou o nome de uma linguagem procedural
+       definida pelo usuário. Para manter a compatibilidade com as versões
+       anteriores, o nome pode estar entre apóstrofos (<literal>'</literal>).
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>IMMUTABLE</literal></term>
+     <term><literal>STABLE</literal></term>
+     <term><literal>VOLATILE</literal></term>
+
+     <listitem>
+      <para>
+       Estes atributos informam ao sistema se é seguro substituir várias
+       chamadas à função por uma única chamada, para otimização em tempo de
+       execução. Pode ser especificado, no máximo, um destes três atributos.
+       Se nenhum deles for especificado, o padrão é assumir
+       <literal>VOLATILE</literal>.
+      </para>
+
+      <para>
+       O atributo <literal>IMMUTABLE</literal> indica que a função sempre
+       retorna o mesmo resultado quando recebe os mesmos valores para os
+       argumentos, ou seja, não faz consultas a bancos de dados, ou de alguma
+       outra forma utiliza informações que não estão diretamente presentes na
+       sua lista de argumentos. Se esta opção for utilizada, qualquer chamada à
+       função com todos os argumentos constantes pode ser imediatamente
+       substituída pelo valor da função.
+      </para>
+
+      <para>
+       O atributo <literal>STABLE</literal> indica que dentro de uma única
+       varredura da tabela a função retorna, consistentemente, o mesmo resultado
+       para os mesmos valores dos argumentos, mas que seu resultado pode mudar
+       entre comandos SQL. Esta é a seleção apropriada para as funções cujos
+       resultados dependem de consultas a bancos de dados, valores de parâmetros
+       (como a zona horária corrente), etc.  Deve ser observado, também, que a
+       família de funções <function>current_timestamp</function> se qualifica
+       como estável, uma vez que seus valores não mudam dentro de uma transação.
+      </para>
+
+      <para>
+       O atributo <literal>VOLATILE</literal> indica que o valor da função pode
+       mudar mesmo dentro de uma única varredura da tabela e, portanto, nenhuma
+       otimização pode ser feita. Poucas funções de banco de dados são voláteis
+       neste sentido; alguns exemplos são <literal>random()</literal>,
+       <literal>currval()</literal> e <literal>timeofday()</literal>. Deve ser
+       observado que toda função que produz efeito colateral deve ser
+       classificada como volátil, mesmo que seu resultado seja totalmente
+       previsível, para evitar que as chamadas sejam otimizadas; um exemplo é
+       <literal>setval()</literal>.
+      </para>
+
+      <para>
+       Para obter detalhes adicionais consulte a <xref linkend="xfunc-volatility">.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>CALLED ON NULL INPUT</literal></term>
+     <term><literal>RETURNS NULL ON NULL INPUT</literal></term>
+     <term><literal>STRICT</literal></term>
+
+     <listitem>
+      <para>
+       <literal>CALLED ON NULL INPUT</literal> (o padrão) indica
+       que a função é chamada normalmente quando algum de seus
+       argumentos é nulo. Portanto, é responsabilidade do autor da
+       função verificar a presença de valores nulos se for necessário,
+       e responder de forma apropriada.
+      </para>
+
+      <para>
+       <literal>RETURNS NULL ON NULL INPUT</literal> ou
+       <literal>STRICT</literal> indicam que a função sempre
+       retorna nulo quando qualquer um de seus argumentos for nulo.
+       Se este parâmetro for especificado, a função não será executada
+       quando houver argumento nulo; em vez disto será assumido um resultado
+       nulo automaticamente.
+      </para>
+     </listitem>
+    </varlistentry>
+
+   <varlistentry>
+    <term><literal><optional>EXTERNAL</optional> SECURITY INVOKER</literal></term>
+    <term><literal><optional>EXTERNAL</optional> SECURITY DEFINER</literal></term>
+
+    <listitem>
+     <para>
+      <literal>SECURITY INVOKER</literal> indica que a função deve
+      ser executada com os privilégios do usuário que a chamou.
+      Este é o padrão. <literal>SECURITY DEFINER</literal>
+      especifica que a função deve ser executada com os privilégios
+      do usuário que a criou.
+     </para>
+
+     <para>
+      A palavra chave <literal>EXTERNAL</literal> está presente para manter
+      a conformidade com o SQL. Entretanto é opcional porque, diferentemente do
+      SQL, esta funcionalidade não se aplica apenas às funções externas.
+     </para>
+    </listitem>
+   </varlistentry>
+
+    <varlistentry>
+     <term><replaceable class="parameter">definição</replaceable></term>
+
+     <listitem>
+      <para>
+        A cadeia de caracteres contendo a definição da função; o significado
+        depende da linguagem. Pode ser o nome de uma função interna, o caminho
+        para um arquivo objeto, um comando SQL, ou um texto escrito em uma
+        linguagem procedural.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal><replaceable class="parameter">arquivo_objeto</replaceable>, <replaceable class="parameter">símbolo_de_vínculação</replaceable></literal></term>
+
+     <listitem>
+      <para>
+        Esta forma da cláusula <literal>AS</literal> é utilizada para
+        funções escritas na linguagem C carregáveis dinamicamente, quando o nome
+        da função no código fonte na linguagem C não tem o mesmo nome da
+        função SQL. A cadeia de caracteres <replaceable
+        class="parameter">arquivo_objeto</replaceable> é o nome do
+        arquivo contendo o objeto carregável dinamicamente, e
+        <replaceable class="parameter">símbolo_de_vinculação</replaceable> é o símbolo de
+        vinculação da função, ou seja, o nome da função no código fonte
+        na linguagem C. Se o símbolo de vinculação for omitido, é assumido
+        como tendo o mesmo nome da função SQL sendo definida.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable class="parameter">atributo</replaceable></term>
+
+     <listitem>
+      <para>
+       A forma histórica de especificar informações opcionais
+       sobre a função. Os seguintes atributos podem ser utilizados:
+
+      <variablelist>
+       <varlistentry>
+        <term><literal>isStrict</literal></term>
+        <listitem>
+         <para>
+          Equivalente a <literal>STRICT</literal> ou <literal>RETURNS NULL ON NULL INPUT</literal>.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>isCachable</literal></term>
+        <listitem>
+         <para>
+          <literal>isCachable</literal> é um equivalente obsoleto de
+          <literal>IMMUTABLE</literal>; ainda é aceito por motivo de
+          compatibilidade com versões anteriores.
+         </para>
+        </listitem>
+       </varlistentry>
+
+      </variablelist>
+
+      Não há diferença entre letras minúsculas e letras maiúsculas nos nomes de atributos.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   </variablelist>
+
+ </refsect1>
+
+ <refsect1 id="sql-createfunction-notes">
+  <title>Observações</title>
+
+   <para>
+    Consulte a <xref linkend="xfunc"> para obter informações adicionais
+    sobre como escrever funções.
+   </para>
+
+   <para>
+    A sintaxe tipo <acronym>SQL</acronym> completa é permitida para
+    os argumentos de entrada e o valor retornado. Entretanto, alguns detalhes da
+    especificação do tipo (por exemplo, o campo precisão para o tipo
+    <type>numeric</type>) são de responsabilidade da implementação da
+    função subjacente, sendo engolidos em silêncio
+    (ou seja, não são reconhecidos nem exigidos)
+    pelo comando <command>CREATE FUNCTION</command>.
+   </para>
+
+   <para>
+    O <productname>PostgreSQL</productname> permite a
+    <firstterm>sobrecarga</firstterm> de função, ou seja, o mesmo nome pode ser
+    utilizado por várias funções diferentes, desde que possuam argumentos com
+    tipos distintos. Entretanto, na linguagem C os nomes de todas as funções
+    devem ser diferentes e, portanto, as funções na linguagem C sobrecarregadas
+    devem possuir nomes diferentes (por exemplo, utilizando os tipos dos
+    argumentos como parte do nome na linguagem C).
+   </para>
+
+   <para>
+    Quando chamadas repetidas ao comando <command>CREATE FUNCTION</command>
+    fazem referência ao mesmo arquivo objeto, o arquivo só é carregado uma vez.
+    Para descarregar e recarregar o arquivo (talvez durante o desenvolvimento),
+    deve ser usado o comando <xref linkend="sql-load" endterm="sql-load-title">.
+   </para>
+
+   <para>
+    Use o comando  <xref linkend="sql-dropfunction"
+    endterm="sql-dropfunction-title"> para remover funções definidas pelo
+    usuário.
+   </para>
+
+   <para>
+    Geralmente é útil usar o caractere cifrão (<literal>$</literal>) (consulte
+    <xref linkend="sql-syntax-dollar-quoting">) para envolver a cadeia de
+    caracteres que define a função, em vez de usar a sintaxe normal de envolver
+    por apóstrofos. Sem envolver a definição da função pelo caractere cifrão,
+    todo apóstrofo ou contrabarra na definição da função deve receber um
+    escape duplicando os mesmos.
+   </para>
+
+   <para>
+   Para poder criar uma função o usuário deve possuir o privilégio
+   <literal>USAGE</literal> na linguagem.
+   </para>
+
+ </refsect1>
+
+ <refsect1 id="sql-createfunction-examples">
+  <title>Exemplos</title>
+  <para>
+   Abaixo estão mostrados exemplos simples para ajudar a começar. Para obter
+   informações adicionais e exemplos deve ser consultada a
+   <xref linkend="xfunc">.
+<programlisting>
+CREATE FUNCTION soma(integer, integer) RETURNS integer
+    AS 'select $1 + $2;'
+    LANGUAGE SQL
+    IMMUTABLE
+    RETURNS NULL ON NULL INPUT;
+</programlisting>
+  </para>
+
+  <para>
+   Incrementar um inteiro, fazendo uso do nome do argumento, no
+   <application>PL/pgSQL</application>:
+   
+<programlisting>
+CREATE OR REPLACE FUNCTION incremento(i integer) RETURNS integer AS $$
+    BEGIN
+        RETURN i + 1;
+    END;
+$$ LANGUAGE plpgsql;
+</programlisting>
+  </para>
+  </refsect1>
+
+
+ <refsect1 id="sql-createfunction-compat">
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>CREATE FUNCTION</command> está definido no SQL:1999 e
+   posterior. A versão do <application>PostgreSQL</application> é semelhante mas
+   não é totalmente compatível. Os atributos não são portáveis,
+   nem as diferentes linguagens disponíveis o são.
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-alterfunction" endterm="sql-alterfunction-title"></member>
+   <member><xref linkend="sql-dropfunction" endterm="sql-dropfunction-title"></member>
+   <member><xref linkend="sql-grant" endterm="sql-grant-title"></member>
+   <member><xref linkend="sql-load" endterm="sql-load-title"></member>
+   <member><xref linkend="sql-revoke" endterm="sql-revoke-title"></member>
+   <member><xref linkend="app-createlang" endterm="app-createlang-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

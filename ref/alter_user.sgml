@@ -1,0 +1,299 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/alter_user.sgml,v 1.37 2005/01/06 00:11:14 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-ALTERUSER">
+ <refmeta>
+  <refentrytitle id="sql-alteruser-title">ALTER USER</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>ALTER USER</refname>
+  <refpurpose>altera uma conta de usuário do banco de dados</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-alteruser">
+  <primary>ALTER USER</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+ALTER USER <replaceable class="parameter">nome</replaceable> [ [ WITH ] <replaceable class="parameter">opção</replaceable> [ ... ] ]
+
+onde <replaceable class="parameter">opção</replaceable> pode ser:
+
+    CREATEDB | NOCREATEDB
+    | CREATEUSER | NOCREATEUSER
+    | [ ENCRYPTED | UNENCRYPTED ] PASSWORD '<replaceable class="parameter">senha</replaceable>'
+    | VALID UNTIL '<replaceable class="parameter">data_e_hora</replaceable>'
+
+ALTER USER <replaceable class="parameter">nome</replaceable> RENAME TO <replaceable>novo_nome</replaceable>
+ALTER USER <replaceable class="parameter">nome</replaceable> SET <replaceable>parâmetro</replaceable> { TO | = } { <replaceable>valor</replaceable> | DEFAULT }
+ALTER USER <replaceable class="parameter">nome</replaceable> RESET <replaceable>parâmetro</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>ALTER USER</command> altera os atributos de uma conta de
+   usuário do <productname>PostgreSQL</productname>. Os atributos não
+   mencionados no comando permanecem com suas definições anteriores.
+  </para>
+
+  <para>
+   A primeira variante deste comando listada na sinopse muda determinados
+   privilégios e configurações de autenticação para um usuário
+   (Veja abaixo para obter detalhes).
+   Somente um superusuário do banco de dados pode alterar qualquer uma
+   destas configurações para qualquer usuário.
+   Os usuários comuns podem apenas alterar suas próprias senhas.
+  </para>
+
+  <para>
+   A segunda variante muda o nome do usuário.
+   Somente um superusuário do banco de dados pode mudar nome de
+   conta de usuário.
+   O usuário da sessão corrente não pode ter o nome mudado
+   (conecte como um usuário diferente se precisar fazer isto).
+   Como as senhas criptografadas com <literal>MD5</literal> utilizam o nome
+   de usuário como sal criptográfico (<literal>cryptographic salt</literal>)
+   mudar o nome de usuário limpa sua senha <literal>MD5</literal>.
+  </para>
+
+  <para>
+   A terceira e a quarta variantes mudam, para uma determinada variável de
+   configuração, o valor padrão da sessão do usuário. Após isto, sempre que o
+   usuário iniciar uma nova sessão o valor especificado se tornará o padrão
+   da sessão, substituindo qualquer configuração presente em
+   <filename>postgresql.conf</filename>, ou que tenha sido recebida através da linha de
+   comando do <command>postmaster</command>. Os usuários comuns podem mudar
+   seus próprios padrões de sessão. Os superusuários podem mudar os padrões de
+   sessão de qualquer usuário. Certas variáveis não podem ser definidas desta
+   maneira, ou só podem ser definidas por um superusuário.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+    <variablelist>
+     <varlistentry>
+      <term><replaceable class="parameter">nome</replaceable></term>
+      <listitem>
+       <para>
+        O nome de usuário cujos atributos estão sendo alterados.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>CREATEDB</literal></term>
+      <term><literal>NOCREATEDB</literal></term>
+      <listitem>
+       <para>
+        Estas cláusulas definem a permissão para o usuário criar banco de dados.
+        Se <literal>CREATEDB</literal> for especificado, o usuário
+        terá permissão para criar seus próprios bancos de dados. Especificando
+        <literal>NOCREATEDB</literal> nega-se ao usuário a permissão para criar
+        banco de dados (se o usuário for um superusuário então esta
+        definição não tem efeito prático).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>CREATEUSER</literal></term>
+      <term><literal>NOCREATEUSER</literal></term>
+      <listitem>
+       <para>
+        Estas cláusulas determinam se o usuário terá permissão para criar novos
+        usuários. <literal>CREATEUSER</literal> torna o usuário um superusuário,
+        não sujeito a restrições de acesso.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">senha</replaceable></term>
+      <listitem>
+       <para>
+        A nova senha a ser utilizada para esta conta.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>ENCRYPTED</literal></term>
+      <term><literal>UNENCRYPTED</literal></term>
+      <listitem>
+       <para>
+        Estas palavras chave controlam se a senha é armazenada criptografada,
+        ou não, em <literal>pg_shadow</literal> (Consulte o comando
+        <xref linkend="SQL-CREATEUSER" endterm="SQL-CREATEUSER-title">
+        para obter informações adicionais sobre esta opção).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">data_e_hora</replaceable></term>
+      <listitem>
+       <para>
+        A data (e, opcionalmente, a hora) de expiração da senha do usuário.
+        Para fazer com que a senha nunca expire deve ser utilizado
+        <literal>'infinity'</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable>novo_nome</replaceable></term>
+      <listitem>
+       <para>
+        O novo nome de usuário.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable>parâmetro</replaceable></term>
+      <term><replaceable>valor</replaceable></term>
+      <listitem>
+       <para>
+        Define o valor fornecido como sendo o valor padrão para o parâmetro de
+        configuração especificado. Se <replaceable>valor</replaceable> for
+        <literal>DEFAULT</literal> ou, de forma equivalente, se
+        <literal>RESET</literal> for utilizado, a definição da variável
+        específica para o usuário é removida, e o valor padrão global do sistema
+        será herdado nas novas sessões do usuário. Use
+        <literal>RESET ALL</literal> para remover todas as definições
+        específicas do usuário.
+       </para>
+
+       <para>
+        Consulte o comando <xref linkend="sql-set" endterm="sql-set-title"> e a
+        <xref linkend="runtime-config"> para obter informações adicionais sobre
+        os nomes e valores permitidos para os parâmetros.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Use o comando <xref linkend="SQL-CREATEUSER" endterm="SQL-CREATEUSER-title">
+   para criar novos usuários, e o comando <xref linkend="SQL-DROPUSER"
+   endterm="SQL-DROPUSER-title"> para remover um usuário.
+  </para>
+
+  <para>
+   O comando <command>ALTER USER</command> não pode mudar a participação do
+   usuário nos grupos. Use o comando
+   <xref linkend="SQL-ALTERGROUP" endterm="SQL-ALTERGROUP-title">
+   para realizar esta operação.
+  </para>
+
+  <para>
+   A cláusula <literal>VALID UNTIL</literal> define uma data de expiração para a senha
+   apenas, e não para a conta do usuário <foreignphrase>per se</foreignphrase>. Em
+   particular, a obediência à data de expiração não é imposta ao se
+   conectar utilizando um método de autenticação não baseado em senha.
+  </para>
+
+  <para>
+   Também é possível ligar o padrão de sessão a um banco de dados específico
+   em vez de a um usuário; consulte o comando
+   <xref linkend="sql-alterdatabase" endterm="sql-alterdatabase-title">.
+   As definições específicas para o usuário substituem as definições específicas
+   para o banco de dados, no caso de haver conflito.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Mudar a senha do usuário:
+
+<programlisting>
+ALTER USER davi WITH PASSWORD 'hu8jmn3';
+</programlisting>
+  </para>
+
+  <para>
+   Mudar a data de expiração da senha do usuário:
+
+<programlisting>
+ALTER USER manuel VALID UNTIL 'Jan 31 2030';
+</programlisting>
+  </para>
+
+  <para>
+   Mudar a data de expiração da senha, especificando que a
+   senha expira ao meio dia de 4 de maio de 2005, usando
+   uma zona horária uma hora adiante da <acronym>UTC</acronym>:
+<programlisting>
+ALTER USER cris VALID UNTIL 'May 4 12:00:00 2005 +1';
+</programlisting>
+  </para>
+
+  <para>
+   Tornar o usuário válido para sempre:
+<programlisting>
+ALTER USER fred VALID UNTIL 'infinity';
+</programlisting>
+  </para>
+
+  <para>
+   Dar ao usuário permissão para criar outros usuários e novos bancos de dados:
+
+<programlisting>
+ALTER USER miriam CREATEUSER CREATEDB;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>ALTER USER</command> é uma extensão do
+   <productname>PostgreSQL</productname>. O padrão SQL deixa
+   a definição dos usuários para a implementação.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createuser" endterm="sql-createuser-title"></member>
+   <member><xref linkend="sql-dropuser" endterm="sql-dropuser-title"></member>
+   <member><xref linkend="sql-set" endterm="sql-set-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

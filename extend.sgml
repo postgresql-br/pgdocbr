@@ -1,0 +1,290 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/extend.sgml,v 1.29 2004/12/30 03:13:56 tgl Exp $
+-->
+
+ <chapter id="extend">
+  <title>Estendendo a linguagem SQL</title>
+
+   <indexterm zone="extend">
+    <primary>estendendo a linguagem SQL</primary>
+   </indexterm>
+
+  <para>
+   Nas próximas seções será mostrado como se pode estender a linguagem de
+   comandos <acronym>SQL</acronym> do <productname>PostgreSQL</productname>
+   pela adição de:
+
+   <itemizedlist spacing="compact" mark="bullet">
+    <listitem>
+     <para>
+      funções (começando na <xref linkend="xfunc">)
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      agregações (começando na <xref linkend="xaggr">)
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      tipos de dado (começando na <xref linkend="xtypes">)
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      operadores (começando na <xref linkend="xoper">)
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      classes de operador para índices (começando na <xref linkend="xindex">)
+     </para>
+    </listitem>
+   </itemizedlist>
+  </para>
+
+  <sect1 id="extend-how">
+   <title>Como funciona a extensibilidade</title>
+
+   <para>
+    O <productname>PostgreSQL</productname> é extensível, porque sua operação é
+    dirigida pelo catálogo (<literal>catalog-driven</literal>).
+    Quem está familiarizado com sistemas de banco de dados relacionais padrão
+    com certeza sabe que estes armazenam informações sobre bancos de dados,
+    tabelas, colunas, etc., no que é comumente conhecido por catálogos do
+    sistema (Alguns sistemas chamam de dicionário de dados).
+    Os catálogos são vistos pelo usuário como qualquer outra tabela, mas o
+    <acronym>SGBD</acronym> armazena suas informações internas nestas tabelas.
+    Uma diferença chave entre o <productname>PostgreSQL</productname> e os
+    sistemas de banco de dados relacionais padrão é que o
+    <productname>PostgreSQL</productname> armazena muito mais informação em seus
+    catálogos: não apenas informações sobre tabelas e colunas, mas também
+    informações sobre tipos de dado, funções, métodos de acesso, etc.
+    Estas tabelas podem ser modificadas pelo usuário e, uma vez que as operações
+    do <productname>PostgreSQL</productname> são baseadas nestas tabelas, isto
+    significa que o <productname>PostgreSQL</productname> pode ser estendido
+    pelos usuários.
+    Em comparação, os sistemas de banco de dados convencionais só podem ser
+    estendidos alterando os procedimentos presentes no código fonte, ou pela
+    carga de módulos escritos pelo fornecedor do <acronym>SGBD</acronym>.
+   </para>
+
+   <para>
+    Além disso, o servidor <productname>PostgreSQL</productname> pode incorporar
+    código escrito pelo usuário através de carregamento dinâmico, ou seja, o
+    usuário especifica um arquivo contendo código objeto (por exemplo, uma
+    biblioteca compartilhada implementando um novo tipo de dado ou função),
+    e o <productname>PostgreSQL</productname> fará a carga deste módulo quando
+    houver necessidade.
+    O código escrito na linguagem <acronym>SQL</acronym> é ainda mais simples de
+    ser adicionado ao servidor. Esta capacidade de modificar sua operação
+    <quote>em tempo de execução</quote> (<literal>on the fly</literal>) torna o
+    <productname>PostgreSQL</productname> especialmente indicado para a
+    prototipação rápida de novos aplicativos e estruturas de armazenamento.
+   </para>
+  </sect1>
+
+  <sect1 id="extend-type-system">
+   <title>O sistema de tipos de dado do PostgreSQL</title>
+
+   <indexterm zone="extend-type-system">
+    <primary>tipo base</primary>
+   </indexterm>
+
+   <indexterm zone="extend-type-system">
+    <primary>tipo de dado</primary>
+    <secondary>base</secondary>
+   </indexterm>
+
+   <indexterm zone="extend-type-system">
+    <primary>tipo composto</primary>
+   </indexterm>
+
+   <indexterm zone="extend-type-system">
+    <primary>tipo de dado</primary>
+    <secondary>composto</secondary>
+   </indexterm>
+
+   <para>
+    Os tipos de dado do <productname>PostgreSQL</productname> são divididos em
+    tipos base, tipos compostos, domínios e pseudotipos.
+   </para>
+
+   <sect2>
+    <title>Tipos base</title>
+
+    <para>
+     Os tipos base, como o <type>int4</type>, são aqueles implementados abaixo
+     do nível da linguagem <acronym>SQL</acronym> (tipicamente em uma linguagem
+     de baixo nível, como a linguagem C).
+     Correspondem, geralmente, ao que normalmente é conhecido como tipo de dado
+     abstrato (ADT).
+     <footnote>
+      <para>
+       <literal>abstract data type</literal> (ADT) &mdash;
+       Um tipo de abstração de dado onde a forma interna do tipo fica escondida
+       atrás de um conjunto de funções de acesso. Os valores do tipo são criados
+       e inspecionados apenas pelas chamadas às funções de acesso, permitindo
+       que a implementação do tipo seja modificada sem ser necessária
+       qualquer modificação fora do módulo onde está definida. Os objetos e as
+       ADTs são formas de abstração de dados, mas os objetos não são ADTs.
+       Os objetos utilizam abstração procedural (métodos), e não abstração de
+       tipo. Um exemplo clássico de ADT é o tipo de dado pilha, para o qual
+       devem ser fornecidas funções para criar uma pilha vazia, para colocar
+       elementos na pilha e para tirar elementos da pilha.
+       <ulink url="http://wombat.doc.ic.ac.uk/foldoc/foldoc.cgi?query=adt">
+       FOLDOC - Free On-Line Dictionary of Computing</ulink> (N. do T.)
+      </para>
+     </footnote>
+     O <productname>PostgreSQL</productname> somente opera sobre estes tipos de
+     dado através das funções fornecidas pelo usuário, e somente compreende o
+     comportamento destes tipos de dado no grau em que são descritos pelo
+     usuário.
+     Por sua vez, os tipos de dado base são subdivididos em escalar e matriz.
+     Para cada tipo escalar é criado, automaticamente, um tipo matriz
+     correspondente podendo conter matrizes de tamanho variável deste tipo
+     escalar.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Tipos compostos</title>
+
+    <para>
+     Os tipos compostos, ou tipos linha, são criados toda vez que o usuário
+     cria uma tabela; também é possível definir um tipo composto
+     <quote>autônomo</quote>, sem nenhuma tabela associada.
+     Um tipo composto é simplesmente uma lista de tipos base com nomes de campo
+     associados.
+     O valor de um tipo composto é uma linha ou registro de valores de campo.
+     O usuário pode acessar os campos componentes a partir de consultas
+     <acronym>SQL</acronym>.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Domínios</title>
+
+    <para>
+     Um domínio se baseia em um determinado tipo base e, para muitas
+     finalidades, é intercambiável com o seu tipo base.
+     Entretanto, o domínio pode ter restrições limitando os valores válidos a
+     um subconjunto dos valores permitidos pelo tipo base subjacente.
+    </para>
+
+    <para>
+     Os domínios podem ser criados utilizando o comando
+     <xref linkend="sql-createdomain" endterm="sql-createdomain-title">
+     do <acronym>SQL</acronym>.
+     A criação e uso de domínios não são vistos neste capítulo.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Pseudotipos</title>
+
+    <para>
+     Existem alguns poucos <quote>pseudotipos</quote> para finalidades especiais.
+     Os pseudotipos não podem aparecer como colunas de tabela ou atributos de
+     tipo composto, mas podem ser usados para declarar tipos de dado de
+     argumentos e resultados de funções. Fornecem um mecanismo dentro do
+     sistema de tipos para identificar classes especiais de funções.
+     A <xref linkend="datatype-pseudotypes-table"> lista os pseudotipos
+     existentes.
+    </para>
+   </sect2>
+
+   <sect2 id="extend-types-polymorphic">
+    <title>Tipos polimórficos</title>
+
+   <indexterm zone="extend-types-polymorphic">
+    <primary>tipo polimórfico</primary>
+   </indexterm>
+
+   <indexterm zone="extend-types-polymorphic">
+    <primary>função polimórfica</primary>
+   </indexterm>
+
+   <indexterm zone="extend-types-polymorphic">
+    <primary>tipo</primary>
+    <secondary>polimórfico</secondary>
+   </indexterm>
+
+   <indexterm zone="extend-types-polymorphic">
+    <primary>função</primary>
+    <secondary>polimórfica</secondary>
+   </indexterm>
+
+    <para>
+     Dois pseudotipos de especial interesse são <type>anyelement</type> e
+     <type>anyarray</type>, chamados coletivamente de <firstterm>tipos
+     polimórficos</firstterm>. Qualquer função declarada utilizando um destes
+     tipos é dita como sendo uma <firstterm>função polimórfica</firstterm>.
+     Uma função polimórfica pode operar sobre muitos tipos de dado diferentes,
+     sendo o tipo de dado específico determinado pelo tipo de dado passado para
+     a função na hora da chamada.
+    </para>
+
+    <para>
+     Os argumentos e resultados polimórficos estão presos um ao outro, sendo
+     determinados como um tipo de dado específico quando o comando que faz a
+     chamada à função polimórfica é analisado.
+     Todas as posições (tanto argumento como valor retornado) declaradas como
+     <type>anyelement</type> podem receber qualquer tipo de dado, mas em uma
+     determinada chamada todas devem ter o <emphasis>mesmo</emphasis> tipo.
+     Todas as posições declaradas como <type>anyarray</type> podem ter qualquer
+     tipo de dado matriz, mas de forma análoga todas as posições devem ser do
+     mesmo tipo.
+     Havendo algumas posições declaradas como <type>anyarray</type> e outras
+     declaradas como <type>anyelement</type>, o tipo matriz nas posições
+     <type>anyarray</type> devem ser matrizes cujos elementos são
+     do mesmo tipo aparecendo nas posições <type>anyelement</type>.
+    </para>
+
+    <para>
+     Portanto, quando são declarados argumentos de tipo polimórfico em mais de
+     uma posição, resulta em que apenas certas combinações de tipos de argumento
+     são permitidas. Por exemplo, uma função declarada como
+     <literal>igual(anyelement, anyelement)</literal> recebe quaisquer dois
+     valores de entrada, desde que ambos sejam do mesmo tipo de dado.
+    </para>
+
+    <para>
+     Quando o valor retornado por uma função é declarado como sendo do tipo
+     polimórfico, deve haver pelo menos uma posição de argumento que também seja
+     polimórfica, e o tipo de dado fornecido como argumento determina o tipo de
+     dado real do resultado para a chamada.
+     Por exemplo, se já não houvesse um mecanismo de índice para matriz, este
+     poderia ser implementado por uma função como
+     <literal>indice(anyarray, integer) returns anyelement</literal>.
+     Esta declaração restringe o primeiro argumento como sendo do tipo matriz,
+     permitindo ao analisador inferir o tipo de dado correto do resultado a
+     partir do tipo de dado do primeiro argumento.
+    </para>
+   </sect2>
+  </sect1>
+
+  &xfunc;
+  &xaggr;
+  &xtypes;
+  &xoper;
+  &xindex;
+
+ </chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

@@ -1,0 +1,163 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/select_into.sgml,v 1.33 2005/01/09 05:57:45 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-SELECTINTO">
+ <refmeta>
+  <refentrytitle id="SQL-SELECTINTO-TITLE">SELECT INTO</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>SELECT INTO</refname>
+  <refpurpose>cria uma tabela a partir dos resultados de uma consulta</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-selectinto">
+  <primary>SELECT INTO</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+SELECT [ ALL | DISTINCT [ ON ( <replaceable class="parameter">expressão</replaceable> [, ...] ) ] ]
+    * | <replaceable class="parameter">expressão</replaceable> [ AS <replaceable class="parameter">nome_de_saída</replaceable> ] [, ...]
+    INTO [ TEMPORARY | TEMP ] [ TABLE ] <replaceable class="parameter">nova_tabela</replaceable>
+    [ FROM <replaceable class="parameter">item_do_from</replaceable> [, ...] ]
+    [ WHERE <replaceable class="parameter">condição</replaceable> ]
+    [ GROUP BY <replaceable class="parameter">expressão</replaceable> [, ...] ]
+    [ HAVING <replaceable class="parameter">condição</replaceable> [, ...] ]
+    [ { UNION | INTERSECT | EXCEPT } [ ALL ] <replaceable class="parameter">seleção</replaceable> ]
+    [ ORDER BY <replaceable class="parameter">expressão</replaceable> [ ASC | DESC | USING <replaceable class="parameter">operador</replaceable> ] [, ...] ]
+    [ LIMIT { <replaceable class="parameter">contador</replaceable> | ALL } ]
+    [ OFFSET <replaceable class="parameter">início</replaceable> ]
+    [ FOR UPDATE [ OF <replaceable class="parameter">nome_da_tabela</replaceable> [, ...] ] ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>SELECT INTO</command> cria uma tabela e a carrega
+   com dados computados por uma consulta. Os dados não são retornados para o
+   cliente, como acontece normalmente no comando <command>SELECT</command>.
+   As colunas da nova tabela possuem o mesmo nome e tipo de dado
+   das colunas da saída do comando <command>SELECT</command>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+  <varlistentry>
+   <term><literal>TEMPORARY</literal> ou <literal>TEMP</literal></term>
+   <listitem>
+    <para>
+     Quando especificado, a tabela é criada como uma tabela temporária.
+     Consulte o comando <xref linkend="sql-createtable"
+     endterm="sql-createtable-title"> para obter detalhes.
+    </para>
+   </listitem>
+  </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">nova_tabela</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) da tabela a ser criada.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+
+  <para>
+   Todos os outros parâmetros estão descritos detalhadamente no comando
+   <xref linkend="sql-select" endterm="sql-select-title">.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   O comando <xref linkend="sql-createtableas" endterm="sql-createtableas-title">
+   é funcionalmente semelhante ao comando <command>SELECT INTO</command>.
+   O comando <command>CREATE TABLE AS</command> é a sintaxe recomendada, uma vez
+   que esta forma do comando <command>SELECT INTO</command> não está disponível
+   no <application>ECPG</application> nem no <application>PL/pgSQL</application>,
+   porque estes interpretam a cláusula <literal>INTO</literal> de forma diferente.
+   Além disso, o comando <command>CREATE TABLE AS</command> oferece um conjunto
+   maior de funcionalidades do que as oferecidas pelo comando
+   <command>SELECT INTO</command>.
+  </para>
+
+  <para>
+   Antes do <productname>PostgreSQL</productname> 8.0, a tabela criada pelo comando
+   <command>SELECT INTO</command> sempre incluía os OIDs.
+   A partir do <productname>PostgreSQL</productname> 8.0 a inclusão dos OIDs na tabela
+   criada pelo comando <command>SELECT INTO</command> é controlada pelo parâmetro
+   de configuração <xref linkend="guc-default-with-oids">. Atualmente o valor
+   padrão é <literal>TRUE</literal>, mas provavelmente o valor padrão será
+   mudado para <literal>FALSE</literal> em uma versão futura do
+   <productname>PostgreSQL</productname>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Criar a tabela <literal>filmes_recentes</literal> consistindo apenas
+   das entradas recentes na tabela <literal>filmes</literal>:
+
+<programlisting>
+SELECT * INTO filmes_recentes FROM filmes WHERE data_prod &gt;= '2002-01-01';
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O padrão SQL utiliza o comando <command>SELECT INTO</command> para
+   representar a seleção de valores colocados dentro de variáveis escalares do
+   programa, em vez de criar uma nova tabela. Esta é a mesma
+   utilização encontrada no <application>ECPG</application> (consulte o
+   <xref linkend="ecpg">) e no <application>PL/pgSQL</application> (consulte o
+   <xref linkend="plpgsql">).
+   A utilização pelo <productname>PostgreSQL</productname> do comando
+   <command>SELECT INTO</command> para representar a criação de uma tabela é
+   histórica.
+   É melhor utilizar o comando <command>CREATE TABLE AS</command> para esta
+   finalidade nos programas novos.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createtableas" endterm="sql-createtableas-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

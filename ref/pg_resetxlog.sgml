@@ -1,0 +1,156 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/pg_resetxlog.sgml,v 1.9 2004/12/20 01:42:09 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="APP-PGRESETXLOG">
+ <refmeta>
+  <refentrytitle id="APP-PGRESETXLOG-TITLE"><application>pg_resetxlog</application></refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Aplicação</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>pg_resetxlog</refname>
+  <refpurpose>redefine o conteúdo do <literal>log</literal> de escrita prévia e outras informações de controle de um agrupamento de bancos de dados do <productname>PostgreSQL</productname></refpurpose>
+ </refnamediv>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>pg_resetxlog</command>
+   <arg> -f </arg>
+   <arg> -n </arg>
+   <arg> -o <replaceable class="parameter">oid</replaceable> </arg>
+   <arg> -x <replaceable class="parameter">xid</replaceable> </arg>
+   <arg> -l <replaceable class="parameter">timelineid</replaceable>,<replaceable class="parameter">fileid</replaceable>,<replaceable class="parameter">seg</replaceable> </arg>
+   <arg choice="plain"><replaceable>diretório_de_dados</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="R1-APP-PGRESETXLOG-1">
+  <title>Descrição</title>
+  <para>
+   O utilitário <command>pg_resetxlog</command> limpa o <literal>log</literal>
+   de escrita prévia (<literal>WAL</literal>) e, opcionalmente, redefine algumas
+   outras informações de controle (armazenadas no arquivo
+   <filename>pg_control</filename>).
+   Algumas vezes esta função é necessária quando estes arquivos ficam
+   corrompidos.
+   Deve ser utilizada apenas como último recurso, quando o servidor não iniciar
+   por causa da corrupção destes arquivos.
+  </para>
+
+  <para>
+   Após executar este comando deve ser possível iniciar o servidor, mas deve-se
+   ter em mente que o banco de dados pode conter dados inconsistentes devido à
+   presença de transações parcialmente efetivadas.
+   Deve ser feita, imediatamente, uma cópia de segurança dos dados, executar o
+   <command>initdb</command> e recarregar os dados. Após a recarga
+   as inconsistências devem ser verificadas e corrigidas conforme necessário.
+  </para>
+
+  <para>
+   Este utilitário pode ser executado apenas pelo usuário que instalou o
+   servidor, porque requer acesso de leitura/gravação no diretório de dados.
+   Por motivo de segurança, o diretório de dados deve ser especificado na linha
+   de comando. O <command>pg_resetxlog</command> não utiliza a variável de
+   ambiente <envar>PGDATA</envar>.
+  </para>
+
+  <para>
+   Se o <command>pg_resetxlog</command> informar que não está conseguindo
+   determinar os dados válidos para <filename>pg_control</filename>, pode ser
+   forçado a prosseguir assim mesmo especificando a chave <literal>-f</literal>
+   (forçar). Neste caso, são utilizados valores plausíveis para os dados que
+   estão faltando. Pode-se esperar que a maioria dos campos correspondam, mas
+   pode ser necessário auxílio manual para os campos próximo OID, próximo ID de
+   transação, endereço inicial do WAL e idioma do banco de dados.
+   Os três primeiros podem ser definidos usando as chaves discutidas
+   abaixo. O próprio ambiente do <command>pg_resetxlog</command> é a fonte para
+   os campos de idioma; deve-se cuidar para que <envar>LANG</envar> e as
+   demais variáveis de ambiente análogas correspondam ao ambiente em que o
+   <application>initdb</application> foi executado. Se não for possível
+   determinar o valor correto para todos estes campos o <literal>-f</literal>
+   ainda pode ser usado, mas o banco de dados recuperado deve ser tratado como
+   ainda mais suspeito que o usual: uma imediata cópia de segurança e sua
+   recarga  é imperativa. <emphasis>Não</emphasis> deve ser executada nenhuma
+   operação que modifique os dados do banco de dados antes de ser feita
+   a cópia de segurança, porque uma atividade deste tipo pode piorar ainda mais
+   a situação.
+  </para>
+
+  <para>
+   As chaves <literal>-o</literal>, <literal>-x</literal> e <literal>-l</literal>
+   permitem definir manualmente o próximo OID, o próximo ID de transação e o
+   endereço inicial do WAL.
+   Somente são necessários quando <command>pg_resetxlog</command> não for capaz
+   de determinar os valores apropriados por meio da leitura do arquivo
+   <filename>pg_control</filename>.
+   Um valor seguro para o identificador da próxima transação pode ser
+   determinado verificando o nome de arquivo com o maior valor numérico no
+   diretório <filename>/pg_clog</filename> sob o diretório de dados, somando um,
+   e depois multiplicando por 1.048.576.
+   Deve ser observado que os nomes dos arquivos estão em hexadecimal.
+   Normalmente é mais fácil especificar o valor da chave em hexadecimal também.
+   Por exemplo, se <filename>0011</filename> for a maior entrada em
+   <filename>pg_clog</filename>, então <literal>-x 0x1200000</literal> servirá
+   (cinco zeros à direita fornecem o multiplicador apropriado).
+   O endereço inicial do WAL deve ser maior do que qualquer nome de arquivo
+   existente no diretório <filename>/pg_xlog</filename> sob o diretório de dados.
+   Estes nomes também estão em hexadecimal, e possuem três partes.
+   A primeira parte é o <quote>timeline ID</quote> e deve, geralmente, ser mantido
+   o mesmo.
+   Não escolha uma valor maior que 255 (<literal>0xFF</literal>) para a terceira parte;
+   em vez disso incremente a segunda parte e redefina a terceira parte como 0.
+   Por exemplo, se <filename>00000001000000320000004A</filename> for a maior entrada em
+   <filename>pg_xlog</filename>, <literal>-l 0x1,0x32,0x4B</literal> servirá; mas se a maior
+   entrada for <filename>000000010000003A000000FF</filename>, então deve ser escolhido
+   <literal>-l 0x1,0x3B,0x0</literal> ou maior.
+   Não existe nenhuma forma mais fácil para determinar o próximo OID acima
+   do maior existente no banco de dados, mas por sorte não é crítico definir
+   o próximo OID corretamente.
+  </para>
+
+  <para>
+   A chave <literal>-n</literal> (nenhuma operação) faz o
+   <command>pg_resetxlog</command> mostrar os valores reconstruídos a partir de
+   <filename>pg_control</filename> e terminar em seguida, sem modificar nada.
+   Isto é principalmente uma ferramenta de depuração, mas pode ser útil para
+   fazer uma verificação antes de permitir que o
+   <command>pg_resetxlog</command> realmente efetue a operação.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Este comando não deve ser usado quando o servidor estiver executando. O
+   <command>pg_resetxlog</command> se recusa a iniciar quando encontra o arquivo
+   de bloqueio do servidor no diretório de dados. Se o servidor caiu, então o
+   arquivo de bloqueio pode ter sido deixado no diretório; neste caso, o arquivo
+   de bloqueio deve ser removido para permitir o <command>pg_resetxlog</command>
+   executar, mas antes de remover deve-se ter certeza que nem o
+   <command>postmaster</command>, nem nenhum processo servidor, ainda está
+   executando.
+  </para>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

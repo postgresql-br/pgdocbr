@@ -1,0 +1,2871 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/xfunc.sgml,v 1.96 2005/01/14 21:46:09 jurka Exp $
+-->
+
+ <sect1 id="xfunc">
+  <title>Funções definidas pelo usuário</title>
+
+  <indexterm zone="xfunc">
+   <primary>função</primary>
+   <secondary>definida pelo usuário</secondary>
+  </indexterm>
+
+  <para>
+   O <productname>PostgreSQL</productname> possui quatro tipos de
+   função:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      funções na linguagem de comando
+      (funções escritas em <acronym>SQL</acronym>) (<xref linkend="xfunc-sql">)
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      funções nas linguagens procedurais (funções escritas em, por exemplo,
+      <application>PL/pgSQL</application> ou <application>PL/Tcl</application>)
+      (<xref linkend="xfunc-pl">)
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      funções internas (<xref linkend="xfunc-internal">)
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      funções na linguagem C (<xref linkend="xfunc-c">)
+     </para>
+    </listitem>
+   </itemizedlist>
+  </para>
+
+  <para>
+   Todos os tipos de função aceitam tipos base, tipos compostos, ou alguma
+   combinação destes tipos como argumentos (parâmetros). Além disso,
+   todos os tipos de função podem retornar um tipo base ou um tipo composto.
+   As funções também podem ser definidas como retornando um conjunto de valores
+   base ou compostos.
+  </para>
+
+  <para>
+   Vários tipos de função podem receber ou retornar certos pseudotipos (tal como
+   os tipos polimórficos), mas as funcionalidades disponíveis podem variar. Para
+   obter mais detalhes deve ser consultada a descrição de cada tipo de função.
+  </para>
+
+  <para>
+   As funções <acronym>SQL</acronym> são as mais fáceis de serem definidas e,
+   portanto, começaremos por estas. A maior parte dos conceitos apresentados
+   para as funções <acronym>SQL</acronym> podem ser levados para os outros
+   tipos de função.
+  </para>
+
+  <para>
+   Durante a leitura deste capítulo pode ser útil consultar a página de
+   referência do comando
+   <xref linkend="sql-createfunction" endterm="sql-createfunction-title">
+   para compreender melhor os exemplos.
+   Alguns exemplos deste capítulo podem ser encontrados nos arquivos
+   <filename>funcs.sql</filename> e <filename>funcs.c</filename> na
+   distribuição do código fonte do <productname>PostgreSQL</productname>,
+   no diretório <filename class="directory">src/tutorial</filename>.
+  </para>
+  </sect1>
+
+  <sect1 id="xfunc-sql">
+   <title>Funções na linguagem de comando (SQL)</title>
+
+   <indexterm zone="xfunc-sql">
+    <primary>função</primary>
+    <secondary>definida pelo usuário</secondary>
+    <tertiary>em SQL</tertiary>
+   </indexterm>
+
+   <para>
+    As funções SQL executam uma lista arbitrária de declarações SQL, retornando
+    o resultado da última consulta da lista. No caso mais simples (não-conjunto),
+    a primeira linha do resultado da última consulta é retornada (Deve-se ter
+    em mente que a <quote>primeira linha</quote> de um resultado de várias
+    linhas não é bem definido, a menos que seja utilizada a cláusula
+    <literal>ORDER BY</literal>). Caso a última consulta não retorne nenhuma
+    linha, é retornado o valor nulo.
+   </para>
+
+   <para>
+    <indexterm><primary>SETOF</primary><seealso>função</seealso></indexterm>
+    Como alternativa a função SQL pode ser declarada como retornando um
+    conjunto, especificando o tipo retornado pela função como
+    <literal>SETOF <replaceable>algum_tipo</replaceable></literal>.
+    <indexterm><primary>SETOF</primary></indexterm>
+    Neste caso, todas as linhas do resultado da última consulta são retornadas.
+    Abaixo são mostrados mais detalhes.
+   </para>
+
+   <para>
+    O corpo de uma função SQL deve ser uma lista contendo uma ou mais
+    declarações SQL separadas por ponto-e-vírgula (<literal>;</literal>).
+    O ponto-e-vírgula após a última declaração é opcional.
+    A menos que a função seja declarada como retornando o tipo <type>void</type>,
+    a última declaração deve ser um comando <command>SELECT</command>.
+   </para>
+
+    <para>
+     Qualquer coleção de comandos na linguagem <acronym>SQL</acronym> pode
+     ser juntado e definido como uma função.
+     Além de comandos <command>SELECT</command>, podem existir comandos de
+     manipulação de dados (<command>INSERT</command>, <command>UPDATE</command>
+     e <command>DELETE</command>), assim como outros comandos
+     <acronym>SQL</acronym> (A única exceção é que não se pode colocar os
+     comandos <command>BEGIN</>, <command>COMMIT</>, <command>ROLLBACK</> ou
+     <command>SAVEPOINT</> na função <acronym>SQL</acronym>).
+     Entretanto, o comando final deve ser um <command>SELECT</command>
+     retornando o que foi especificado como sendo o tipo retornado pela função.
+     Como alternativa, se for desejado definir uma função <acronym>SQL</acronym>
+     que realiza ações mas não retorna um valor útil, a função pode ser definida
+     como retornando <type>void</type>.
+     Neste caso, o corpo da função não deve terminar por um comando
+     <command>SELECT</command>.
+     Por exemplo, a função abaixo remove as linhas contendo salários negativos
+     da tabela <literal>emp</literal>:
+
+<screen>
+<userinput>
+CREATE FUNCTION limpar_emp () RETURNS void AS '
+    DELETE FROM emp
+        WHERE emp.salario &lt;= 0;
+' LANGUAGE SQL;
+
+SELECT limpar_emp();
+</userinput>
+
+<computeroutput>
+ limpar_emp
+-----------
+
+(1 linha)
+</computeroutput>
+</screen>
+    </para>
+
+   <para>
+    A sintaxe do comando <command>CREATE FUNCTION</command> requer que o corpo
+    da função seja escrito como uma constante cadeia de caracteres.
+    Geralmente é mais fácil utilizar a notação de cifrão (<literal>$</literal>)
+    (consulte a <xref linkend="sql-syntax-dollar-quoting">) para a constante
+    cadeia de caracteres.
+    Se for utilizada a sintaxe regular de constante cadeia de caracteres que
+    utiliza apóstrofos, os apóstrofos (<literal>'</>) e as contrabarras
+    (<literal>\</>) presentes no corpo da função devem ser precedidos por
+    caractere de escape, tipicamente duplicando estes caracteres
+    (consulte a <xref linkend="sql-syntax-strings">).
+   </para>
+
+   <para>
+    Os argumentos da função SQL são referenciados no corpo da função
+    utilizando a sintaxe <literal>$<replaceable>n</replaceable></literal>:
+    <literal>$1</literal> se refere ao primeiro argumento, <literal>$2</literal>
+    ao segundo, e assim por diante. Se o argumento for de um tipo composto,
+    então pode ser utilizada a <quote>notação de ponto</quote>, por exemplo
+    <literal>$1.nome</literal>, para acessar os atributos do argumento.
+    Os argumentos só podem ser utilizados como valores de dado, e não como
+    identificadores. Portanto, por exemplo, isto faz sentido:
+<programlisting>
+INSERT INTO minha_tabela VALUES ($1);
+</programlisting>
+mas isto não funciona:
+<programlisting>
+INSERT INTO $1 VALUES (42);
+</programlisting>
+   </para>
+
+   <sect2 id="xfunc-sql-basetype">
+    <title>Funções SQL com tipos base</title>
+
+    <para>
+     O tipo mais simples possível de função <acronym>SQL</acronym> não possui
+     argumentos, e simplesmente retorna um tipo base como o <type>integer</>:
+
+<screen>
+<userinput>
+CREATE FUNCTION um() RETURNS integer AS $$
+    SELECT 1 AS resultado;
+$$ LANGUAGE SQL;
+</userinput>
+
+-- Sintaxe alternativa para o literal cadeia de caracteres:
+
+<userinput>
+CREATE FUNCTION um() RETURNS integer AS '
+    SELECT 1 AS resultado;
+' LANGUAGE SQL;
+
+SELECT um();
+</userinput>
+
+<computeroutput>
+ um
+----
+  1
+(1 linha)
+</computeroutput>
+</screen>
+    </para>
+
+    <para>
+     Deve ser observado que foi definido um aliás de coluna dentro do corpo da
+     função para o resultado da função (com o nome <literal>resultado</literal>),
+     mas este aliás de coluna não é visível fora da função. Portanto, o rótulo
+     do resultado é <literal>um</literal> em vez de <literal>resultado</literal>.
+    </para>
+
+    <para>
+     Definir funções <acronym>SQL</acronym> que recebem tipos base como
+     argumentos é praticamente tão simples quanto este último exemplo.
+     No exemplo abaixo deve ser observado que, dentro da função, os argumentos
+     são referenciados como <literal>$1</literal> e <literal>$2</literal>:
+
+<screen>
+<userinput>
+CREATE FUNCTION somar(integer, integer) RETURNS integer AS $$
+    SELECT $1 + $2;
+$$ LANGUAGE SQL;
+
+SELECT somar(1, 2) AS resposta;
+</userinput>
+
+<computeroutput>
+ resposta
+----------
+        3
+</computeroutput>
+</screen>
+    </para>
+
+    <para>
+     Abaixo está mostrada uma função mais útil, que pode ser utilizada para
+     realizar débitos em uma conta corrente no banco:
+
+<programlisting>
+CREATE FUNCTION debitar (integer, numeric) RETURNS integer AS $$
+    UPDATE contas
+        SET saldo = saldo - $2
+        WHERE numero_da_conta = $1;
+    SELECT 1;
+$$ LANGUAGE SQL;
+</programlisting>
+
+     O usuário pode executar esta função para debitar R$100.00 da conta 17
+     da seguinte maneira:
+
+<programlisting>
+SELECT debitar(17, 100.0);
+</programlisting>
+    </para>
+
+    <para>
+     Provavelmente, na prática seria desejado que a função retornasse um
+     resultado mais útil do que a constante <quote>1</quote> e, portanto, uma
+     definição mais realística seria
+
+<programlisting>
+CREATE FUNCTION debitar (integer, numeric) RETURNS numeric AS $$
+    UPDATE contas
+        SET saldo = saldo - $2
+        WHERE numero_da_conta = $1;
+    SELECT saldo FROM contas WHERE numero_da_conta = $1;
+$$ LANGUAGE SQL;
+</programlisting>
+
+     que atualiza o saldo e retorna o novo saldo.
+    </para>
+   </sect2>
+
+   <sect2 id="xfunc-sql-compositetype">
+    <title>Funções SQL com tipos compostos</title>
+
+    <para>
+     Ao escrever funções com argumentos de tipo composto, não se deve
+     especificar apenas qual é o argumento desejado (como foi feito acima com
+     <literal>$1</literal> e <literal>$2</literal>), mas também qual é o
+     atributo (campo) do argumento desejado. Por exemplo, supondo que
+     <type>emp</type> seja uma tabela contendo dados dos empregados e, portanto,
+     também o nome do tipo composto de cada linha da tabela, a função
+     <function>dobrar_salario</function> mostarda abaixo calcula qual
+     seria o salário de alguém caso este fosse dobrado:
+
+<screen>
+<userinput>
+CREATE TABLE emp (
+    nome        text,
+    salario     numeric,
+    idade       integer,
+    baia        point
+);
+
+INSERT INTO emp VALUES('João',2200,21,point('(1,1)'));
+INSERT INTO emp VALUES('José',4200,30,point('(2,1)'));
+
+CREATE FUNCTION dobrar_salario(emp) RETURNS numeric AS $$
+    SELECT $1.salario * 2 AS salario;
+$$ LANGUAGE SQL;
+
+SELECT nome, dobrar_salario(emp.*) AS sonho
+    FROM emp
+    WHERE emp.baia ~= point '(2,1)';
+</userinput>
+
+<computeroutput>
+ nome | sonho
+------+-------
+ José |  8400
+(1 linha)
+</computeroutput>
+</screen>
+    </para>
+
+    <para>
+     Deve ser observada a utilização da sintaxe <literal>$1.salario</literal>
+     para especificar o campo da linha passada como argumento. Deve ser
+     observado, também, a utilização no comando <command>SELECT</command> do
+     <literal>*</literal> para selecionar toda a linha corrente da tabela como
+     um valor composto. Como alternativa, a linha da tabela pode ser
+     referenciada usando apenas o nome da tabela, como mostrado abaixo:
+<programlisting>
+SELECT nome, dobrar_salario(emp) AS sonho
+    FROM emp
+    WHERE emp.baia ~= point '(2,1)';
+</programlisting>
+     mas esta forma de utilização está em obsolescência, uma vez que é propensa
+     a causar confusão.
+    </para>
+
+    <para>
+     Algumas vezes é prático gerar o valor do argumento composto em
+     tempo de execução. Isto pode ser feito através da construção
+     <literal>ROW</literal>. Por exemplo, os dados passados para esta função
+     poderiam estar na forma:
+<programlisting>
+SELECT nome, dobrar_salario(ROW(nome, salario*1.1, idade, baia)) AS sonho
+    FROM emp;
+
+<computeroutput>
+ nome | sonho
+------+--------
+ João | 4840.0
+ José | 9240.0
+(2 linhas)
+</computeroutput>
+</programlisting>
+    </para>
+
+    <para>
+     Também é possível construir uma função que retorna um tipo composto.
+     Abaixo está mostrado como exemplo uma função que retorna uma única linha
+     da tabela <type>emp</type>:
+
+<programlisting>
+CREATE FUNCTION novo_empregado() RETURNS emp AS $$
+    SELECT text 'Nenhum' AS nome,
+        1000.0 AS salario,
+        25 AS idade,
+        point '(2,2)' AS baia;
+$$ LANGUAGE SQL;
+</programlisting>
+
+     Neste exemplo cada um dos atributos foi especificado através de um valor
+     constante, mas estas constantes poderiam ser substituídas por algum valor
+     calculado.
+    </para>
+
+    <para>
+     Devem ser observados dois fatos importantes sobre a definição da função:
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        A ordem da lista de seleção da consulta deve ser exatamente a mesma em
+        que as colunas aparecem na tabela associada ao tipo composto (Dar nome
+        às colunas, como foi feito acima, é irrelevante para o sistema).
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Deve ser feita a conversão de tipo nas expressões para haver
+        correspondência com a definição do tipo composto, ou acontecerá um erro
+        deste tipo:
+<screen>
+<computeroutput>
+ERRO: função declarada como retornando emp retorna varchar em vez de text para a coluna 1
+</computeroutput>
+</screen>
+       </para>
+      </listitem>
+     </itemizedlist>
+    </para>
+
+    <para>
+     Uma forma diferente para definir a mesma função seria:
+
+<programlisting>
+CREATE OR REPLACE FUNCTION novo_empregado() RETURNS emp AS $$
+    SELECT ROW('Nenhum', 1000.0, 25, '(2,2)')::emp;
+$$ LANGUAGE SQL;
+</programlisting>
+
+     Neste caso foi escrito um comando <command>SELECT</command> que retorna
+     apenas uma única coluna do tipo composto correto. Não é realmente o melhor
+     nesta situação, mas é uma alternativa prática em algumas situações &mdash;
+     por exemplo, se for necessário calcular o resultado chamando outra função
+     que recebe como argumento o valor composto retornado por esta função.
+    </para>
+
+    <para>
+     Esta função poderia ser chamada diretamente de uma destas duas maneiras:
+
+<programlisting>
+<userinput>SELECT novo_empregado();</userinput>
+
+<computeroutput>
+       novo_empregado
+----------------------------
+ (Nenhum,1000.0,25,"(2,2)")
+(1 linha)
+</computeroutput>
+
+<userinput>SELECT * FROM novo_empregado();</userinput>
+
+<computeroutput>
+  nome  | salario | idade | baia
+--------+---------+-------+-------
+ Nenhum |  1000.0 |    25 | (2,2)
+(1 linha)
+</computeroutput>
+</programlisting>
+
+     A segunda forma está descrita com mais detalhes na
+     <xref linkend="xfunc-sql-table-functions">.
+    </para>
+
+    <para>
+     Quando se usa uma função que retorna um tipo composto, pode ser desejado
+     apenas um campo (atributo) de seu resultado. Isto pode ser feito utilizando
+     uma sintaxe do tipo:
+
+<screen>
+<userinput>SELECT (novo_empregado()).nome;</userinput>
+
+<computeroutput>
+  nome
+--------
+ Nenhum
+(1 linha)
+</computeroutput>
+</screen>
+
+     Os parênteses adicionais são necessários para evitar que o analisador se
+     confunda. Se for tentado fazer a consulta sem usar os parênteses adicionais
+     será recebida uma mensagem de erro como esta:
+
+<screen>
+<userinput>SELECT novo_empregado().nome;</userinput>
+<computeroutput>
+ERRO:  erro de sintaxe em ou próximo a "." no caractere 24
+LINHA 1: SELECT novo_empregado().nome;
+                        ^
+</computeroutput>
+</screen>
+    </para>
+
+    <para>
+     Outra opção é utilizar a notação de função para extrair o atributo.
+     A forma mais fácil de explicar isto é dizer que pode ser utilizada tanto a
+     notação <literal>atributo(tabela)</literal> quanto a notação
+     <literal>tabela.atributo</literal>, indiferentemente:
+
+<screen>
+<userinput>SELECT nome(novo_empregado());</userinput>
+
+<computeroutput>
+  nome
+--------
+ Nenhum
+(1 linha)
+</computeroutput>
+</screen>
+
+<screen>
+<userinput>
+SELECT emp.nome AS jovens FROM emp WHERE emp.idade &lt; 30;
+</userinput>
+
+-- é o mesmo que:
+
+<userinput>
+SELECT nome(emp) AS jovens FROM emp WHERE idade(emp) &lt; 30;
+</userinput>
+
+<computeroutput>
+ jovens
+--------
+ João
+(1 linha)
+</computeroutput>
+</screen>
+    </para>
+
+    <tip>
+     <para>
+      A equivalência entre a notação de função e a notação de atributo torna
+      possível utilizar funções com tipos compostos para emular
+      <quote>campos calculados</quote>.
+      <indexterm>
+       <primary>campo calculado</primary>
+      </indexterm>
+      <indexterm>
+       <primary>campo</primary>
+       <secondary>calculado</secondary>
+      </indexterm>
+      Por exemplo, utilizando a definição anterior para
+      <literal>dobrar_salario(emp)</> pode ser escrito:
+
+<screen>
+<userinput>SELECT emp.nome, emp.dobrar_salario FROM emp;</userinput>
+
+<computeroutput>
+ nome | dobrar_salario
+------+----------------
+ João |           4400
+ José |           8400
+(2 linhas)
+</computeroutput>
+</screen>
+
+      Um aplicativo utilizando esta sintaxe não necessita se preocupar
+      diretamente com o fato de que <literal>dobrar_salario</> não é uma coluna
+      real da tabela (Os campos calculados também podem ser emulados através
+      de funções).
+     </para>
+    </tip>
+
+    <para>
+     Outra maneira de utilizar uma função que retorna uma linha como
+     resultado é passando o resultado desta função para outra função que
+     recebe este tipo de linha como argumento:
+
+<screen>
+<userinput>
+CREATE FUNCTION obtem_nome(emp) RETURNS text AS $$
+    SELECT $1.nome;
+$$ LANGUAGE SQL;
+
+SELECT obtem_nome(novo_empregado());
+</userinput>
+
+<computeroutput>
+ obtem_nome
+------------
+ Nenhum
+(1 linha)
+</computeroutput>
+</screen>
+    </para>
+
+    <para>
+     Uma outra maneira de utilizar uma função que retorna um tipo composto é
+     chamá-la como uma função de tabela, conforme descrito abaixo.
+    </para>
+   </sect2>
+
+   <sect2 id="xfunc-sql-table-functions">
+    <title>Funções SQL como fontes de tabela</title>
+
+    <para>
+     Todas as funções <acronym>SQL</acronym> podem ser utilizadas na cláusula
+     <literal>FROM</literal> da consulta, mas esta situação é particularmente
+     útil no caso das funções que retornam tipos compostos.
+     Se a função for definida como retornando um tipo base, a função de tabela
+     produz uma tabela de uma coluna.
+     Se a função for definida como retornando um tipo composto, a função de
+     tabela produz uma coluna para cada atributo do tipo composto.
+    </para>
+
+    <para>
+     Abaixo segue um exemplo:
+
+<screen>
+<userinput>
+CREATE TABLE foo (fooid int, foosubid int, fooname text);
+INSERT INTO foo VALUES (1, 1, 'João');
+INSERT INTO foo VALUES (1, 2, 'José');
+INSERT INTO foo VALUES (2, 1, 'Maria');
+
+CREATE FUNCTION getfoo(int) RETURNS foo AS $$
+    SELECT * FROM foo WHERE fooid = $1;
+$$ LANGUAGE SQL;
+
+SELECT *, upper(fooname) FROM getfoo(1) AS t1;
+</userinput>
+
+<computeroutput>
+ fooid | foosubid | fooname | upper
+-------+----------+---------+-------
+     1 |        1 | João    | JOÃO
+(1 linha)
+</computeroutput>
+</screen>
+
+     Conforme mostrado neste exemplo, as colunas do resultado da função podem
+     ser utilizadas da mesma maneira como se fossem colunas de uma tabela comum.
+    </para>
+
+    <para>
+     Deve ser observado que a função somente retornou uma linha. Isto se deve a
+     não utilização de <literal>SETOF</literal>, que será descrito na próxima
+     seção.
+    </para>
+   </sect2>
+
+   <sect2 id="xfunc-sql-setof">
+    <title>Funções SQL que retornam conjunto</title>
+
+    <para>
+     Quando uma função SQL é declarada como retornando <literal>SETOF</literal>
+     <replaceable>algum_tipo</replaceable>, a consulta <command>SELECT</command>
+     no final da função é executada até o fim, e cada linha produzida é
+     retornada como um elemento do conjunto resultado.
+    </para>
+
+    <para>
+     Esta funcionalidade normalmente é utilizada quando se chama a função na
+     cláusula <literal>FROM</literal>. Neste caso, cada linha retornada pela
+     função se torna uma linha da tabela vista pela consulta. Por exemplo,
+     assumindo que a tabela <literal>foo</literal> possui o mesmo conteúdo
+     mostrado acima, então:
+
+<programlisting>
+CREATE FUNCTION getfoo(int) RETURNS SETOF foo AS $$
+    SELECT * FROM foo WHERE fooid = $1;
+$$ LANGUAGE SQL;
+
+SELECT * FROM getfoo(1) AS t1;
+</programlisting>
+
+     Resultaria em:
+<screen>
+
+<computeroutput>
+ fooid | foosubid | fooname
+-------+----------+---------
+     1 |        1 | João
+     1 |        2 | José
+(2 linhas)
+</computeroutput>
+</screen>
+    </para>
+
+    <para>
+     Atualmente as funções que retornam conjunto também podem ser chamadas na
+     lista de seleção da consulta. Para cada linha que a consulta gera por si
+     própria é chamada a função que retorna conjunto, sendo gerada uma linha de
+     saída para cada elemento do conjunto resultado da função. Entretanto,
+     deve ser observado que esta funcionalidade está em obsolescência
+     (<literal>deprecated</literal>), podendo ser removida em uma versão futura.
+     Abaixo está mostrada, como exemplo, uma função retornando um conjunto
+     colocada na lista de seleção:
+
+<screen>
+<userinput>
+CREATE FUNCTION listar_filhos(text) RETURNS SETOF text AS $$
+    SELECT nome FROM nodos WHERE pai = $1
+$$ LANGUAGE SQL;
+
+SELECT * FROM nodos;
+</userinput>
+
+<computeroutput>
+   nome    | pai
+-----------+--------
+ Topo      |
+ Filho1    | Topo
+ Filho2    | Topo
+ Filho3    | Topo
+ SubFilho1 | Filho1
+ SubFilho2 | Filho1
+(6 linhas)
+</computeroutput>
+
+<userinput>SELECT listar_filhos('Topo');</userinput>
+
+<computeroutput>
+ listar_filhos
+--------------
+ Filho1
+ Filho2
+ Filho3
+(3 linhas)
+</computeroutput>
+
+<userinput>SELECT nome, listar_filhos(nome) FROM nodos;</userinput>
+
+<computeroutput>
+  nome  | listar_filhos
+--------+---------------
+ Top    | Filho1
+ Top    | Filho2
+ Top    | Filho3
+ Filho1 | SubFilho1
+ Filho1 | SubFilho2
+(5 linhas)
+</computeroutput>
+</screen>
+
+     Deve ser observado que no último comando <command>SELECT</command> não é
+     mostrada nenhuma linha de saída para <literal>Filho2</literal>,
+     <literal>Filho3</literal>, etc.
+     Isto acontece porque <function>listar_filhos</function> retorna um conjunto
+     vazio para estes argumentos e, portanto, não é gerada nenhuma linha de
+     resultado.
+    </para>
+   </sect2>
+
+   <sect2 id="xfunc-sql-polimorphic">
+    <title>Funções SQL polimórficas</title>
+
+    <para>
+     As funções <acronym>SQL</acronym> podem ser declaradas como recebendo e
+     retornando os tipos polimórficos <type>anyelement</type> e
+     <type>anyarray</type>. Uma explicação mais detalhada sobre funções
+     polimórficas pode ser vista na <xref linkend="extend-types-polymorphic">.
+     Abaixo está mostrada a função polimórfica
+     <function>constroi_matriz</function>, que constrói uma matriz
+     a partir de dois elementos com tipo de dado arbitrário:
+<screen>
+<userinput>
+CREATE FUNCTION constroi_matriz(anyelement, anyelement) RETURNS anyarray AS $$
+    SELECT ARRAY[$1, $2];
+$$ LANGUAGE SQL;
+
+SELECT constroi_matriz(1, 2) AS intarray, constroi_matriz('a'::text, 'b') AS textarray;
+</userinput>
+
+<computeroutput>
+ intarray | textarray
+----------+-----------
+ {1,2}    | {a,b}
+(1 linha)
+</computeroutput>
+</screen>
+    </para>
+
+    <para>
+     Deve ser observada a utilização da conversão de tipo
+     <literal>'a'::text</literal> para especificar que o argumento é do tipo
+     <type>text</type>. Isto é necessário quando o argumento é apenas um literal
+     cadeia de caracteres, uma vez que de outra forma seria tratado como sendo
+     do tipo <type>unknown</type>, e uma matriz de <type>unknown</type> não é um
+     tipo válido. Sem a conversão de tipo aconteceria um erro como este:
+<screen>
+<computeroutput>
+ERRO: não foi possível determinar o tipo de anyarray/anyelement porque a entrada possui o tipo "unknown"
+</computeroutput>
+</screen>
+    </para>
+
+    <para>
+     É permitido ter argumentos polimórficos com tipo retornado
+     estabelecido, mas o contrário não é permitido. Por exemplo:
+<screen>
+<userinput>
+CREATE FUNCTION eh_maior(anyelement, anyelement) RETURNS boolean AS $$
+    SELECT $1 > $2;
+$$ LANGUAGE SQL;
+
+SELECT eh_maior(1, 2);
+</userinput>
+
+<computeroutput>
+ eh_maior
+----------
+ f
+(1 linha)
+</computeroutput>
+
+<userinput>
+CREATE FUNCTION funcao_invalida() RETURNS anyelement AS $$
+    SELECT 1;
+$$ LANGUAGE SQL;
+</userinput>
+<computeroutput>
+ERRO:  não foi possível determinar o tipo de dado do resultado
+DETALHE:  Uma função retornando "anyarray" ou "anyelement" deve ter pelo menos
+          um argumento do mesmo tipo.
+</computeroutput>
+</screen>
+    </para>
+   </sect2>
+  </sect1>
+
+  <sect1 id="xfunc-overload">
+   <title>Sobrecarga de função</title>
+
+   <indexterm zone="xfunc-overload">
+    <primary>sobrecarga</primary>
+    <secondary>função</secondary>
+   </indexterm>
+
+   <para>
+    Pode ser definida mais de uma função possuindo o mesmo nome SQL, desde que
+    os argumentos recebidos sejam diferentes. Em outras palavras, os nomes das
+    funções podem ser <firstterm>sobrecarregados</firstterm>. Quando um comando
+    é executado, o servidor determina a função a ser chamada a partir dos tipos
+    de dado e do número de argumentos fornecidos. A sobrecarga também pode ser
+    utilizada para simular funções com número variável de argumentos, até um
+    número máximo finito.
+   </para>
+
+   <para>
+    Ao ser criada uma família de funções sobrecarregadas, deve ser tomado
+    cuidado para não criar ambigüidades. Por exemplo, dadas as funções
+<programlisting>
+CREATE FUNCTION teste(int, real) RETURNS ...
+CREATE FUNCTION teste(smallint, double precision) RETURNS ...
+</programlisting>
+    não fica imediatamente claro qual das duas funções deve ser chamada por uma
+    entrada trivial como <literal>teste(1, 1.5)</literal>. As regras de
+    resolução implementadas atualmente estão descritas no
+    <xref linkend="typeconv">, mas não é prudente projetar um sistema que
+    dependa de sutilezas deste comportamento.
+   </para>
+
+   <para>
+    A função que recebe um único argumento de tipo composto geralmente não deve
+    ter o nome de nenhum atributo (campo) deste tipo.
+    Lembre-se que <literal>atributo(tabela)</literal> é considerado equivalente
+    a <literal>tabela.atributo</literal>.  No caso de haver ambigüidade entre a
+    função de tipo composto e um atributo de tipo composto, sempre será
+    utilizado o atributo. É possível mudar esta escolha qualificando o nome da
+    função com o esquema (ou seja, <literal>esquema.func(tabela)</literal>), mas
+    é melhor evitar este problema não escolhendo nomes conflitantes.
+   </para>
+
+   <para>
+    Ao sobrecarregar funções na linguagem C, existe uma restrição adicional:
+    o nome C de cada uma das funções da família de funções sobrecarregadas deve
+    ser diferente dos nomes C de todas as outras funções, sejam internas ou
+    carregadas dinamicamente. Se esta regra for violada, o comportamento não é
+    portável. Deve ser recebido um erro de ligação em tempo de execução, ou uma
+    das funções será chamada (geralmente a interna). A forma alternativa da
+    cláusula <literal>AS</> para o comando <acronym>SQL</acronym>
+    <command>CREATE FUNCTION</command> desvincula o nome <acronym>SQL</acronym>
+    da função do nome da função no código fonte C. Por exemplo,
+<programlisting>
+CREATE FUNCTION teste(int) RETURNS int
+    AS '<replaceable>nome_do_arquivo</replaceable>', 'teste_1arg'
+    LANGUAGE C;
+CREATE FUNCTION teste(int, int) RETURNS int
+    AS '<replaceable>nome_do_arquivo</replaceable>', 'teste_2arg'
+    LANGUAGE C;
+</programlisting>
+    Os nomes das funções C neste exemplo refletem uma das várias convenções
+    possíveis.
+   </para>
+  </sect1>
+
+  <sect1 id="xfunc-volatility">
+   <title>Categorias de volatilidade de função</title>
+
+   <indexterm zone="xfunc-volatility">
+    <primary>volatilidade</primary>
+    <secondary>funções</secondary>
+   </indexterm>
+   <indexterm zone="xfunc-volatility">
+    <primary>VOLATILE</primary>
+   </indexterm>
+   <indexterm zone="xfunc-volatility">
+    <primary>STABLE</primary>
+   </indexterm>
+   <indexterm zone="xfunc-volatility">
+    <primary>IMMUTABLE</primary>
+   </indexterm>
+
+   <para>
+    Toda função é classificada quanto à sua <firstterm>volatilidade</firstterm>,
+    sendo que as possibilidades são <literal>VOLATILE</literal> (volátil),
+    <literal>STABLE</literal> (estável) e <literal>IMMUTABLE</literal>
+    (imutável). Quando o comando <command>CREATE FUNCTION</command> não
+    especifica a categoria, o padrão é <literal>VOLATILE</literal>.
+    A categorização quanto à volatilidade é uma promessa feita ao otimizador
+    sobre o comportamento da função:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Uma função <literal>VOLATILE</literal> pode fazer qualquer coisa,
+      inclusive modificar o banco de dados. Pode retornar resultados diferentes
+      em chamadas sucessivas usando os mesmos argumentos. O otimizador não
+      assume nada com relação ao comportamento destas funções. Um comando
+      que utiliza uma função volátil reavalia a função em todas as linhas onde
+      seu valor seja necessário.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Uma função <literal>STABLE</literal> não pode modificar o banco de dados,
+      e há garantia do retorno dos mesmos resultados quando a função recebe os
+      mesmos parâmetros em todas as chamadas dentro de um mesmo comando
+      envolvente. Esta categoria permite que o otimizador otimize o caso de
+      várias chamadas à função dentro de um mesmo comando. Em particular, é
+      seguro utilizar uma expressão contendo uma função deste tipo em uma
+      condição de varredura de índice (Como a varredura de índice
+      determina o valor a ser comparado somente uma vez, e não uma vez para cada
+      linha, não é válido utilizar uma função <literal>VOLATILE</> em uma
+      condição de varredura de índice).
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      Uma função <literal>IMMUTABLE</literal> não pode modificar o banco de
+      dados, e há garantia do retorno dos mesmos resultados quando esta recebe
+      os mesmos argumentos. Esta categoria de função permite ao otimizador
+      pré-avaliar a função quando o comando chama a função com argumentos
+      constantes. Por exemplo, uma consulta do tipo
+      <literal>SELECT ... WHERE x = 2 + 2</literal>
+      pode ser transformada imediatamente em
+      <literal>SELECT ... WHERE x = 4</literal>,
+      porque a função subjacente ao operador de adição inteira está marcada como
+      <literal>IMMUTABLE</literal>.
+     </para>
+    </listitem>
+   </itemizedlist>
+   </para>
+
+   <para>
+    Para obter os melhores resultados de otimização, deve-se classificar a
+    função na categoria de volatilidade que for mais rigorosa para a mesma.
+   </para>
+
+   <para>
+    Toda função com efeitos colaterais <emphasis>deve</emphasis> ser
+    categorizada como <literal>VOLATILE</literal>, para que as chamadas às
+    mesmas não sejam otimizadas. Mesmo as funções sem efeitos colaterais
+    precisam ser classificadas como <literal>VOLATILE</literal>, se o valor
+    retornado puder mudar dentro de um mesmo comando; alguns exemplos são
+    <literal>random()</literal>, <literal>currval()</literal> e
+    <literal>timeofday()</>.
+   </para>
+
+   <para>
+    Existe pouca diferença entre as categorias <literal>STABLE</literal> e
+    <literal>IMMUTABLE</literal>, quando se considera comandos interativos
+    simples que são planejados e executados imediatamente: não faz muita
+    diferença se a função é executada durante o planejamento ou durante o início
+    da execução do comando, mas existe muita diferença quando o plano é salvo
+    para reutilização posterior. Classificar a função como
+    <literal>IMMUTABLE</literal>, quando na verdade esta não é, pode fazer com
+    que a mesma seja transformada prematuramente em uma constante durante o
+    planejamento, resultando na utilização de um valor desatualizado durante
+    as próximas utilizações do plano. Isto é um risco associado ao uso de
+    declarações preparadas e ao uso de funções escritas em linguagens que
+    colocam planos no <literal>cache</literal> (como o
+    <application>PL/pgSQL</application>).
+   </para>
+
+   <para>
+    Devido ao comportamento de instantâneo do MVCC (consulte o
+    <xref linkend="mvcc">), uma função contendo apenas comandos
+    <command>SELECT</command> pode ser classificada como
+    <literal>STABLE</literal> com segurança, mesmo que faça seleção em tabelas
+    que podem estar sendo modificadas por comandos simultâneos.
+    O <productname>PostgreSQL</productname> executa a função
+    <literal>STABLE</literal> utilizando o instantâneo estabelecido para o
+    comando que faz a chamada e, portanto, será enxergada uma visão fixa do
+    banco de dados durante o comando. Deve ser observado, também, que a família
+    de funções <function>current_timestamp</function> é classificada como
+    estável, uma vez que seus resultados não mudam dentro de uma transação.
+   </para>
+
+   <para>
+    O mesmo comportamento de instantâneo é utilizado nos comandos
+    <command>SELECT</command> dentro das funções <literal>IMMUTABLE</literal>.
+    Geralmente não se aconselha fazer seleções em tabelas do banco de dados
+    dentro de uma função <literal>IMMUTABLE</literal>, uma vez que a
+    imutabilidade será quebrada se o conteúdo da tabela mudar. Entretanto, o
+    <productname>PostgreSQL</productname> não exige que seja assim.
+   </para>
+
+   <para>
+    Um erro comum é classificar a função como <literal>IMMUTABLE</literal>
+    quando seu resultado depende de parâmetros de configuração. Por exemplo,
+    uma função que manipula carimbos do tempo pode ter resultados dependentes
+    da definição de <xref linkend="guc-timezone">. Por motivo de segurança,
+    estas funções devem ser classificadas como <literal>STABLE</literal>.
+   </para>
+
+   <note>
+    <para>
+     Antes da versão 8.0 do <productname>PostgreSQL</productname>, o requisito
+     que as funções <literal>STABLE</literal> e <literal>IMMUTABLE</literal>
+     não podem modificar o banco de dados não era requerido pelo sistema.
+     A versão 8.0 obriga obedecer este requisito, requerendo que as funções
+     <acronym>SQL</acronym>, e as funções escritas em linguagem procedural,
+     destas categorias, não contenham nenhum comando <acronym>SQL</acronym> além
+     do <command>SELECT</command> (Isto não é um teste totalmente seguro, uma
+     vez que estas funções podem chamar funções <literal>VOLATILE</literal>
+     que modificam o banco de dados. Se isto for feito, vai ser descoberto que
+     as funções <literal>STABLE</literal> e <literal>IMMUTABLE</literal> não
+     percebem as mudanças feitas no banco de dados aplicadas pela função
+     chamada).
+    </para>
+   </note>
+  </sect1>
+
+  <sect1 id="xfunc-pl">
+   <title>Funções nas linguagens procedurais</title>
+
+   <para>
+    O <productname>PostgreSQL</productname> permite que funções definidas
+    pelo usuário possam ser escritas em outras linguagens além de SQL e C.
+    Estas outras linguagens são chamadas genericamente de
+    <firstterm>linguagens procedurais</firstterm> (<acronym>PL</acronym>s).
+    As linguagens procedurais não são construídas dentro do servidor
+    <productname>PostgreSQL</productname>; são oferecidas como módulos
+    carregáveis. Para obter informações adicionais deve ser consultado o
+    <xref linkend="xplang"> e os seguintes.
+   </para>
+  </sect1>
+
+  <sect1 id="xfunc-internal">
+   <title>Funções internas</title>
+
+   <indexterm zone="xfunc-internal"><primary>função</primary><secondary>interna</></>
+
+   <para>
+    As funções internas são funções escritas na linguagem C que foram ligadas
+    estaticamente ao servidor <productname>PostgreSQL</productname>.
+    O <quote>corpo</quote> da definição da função especifica o nome da função
+    na linguagem C, que não precisa ser o mesmo nome declarado para uso no SQL
+    (Por razões de compatibilidade com as versões anteriores, um corpo vazio
+    é aceito como significando que o nome da função na linguagem C é
+    o mesmo nome na linguagem SQL).
+   </para>
+
+   <para>
+    Normalmente, todas as funções internas presentes no servidor são declaradas
+    durante a inicialização do agrupamento de bancos de dados
+    (<command>initdb</command>), mas o usuário pode utilizar o comando
+    <command>CREATE FUNCTION</command> para criar nomes aliases adicionais para
+    uma função interna. As funções internas são declaradas em
+    <command>CREATE FUNCTION</command> com o nome de linguagem
+    <literal>internal</literal>. Por exemplo, para criar um aliás para a função
+    <function>sqrt</function>:
+<programlisting>
+CREATE FUNCTION raiz_quadrada(double precision) RETURNS double precision
+    AS 'dsqrt'
+    LANGUAGE internal
+    STRICT;
+
+SELECT raiz_quadrada(9.61);
+
+<computeroutput>
+ raiz_quadrada
+---------------
+           3.1
+(1 linha)
+</computeroutput>
+</programlisting>
+    (A maioria das funções internas esperam ser declaradas como
+    <quote>strict</quote>)
+   </para>
+
+   <note>
+    <para>
+     Nem todas as funções <quote>pré-definidas</quote> são
+     <quote>internas</quote> no sentido acima. Algumas funções
+     pré-definidas são escritas em SQL.
+    </para>
+   </note>
+  </sect1>
+
+  <sect1 id="xfunc-c">
+   <title>Funções na linguagem C</title>
+
+   <indexterm zone="xfunc-sql">
+    <primary>função</primary>
+    <secondary>definida pelo usuário</secondary>
+    <tertiary>em C</tertiary>
+   </indexterm>
+
+   <para>
+    As funções definidas pelo usuário podem ser escritas em C (ou numa linguagem
+    que possa ser tornada compatível com a linguagem C, como C++). Estas funções
+    são compiladas em objetos carregáveis dinamicamente (também chamados de
+    bibliotecas compartilhadas), sendo carregadas pelo servidor conforme haja
+    necessidade. A funcionalidade de carregamento dinâmico é o que distingue as
+    funções na <quote>linguagem C</quote> das funções <quote>internas</quote>
+    &mdash; as convenções de codificação são essencialmente as mesmas para ambas
+    (portanto, a biblioteca padrão de funções internas é uma preciosa fonte de
+    exemplos de codificação para funções na linguagem C definidas pelo usuário).
+   </para>
+
+   <para>
+    Atualmente são utilizadas duas convenções de chamada diferentes para as
+    funções em C. A convenção de chamada mais nova, <quote>versão 1</quote>, é
+    indicada pela inclusão da chamada de macro <literal>PG_FUNCTION_INFO_V1()</>
+    na função, conforme mostrado abaixo. A ausência desta macro indica uma
+    função no estilo antigo (<quote>versão 0</quote>). Nestes dois casos o nome
+    da linguagem especificado em <command>CREATE FUNCTION</command> é
+    <literal>C</literal>. As funções no estilo antigo estão em obsolescência
+    por causa de problemas de portabilidade e ausência de funcionalidades, mas
+    ainda são aceitas por motivo de compatibilidade.
+   </para>
+
+  <sect2 id="xfunc-c-dynload">
+   <title>Carregamento dinâmico</title>
+
+   <indexterm zone="xfunc-c-dynload">
+    <primary>carregamento dinâmico</primary>
+   </indexterm>
+
+   <para>
+    Na primeira vez que uma função definida pelo usuário, presente em um arquivo
+    objeto carregável, é chamada em uma sessão, o carregador dinâmico carrega o
+    arquivo objeto na memória para que a função possa ser chamada. O comando
+    <command>CREATE FUNCTION</command> para uma função C definida pelo usuário
+    deve, portanto, especificar duas informações para a função: o nome do
+    arquivo objeto carregável, e o nome C (símbolo de ligação), dentro do
+    arquivo objeto, da função a ser chamada. Se o nome C não for especificado
+    explicitamente, então é assumido como sendo o mesmo nome da função SQL.
+   </para>
+
+   <para>
+    É utilizado o seguinte algoritmo para localizar o arquivo objeto
+    compartilhado baseado no nome fornecido no comando
+    <command>CREATE FUNCTION</command>:
+
+    <orderedlist>
+     <listitem>
+      <para>
+       Se o nome for um caminho absoluto, o arquivo especificado é carregado.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Se o nome começar pela cadeia de caracteres <literal>$libdir</literal>,
+       esta parte é substituída pelo diretório de biblioteca do pacote
+       <productname>PostgreSQL</>, determinado em tempo de construção.
+       <indexterm><primary>$libdir</primary></indexterm>
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Se o nome não contiver a parte do diretório, o arquivo
+       é procurado no caminho especificado pela variável de configuração
+       <xref linkend="guc-dynamic-library-path">.
+       <indexterm><primary>dynamic_library_path</primary></indexterm>
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       Senão (o arquivo não foi encontrado no caminho, ou contém a parte
+       de diretório não-absoluta), o carregador dinâmico tenta usar o nome
+       conforme especificado, o que quase certamente não vai ser bem-sucedido
+       (Não é confiável depender do diretório de trabalho corrente).
+      </para>
+     </listitem>
+    </orderedlist>
+
+    Se esta seqüência não for bem-sucedida, a extensão de nome de arquivo de
+    biblioteca compartilhada específica da plataforma (geralmente
+    <filename>.so</filename>) é anexada ao nome fornecido, e esta seqüência é
+    tentada novamente. Se também não for bem-sucedida, então o carregamento
+    falha.
+   </para>
+
+   <para>
+     O ID do usuário sob o qual o <application>PostgreSQL</application> executa
+     deve ser capaz de percorrer o caminho até o arquivo que se deseja carregar.
+     Tornar o arquivo ou um diretório de nível mais alto não legível e/ou
+     não executável pelo usuário <systemitem>postgres</systemitem> é um erro
+     comum.
+   </para>
+
+   <para>
+    De qualquer forma, o nome do arquivo fornecido no comando
+    <command>CREATE FUNCTION</command> é gravado literalmente nos catálogos do
+    sistema e, portanto, se for necessário carregar o arquivo novamente o mesmo
+    procedimento é aplicado.
+   </para>
+
+   <note>
+    <para>
+     O <application>PostgreSQL</application> não compila uma função C
+     automaticamente. O arquivo objeto deve ser compilado antes de ser
+     referenciado no comando <command>CREATE FUNCTION</>.
+     Para obter informações adicionais deve ser consultada a
+     <xref linkend="dfunc">.
+    </para>
+   </note>
+
+   <para>
+    O arquivo objeto carregável dinamicamente é mantido na memória após ter sido
+    utilizado pela primeira vez. As chamadas posteriores às funções presentes
+    neste arquivo, na mesma sessão, somente causam um pequeno trabalho extra
+    de procura na tabela de símbolos. Se for necessário obrigar uma nova
+    carga do arquivo objeto, por exemplo após este ser recompilado, deve ser
+    utilizado o comando <command>LOAD</command>, ou iniciada uma nova sessão.
+   </para>
+
+   <para>
+    Recomenda-se que as bibliotecas compartilhadas tenham posição relativa
+    a <literal>$libdir</literal>, ou estejam no caminho de biblioteca dinâmica,
+    simplificando atualizações de versão se a nova instalação estiver em um
+    local diferente. O diretório real representado por
+    <literal>$libdir</literal> pode ser descoberto através do comando
+    <literal>pg_config --pkglibdir</literal>.
+    <footnote>
+     <para>
+      <command>pg_config --pkglibdir</command> retorna
+      <filename>/usr/local/pgsql/lib</filename>
+      na plataforma utilizada. (N. do T.)
+     </para>
+    </footnote>
+   </para>
+
+   <para>
+     Antes da versão 7.2 do <application>PostgreSQL</application>, somente era
+     possível especificar no comando <command>CREATE FUNCTION</command> caminhos
+     absolutos exatos para os arquivos objeto. Esta modalidade está em
+     obsolescência, uma vez que torna a definição da função não portável sem
+     necessidade. É melhor especificar apenas o nome da biblioteca compartilhada
+     sem caminho nem extensão, e deixar o mecanismo de procura fornecer estas
+     informações.
+   </para>
+  </sect2>
+
+   <sect2 id="xfunc-c-basetype">
+    <title>Tipos base em funções na linguagem C</title>
+
+    <indexterm zone="xfunc-c-basetype">
+     <primary>tipo de dado</primary>
+     <secondary>organização interna</secondary>
+    </indexterm>
+
+    <para>
+     Para saber como escrever funções na linguagem C é necessário saber como o
+     <productname>PostgreSQL</productname> representa internamente os tipos de
+     dado base, e como estes podem ser passados de/para as funções.
+     Internamente, o <productname>PostgreSQL</productname> considera o tipo base
+     como um <quote>objeto binário grande de memória</quote>
+     (<literal>blob of memory</literal>).
+     Por sua vez, as funções definidas pelo usuário para o tipo definem a
+     maneira como o <productname>PostgreSQL</productname> pode operar o tipo,
+     ou seja, o <productname>PostgreSQL</productname> somente armazena e busca
+     os dados do disco, e usa as funções definidas pelo usuário para entrada,
+     processamento e saída dos dados.
+    </para>
+
+    <para>
+     Os tipos base podem ter um destes três formatos internos:
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        passado por valor, comprimento fixo
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        passado por referência, comprimento fixo
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        passado por referência, comprimento variável
+       </para>
+      </listitem>
+     </itemizedlist>
+    </para>
+
+    <para>
+     Os tipos passados por valor podem ter comprimento de 1, 2 ou 4 bytes apenas
+     (também de 8 bytes, se na máquina <literal>sizeof(Datum)</literal> for 8).
+     Deve-se tomar cuidado para que os tipos definidos pelo usuário sejam de tal
+     forma que possuam o mesmo tamanho (em bytes) em todas as arquiteturas.
+     Por exemplo, o tipo <literal>long</literal> é perigoso, porque possui
+     4 bytes em algumas máquinas e 8 bytes em outras, enquanto o tipo
+     <type>int</type> possui 4  bytes na maioria das máquinas Unix.
+     Uma implementação razoável do tipo <type>int4</type> em uma máquina Unix
+     pode ser:
+
+<programlisting>
+/* inteiro de 4 bytes, passado por valor */
+typedef int int4;
+</programlisting>
+    </para>
+
+    <para>
+     Por outro lado, os tipos de comprimento fixo, de qualquer tamanho, podem
+     ser passados por referência. Por exemplo, abaixo está mostrada a
+     implementação de um tipo do <productname>PostgreSQL</productname>:
+
+<programlisting>
+/* estrutura de 16 bytes, passada por referência */
+typedef struct
+{
+    double  x, y;
+} Point;
+</programlisting>
+
+     Somente podem ser utilizados ponteiros para estes tipos para passá-los
+     de/para as funções do <productname>PostgreSQL</productname>.
+     Para retornar o valor de um tipo como este, é alocada a quantidade correta
+     de memória com <literal>palloc</literal>, preenchida a memória alocada,
+     e retornado um ponteiro para a memória alocada (Também pode ser retornado
+     diretamente um valor de entrada, que possua o mesmo tipo do valor
+     retornado, retornando um ponteiro para o valor de entrada. Entretanto, não
+     se deve modificar <emphasis>nunca</emphasis> o conteúdo de um valor
+     passado por referência).
+    </para>
+
+    <para>
+     Por fim, todos os tipos de comprimento variável também devem ser passados
+     por referência. Todos os tipos de comprimento variável devem começar por
+     um campo de comprimento, contendo exatamente 4 bytes, e todos os dados a
+     serem armazenados dentro deste tipo devem estar localizados na memória
+     logo após o campo de comprimento. O campo de comprimento contém o
+     comprimento total da estrutura, ou seja, inclui também o tamanho do
+     próprio campo de comprimento.
+    </para>
+
+    <para>
+     Como exemplo, o tipo <type>text</type> pode ser definido da seguinte forma:
+
+<programlisting>
+typedef struct {
+    int4 comprimento;
+    char dado[1];
+} text;
+</programlisting>
+
+     Obviamente, o campo dado declarado não possui comprimento suficiente para
+     armazenar todas as cadeias de caracteres possíveis. Como não é possível
+     declarar estruturas de tamanho variável em <acronym>C</acronym>,
+     dependemos do conhecimento de que o compilador <acronym>C</acronym> não
+     verifica o intervalo dos índices das matrizes.
+     Simplesmente é alocada a quantidade necessária de espaço, e depois a matriz
+     é acessada como se tivesse sido declarada com o comprimento correto (Este
+     é um truque comum, que pode ser visto em muitos livros texto sobre C).
+    </para>
+
+    <para>
+     Ao manipular tipos de comprimento variável, deve-se tomar o cuidado de
+     alocar a quantidade correta de memória, e definir o campo de comprimento
+     corretamente. Por exemplo, se for desejado armazenar 40 bytes em uma
+     estrutura <structname>text</structname>, pode ser utilizado um fragmento
+     de código como este:
+
+<programlisting>
+#include "postgres.h"
+...
+char buffer[40]; /* nosso dado de origem */
+...
+text *destino = (text *) palloc(VARHDRSZ + 40);
+destino-&gt;comprimento = VARHDRSZ + 40;
+memcpy(destino-&gt;dado, buffer, 40);
+...
+</programlisting>
+
+     <literal>VARHDRSZ</literal> é o mesmo que <literal>sizeof(int4)</literal>,
+     mas é considerado um bom estilo utilizar a macro
+     <literal>VARHDRSZ</literal> para fazer referência ao tamanho adicional
+     para o tipo de comprimento variável.
+    </para>
+
+    <para>
+     A <xref linkend="xfunc-c-type-table"> especifica qual tipo C corresponde a
+     qual tipo SQL, quando se escreve uma função na linguagem C que utiliza um
+     tipo interno do <productname>PostgreSQL</productname>.
+     A coluna <quote>Definido em</quote> informa o arquivo de cabeçalho que
+     deve ser incluído para obter a definição do tipo (Na verdade, a definição
+     pode estar em um outro arquivo incluído pelo arquivo informado.
+     Recomenda-se aos usuários que se limitem à interface definida).
+     Deve ser observado que sempre deve ser incluído primeiro, em todos os
+     arquivos fonte, <filename>postgres.h</filename>, porque este declara várias
+     outras coisas que são sempre necessárias de alguma forma.
+    </para>
+
+     <table tocentry="1" id="xfunc-c-type-table">
+      <title>Tipos C equivalentes aos tipos SQL internos</title>
+      <tgroup cols="3">
+       <thead>
+        <row>
+         <entry>
+          Tipo SQL
+         </entry>
+         <entry>
+          Tipo C
+         </entry>
+         <entry>
+          Definido em
+         </entry>
+        </row>
+       </thead>
+       <tbody>
+        <row>
+         <entry><type>abstime</type></entry>
+         <entry><type>AbsoluteTime</type></entry>
+         <entry><filename>utils/nabstime.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>boolean</type></entry>
+         <entry><type>bool</type></entry>
+         <entry><filename>postgres.h</filename> (talvez interno do compilador)</entry>
+        </row>
+        <row>
+         <entry><type>box</type></entry>
+         <entry><type>BOX*</type></entry>
+         <entry><filename>utils/geo_decls.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>bytea</type></entry>
+         <entry><type>bytea*</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>"char"</type></entry>
+         <entry><type>char</type></entry>
+         <entry>(interno do compilador)</entry>
+        </row>
+        <row>
+         <entry><type>character</type></entry>
+         <entry><type>BpChar*</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>cid</type></entry>
+         <entry><type>CommandId</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>date</type></entry>
+         <entry><type>DateADT</type></entry>
+         <entry><filename>utils/date.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>smallint</type> (<type>int2</type>)</entry>
+         <entry><type>int2</type> ou <type>int16</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>int2vector</type></entry>
+         <entry><type>int2vector*</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>integer</type> (<type>int4</type>)</entry>
+         <entry><type>int4</type> ou <type>int32</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>real</type> (<type>float4</type>)</entry>
+         <entry><type>float4*</type></entry>
+        <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>double precision</type> (<type>float8</type>)</entry>
+         <entry><type>float8*</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>interval</type></entry>
+         <entry><type>Interval*</type></entry>
+         <entry><filename>utils/timestamp.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>lseg</type></entry>
+         <entry><type>LSEG*</type></entry>
+         <entry><filename>utils/geo_decls.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>name</type></entry>
+         <entry><type>Name</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>oid</type></entry>
+         <entry><type>Oid</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>oidvector</type></entry>
+         <entry><type>oidvector*</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>path</type></entry>
+         <entry><type>PATH*</type></entry>
+         <entry><filename>utils/geo_decls.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>point</type></entry>
+         <entry><type>POINT*</type></entry>
+         <entry><filename>utils/geo_decls.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>regproc</type></entry>
+         <entry><type>regproc</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>reltime</type></entry>
+         <entry><type>RelativeTime</type></entry>
+         <entry><filename>utils/nabstime.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>text</type></entry>
+         <entry><type>text*</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>tid</type></entry>
+         <entry><type>ItemPointer</type></entry>
+         <entry><filename>storage/itemptr.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>time</type></entry>
+         <entry><type>TimeADT</type></entry>
+         <entry><filename>utils/date.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>time with time zone</type></entry>
+         <entry><type>TimeTzADT</type></entry>
+         <entry><filename>utils/date.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>timestamp</type></entry>
+         <entry><type>Timestamp*</type></entry>
+         <entry><filename>utils/timestamp.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>tinterval</type></entry>
+         <entry><type>TimeInterval</type></entry>
+         <entry><filename>utils/nabstime.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>varchar</type></entry>
+         <entry><type>VarChar*</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+        <row>
+         <entry><type>xid</type></entry>
+         <entry><type>TransactionId</type></entry>
+         <entry><filename>postgres.h</filename></entry>
+        </row>
+       </tbody>
+      </tgroup>
+     </table>
+
+    <para>
+     Agora que já foram examinadas todas as estruturas possíveis para os tipos
+     base, podem ser mostrados alguns exemplos de funções verdadeiras.
+    </para>
+   </sect2>
+
+   <sect2 id="xfunc-c-version0">
+    <title>Convenções de chamada Versão-0 para funções na linguagem C</title>
+
+    <para>
+     Será apresentado primeiro o <quote>estilo antigo</quote> de convenção de
+     chamada &mdash; embora esta modalidade esteja em obsolescência, é mais
+     fácil começar por ela. No método versão-0 os argumentos e o resultado
+     da função C são simplesmente declarados no estilo C usual, mas tomando
+     cuidado para utilizar a representação C de cada tipo de dado SQL conforme
+     mostrado acima.
+    </para>
+
+    <para>
+     Abaixo estão mostrados alguns exemplos:
+
+<programlisting>
+#include "postgres.h"
+#include &lt;string.h&gt;
+
+/* Por valor */
+
+int
+somar_um(int arg)
+{
+    return arg + 1;
+}
+
+/* Por referência, comprimento fixo */
+
+float8 *
+somar_um_float8(float8 *arg)
+{
+    float8    *resultado = (float8 *) palloc(sizeof(float8));
+
+    *resultado = *arg + 1.0;
+
+    return resultado;
+}
+
+Point *
+construir_ponto(Point *pontox, Point *pontoy)
+{
+    Point     *novo_ponto = (Point *) palloc(sizeof(Point));
+
+    novo_ponto->x = pontox->x;
+    novo_ponto->y = pontoy->y;
+
+    return novo_ponto;
+}
+
+/* Por referência, comprimento variável */
+
+text *
+copiar_texto(text *t)
+{
+    /*
+     * VARSIZE é o tamanho total da estrutura em bytes.
+     */
+    text *novo_t = (text *) palloc(VARSIZE(t));
+    VARATT_SIZEP(novo_t) = VARSIZE(t);
+    /*
+     * VARDATA é o ponteiro para a região de dados da estrutura.
+     */
+    memcpy((void *) VARDATA(novo_t), /* destino */
+           (void *) VARDATA(t),      /* origem */
+           VARSIZE(t)-VARHDRSZ);     /* quantidade de bytes */
+    return novo_t;
+}
+
+text *
+concatenar_texto(text *arg1, text *arg2)
+{
+    int32 tamanho_novo_texto = VARSIZE(arg1) + VARSIZE(arg2) - VARHDRSZ;
+    text *novo_texto = (text *) palloc(tamanho_novo_texto);
+
+    VARATT_SIZEP(novo_texto) = tamanho_novo_texto;
+    memcpy(VARDATA(novo_texto), VARDATA(arg1), VARSIZE(arg1)-VARHDRSZ);
+    memcpy(VARDATA(novo_texto) + (VARSIZE(arg1)-VARHDRSZ),
+           VARDATA(arg2), VARSIZE(arg2)-VARHDRSZ);
+    return novo_texto;
+}
+</programlisting>
+    </para>
+
+    <para>
+     Supondo que o código acima tenha sido escrito no arquivo
+     <filename>funcs.c</filename> e compilado dentro de um objeto compartilhado,
+     as funções poderiam ser definidas no <productname>PostgreSQL</productname>
+     usando comandos como estes:
+
+<programlisting>
+CREATE FUNCTION somar_um(integer) RETURNS integer
+     AS '<replaceable>DIRETÓRIO</replaceable>/funcs', 'somar_um'
+     LANGUAGE C STRICT;
+
+-- observe a sobrecarga do nome de função SQL "somar_um"
+CREATE FUNCTION somar_um(double precision) RETURNS double precision
+     AS '<replaceable>DIRETÓRIO</replaceable>/funcs', 'somar_um_float8'
+     LANGUAGE C STRICT;
+
+CREATE FUNCTION construir_ponto(point, point) RETURNS point
+     AS '<replaceable>DIRETÓRIO</replaceable>/funcs', 'construir_ponto'
+     LANGUAGE C STRICT;
+
+CREATE FUNCTION copiar_texto(text) RETURNS text
+     AS '<replaceable>DIRETÓRIO</replaceable>/funcs', 'copiar_texto'
+     LANGUAGE C STRICT;
+
+CREATE FUNCTION concatenar_texto(text, text) RETURNS text
+     AS '<replaceable>DIRETÓRIO</replaceable>/funcs', 'concatenar_texto',
+     LANGUAGE C STRICT;
+</programlisting>
+    </para>
+
+    <para>
+     Neste caso, <replaceable>DIRETÓRIO</replaceable> representa o
+     diretório do arquivo de biblioteca compartilhada (por exemplo, o
+     diretório do tutorial do <productname>PostgreSQL</productname> que
+     contém o código dos exemplos utilizados nesta seção)
+     (Um estilo melhor seria utilizar apenas <literal>'funcs'</literal> na
+     cláusula <literal>AS</literal>, após adicionar
+     <replaceable>DIRETÓRIO</replaceable> ao caminho de procura. Em todo caso,
+     pode ser omitida a extensão específica do sistema para a biblioteca
+     compartilhada, normalmente <literal>.so</literal> ou
+     <literal>.sl</literal>).
+    </para>
+
+    <para>
+     Deve ser observado que as funções foram especificadas como
+     <quote>strict</quote>, significando que o sistema deve assumir,
+     automaticamente, um resultado nulo se algum valor de entrada for nulo.
+     Fazendo assim, evita-se a necessidade de verificar entradas nulas no
+     código da função. Sem isto, seria necessário verificar os valores
+     nulos explicitamente como, por exemplo, verificando a existência de um
+     ponteiro nulo para cada argumento passado por referência (Para os
+     argumentos passados por valor, não haveria nem como verificar!).
+    </para>
+
+    <para>
+     Embora esta convenção de chamada seja simples de usar, não é muito
+     portável; em algumas arquiteturas ocorrem problemas ao se passar tipos de
+     dado menores que <type>int</type> desta forma. Também, não existe nenhuma
+     forma simples de retornar um resultado nulo, nem para lidar com argumentos
+     nulos de alguma outra forma que não seja tornando a função estrita.
+     A convenção versão-1, apresentada a seguir, supera estas limitações.
+    </para>
+   </sect2>
+
+   <sect2 id="xfunc-c-version1">
+    <title>Convenções de chamada Versão-1 para as funções na linguagem C</title>
+
+    <para>
+     A convenção de chamada versão-1 se baseia em macros que suprimem a maior
+     parte da complexidade da passagem de argumentos e resultados.
+     A declaração C de uma função versão-1 é sempre
+<programlisting>
+Datum nome_da_função(PG_FUNCTION_ARGS)
+</programlisting>
+     Além disso, a chamada de macro
+<programlisting>
+PG_FUNCTION_INFO_V1(nome_da_função);
+</programlisting>
+     deve aparecer no mesmo arquivo fonte (por convenção é escrita logo antes
+     da própria função). Esta chamada de macro não é necessária para as funções
+     na linguagem <literal>internal</literal>, uma vez que o
+     <productname>PostgreSQL</productname> assume que todas as funções internas
+     usam a convenção versão-1. Entretanto, é requerido nas funções carregadas
+     dinamicamente.
+    </para>
+
+    <para>
+     Em uma função versão-1, cada argumento é buscado utilizando a macro
+     <function>PG_GETARG_<replaceable>xxx</replaceable>()</function>
+     correspondente ao tipo de dado do argumento, e o resultado é retornado
+     utilizando a macro
+     <function>PG_RETURN_<replaceable>xxx</replaceable>()</function>
+     para o tipo retornado.
+     A macro <function>PG_GETARG_<replaceable>xxx</replaceable>()</function>
+     recebe como argumento o número do argumento da função a ser buscado,
+     contado a partir de 0.
+     A macro <function>PG_RETURN_<replaceable>xxx</replaceable>()</function>
+     recebe como argumento o valor a ser retornado.
+    </para>
+
+    <para>
+     Abaixo estão mostradas as mesmas funções vistas acima, codificadas no
+     estilo versão-1:
+
+<programlisting>
+#include "postgres.h"
+#include &lt;string.h&gt;
+#include "fmgr.h"
+
+/* Por valor */
+
+PG_FUNCTION_INFO_V1(somar_um);
+
+Datum
+somar_um(PG_FUNCTION_ARGS)
+{
+    int32   arg = PG_GETARG_INT32(0);
+
+    PG_RETURN_INT32(arg + 1);
+}
+
+/* Por referência, comprimento fixo */
+
+PG_FUNCTION_INFO_V1(somar_um_float8);
+
+Datum
+somar_um_float8(PG_FUNCTION_ARGS)
+{
+    /* As macros para FLOAT8 escondem sua natureza de passado por referência. */
+    float8   arg = PG_GETARG_FLOAT8(0);
+
+    PG_RETURN_FLOAT8(arg + 1.0);
+}
+
+PG_FUNCTION_INFO_V1(construir_ponto);
+
+Datum
+construir_ponto(PG_FUNCTION_ARGS)
+{
+    /* Aqui a natureza de passado por referência de Point não é escondida. */
+    Point     *pontox = PG_GETARG_POINT_P(0);
+    Point     *pontoy = PG_GETARG_POINT_P(1);
+    Point     *novo_ponto = (Point *) palloc(sizeof(Point));
+
+    novo_ponto->x = pontox->x;
+    novo_ponto->y = pontoy->y;
+
+    PG_RETURN_POINT_P(novo_ponto);
+}
+
+/* Por referência, comprimento variável */
+
+PG_FUNCTION_INFO_V1(copiar_texto);
+
+Datum
+copiar_texto(PG_FUNCTION_ARGS)
+{
+    text     *t = PG_GETARG_TEXT_P(0);
+    /*
+     * VARSIZE é o tamanho total da estrutura em bytes.
+     */
+    text     *novo_t = (text *) palloc(VARSIZE(t));
+    VARATT_SIZEP(novo_t) = VARSIZE(t);
+    /*
+     * VARDATA é o ponteiro para a região de dados da estrutura.
+     */
+    memcpy((void *) VARDATA(novo_t), /* destino */
+           (void *) VARDATA(t),      /* origem */
+           VARSIZE(t)-VARHDRSZ);     /* quantidade de bytes */
+    PG_RETURN_TEXT_P(novo_t);
+}
+
+PG_FUNCTION_INFO_V1(concatenar_texto);
+
+Datum
+concatenar_texto(PG_FUNCTION_ARGS)
+{
+    text  *arg1 = PG_GETARG_TEXT_P(0);
+    text  *arg2 = PG_GETARG_TEXT_P(1);
+    int32 tamanho_novo_texto = VARSIZE(arg1) + VARSIZE(arg2) - VARHDRSZ;
+    text *novo_texto = (text *) palloc(tamanho_novo_texto);
+
+    VARATT_SIZEP(novo_texto) = tamanho_novo_texto;
+    memcpy(VARDATA(novo_texto), VARDATA(arg1), VARSIZE(arg1)-VARHDRSZ);
+    memcpy(VARDATA(novo_texto) + (VARSIZE(arg1)-VARHDRSZ),
+           VARDATA(arg2), VARSIZE(arg2)-VARHDRSZ);
+    PG_RETURN_TEXT_P(novo_texto);
+}
+</programlisting>
+    </para>
+
+    <para>
+     Os comandos <command>CREATE FUNCTION</command> são idênticos aos das
+     funções versão-0 equivalentes.
+    </para>
+
+    <para>
+     À primeira vista, as convenções de codificação versão-1 podem parecer
+     apenas um obscurantismo sem sentido. Entretanto, oferecem várias
+     melhorias porque as macros podem esconder detalhes desnecessários.
+     Como exemplo podemos citar a codificação de <function>somar_um_float8</>,
+     onde não é mais necessário se preocupar com o fato de <type>float8</type>
+     ser um tipo passado por referência. Outro exemplo é que as macros
+     <literal>GETARG</> para tipos de comprimento variável permitem buscar
+     valores <quote>toasted</quote> (comprimidos ou fora de linha) de forma
+     mais eficiente.
+    </para>
+
+    <para>
+     Uma grande melhoria nas funções versão-1 é o tratamento melhor das entradas
+     e resultados nulos.
+     A macro <function>PG_ARGISNULL(<replaceable>n</>)</function> permite à
+     função testar se cada um dos valores de entrada é nulo (obviamente, só
+     é necessário nas função não declaradas como <quote>strict</>).
+     Nas macros <function>PG_GETARG_<replaceable>xxx</replaceable>()</function>
+     os argumentos de entrada são contados a partir de zero. Deve ser observado
+     que deve ser evitado executar
+     <function>PG_GETARG_<replaceable>xxx</replaceable>()</function>
+     até que tenha sido constatado que o argumento não é nulo.
+     Para retornar um resultado nulo deve ser executado
+     <function>PG_RETURN_NULL()</function>;
+     isto funciona tanto nas funções estritas quanto nas não estritas.
+    </para>
+
+    <para>
+     Outra opções fornecidas para a interface no novo estilo são duas
+     variantes das macros
+     <function>PG_GETARG_<replaceable>xxx</replaceable>()</function>.
+     A primeira delas,
+     <function>PG_GETARG_<replaceable>xxx</replaceable>_COPY()</function>
+     garante retornar uma cópia do argumento especificado onde é possível
+     escrever com segurança (As macros comuns, algumas vezes, retornam um
+     ponteiro para um valor que está fisicamente armazenado em uma tabela e,
+     portanto, não é possível escrever neste local. A utilização das macros
+     <function>PG_GETARG_<replaceable>xxx</replaceable>_COPY()</function>
+     garante um resultado onde pode ser escrito).
+    </para>
+
+    <para>
+     A segunda variante consiste nas macros
+     <function>PG_GETARG_<replaceable>xxx</replaceable>_SLICE()</function>
+     que recebem três parâmetros. O primeiro é o número do argumento da função
+     (como acima). O segundo e o terceiro são o deslocamento e o comprimento do
+     segmento a ser retornado. Os deslocamentos são contados a partir de zero,
+     e um comprimento negativo requer que o restante do valor seja retornado.
+     Estas macros proporcionam um acesso mais eficiente às partes de valores
+     grandes, caso estes possuam um tipo de armazenamento
+     <quote>external</quote> (O tipo de armazenamento de uma coluna pode ser
+     especificado utilizando
+     <literal>ALTER TABLE <replaceable>nome_da_tabela</replaceable> ALTER
+     COLUMN <replaceable>nome_da_coluna</replaceable> SET STORAGE
+     <replaceable>tipo_de_armazenamento</replaceable></literal>.
+     O <replaceable>tipo_de_armazenamento</replaceable> é um entre
+     <literal>plain</literal>, <literal>external</literal>,
+     <literal>extended</literal> ou <literal>main</literal>).
+    </para>
+
+    <para>
+     Por fim, as convenções de chamada de função versão-1 tornam possível
+     retornar <quote>conjuntos</quote> (<literal>set</literal>) como resultados
+     (<xref linkend="xfunc-c-return-set">), implementar funções de gatilho
+     (<xref linkend="triggers">) e tratadores de chamada de linguagem procedural
+     (<xref linkend="plhandler">). Também, o código versão-1 é mais portável que
+     o código versão-0, porque não quebra as restrições do protocolo de chamada
+     de função padrão do padrão C. Para obter informações adicionais deve ser
+     consultado o arquivo <filename>src/backend/utils/fmgr/README</filename> na
+     distribuição do código fonte.
+    </para>
+   </sect2>
+
+   <sect2 id="xfunc-c-codewrite">
+    <title>Escrita de código</title>
+
+    <para>
+     Antes de passar para os tópicos mais avançados, devem ser vistas algumas
+     regras de codificação para funções escritas na linguagem C no
+     <productname>PostgreSQL</productname>. Embora seja possível carregar
+     funções escritas em outras linguagens diferentes da linguagem C no
+     <productname>PostgreSQL</productname>, geralmente é difícil
+     (quando não é totalmente impossível) porque as outras linguagens, como C++,
+     FORTRAN e Pascal, geralmente não seguem a mesma convenção de chamada da
+     linguagem C. Ou seja, as outras linguagens não passam argumentos e retornam
+     os valores das funções da mesma maneira. Por este motivo, será assumido que
+     as funções escritas na linguagem C são realmente escritas em C.
+    </para>
+
+    <para>
+     As regras básicas para construir funções na linguagem C são as seguintes:
+
+     <itemizedlist>
+      <listitem>
+       <para>
+        Utilizar <literal>pg_config --includedir-server</literal>
+        <indexterm>
+         <primary>pg_config</primary>
+         <secondary>com funções C definidas pelo usuário</secondary>
+        </indexterm>
+        para descobrir onde os arquivos de cabeçalho do servidor
+        <productname>PostgreSQL</productname> estão instalados no sistema
+        (ou no sistema utilizado pelos seus usuários).
+        <footnote>
+         <para>
+          <command>pg_config --includedir-server</command> retorna
+          <filename>/usr/local/pgsql/include/server</filename>
+          na plataforma utilizada. (N. do T.)
+         </para>
+        </footnote>
+        Esta opção passou a existir a partir do
+        <productname>PostgreSQL</productname> 7.2. Para o
+        <productname>PostgreSQL</productname> 7.1 deve ser utilizada a opção
+        <option>--includedir</option> (o comando <command>pg_config</command>
+        termina com status diferente de zero quando encontra uma opção
+        desconhecida). Para as versões anteriores a 7.1 é necessário descobrir
+        por si próprio, mas como estas versões são anteriores à introdução das
+        convenções de chamada corrente, não é provável que se deseje dar suporte
+        a estas versões.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Para alocar memória devem ser utilizadas as funções
+        <function>palloc</function>
+        <indexterm><primary>palloc</primary></indexterm>
+        e <function>pfree</function>
+        <indexterm><primary>pfree</primary></indexterm>
+        do <productname>PostgreSQL</productname>,
+        em vez das funções correspondentes da biblioteca <acronym>C</acronym>
+        <function>malloc</function> e <function>free</function>.
+        A memória alocada por <function>palloc</function> é liberada
+        automaticamente ao término de cada transação, evitando perda de memória.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Os bytes das estruturas devem ser sempre zerados utilizando
+        <function>memset</function>. Se isto não for feito, ficará difícil
+        suportar índices <literal>hash</literal> ou junções
+        <literal>hash</literal>, uma vez que devem ser pegos somente os bits
+        significativos da estrutura de dados para calcular o
+        <literal>hash</literal>. Mesmo se forem inicializados todos os campos da
+        estrutura, poderá haver preenchimento de alinhamento (buracos na
+        estrutura) contendo sujeira.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        A maioria dos tipos internos do <productname>PostgreSQL</productname>
+        estão declarados em <filename>postgres.h</filename>, enquanto as
+        interfaces de gerência de função (<symbol>PG_FUNCTION_ARGS</symbol>,
+        etc.) estão declaradas em <filename>fmgr.h</filename>, portanto é
+        necessário incluir ao menos estes dois arquivos. Por motivo de
+        portabilidade é melhor incluir <emphasis>primeiro</emphasis>
+        <filename>postgres.h</filename>, antes de qualquer outro arquivo de
+        cabeçalho do sistema ou do usuário. Ao se incluir
+        <filename>postgres.h</filename> também são incluídos
+        <filename>elog.h</filename> e <filename>palloc.h</filename>.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Os nomes dos símbolos definidos dentro dos arquivos objeto não devem
+        conflitar entre si ou com os símbolos definidos no executável do
+        servidor <productname>PostgreSQL</productname>.
+        As funções e variáveis deverão ser renomeadas se aparecerem
+        mensagens de erro neste sentido.
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+        Compilar e ligar o código objeto para que possa ser carregado
+        dinamicamente no <productname>PostgreSQL</productname> sempre requer
+        sinalizadores especiais. Consulte a <xref linkend="dfunc"> para obter uma
+        explicação detalhada sobre como isto é feito no seu sistema operacional
+        em particular.
+       </para>
+      </listitem>
+     </itemizedlist>
+    </para>
+   </sect2>
+
+&dfunc;
+
+   <sect2 id="xfunc-c-pgxs">
+    <title>Infraestrutura de construção de extensão</title>
+
+   <indexterm zone="xfunc-c-pgxs">
+    <primary>pgxs</primary>
+   </indexterm>
+
+   <para>
+    Caso se esteja pensando em distribuir os módulos de extensão do
+    <productname>PostgreSQL</productname>, a implantação de um sistema de
+    construção portável para estes módulos pode ser bem difícil. Por isso, a
+    instalação do <productname>PostgreSQL</productname> disponibiliza uma
+    infraestrutura de construção de extensões, chamada <acronym>PGXS</acronym>,
+    para que módulos de extensão simples possam ser construídos em um servidor
+    já instalado. Deve ser observado que esta infraestrutura não tem por
+    objetivo ser uma estrutura de construção de sistemas universal que possa ser
+    utilizada para construir todos os sistemas que possuem interface com o
+    <productname>PostgreSQL</productname>; esta infraestrutura simplesmente
+    automatiza as regras comuns de construção para módulos de extensão do
+    servidor simples. Para desenvolver pacotes mais complicados, é necessário
+    escrever seu próprio sistema de construção.
+   </para>
+
+   <para>
+    Para utilizar esta infraestrutura para as próprias extensões, deve ser
+    escrito um arquivo de construção, onde é necessário definir algumas
+    variáveis e por fim incluir o arquivo de construção <acronym>PGXS</acronym>
+    global. Abaixo está mostrado um exemplo que constrói um módulo de extensão
+    chamado <literal>isbn_issn</literal> que consiste em uma biblioteca
+    compartilhada, um script SQL, e um arquivo texto de documentação:
+<programlisting>
+MODULES = isbn_issn
+DATA_built = isbn_issn.sql
+DOCS = README.isbn_issn
+
+PGXS := $(shell pg_config --pgxs)
+include $(PGXS)
+</programlisting>
+    As duas últimas linhas devem ser sempre as mesmas. Antes disso no arquivo
+    podem ser definidas variáveis e adicionadas regras personalizadas para o
+    <application>make</application>.
+   </para>
+
+   <para>
+    Podem ser definidas as seguintes variáveis:
+
+    <variablelist>
+     <varlistentry>
+      <term><varname>MODULES</varname></term>
+      <listitem>
+       <para>
+        lista dos objetos compartilhados a serem construídos a partir do arquivo
+        fonte com o mesmo tronco (não devem ser incluídos sufixos nesta lista)
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>DATA</varname></term>
+      <listitem>
+       <para>
+        arquivos aleatórios a serem instalados em
+        <literal><replaceable>prefix</replaceable>/share/contrib</literal>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>DATA_built</varname></term>
+      <listitem>
+       <para>
+        arquivos aleatórios a serem instalados em
+        <literal><replaceable>prefix</replaceable>/share/contrib</literal>,
+        que primeiro devem ser construídos
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>DOCS</varname></term>
+      <listitem>
+       <para>
+        arquivos aleatórios a serem instalados em
+        <literal><replaceable>prefix</replaceable>/doc/contrib</literal>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>SCRIPTS</varname></term>
+      <listitem>
+       <para>
+        arquivos de script (não binários) a serem instalados em
+        <literal><replaceable>prefix</replaceable>/bin</literal>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>SCRIPTS_built</varname></term>
+      <listitem>
+       <para>
+        arquivos de script (não binários) a serem instalados em
+        <literal><replaceable>prefix</replaceable>/bin</literal>,
+        que primeiro devem ser construídos
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>REGRESS</varname></term>
+      <listitem>
+       <para>
+        lista de casos de teste de regressão (sem sufixo)
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+
+    ou no máximo uma destas duas:
+
+    <variablelist>
+     <varlistentry>
+      <term><varname>PROGRAM</varname></term>
+      <listitem>
+       <para>
+        o programa binário a ser construído (lista os arquivos objeto em
+        <varname>OBJS</varname>)
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>MODULE_big</varname></term>
+      <listitem>
+       <para>
+        o objeto compartilhado a ser construído (lista os arquivos objeto em
+        <varname>OBJS</varname>)
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+
+    Também podem ser definidas:
+
+    <variablelist>
+
+     <varlistentry>
+      <term><varname>EXTRA_CLEAN</varname></term>
+      <listitem>
+       <para>
+        arquivos adicionais a serem removidos por <literal>make clean</literal>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>PG_CPPFLAGS</varname></term>
+      <listitem>
+       <para>
+        adicionado a <varname>CPPFLAGS</varname>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>PG_LIBS</varname></term>
+      <listitem>
+       <para>
+        adicionado a linha de ligação de <varname>PROGRAM</varname>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>SHLIB_LINK</varname></term>
+      <listitem>
+       <para>
+        adicionado a linha de ligação de <varname>MODULE_big</varname>
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+
+   <para>
+    Este arquivo de construção deve ser criado com o nome de
+    <literal>Makefile</literal> no diretório que contém a extensão. Depois pode
+    ser executado <literal>make</literal> para compilar e, posteriormente,
+    <literal>make install</literal> para instalar o módulo. A extensão é
+    compilada e instalada na instalação do <productname>PostgreSQL</productname>
+    que coresponde ao primeiro comando <command>pg_config</command> encontrado
+    no caminho de procura.
+   </para>
+  </sect2>
+
+
+   <sect2 id="xfunc-c-compositetype">
+    <title>Argumentos de tipo composto em funções na linguagem C</title>
+
+    <para>
+     Os tipos compostos não possuem uma disposição fixa como as estruturas C.
+     As instâncias de um tipo composto podem conter campos nulos. Além disso,
+     os tipos compostos que são parte de uma hierarquia de herança podem possuir
+     campos diferentes dos outros membros da mesma hierarquia de herança.
+     Por isso, o <productname>PostgreSQL</productname> disponibiliza uma função
+     de interface para acessar os campos dos tipos compostos a partir da
+     linguagem C.
+    </para>
+
+    <para>
+     Suponha que desejamos escrever uma função para responder a consulta
+
+<programlisting>
+SELECT nome, c_sobrepago(emp, 1500) AS sobrepago
+    FROM emp
+    WHERE name = 'José' OR name = 'João';
+</programlisting>
+
+     Utilizando as convenções de chamada versão 0,
+     <function>c_sobrepago</function> poderia ser definida como:
+
+<programlisting>
+#include "postgres.h"
+#include "executor/executor.h"  /* para GetAttributeByName() */
+
+bool
+c_sobrepago(HeapTupleHeader t, /* a linha corrente de emp */
+           int32 limite)
+{
+    bool isnull;
+    int32 salario;
+
+    salario = DatumGetInt32(GetAttributeByName(t, "salario", &amp;isnull));
+    if (isnull)
+        return false;
+    return salario &gt; limite;
+}
+</programlisting>
+
+     Na codificação versão-1, o código acima ficaria parecido com:
+
+<programlisting>
+#include "postgres.h"
+#include "executor/executor.h"  /* para GetAttributeByName() */
+
+PG_FUNCTION_INFO_V1(c_sobrepago);
+
+Datum
+c_sobrepago(PG_FUNCTION_ARGS)
+{
+    HeapTupleHeader  t = PG_GETARG_HEAPTUPLEHEADER(0);
+    int32            limite = PG_GETARG_INT32(1);
+    bool isnull;
+    Datum salario;
+
+    salario = GetAttributeByName(t, "salario", &amp;isnull);
+    if (isnull)
+        PG_RETURN_BOOL(false);
+    /* Como alternativa poderia se preferir usar PG_RETURN_NULL() para salário nulo. */
+
+    PG_RETURN_BOOL(DatumGetInt32(salario) &gt; limite);
+}
+</programlisting>
+    </para>
+
+    <para>
+     <function>GetAttributeByName</function> é a função de sistema do
+     <productname>PostgreSQL</productname> que retorna atributos da linha
+     especificada. Possui três argumentos: o argumento do tipo
+     <type>HeapTupleHeader</type>
+     passado para a função, o nome do atributo desejado e o parâmetro retornado
+     que informa se o atributo é nulo. <function>GetAttributeByName</function>
+     retorna um valor do tipo <type>Datum</type> que pode ser convertido no tipo
+     de dado apropriado utilizando a macro
+     <function>DatumGet<replaceable>XXX</replaceable>()</function> apropriada.
+     Deve ser observado que o valor retornado não tem sentido se o sinalizador
+     de nulo estiver definido; sempre deve ser verificado o sinalizador de nulo
+     antes de fazer qualquer coisa com o resultado.
+    </para>
+
+    <para>
+     Existe, também, a função <function>GetAttributeByNum</function> que
+     seleciona o atributo de destino pelo número da coluna em vez de pelo nome.
+    </para>
+
+    <para>
+     O seguinte comando declara a função <function>c_sobrepago</function> no SQL:
+
+<programlisting>
+CREATE FUNCTION c_sobrepago(emp, integer) RETURNS boolean
+    AS '<replaceable>DIRETÓRIO</replaceable>/funcs', 'c_sobrepago'
+    LANGUAGE C STRICT;
+</programlisting>
+
+     Deve ser observado que foi utilizado <literal>STRICT</literal> e, portanto,
+     não é necessário verificar se os argumentos são nulos.
+    </para>
+   </sect2>
+
+   <sect2 id="xfunc-c-return-tuple">
+    <title>Retorno de linhas (tipos compostos) por funções na linguagem C</title>
+
+    <para>
+     Para retornar uma linha ou valor de tipo composto por uma função escrita na
+     linguagem C, pode ser utilizada uma API especial que disponibiliza macros e
+     funções que escondem a maior parte da complexidade envolvida na construção
+     de tipos de dado compostos. Para utilizar esta API, deve ser incluído no
+     código fonte:
+<programlisting>
+#include "funcapi.h"
+</programlisting>
+    </para>
+
+    <para>
+     Existem duas maneiras de construir valor de dado composto (de agora em
+     diante <quote>tupla</quote>): pode-se construir a partir de uma matriz de
+     valores Datum, ou a partir de uma matriz de cadeias de caracteres C que
+     possam ser passadas para as funções de conversão de entrada dos tipos
+     de dado das colunas da tupla. Nestes dois casos, primeiro é necessário
+     obter ou construir um descritor <structname>TupleDesc</structname> para
+     a estrutura da tupla. Quando se trabalha com Datum, é passado o descritor
+     <structname>TupleDesc</structname> para <function>BlessTupleDesc</function>
+     e depois chamada <function>heap_formtuple</> para cada linha. Quando se
+     trabalha com cadeias de caracteres C, o descritor
+     <structname>TupleDesc</structname> é passado para
+     <function>TupleDescGetAttInMetadata</function> e depois chamada
+     <function>BuildTupleFromCStrings</function> para cada linha.
+     No caso de uma função que retorna um conjunto de tuplas, os passos de
+     configuração podem ser todos feitos uma vez durante a primeira chamada
+     à função.
+    </para>
+
+    <para>
+     Estão disponíveis várias funções de ajuda para configurar o descritor
+     <structname>TupleDesc</structname> inicial. Se for desejado utilizar um
+     tipo composto com nome, as informações podem ser buscadas nos catálogos
+     do sistema. Deve ser utilizada
+<programlisting>
+TupleDesc RelationNameGetTupleDesc(const char *relname)
+</programlisting>
+     para obter <structname>TupleDesc</structname> para uma relação pelo nome, ou
+<programlisting>
+TupleDesc TypeGetTupleDesc(Oid typeoid, List *colaliases)
+</programlisting>
+     para obter <structname>TupleDesc</structname> baseado no OID do tipo.
+     Pode ser utilizado para obter <structname>TupleDesc</structname> para um
+     tipo base ou composto. Ao se escrever uma função que retorna
+     <structname>record</structname>, o descritor
+     <structname>TupleDesc</structname> esperado deve ser passado por quem faz
+     a chamada.
+    </para>
+
+    <para>
+     Uma vez que se tenha construído <structname>TupleDesc</structname>
+     deve ser chamada
+<programlisting>
+TupleDesc BlessTupleDesc(TupleDesc tupdesc)
+</programlisting>
+     quando se planeja trabalhar com Datum, ou
+<programlisting>
+AttInMetadata *TupleDescGetAttInMetadata(TupleDesc tupdesc)
+</programlisting>
+     quando se planeja trabalhar com cadeias de caracteres C. Quando se escreve
+     uma função que retorna conjunto, o resultado desta função pode ser
+     salvo na estrutura <structname>FuncCallContext</> &mdash;
+     deve ser utilizado o campo <structfield>tuple_desc</structfield> ou
+     <structfield>attinmeta</structfield>, respectivamente.
+    </para>
+
+    <para>
+     Quando se trabalha com Datum deve ser utilizada
+<programlisting>
+HeapTuple heap_formtuple(TupleDesc tupdesc, Datum *values, char *nulls)
+</programlisting>
+     para construir <structname>HeapTuple</structname> a partir dos dados do
+     usuário na forma de Datum.
+    </para>
+
+    <para>
+     Quando se trabalha com cadeias de caracteres C deve ser utilizada
+<programlisting>
+HeapTuple BuildTupleFromCStrings(AttInMetadata *attinmeta, char **values)
+</programlisting>
+     para construir <structname>HeapTuple</structname> a partir dos dados do
+     usuário na forma de cadeias de caracteres C.
+     <literal>values</literal> é uma matriz de cadeias de caracteres C,
+     uma para cada atributo da linha retornada.
+     Cada uma das cadeias de caracteres C deve estar na forma esperada pela
+     função de entrada do tipo de dado do atributo.
+     Para ser retornado o valor nulo para um dos atributos o ponteiro
+     correspondente na matriz <parameter>values</parameter> deve estar definido
+     como <symbol>NULL</symbol>. Esta função precisa ser chamada novamente para
+     cada linha retornada.
+    </para>
+
+    <para>
+     Uma vez que se tenha construído a tupla a ser retornada pela função,
+     esta tupla deve ser convertida no tipo <type>Datum</type>. Deve ser
+     utilizada a função
+<programlisting>
+HeapTupleGetDatum(HeapTuple tuple)
+</programlisting>
+     para converter <structname>HeapTuple</structname> em um Datum válido.
+     Este <type>Datum</type> pode ser retornado diretamente se a intenção for
+     retornar apenas uma única linha, ou pode ser utilizado como o valor
+     retornado corrente em uma função que retorna conjunto.
+    </para>
+
+    <para>
+     Na próxima seção é mostrado um exemplo.
+    </para>
+
+   </sect2>
+
+   <sect2 id="xfunc-c-return-set">
+    <title>Retorno de conjunto a partir de funções na linguagem C</title>
+
+    <para>
+     Existe, também, uma API especial que fornece suporte a retorno de
+     conjuntos (várias linhas) a partir de função na linguagem C. Uma função que
+     retorna conjunto deve seguir as convenções de chamada versão-1. Além disso,
+     os arquivos fonte devem incluir <filename>funcapi.h</filename>, conforme
+     mostrado acima.
+    </para>
+
+    <para>
+     Uma função que retorna conjunto (<acronym>SRF</acronym>) é chamada uma vez
+     para cada item retornado. A <acronym>SRF</acronym> deve, portanto, salvar
+     as informações de estado necessárias para se lembrar do que estava fazendo
+     e retornar o próximo item a cada chamada.
+     É fornecida a estrutura <structname>FuncCallContext</structname> para
+     ajudar a controlar este processo.
+     Dentro da função, é utilizado
+     <literal>fcinfo-&gt;flinfo-&gt;fn_extra</literal>
+     para manter um ponteiro para <structname>FuncCallContext</structname>
+     entre as chamadas.
+<programlisting>
+typedef struct
+{
+    /*
+     * Número de vezes que foi chamada anteriormente
+     *
+     * call_cntr é inicializada com 0 por SRF_FIRSTCALL_INIT(), e
+     * incrementada cada vez que SRF_RETURN_NEXT() é chamada.
+     */
+    uint32 call_cntr;
+
+    /*
+     * OPCIONAL número máximo de chamadas
+     *
+     * max_calls existe apenas por comodidade, e sua definição é opcional.
+     * Se não for definida, deve ser fornecida uma forma alternativa
+     * para saber quando a função terminou.
+     */
+    uint32 max_calls;
+
+    /*
+     * OPCIONAL ponteiro para o encaixe (slot) do resultado
+     *
+     * Isto está obsoleto e somente está presente por motivo de compatibilidade,
+     * ou seja, funções que retornam conjunto que utilizam a função em
+     * obsolescência TupleDescGetSlot().
+     */
+    TupleTableSlot *slot;
+
+    /*
+     * OPCIONAL ponteiro para informações diversas fornecidas pelo usuário
+     *
+     * user_fctx é utilizado como ponteiro para os dados do usuário para
+     * reter informações arbitrárias de contexto entre chamadas à função.
+     */
+    void *user_fctx;
+
+    /*
+     * OPCIONAL ponteiro para a estrutura contendo metadados do tipo do
+     * atributo de entrada
+     *
+     * attinmeta é utilizado ao se retornar tuplas (ou seja, tipos de dado
+     * compostos), não sendo usado para retornar tipos de dado base.
+     * Somente é necessário quando há intenção de usar BuildTupleFromCStrings()
+     * para criar a tupla a ser retornada.
+     */
+    AttInMetadata *attinmeta;
+
+    /*
+     * contexto de memória utilizado por estruturas que devem permanecer
+     * existindo por várias chamadas
+     *
+     * multi_call_memory_ctx é definido por SRF_FIRSTCALL_INIT() e utilizado
+     * por SRF_RETURN_DONE() para limpeza. É o contexto de memória mais
+     * apropriado para qualquer memória a ser reutilizada entre várias chamadas
+     * à SRF.
+     */
+    MemoryContext multi_call_memory_ctx;
+
+    /*
+     * OPCIONAL ponteiro para a estrutura que contém a descrição da tupla
+     *
+     * tuple_desc é utilizado ao se retornar tuplas (ou seja, tipos de dado
+     * compostos), e somente é necessário se as tuplas forem ser construídas
+     * utilizando heap_formtuple() em vez de BuildTupleFromCStrings().
+     * Deve ser observado que o ponteiro armazenado aqui geralmente deve
+     * ser processado primeiro por BlessTupleDesc().
+     */
+    TupleDesc tuple_desc;
+
+} FuncCallContext;
+</programlisting>
+    </para>
+
+    <para>
+     Uma <acronym>SRF</acronym> utiliza várias funções e macros que manipulam,
+     automaticamente, a estrutura <structname>FuncCallContext</structname>
+     (e esperam encontrá-la via <literal>fn_extra</literal>). Deve ser utilizado
+<programlisting>
+SRF_IS_FIRSTCALL()
+</programlisting>
+     para determinar se a função está sendo chamada pela primeira vez, ou se
+     está sendo chamada novamente. Na primeira chamada (apenas) deve ser
+     utilizado
+<programlisting>
+SRF_FIRSTCALL_INIT()
+</programlisting>
+     para inicializar <structname>FuncCallContext</structname>. Em todas as
+     chamadas à função, incluindo a primeira, deve ser utilizado
+<programlisting>
+SRF_PERCALL_SETUP()
+</programlisting>
+     para configurar de forma apropriada o uso de
+     <structname>FuncCallContext</structname>, e limpar os dados retornados
+     deixados pela passagem anterior.
+    </para>
+
+    <para>
+     Se a função tiver dados a serem retornados, deve ser utilizado
+<programlisting>
+SRF_RETURN_NEXT(funcctx, resultado)
+</programlisting>
+     para retornar a quem chamou (<literal>resultado</literal> deve ser do tipo
+     <type>Datum</type>, tanto para um único valor quanto para uma tupla
+     preparada conforme descrito acima). Por fim, quando a função terminar de
+     retornar os dados, deve ser utilizado
+<programlisting>
+SRF_RETURN_DONE(funcctx)
+</programlisting>
+     para limpar e terminar a <acronym>SRF</acronym>.
+    </para>
+
+    <para>
+     O contexto de memória corrente quando a <acronym>SRF</acronym> é chamada é
+     um contexto transiente que é limpo entre as chamadas. Isto significa que
+     não é necessário chamar <function>pfree</function> para tudo que foi
+     alocado usando <function>palloc</function>; vai desaparecer de qualquer
+     forma. Entretanto, se for desejado alocar estruturas de dados que
+     permaneçam existindo entre as chamadas, é necessário colocá-las em outro
+     lugar. O contexto de memória referenciado por
+     <structfield>multi_call_memory_ctx</structfield> é um local adequado para
+     todos os dados que precisam continuar existindo até que a
+     <acronym>SRF</acronym> termine sua execução. Na maioria dos casos, isto
+     significa que é necessário trocar para
+     <structfield>multi_call_memory_ctx</structfield> ao ser feita a
+     configuração na primeira chamada.
+    </para>
+
+    <para>
+     Um exemplo de pseudocódigo completo se parece com o seguinte:
+<programlisting>
+Datum
+minha_funcao_retornando_conjunto(PG_FUNCTION_ARGS)
+{
+    FuncCallContext  *funcctx;
+    Datum             resultado;
+    MemoryContext     contexto_antigo;
+    <replaceable>mais declarações que se fizerem necessárias</replaceable>
+
+    if (SRF_IS_FIRSTCALL())
+    {
+        funcctx = SRF_FIRSTCALL_INIT();
+        contexto_antigo = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
+        /* O código de configuração de uma única vez aparece aqui: */
+        <replaceable>código do usuário</replaceable>
+        <replaceable>se retorna tipo composto</replaceable>
+            <replaceable>preparar TupleDesc e, talvez, AttInMetadata</replaceable>
+        <replaceable>fim se retorna tipo composto</replaceable>
+        <replaceable>código do usuário</replaceable>
+        MemoryContextSwitchTo(contexto_antigo);
+    }
+
+    /* O código de configuração para cada uma das chamadas aparece aqui: */
+    <replaceable>código do usuário</replaceable>
+    funcctx = SRF_PERCALL_SETUP();
+    <replaceable>código do usuário</replaceable>
+
+    /* esta é apenas uma forma possível de testar se terminou: */
+    if (funcctx-&gt;call_cntr &lt; funcctx-&gt;max_calls)
+    {
+        /* Aqui se deseja retornar outro item: */
+        <replaceable>código do usuário</replaceable>
+        <replaceable>obter o Datum resultado</replaceable>
+        SRF_RETURN_NEXT(funcctx, resultado);
+    }
+    else
+    {
+        /* Aqui terminou o retorno de itens e só é necessário fazer a limpeza: */
+        <replaceable>código do usuário</replaceable>
+        SRF_RETURN_DONE(funcctx);
+    }
+}
+</programlisting>
+    </para>
+
+    <para>
+     Um exemplo completo de uma <acronym>SRF</acronym> simples retornando um
+     tipo composto se parece com:
+<programlisting>
+PG_FUNCTION_INFO_V1(teste_de_passado_por_valor);
+
+Datum
+teste_de_passado_por_valor(PG_FUNCTION_ARGS)
+{
+    FuncCallContext     *funcctx;
+    int                  call_cntr;
+    int                  max_calls;
+    TupleDesc            tupdesc;
+    AttInMetadata       *attinmeta;
+
+     /* código executado apenas na primeira chamada a esta função */
+     if (SRF_IS_FIRSTCALL())
+     {
+        MemoryContext   contexto_antigo;
+
+        /* criar o contexto da função para persistência entre chamadas */
+        funcctx = SRF_FIRSTCALL_INIT();
+
+        /* mudar para o contexto de memória apropriado para várias chamadas à função */
+        contexto_antigo = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
+
+        /* número total de tuplas a serem retornadas */
+        funcctx-&gt;max_calls = PG_GETARG_UINT32(0);
+
+        /* construir a descrição de tupla para a tupla __teste_de_passado_por_valor */
+        tupdesc = RelationNameGetTupleDesc("__teste_de_passado_por_valor");
+
+        /*
+         * gerar metadados de atributos necessários posteriormente
+         * para produzir tuplas a partir de cadeias de caractere C
+         */
+        attinmeta = TupleDescGetAttInMetadata(tupdesc);
+        funcctx-&gt;attinmeta = attinmeta;
+
+        MemoryContextSwitchTo(contexto_antigo);
+    }
+
+    /* código executado em toda chamada a esta função */
+    funcctx = SRF_PERCALL_SETUP();
+
+    call_cntr = funcctx-&gt;call_cntr;
+    max_calls = funcctx-&gt;max_calls;
+    attinmeta = funcctx-&gt;attinmeta;
+
+    if (call_cntr &lt; max_calls)    /* fazer quando há mais a ser enviado */
+    {
+        char       **values;
+        HeapTuple    tuple;
+        Datum        resultado;
+
+        /*
+         * Preparar a matriz de valores para construir a tupla retornada.
+         * Deve ser uma matriz de cadeias de caracteres C a serem processadas
+         * posteriormente pelas funções de entrada dos tipos.
+         */
+        values = (char **) palloc(3 * sizeof(char *));
+        values[0] = (char *) palloc(16 * sizeof(char));
+        values[1] = (char *) palloc(16 * sizeof(char));
+        values[2] = (char *) palloc(16 * sizeof(char));
+
+        snprintf(values[0], 16, "%d", 1 * PG_GETARG_INT32(1));
+        snprintf(values[1], 16, "%d", 2 * PG_GETARG_INT32(1));
+        snprintf(values[2], 16, "%d", 3 * PG_GETARG_INT32(1));
+
+        /* construir a tupla */
+        tuple = BuildTupleFromCStrings(attinmeta, values);
+
+        /* colocar a tupla dentro do datum */
+        resultado = HeapTupleGetDatum(tuple);
+
+        /* limpeza (não é realmente necessário) */
+        pfree(values[0]);
+        pfree(values[1]);
+        pfree(values[2]);
+        pfree(values);
+
+        SRF_RETURN_NEXT(funcctx, resultado);
+    }
+    else    /* fazer quando não há mais nada a ser feito */
+    {
+        SRF_RETURN_DONE(funcctx);
+    }
+}
+</programlisting>
+
+     O código SQL para declarar esta função é:
+<programlisting>
+CREATE TYPE __teste_de_passado_por_valor AS (f1 integer, f2 integer, f3 integer);
+
+CREATE OR REPLACE FUNCTION teste_de_passado_por_valor(integer, integer)
+    RETURNS SETOF __teste_de_passado_por_valor
+    AS '<replaceable>nome_do_arquivo</replaceable>', 'teste_de_passado_por_valor'
+    LANGUAGE C IMMUTABLE STRICT;
+</programlisting>
+    </para>
+
+    <para>
+     Na distribuição do código fonte, o diretório
+     <filename class="directory">contrib/tablefunc</filename> contém mais
+     exemplos de funções que retornam conjunto.
+    </para>
+   </sect2>
+
+   <sect2 id="xfunc-c-polymorphic">
+    <title>Tipos polimórficos em argumentos e retorno</title>
+
+    <para>
+     As funções na linguagem C podem ser declaradas como recebendo e retornando
+     os tipos polimórficos <type>anyelement</type> e <type>anyarray</type>.
+     Para obter uma explicação mais detalhada das funções polimórficas deve ser
+     vista <xref linkend="extend-types-polymorphic">.
+     Quando o tipo do argumento da função ou do valor retornado é declarado
+     como polimórfico, o autor da função não pode saber antecipadamente com que
+     tipo de dado a função será chamada, ou usado no retorno. Existem duas
+     rotinas fornecidas em <filename>fmgr.h</filename> que permitem uma função
+     versão-1 descobrir o tipo de dado verdadeiro de seus argumentos, e o tipo
+     de dado esperado no retorno. As rotinas se chamam
+     <literal>get_fn_expr_rettype(FmgrInfo *flinfo)</literal> e
+     <literal>get_fn_expr_argtype(FmgrInfo *flinfo, int argnum)</literal>.
+     Retornam o OID do tipo do argumento ou do resultado, ou
+     <symbol>InvalidOid</symbol> se a informação não estiver disponível.
+     A estrutura <literal>flinfo</literal> normalmente é acessada por
+     <literal>fcinfo-&gt;flinfo</literal>. O parâmetro <literal>argnum</literal>
+     começa por zero.
+    </para>
+
+    <para>
+     Por exemplo, suponha que se deseje escrever uma função que aceite um único
+     elemento de qualquer tipo, e retorne uma matriz unidimensional deste tipo:
+
+<programlisting>
+PG_FUNCTION_INFO_V1(constroi_matriz);
+Datum
+constroi_matriz(PG_FUNCTION_ARGS)
+{
+    ArrayType  *resultado;
+    Oid         tipo_do_elemento = get_fn_expr_argtype(fcinfo-&gt;flinfo, 0);
+    Datum       elemento;
+    int16       typlen;
+    bool        typbyval;
+    char        typalign;
+    int         ndims;
+    int         dims[MAXDIM];
+    int         lbs[MAXDIM];
+
+    if (!OidIsValid(tipo_do_elemento))
+        elog(ERROR, "não foi possível determinar o tipo de dado de entrada");
+
+    /* obter o elemento fornecido */
+    element = PG_GETARG_DATUM(0);
+
+    /* temos uma dimensão */
+    ndims = 1;
+    /* e um elemento */
+    dims[0] = 1;
+    /* e o limite inferior é 1 */
+    lbs[0] = 1;
+
+    /* obter as informações requeridas sobre o tipo do elemento */
+    get_typlenbyvalalign(tipo_do_elemento, &amp;typlen, &amp;typbyval, &amp;typalign);
+
+    /* construir a matriz */
+    resultado = construct_md_array(&amp;elemento, ndims, dims, lbs,
+                                   tipo_do_elemento, typlen, typbyval, typalign);
+
+    PG_RETURN_ARRAYTYPE_P(resultado);
+}
+</programlisting>
+    </para>
+
+    <para>
+     O seguinte comando declara a função <function>constroi_matriz</function>
+     no SQL:
+
+<programlisting>
+CREATE FUNCTION constroi_matriz(anyelement) RETURNS anyarray
+    AS '<replaceable>DIRETÓRIO</replaceable>/funcs', 'constroi_matriz'
+    LANGUAGE C STRICT;
+</programlisting>
+
+     Deve ser observada a utilização de <literal>STRICT</literal>; isto é
+     essencial uma vez que código não se importa em testar entrada nula.
+    </para>
+   </sect2>
+
+&cfunc;
+
+  </sect1>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

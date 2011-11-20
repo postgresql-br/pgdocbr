@@ -1,0 +1,95 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/commit_prepared.sgml,v 1.3 2006/09/16 00:30:17 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-COMMIT-PREPARED">
+ <refmeta>
+  <refentrytitle id="sql-commit-prepared-title">COMMIT PREPARED</refentrytitle>
+  <refmiscinfo>SQL - Instruções da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>COMMIT PREPARED</refname>
+  <refpurpose>efetiva uma transação previamente preparada para uma efetivação de duas fases</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-commit-prepared">
+  <primary>COMMIT PREPARED</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+COMMIT PREPARED <replaceable class="parameter">id_transação</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>COMMIT PREPARED</command> efetiva uma transação que se
+   encontra no estado preparado.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">id_transação</replaceable></term>
+    <listitem>
+     <para>
+      O identificador de transação da transação a ser efetivada.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Para efetivar uma transação preparada é necessário ser o mesmo usuário
+   que executou a transação originalmente, ou ser um superusuário, mas não
+   é necessário estar na mesma sessão que executou a transação.
+  </para>
+
+  <para>
+   Este comando não pode ser executado dentro de um bloco de transação.
+   A transação preparada é efetivada imediatamente.
+  </para>
+
+  <para>
+   A visão do sistema
+   <link linkend="view-pg-prepared-xacts">
+   <database class="table">pg_prepared_xacts</database></link>
+   mostra todas as transações preparadas disponíveis no momento.
+  </para>
+ </refsect1>
+
+ <refsect1 id="sql-commit-prepared-examples">
+  <title id="sql-commit-prepared-examples-title">Exemplos</title>
+  <para>
+   Efetivar a transação identificada pelo identificador de transação
+   <database>foobar</database>:
+
+<programlisting>
+COMMIT PREPARED 'foobar';
+</programlisting>
+  </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-prepare-transaction" endterm="sql-prepare-transaction-title"></member>
+   <member><xref linkend="sql-rollback-prepared" endterm="sql-rollback-prepared-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>

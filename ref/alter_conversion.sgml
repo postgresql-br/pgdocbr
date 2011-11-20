@@ -1,0 +1,124 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/alter_conversion.sgml,v 1.5 2004/06/25 21:55:50 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-ALTERCONVERSION">
+ <refmeta>
+  <refentrytitle id="SQL-ALTERCONVERSION-TITLE">ALTER CONVERSION</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>ALTER CONVERSION</refname>
+  <refpurpose>altera a definição de uma conversão de codificação</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-alterconversion">
+  <primary>ALTER CONVERSION</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+ALTER CONVERSION <replaceable>nome</replaceable> RENAME TO <replaceable>novo_nome</replaceable>
+ALTER CONVERSION <replaceable>nome</replaceable> OWNER TO <replaceable>novo_dono</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>ALTER CONVERSION</command> altera a definição de uma
+   conversão de codificação.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) de uma conversão existente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">novo_nome</replaceable></term>
+    <listitem>
+     <para>
+      O novo nome da conversão.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">novo_dono</replaceable></term>
+    <listitem>
+     <para>
+      O novo dono da conversão.
+      É necessário ser um superusuário para mudar o dono da conversão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para mudar o nome da conversão de <literal>iso_8859_1_to_utf_8</literal> para
+   <literal>latin1_to_unicode</literal>:
+<programlisting>
+ALTER CONVERSION iso_8859_1_to_utf_8 RENAME TO latin1_to_unicode;
+</programlisting>
+  </para>
+
+  <para>
+   Mudar o dono da conversão <literal>iso_8859_1_to_utf_8</literal> para
+   <literal>joel</literal>:
+<programlisting>
+ALTER CONVERSION iso_8859_1_to_utf_8 OWNER TO joel;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Não existe o comando <command>ALTER CONVERSION</command> no padrão SQL.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createconversion" endterm="sql-createconversion-title"></member>
+   <member><xref linkend="sql-dropconversion" endterm="sql-dropconversion-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

@@ -1,0 +1,119 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/drop_index.sgml,v 1.21 2003/11/29 19:51:38 pgsql Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-DROPINDEX">
+ <refmeta>
+  <refentrytitle id="SQL-DROPINDEX-TITLE">DROP INDEX</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>DROP INDEX</refname>
+  <refpurpose>remove um índice</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-dropindex">
+  <primary>DROP INDEX</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+DROP INDEX <replaceable class="parameter">nome</replaceable> [, ...] [ CASCADE | RESTRICT ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>DROP INDEX</command> remove do sistema de banco
+   de dados um índice existente. Para executar este comando é necessário
+   ser o dono do índice.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) do índice a ser removido.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>CASCADE</literal></term>
+    <listitem>
+     <para>
+      Remove automaticamente os objetos que dependem do índice.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>RESTRICT</literal></term>
+    <listitem>
+     <para>
+      Não permite remover o índice caso existam objetos que dependam
+      do mesmo. Este é o padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   O comando a seguir remove o índice <literal>idx_titulo</literal>:
+
+<programlisting>
+DROP INDEX idx_titulo;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>DROP INDEX</command> é uma extensão do
+   <productname>PostgreSQL</productname> à linguagem.
+   O padrão SQL não trata de índices.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createindex" endterm="sql-createindex-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>
+
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

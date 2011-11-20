@@ -1,0 +1,62 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/ref/checkpoint.sgml,v 1.14 2006/09/16 00:30:17 momjian Exp $ -->
+
+<refentry id="sql-checkpoint">
+ <refmeta>
+  <refentrytitle id="sql-checkpoint-title">CHECKPOINT</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CHECKPOINT</refname>
+  <refpurpose>força um ponto de controle no registro de transação</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-checkpoint">
+  <primary>CHECKPOINT</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CHECKPOINT
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   É colocado, periodicamente, um ponto de controle (<literal>checkpoint</literal>) no
+   <firstterm>registro prévio da escrita</firstterm>
+   (<acronym>WAL</acronym> = <firstterm>write ahead logging</firstterm>);
+   para ajustar o intervalo do ponto de controle automático devem ser
+   consultados os parâmetros de configuração em tempo de execução
+   <xref linkend="guc-checkpoint-segments"> e
+   <xref linkend="guc-checkpoint-timeout">.
+   Ao ser executado, o comando <command>CHECKPOINT</command> força um ponto de
+   controle imediato, sem aguardar o ponto de controle agendado.
+  </para>
+
+  <para>
+   Um ponto de controle é um ponto na seqüência de registros de transação onde
+   todos os arquivos de dados são atualizados para refletir as informações
+   registradas. Todos os dados são descarregados (<literal>flushed</literal>)
+   no disco. Para obter informações adicionais sobre o sistema
+   <literal>WAL</literal> deve ser consultado o <xref linkend="wal">.
+  </para>
+
+  <para>
+   Somente os superusuários podem executar o comando
+   <command>CHECKPOINT</command>.
+   Este comando não foi feito para ser utilizado durante a operação normal.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>CHECKPOINT</command> é uma extensão
+   do <productname>PostgreSQL</productname> à linguagem.
+  </para>
+ </refsect1>
+</refentry>

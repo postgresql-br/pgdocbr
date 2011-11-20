@@ -1,0 +1,161 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/begin.sgml,v 1.35 2007/01/31 23:26:02 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-BEGIN">
+ <refmeta>
+  <refentrytitle id="SQL-BEGIN-TITLE">BEGIN</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>BEGIN</refname>
+  <refpurpose>inicia um bloco de transação</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-begin">
+  <primary>BEGIN</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+BEGIN [ WORK | TRANSACTION ] [ <replaceable class="parameter">modo_da_transação</replaceable> [, ...] ]
+
+onde <replaceable class="parameter">modo_da_transação</replaceable> é um entre:
+
+    ISOLATION LEVEL { SERIALIZABLE | REPEATABLE READ | READ COMMITTED | READ UNCOMMITTED }
+    READ WRITE | READ ONLY
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>BEGIN</command> inicia um bloco de transação, ou seja,
+   todos os comandos após o <command>BEGIN</command> são executados em uma única
+   transação, até ser encontrado um
+   <xref linkend="sql-commit" endterm="sql-commit-title"> ou
+   <xref linkend="sql-rollback" endterm="sql-rollback-title"> explícito.
+   Por padrão (sem o <command>BEGIN</command>), o
+   <productname>PostgreSQL</productname> executa as transações no modo
+   de auto-efetivação (<literal>autocommit</literal>), ou seja, cada comando é
+   executado em sua própria transação e uma efetivação
+   (<literal>commit</literal>) é realizada implicitamente no fim do comando, se
+   a execução for bem-sucedida, senão a transação é desfeita
+   (<literal>rollback</literal>).
+  </para>
+
+  <para>
+   Os comandos são executados mais rapidamente em um bloco de transação, porque
+   cada início/efetivação de transação requer uma atividade significativa de CPU
+   e de disco. A execução de vários comandos dentro de uma transação também é
+   útil para garantir a consistência ao se fazer várias modificações
+   relacionadas: as outras sessões não conseguem ver os estados intermediários
+   até que todas as modificações relacionadas tenham sido sido feitas.
+  </para>
+
+  <para>
+   Se for especificado o nível de isolamento, ou o modo de leitura/escrita,
+   a nova transação possuirá estas características, como se
+   <xref linkend="sql-set-transaction" endterm="sql-set-transaction-title">
+   tivesse sido executado.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><literal>WORK</literal></term>
+    <term><literal>TRANSACTION</literal></term>
+    <listitem>
+     <para>
+      Palavras chave opcionais. Não produzem nenhum efeito.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+
+  <para>
+   Consulte <xref linkend="sql-set-transaction"
+   endterm="sql-set-transaction-title"> para obter informações sobre o
+   significado dos outros parâmetros deste comando.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   <xref linkend="sql-start-transaction"
+   endterm="sql-start-transaction-title"> possui a mesma funcionalidade do
+   <command>BEGIN</command>.
+  </para>
+
+  <para>
+   Use <xref linkend="SQL-COMMIT" endterm="SQL-COMMIT-TITLE"> ou
+   <xref linkend="SQL-ROLLBACK" endterm="SQL-ROLLBACK-TITLE">
+   para terminar um bloco de transação.
+  </para>
+
+  <para>
+   Executar o <command>BEGIN</command> dentro de um bloco de transação
+   provoca uma mensagem de advertência. O estado da transação não é afetado.
+   Para aninhar transações dentro de um bloco de transação use pontos de
+   salvamento
+   (consulte <xref linkend="sql-savepoint" endterm="sql-savepoint-title">).
+  </para>
+
+  <para>
+   Por motivo de compatibilidade podem ser omitidas as vírgulas entre
+   <replaceable class="parameter">transaction_modes</replaceable>
+   sucessivos.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para iniciar um bloco de transação:
+
+<programlisting>
+BEGIN;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>BEGIN</command> é uma extensão do
+   <productname>PostgreSQL</productname> à linguagem.
+   É equivalente ao comando
+   <xref linkend="sql-start-transaction" endterm="sql-start-transaction-title">
+   do padrão SQL, cuja página de referência contém informações adicionais
+   sobre compatibilidade.
+  </para>
+
+  <para>
+    Por coincidência, a palavra chave <literal>BEGIN</literal> é utilizada com
+    uma finalidade diferente na linguagem SQL incorporada. Deve ser tomado muito
+    cuidado com relação à semântica da transação ao migrar aplicativos de banco
+    de dados.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-commit" endterm="sql-commit-title"></member>
+   <member><xref linkend="sql-rollback" endterm="sql-rollback-title"></member>
+   <member><xref linkend="sql-start-transaction" endterm="sql-start-transaction-title"></member>
+   <member><xref linkend="sql-savepoint" endterm="sql-savepoint-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

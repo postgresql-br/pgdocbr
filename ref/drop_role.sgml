@@ -1,0 +1,125 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/drop_role.sgml,v 1.5 2006/09/16 00:30:18 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-DROPROLE">
+ <refmeta>
+  <refentrytitle id="SQL-DROPROLE-TITLE">DROP ROLE</refentrytitle>
+  <refmiscinfo>SQL - Instruções da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>DROP ROLE</refname>
+  <refpurpose>remove um papel do banco de dados</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-droprole">
+  <primary>DROP ROLE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+DROP ROLE [ IF EXISTS ] <replaceable class="parameter">nome</replaceable> [, ...]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>DROP ROLE</command> remove os papéis especificados.
+   Para remover um papel superusuário, é necessário ser um superusuário;
+   para remover papéis que não são superusuário, é necessário possuir o
+   privilégio <literal>CREATEROLE</>.
+  </para>
+
+  <para>
+   O papel não poderá ser removido se ainda estiver sendo referenciado em
+   qualquer banco de dados do agrupamento; será lançado um erro se for tentado.
+   Antes de remover o papel é necessário remover todos os objetos pertencentes
+   ao mesmo (ou mudar o dono), e revogar todos os privilégios concedidos pelo
+   papel. Os comandos
+   <xref linkend="sql-reassign-owned" endterm="sql-reassign-owned-title"> e
+   <xref linkend="sql-drop-owned" endterm="sql-drop-owned-title">
+   podem ser úteis para esta finalidade.
+  </para>
+
+  <para>
+   Entretanto, não é necessário remover os status de membro do papel
+   relacionados ao papel; o comando <command>DROP ROLE</command> revoga,
+   automaticamente, todos os status de membro do papel de destino em outros
+   papéis, e dos outros papéis no papel de destino.
+   Os outros papéis não são removidos nem afetados de outra forma.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><literal>IF EXISTS</literal></term>
+    <listitem>
+     <para>
+      Não lança um erro se o papel não existir.
+      Neste caso é emitida uma notificação.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome do papel a ser removido.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   O <productname>PostgreSQL</productname> inclui o aplicativo
+   <xref linkend="APP-DROPUSER" endterm="APP-DROPUSER-title">
+   que possui a mesma funcionalidade deste comando (na verdade, chama
+   internamente este comando), mas que pode ser executado a partir da
+   linha de comando do interpretador de comandos.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para remover um papel:
+<programlisting>
+DROP ROLE josefina;
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O padrão <acronym>SQL</> define o comando <command>DROP ROLE</>, mas permite
+   remover apenas um papel de cada vez, e especifica requisitos de privilégio
+   diferentes dos utilizados pelo <productname>PostgreSQL</productname>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-createrole" endterm="sql-createrole-title"></member>
+   <member><xref linkend="sql-alterrole" endterm="sql-alterrole-title"></member>
+   <member><xref linkend="sql-set-role" endterm="sql-set-role-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>

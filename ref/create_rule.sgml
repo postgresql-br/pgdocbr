@@ -1,0 +1,271 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_rule.sgml,v 1.45 2005/01/04 00:39:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATERULE">
+ <refmeta>
+  <refentrytitle id="sql-createrule-title">CREATE RULE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE RULE</refname>
+  <refpurpose>cria uma regra de reescrita</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createrule">
+  <primary>CREATE RULE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE [ OR REPLACE ] RULE <replaceable class="parameter">nome</replaceable> AS ON <replaceable class="parameter">evento</replaceable>
+    TO <replaceable class="parameter">tabela</replaceable> [ WHERE <replaceable class="parameter">condição</replaceable> ]
+    DO [ ALSO | INSTEAD ] { NOTHING | <replaceable class="parameter">comando</replaceable> | ( <replaceable class="parameter">comando</replaceable> ; <replaceable class="parameter">comando</replaceable> ... ) }
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE RULE</command> cria uma
+   regra aplicada à tabela ou visão especificada.
+   O comando <command>CREATE OR REPLACE RULE</command>
+   cria uma regra, ou substitui uma regra existente
+   com mesmo nome, na tabela.
+  </para>
+
+  <para>
+   O sistema de regras do <productname>PostgreSQL</productname> permite definir
+   uma ação alternativa a ser realizada nas inclusões, atualizações ou exclusões
+   em tabelas do banco de dados. Sem entrar em detalhes, uma regra faz com que
+   comandos adicionais sejam executados quando um determinado comando é
+   executado em uma determinada tabela. Diferentemente, a regra
+   <literal>INSTEAD</literal> pode substituir um determinado comando por outro,
+   ou mesmo fazer com que o comando não seja executado. As regras também são
+   utilizadas para implementar as visões das tabelas. É importante perceber que
+   a regra é, na realidade, um mecanismo de transformação de comando, ou uma
+   macro de comando. A transformação acontece antes do início da execução do
+   comando. Se, na verdade, for desejada uma operação que dispare de forma
+   independente para cada linha física, provavelmente o que se deseja é um
+   gatilho, e não uma regra. Mais informações sobre o sistema de regras podem
+   ser obtidas no <xref linkend="rules">.
+  </para>
+
+  <para>
+   Atualmente, as regras <literal>ON SELECT</literal> devem ser regras
+   <literal>INSTEAD</literal> incondicionais, e devem possuir ações consistindo
+   de um único comando <command>SELECT</command>. Portanto, uma regra
+   <literal>ON SELECT</literal> tem por efeito transformar a tabela em uma
+   visão, cujo conteúdo visível são as linhas retornadas pelo comando
+   <command>SELECT</command> da regra, em vez do que está
+   armazenado na tabela (se houver alguma coisa). É considerado um estilo
+   melhor usar o comando <command>CREATE VIEW</command> do que criar uma tabela
+   real e definir uma regra <literal>ON SELECT</literal> para a mesma.
+  </para>
+
+  <para>
+   É possível criar a ilusão de uma visão atualizável definindo regras
+   <literal>ON INSERT</literal>, <literal>ON UPDATE</literal> e
+   <literal>ON DELETE</literal>, ou qualquer subconjunto destas que seja
+   suficiente para as finalidades desejadas, para substituir as ações de
+   atualização na visão por atualizações apropriadas em outras tabelas.
+  </para>
+
+  <para>
+    Existe algo a ser lembrado quando se tenta utilizar regras condicionais
+    para atualização de visões: é <emphasis>obrigatório</emphasis> haver uma
+    regra incondicional <literal>INSTEAD</literal> para cada ação que se deseja
+    permitir na visão. Se a regra for condicional, ou não for
+    <literal>INSTEAD</literal>, então o sistema continuará a rejeitar as
+    tentativas de realizar a ação de atualização, porque acha que poderá acabar
+    tentando realizar a ação sobre a tabela fictícia da visão em alguns casos.
+    Se for desejado tratar todos os casos úteis por meio de regras condicionais,
+    deve ser adicionada uma regra incondicional
+    <literal>DO INSTEAD NOTHING</literal> para garantir que o sistema sabe que
+    nunca será chamado para atualizar a tabela fictícia. Em seguida devem ser
+    criadas as regras condicionais não-<literal>INSTEAD</literal>; nos casos
+    onde se aplicam, se adicionam à ação padrão
+    <literal>INSTEAD NOTHING</literal>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">nome</replaceable></term>
+    <listitem>
+     <para>
+      O nome da regra a ser criada, devendo ser distinto do nome
+      de qualquer outra regra para a mesma tabela. Havendo
+      várias regras para a mesma tabela e mesmo tipo de evento,
+      estas regras são aplicadas na ordem alfabética dos nomes.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">evento</replaceable></term>
+    <listitem>
+     <para>
+      Evento é um entre <literal>SELECT</literal>,
+      <literal>INSERT</literal>, <literal>UPDATE</literal> e
+      <literal>DELETE</literal>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">tabela</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema)
+      da tabela ou da visão à qual a regra se aplica.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">condição</replaceable></term>
+    <listitem>
+     <para>
+      Qualquer expressão condicional <acronym>SQL</acronym> (retornando
+      <type>boolean</type>). A expressão condicional não pode fazer referência
+      a nenhuma tabela, exceto <literal>NEW</literal> e
+      <literal>OLD</literal>, e não pode conter funções de agregação.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><option>INSTEAD</option></term>
+    <listitem>
+     <para>
+      <literal>INSTEAD</literal> indica que os comandos devem ser executados
+      <emphasis>em vez dos</emphasis> (<literal>instead of</literal>) comandos originais.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><option>ALSO</option></term>
+    <listitem>
+     <para>
+      <literal>ALSO</literal> indica que os comandos devem ser executados
+      <emphasis>adicionalmente</emphasis> aos comandos originais.
+     </para>
+
+     <para>
+      Se não for especificado nem <literal>ALSO</literal> nem
+      <literal>INSTEAD</literal>, <literal>ALSO</literal>
+      é o padrão.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">comando</replaceable></term>
+    <listitem>
+     <para>
+      O comando ou comandos que compõem a ação da regra. Os comandos
+      válidos são <literal>SELECT</literal>,
+      <literal>INSERT</literal>, <literal>UPDATE</literal>,
+      <literal>DELETE</literal> e <literal>NOTIFY</literal>.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+
+  <para>
+   Dentro da <replaceable class="parameter">condição</replaceable> e do
+   <replaceable class="parameter">comando</replaceable>, os nomes especiais
+   de tabela <literal>NEW</literal> e <literal>OLD</literal> podem ser usados
+   para fazer referência aos valores na tabela referenciada.
+   O <literal>NEW</literal> é válido nas regras <literal>ON INSERT</literal> e
+   <literal>ON UPDATE</literal>, para fazer referência à nova linha sendo
+   inserida ou atualizada. O <literal>OLD</literal> é válido nas regras
+   <literal>ON UPDATE</literal> e <literal>ON DELETE</literal>,
+   para fazer referência à linha existente sendo atualizada ou excluída.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   É necessário possuir o privilégio <literal>RULE</literal> na tabela
+   para poder definir uma regra para a mesma.
+  </para>
+
+  <para>
+   É muito importante tomar cuidado para evitar regras circulares.
+   Por exemplo, embora as duas definições de regra abaixo
+   sejam aceitas pelo <productname>PostgreSQL</productname>, o
+   comando <command>SELECT</command> faz com que o
+   <productname>PostgreSQL</productname> relate um erro,
+   porque a consulta vai circular muitas vezes:
+
+<programlisting>
+CREATE RULE "_RETURN" AS
+    ON SELECT TO t1
+    DO INSTEAD
+        SELECT * FROM t2;
+
+CREATE RULE "_RETURN" AS
+    ON SELECT TO t2
+    DO INSTEAD
+        SELECT * FROM t1;
+
+SELECT * FROM t1;
+</programlisting>
+  </para>
+
+  <para>
+   Atualmente, se a ação da regra contiver um comando <command>NOTIFY</command>,
+   este comando <command>NOTIFY</command> será executado
+   incondicionalmente, ou seja, o <command>NOTIFY</command> será
+   emitido mesmo não havendo nenhuma linha onde a regra se aplique.
+   Por exemplo, em
+<programlisting>
+CREATE RULE me_notifique AS ON UPDATE TO minha_tabela DO ALSO NOTIFY minha_tabela;
+
+UPDATE minha_tabela SET nome = 'foo' WHERE id = 42;
+</programlisting>
+   um evento <command>NOTIFY</command> será enviado durante o
+   <command>UPDATE</command>, haja ou não alguma linha que corresponda à
+   condição <literal>id = 42</literal>. Esta é uma restrição da implementação
+   que deverá estar corrigida em versões futuras.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   O comando <command>CREATE RULE</command>
+   é uma extensão do <productname>PostgreSQL</productname> à linguagem,
+   assim como todo o sistema de reescrita de comandos.
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

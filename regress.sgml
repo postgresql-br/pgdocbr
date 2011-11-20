@@ -1,0 +1,429 @@
+<!-- $PostgreSQL: pgsql/doc/src/sgml/regress.sgml,v 1.45 2004/12/28 19:08:58 tgl Exp $ -->
+
+ <chapter id="regress">
+  <title id="regress-title">Testes de regressão</title>
+
+  <indexterm zone="regress">
+   <primary>testes de regressão</primary>
+  </indexterm>
+
+  <indexterm zone="regress">
+   <primary>teste</primary>
+  </indexterm>
+
+  <para>
+   Os testes de regressão compõem um conjunto detalhado de testes da
+   implementação da linguagem SQL no <productname>PostgreSQL</productname>.
+   São testadas as operações SQL padrão, assim como as funcionalidades
+   estendidas do <productname>PostgreSQL</productname>.
+  </para>
+
+  <sect1 id="regress-run">
+   <title>Execução dos testes</title>
+
+  <para>
+   Os testes de regressão podem ser executados em um servidor já instalado e
+   em funcionamento, ou utilizando uma instalação temporária dentro da árvore de
+   construção. Além disso, existem os modos <quote>paralelo</quote> e
+   <quote>seqüencial</quote> para execução dos testes. O modo seqüencial
+   executa cada um dos scripts de teste por vez, enquanto o modo paralelo
+   inicia vários processos servidor para executar grupos de teste em paralelo.
+   Os testes em paralelo dão a confiança de que a comunicação entre processos e
+   os bloqueios estão funcionando de forma correta. Por motivos históricos, os
+   testes seqüenciais são geralmente executados em uma instalação existente, e
+   o modo paralelo em uma instalação temporária, mas não há motivo técnico
+   para ser feito assim.
+  </para>
+
+  <para>
+   Para executar os testes de regressão após construir, mas antes de instalar,
+   deve ser digitado
+<screen>
+<userinput>gmake check</userinput>
+</screen>
+   no diretório de nível mais alto (Ou o diretório
+   <filename class="directory">src/test/regress</filename>
+   pode ser tornado o diretório corrente e o comando executado neste diretório).
+   Primeiro serão construídos vários arquivos auxiliares, como algumas funções
+   de gatilho de exemplo definidas pelo usuário e, depois, executado o script
+   condutor do teste. Ao final deve ser visto algo parecido com
+<screen>
+<computeroutput>
+======================
+ All 96 tests passed.
+======================
+</computeroutput>
+</screen>
+   ou, senão, uma nota sobre quais testes falharam. Deve ser vista a
+   <xref linkend="regress-evaluation"> abaixo antes de assumir que
+   <quote>failure</> representa um problema sério.
+  </para>
+
+   <para>
+    Uma vez que este método executa um servidor temporário, não funciona
+    quando se está logado como o usuário <literal>root</literal> (uma vez que o
+    servidor não inicializa sob o <literal>root</literal>).
+    Se foi feita a construção como <literal>root</literal>, não será necessário
+    começar tudo novamente. Em vez disto, deve ser feito com que o diretório do
+    teste de regressão possa ser escrito por algum outro usuário, se conectar
+    como este usuário, e recomeçar os testes. Por exemplo:
+<screen>
+<prompt>root# </prompt><userinput>chmod -R a+w src/test/regress</userinput>
+<prompt>root# </prompt><userinput>chmod -R a+w contrib/spi</userinput>
+<prompt>root# </prompt><userinput>su - joeuser</userinput>
+<prompt>joeuser$ </prompt><userinput>cd <replaceable>diretório_de_construção_de_nível_mais_alto</></userinput>
+<prompt>joeuser$ </prompt><userinput>gmake check</userinput>
+</screen>
+    (O único <quote>risco de segurança</quote> possível neste caso é a
+    possibilidade de outro usuário alterar os resultados do teste de regressão
+    sem que se saiba. Use o bom senso ao gerenciar permissões para usuários).
+   </para>
+   <para>
+    Como alternativa, os testes podem ser executados após a instalação.
+   </para>
+
+   <para>
+    Se o <productname>PostgreSQL</productname> for configurado para ser
+    instalado em um local onde existe uma instalação mais antiga do
+    <productname>PostgreSQL</productname>, e for executado
+    <literal>gmake check</literal> antes de instalar a nova versão, pode ser
+    que os testes falhem devido aos novos programas tentarem utilizar as
+    bibliotecas compartilhadas já instaladas (O sintoma típico é a reclamação
+    sobre símbolos não definidos). Se for desejado executar os testes antes de
+    sobrescrever a instalação antiga, será necessário fazer a construção
+    utilizando <literal>configure --disable-rpath</literal>. Entretanto, não se
+    recomenda que esta opção seja utilizada na instalação final.
+   </para>
+
+   <para>
+    O teste de regressão paralelo inicia alguns processos sob o ID do usuário.
+    Atualmente, a simultaneidade máxima são vinte scripts de teste em paralelo,
+    o que significa sessenta processos: para cada script de teste existe um
+    processo servidor, o <application>psql</application> e, geralmente, o
+    processo ancestral do interpretador de comandos que chamou o
+    <application>psql</application>. Portanto, se o sistema impõe limite para o
+    número de processos por usuário, certifique-se que este limite é de setenta
+    e cinco ou mais, senão podem acontecer falhas aleatórias no teste paralelo.
+    Se não houver condição de aumentar este limite, pode ser diminuído o grau de
+    paralelismo definindo o parâmetro <literal>MAX_CONNECTIONS</literal>.
+    Por exemplo,
+<screen>
+<userinput>gmake MAX_CONNECTIONS=10 check</userinput>
+</screen>
+    não executa mais de dez testes ao mesmo tempo.
+   </para>
+
+   <para>
+    Em alguns sistemas o interpretador de comandos padrão compatível com o
+    <literal>Bourne</literal> (<filename>/bin/sh</filename>) se confunde ao
+    gerenciar tantos processos descendentes em paralelo, podendo fazer com que
+    o teste paralelo trave ou falhe. Neste caso, deve ser especificado na
+    linha de comandos um interpretador de comandos compatível com o
+    <literal>Bourne</literal> diferente como, por exemplo:
+<screen>
+<userinput>gmake SHELL=/bin/ksh check</userinput>
+</screen>
+    Se não estiver disponível nenhum interpretador de comandos que não apresente
+    este problema, então este problema poderá ser contornado limitando o número
+    de conexões, conforme mostrado acima.
+   </para>
+
+  <para>
+   Para executar os testes após a instalação
+   <![%standalone-ignore;[ (consulte o <xref linkend="installation">)]]>,
+   deve ser inicializada a área de dados e ativado o servidor e depois,
+   <![%standalone-ignore;[conforme explicado no <xref linkend="runtime">, ]]>
+   deve ser digitado:
+<screen>
+<userinput>gmake installcheck</userinput>
+</screen>
+ou para o teste em paralelo
+<screen>
+<userinput>gmake installcheck-parallel</userinput>
+</screen>
+   Os testes esperam fazer contato com o servidor no hospedeiro local
+   no número de porta padrão, a menos que esteja especificado o contrário nas
+   variáveis de ambiente <envar>PGHOST</envar> e <envar>PGPORT</envar>.
+  </para>
+  </sect1>
+
+  <sect1 id="regress-evaluation">
+   <title>Avaliação dos testes</title>
+
+   <para>
+    Algumas instalações do <productname>PostgreSQL</productname>, devidamente
+    instaladas e inteiramente funcionais, podem <quote>falhar</quote> em alguns
+    testes de regressão por causa de algumas particularidades específicas da
+    plataforma, como a representação diferente do ponto flutuante ou do suporte
+    à zona horária. Atualmente a avaliação dos testes é feita simplesmente
+    usando o programa <command>diff</command>, para comparar os resultados
+    obtidos pelos testes com os resultados produzidos no sistema de referência
+    e, portanto, os testes são sensíveis a pequenas diferenças entre sistemas.
+    Quando for relatado que o teste <quote>falhou</quote>, sempre deve ser
+    examinada a diferença entre o resultado esperado e o resultado obtido;
+    pode-se descobrir que as diferenças não são significativas. Ainda assim, são
+    feitos esforços para manter os arquivos de referência idênticos entre todas
+    as plataformas suportadas, portanto deve-se esperar que todos os testes
+    seajm bem-sucedidos.
+   </para>
+
+   <para>
+    As saídas produzidas pelos testes de regressão ficam nos arquivos do
+    diretório <filename class="directory">src/test/regress/results</filename>.
+    Os scripts dos testes utilizam o programa <command>diff</command> para
+    comparar cada arquivo de saída produzido com a saída de referência
+    armazenada no diretório
+    <filename class="directory">src/test/regress/expected</filename>.
+    Todas as diferenças são salvas em
+    <filename>src/test/regress/regression.diffs</filename> para poderem ser
+    inspecionadas (ou pode ser executado o programa <command>diff</command>
+    diretamente, se for preferido).
+   </para>
+
+   <sect2>
+    <title>Diferenças nas mensagens de erro</title>
+
+    <para>
+     Alguns testes de regressão envolvem, intencionalmente, valores de entrada
+     inválidos. As mensagens de erro podem ser originadas pelo código do
+     <productname>PostgreSQL</productname>, ou pelas rotinas do sistema da
+     plataforma hospedeira. No último caso, as mensagens podem variar entre
+     plataformas, mas devem conter informações semelhantes. Estas diferenças
+     nas mensagens resultam em testes de regressão que <quote>falham</quote>,
+     mas que podem ser validados por inspeção.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Diferenças no idioma</title>
+
+    <para>
+     Se os testes forem executados em um servidor já instalado, que foi
+     inicializado com uma ordem de classificação das cadeias de caracteres
+     (<literal>LC_COLLATE</literal>) em um idioma diferente de C, então
+     podem haver diferenças por causa da ordem de classificação e falhas de
+     continuação. O conjunto de testes de regressão é configurado para tratar
+     este problema mediante arquivos de resultado alternativos, que juntos
+     podem tratar um grande número de idiomas. Por exemplo, para o teste
+     <literal>char</literal> o arquivo esperado <filename>char.out</filename>
+     trata os idiomas <literal>C</literal> e <literal>POSIX</literal>,
+     e o arquivo <filename>char_1.out</filename> trata vários outros
+     idiomas. O condutor do teste de regressão pega, automaticamente, o
+     melhor arquivo para fazer a comparação quando verifica se foi bem-sucedido,
+     e para computar as diferenças da falha (Isto significa que os testes de
+     regressão não conseguem detectar se os resultados são apropriados para o
+     idioma configurado. Os testes simplesmente pegam o arquivo de
+     resultado que melhor se adequar).
+    </para>
+
+    <para>
+     Se por alguma razão os arquivos esperados existentes não incluírem algum
+     idioma, é possível adicionar um novo arquivo. O esquema de nomes é
+     <literal><replaceable>nomedoteste</replaceable>_<replaceable>dígito</replaceable>.out</literal>.
+     O dígito utilizado não tem importância. Lembre-se que o condutor do teste
+     de regressão considera todos os arquivos deste tipo como sendo resultados
+     de teste igualmente válidos. Se os resultados do teste forem específicos
+     para alguma plataforma, em vez dessa abordagem deve ser utilizada a técnica
+     descrita na <xref linkend="regress-platform">.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Diferenças na data e hora</title>
+
+    <para>
+     Umas poucas consultas do teste <filename>horology</filename>
+     <footnote>
+      <para>
+       <literal>horology</literal> &mdash; A ciência da medição do tempo,
+       ou os princípios e a arte da construção de instrumentos para
+       medir e indicar porções do tempo, como relógios, cronômetros, etc.
+       Webster's Revised Unabridged Dictionary (1913) (N. do T.)
+      </para>
+     </footnote>
+     falham se forem executadas no dia de início ou de fim do horário de verão,
+     ou no dia seguinte aos mesmos. Estas consultas esperam que os intervalos
+     entre a meia-noite do dia anterior, a meia noite do dia, e a meia-noite do
+     dia seguinte, sejam de exatamente vinte e quatro horas &mdash; o que não
+     acontece se o início ou o fim do horário de verão ocorrer neste intervalo.
+    </para>
+
+    <note>
+     <para>
+      Uma vez que são utilizadas as regras de horário de verão
+      (<literal>daylight-saving time</literal>) dos EUA, este problema sempre
+      ocorre no primeiro domingo de abril, no último domingo de outubro, e nas
+      segundas-feiras seguintes, não importando quando o horário de verão começa
+      ou termina onde se vive. Deve ser observado, também, que este problema
+      aparece ou desaparece à meia-noite do Horário do Pacífico (UTC-7 ou
+      UTC-8), e não à meia-noite do horário local. Portanto, a falha pode
+      ocorrer no sábado ou durar até terça-feira dependendo de onde se vive.
+     </para>
+    </note>
+
+    <para>
+     A maior parte dos resultados de data e hora são dependentes da zona horária
+     do ambiente. Os arquivos de referência são gerados para a zona horária
+     <literal>PST8PDT</literal> (Berkeley, Califórnia), havendo falhas aparentes
+     se os testes não forem executados com esta definição de zona horária.
+     O condutor do teste de regressão define a variável de ambiente
+     <envar>PGTZ</envar> como <literal>PST8PDT</literal>, o que normalmente
+     garante resultados apropriados.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Diferenças no ponto flutuante</title>
+
+    <para>
+     Alguns testes incluem cálculos com números de ponto flutuante de 64 bits
+     (<type>double precision</type>) a partir de colunas das tabelas. Foram
+     observadas diferenças nos resultados quando estão envolvidas funções
+     matemáticas aplicadas a colunas do tipo <type>double precision</type>.
+     Os testes <literal>float8</literal> e <literal>geometry</literal> são
+     particularmente propensos a apresentar pequenas diferenças entre
+     plataformas, ou devido a opções diferentes de otimização do compilador.
+     São necessárias comparações utilizando o olho humano para determinar se
+     estas diferenças, que geralmente estão dez casas à direita do ponto
+     decimal, são significativas.
+    </para>
+
+    <para>
+     Alguns sistemas mostram menos zero como <literal>-0</literal>, enquanto
+     outros mostram simplesmente <literal>0</literal>.
+    </para>
+
+    <para>
+     Alguns sistemas sinalizam erros das funções <function>pow()</function> e
+     <function>exp()</function> de forma diferente da esperada
+     pelo código corrente do <productname>PostgreSQL</productname>.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Diferenças na ordem das linhas</title>
+
+    <para>
+     Podem ser encontradas diferenças onde as mesmas linhas são mostradas em uma
+     ordem diferente da que aparece no arquivo de comparação. Na maior parte das
+     vezes isto não é, a rigor, um erro. Os scripts de teste de regressão, em
+     sua maioria, não são tão refinados a ponto de utilizar a cláusula
+     <literal>ORDER BY</literal> em todos os comandos <literal>SELECT</literal>
+     e, portanto, a ordem das linhas do resultado não é bem definida, de acordo
+     com o texto de especificação do padrão SQL. Na prática, uma vez que se está
+     examinando as mesmas consultas sendo executadas nos mesmos dados pelo mesmo
+     programa, geralmente são obtidos resultados na mesma ordem em todas as
+     plataformas e, por isso, a ausência do <literal>ORDER BY</literal> não se
+     torna um problema. Entretanto, algumas consultas apresentam diferenças na
+     ordem das linhas entre plataformas (Diferenças na ordem das linhas também
+     podem ser ocasionadas pela definição de um idioma diferente de C).
+    </para>
+
+    <para>
+     Portanto, se houver diferença na ordem das linhas isto não é algo com que
+     devamos nos preocupar, a menos que a consulta possua uma cláusula
+     <literal>ORDER BY</literal> que esteja sendo violada. Mas, por favor,
+     informe de qualquer forma para que possamos adicionar a cláusula
+     <literal>ORDER BY</literal> a esta consulta em particular e, com isso,
+     eliminar a falsa <quote>falha</quote> nas próximas versões.
+    </para>
+
+    <para>
+     Deve-se estar querendo saber porque não se ordena explicitamente todas as
+     consultas dos testes de regressão imediatamente, para acabar com este
+     problema de uma vez e para sempre. A razão é que isto torna os testes de
+     regressão menos úteis, e não mais úteis, porque vão tender a utilizar tipos
+     de plano de consulta que produzem resultados ordenados, prejudicando
+     os planos que não o fazem.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>O teste <quote>random</quote></title>
+
+    <para>
+     O script do teste <literal>random</literal> tem por objetivo produzir
+     resultados aleatórios. Raramente isto faz com que o teste de regressão
+     <literal>random</literal> falhe. Ao ser digitado
+<programlisting>
+diff results/random.out expected/random.out
+</programlisting>
+     deve ser produzida somente uma, ou umas poucas linhas diferentes. Não
+     é necessário se preocupar com isto, a menos que o teste falhe
+     repetidamente.
+    </para>
+   </sect2>
+  </sect1>
+
+<!-- We might want to move the following section into the developer's guide. -->
+  <sect1 id="regress-platform">
+   <title>Arquivos de comparação específicos de plataformas</title>
+
+   <para>
+    Como alguns testes produzem resultados inerentes a uma determinada
+    plataforma, é disponibilizada uma maneira de fornecer arquivos de comparação
+    de resultados específicos para a plataforma. Com freqüência a mesma
+    discrepância se aplica a várias plataformas; em vez de fornecer arquivos de
+    comparação distintos para todas as plataformas, existe um arquivo de
+    mapeamento que define o arquivo de comparação a ser utilizado. Portanto,
+    para eliminar falsas <quote>falhas</quote> nos testes para uma determinada
+    plataforma, deve ser escolhido ou desenvolvido um arquivo de resultado
+    alternativo, e depois adicionada uma linha no arquivo de mapeamento, que é
+    o <filename>src/test/regress/resultmap</filename>.
+   </para>
+
+   <para>
+    Toda linha do arquivo de mapeamento possui a forma:
+<synopsis>
+nome_do_teste/padrão_de_plataforma=nome_do_arquivo_de_comparação
+</synopsis>
+    O nome do teste é simplesmente o nome do módulo de teste de regressão
+    específico. O padrão de plataforma é um padrão no estilo da ferramenta Unix
+    <command>expr</command> (ou seja, uma expressão regular com uma âncora
+    <literal>^</literal> implícita no início). Este padrão é comparado com o
+    nome da plataforma conforme exibido por <command>config.guess</command>,
+    seguido por <literal>:gcc</literal> ou <literal>:cc</literal>, dependendo se
+    for utilizado o compilador GNU ou o compilador nativo do sistema (nos
+    sistemas onde há diferença). O nome do arquivo de comparação é o nome do
+    arquivo de comparação de resultado substituto.
+   </para>
+
+   <para>
+    Por exemplo: alguns sistemas interpretam valores de ponto flutuante muito
+    pequenos como zero, em vez de informar um erro de <literal>underflow</>.
+    Isto causa algumas pequenas diferenças no teste de regressão
+    <filename>float8</filename>.
+    Por isso é fornecido um arquivo de comparação alternativo,
+    <filename>float8-small-is-zero.out</filename>, que inclui os resultados
+    esperados nestes sistemas. Para silenciar as mensagens falsas de
+    <quote>falha</quote> nas plataformas <systemitem>OpenBSD</systemitem>,
+    o arquivo <filename>resultmap</filename> inclui
+<programlisting>
+float8/i.86-.*-openbsd=float8-small-is-zero
+</programlisting>
+    que dispara em toda máquina para a qual a saída de
+    <command>config.guess</command> corresponde a <literal>i.86-.*-openbsd</>.
+    Outras linhas no arquivo <filename>resultmap</filename> selecionam arquivos
+    de comparação alternativos para outras plataformas conforme apropriado.
+   </para>
+
+  </sect1>
+
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

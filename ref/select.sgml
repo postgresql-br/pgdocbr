@@ -1,0 +1,1152 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/select.sgml,v 1.80.4.2 2005/04/22 15:53:27 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-SELECT">
+ <refmeta>
+  <refentrytitle id="sql-select-title">SELECT</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>SELECT</refname>
+  <refpurpose>retorna linhas de uma tabela ou de uma visão</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-select">
+  <primary>SELECT</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+SELECT [ ALL | DISTINCT [ ON ( <replaceable class="parameter">expressão</replaceable> [, ...] ) ] ]
+    * | <replaceable class="parameter">expressão</replaceable> [ AS <replaceable class="parameter">nome_de_saída</replaceable> ] [, ...]
+    [ FROM <replaceable class="parameter">item_do_from</replaceable> [, ...] ]
+    [ WHERE <replaceable class="parameter">condição</replaceable> ]
+    [ GROUP BY <replaceable class="parameter">expressão</replaceable> [, ...] ]
+    [ HAVING <replaceable class="parameter">condição</replaceable> [, ...] ]
+    [ { UNION | INTERSECT | EXCEPT } [ ALL ] <replaceable class="parameter">seleção</replaceable> ]
+    [ ORDER BY <replaceable class="parameter">expressão</replaceable> [ ASC | DESC | USING <replaceable class="parameter">operador</replaceable> ] [, ...] ]
+    [ LIMIT { <replaceable class="parameter">contador</replaceable> | ALL } ]
+    [ OFFSET <replaceable class="parameter">início</replaceable> ]
+    [ FOR UPDATE [ OF <replaceable class="parameter">nome_da_tabela</replaceable> [, ...] ] ]
+
+onde <replaceable class="PARAMETER">item_do_from</replaceable> pode ser um entre:
+
+    [ ONLY ] <replaceable class="parameter">nome_da_tabela</replaceable> [ * ] [ [ AS ] <replaceable class="parameter">aliás</replaceable> [ ( <replaceable class="parameter">aliás_de_coluna</replaceable> [, ...] ) ] ]
+    ( <replaceable class="parameter">seleção</replaceable> ) [ AS ] <replaceable class="parameter">aliás</replaceable> [ ( <replaceable class="parameter">aliás_de_coluna</replaceable> [, ...] ) ]
+    <replaceable class="parameter">nome_da_função</replaceable> ( [ <replaceable class="parameter">argumento</replaceable> [, ...] ] ) [ AS ] <replaceable class="parameter">aliás</replaceable> [ ( <replaceable class="parameter">aliás_de_coluna</replaceable> [, ...] | <replaceable class="parameter">definição_de_coluna</replaceable> [, ...] ) ]
+    <replaceable class="parameter">nome_da_função</replaceable> ( [ <replaceable class="parameter">argumento</replaceable> [, ...] ] ) AS ( <replaceable class="parameter">definição_de_coluna</replaceable> [, ...] )
+    <replaceable class="parameter">item_do_from</replaceable> [ NATURAL ] <replaceable class="parameter">tipo_de_junção</replaceable> <replaceable class="parameter">item_do_from</replaceable> [ ON <replaceable class="parameter">condição_de_junção</replaceable> | USING ( <replaceable class="parameter">coluna_de_junção</replaceable> [, ...] ) ]
+</synopsis>
+
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>SELECT</command> retorna linhas de uma ou mais tabelas.
+   O processamento geral do comando <command>SELECT</command> está descrito abaixo:
+
+   <orderedlist>
+    <listitem>
+     <para>
+      Todos os elementos da lista <literal>FROM</literal> são computados;
+      cada elemento na lista <literal>FROM</literal> é uma tabela real ou
+      virtual. Quando é especificado mais de um elemento na lista
+      <literal>FROM</literal>, é feita uma junção cruzada entre estes elementos
+      (Consulte a <xref linkend="sql-from" endterm="sql-from-title"> abaixo).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Se for especificada a cláusula <literal>WHERE</literal>, todas as linhas
+      que não satisfazem a condição são eliminadas da saída
+      (Consulte a <xref linkend="sql-where" endterm="sql-where-title"> abaixo).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Se for especificada a cláusula <literal>GROUP BY</literal>,
+      a saída é dividida em grupos de linhas que correspondem a um ou mais
+      valores. Se a cláusula <literal>HAVING</literal> estiver presente, são
+      eliminados os grupos que não satisfazem à condição especificada (Consulte
+      a <xref linkend="sql-groupby" endterm="sql-groupby-title"> e a
+      <xref linkend="sql-having" endterm="sql-having-title"> abaixo).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      As linhas de saída reais são computadas utilizando as expressões de saída
+      do comando <command>SELECT</command> para cada linha selecionada
+      (Consulte a <xref linkend="sql-select-list" endterm="sql-select-list-title">
+      abaixo).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Usando os operadores <literal>UNION</literal>,
+      <literal>INTERSECT</literal> e <literal>EXCEPT</literal> podem ser
+      combinadas as saídas de vários comandos <command>SELECT</command> para
+      formar um único conjunto de resultados.
+      O operador <literal>UNION</literal> retorna todas as linhas presentes em
+      um ou nos dois conjuntos de resultados.
+      O operador <literal>INTERSECT</literal> retorna todas as linhas presentes
+      nos dois conjuntos de resultados.
+      O operador <literal>EXCEPT</literal> retorna as linhas presentes no
+      primeiro conjunto de resultados mas não no segundo.
+      Em todos estes três casos as linhas duplicadas são eliminadas, a menos que
+      <literal>ALL</literal> seja especificado (Consulte a
+      <xref linkend="sql-union" endterm="sql-union-title">, a
+      <xref linkend="sql-intersect" endterm="sql-intersect-title"> e
+      <xref linkend="sql-except" endterm="sql-except-title"> abaixo).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Se for especificada a cláusula <literal>ORDER BY</literal>, as linhas
+      retornadas são classificadas segundo a ordem especificada. Se a cláusula
+      <literal>ORDER BY</literal> não for especificada, as linhas são retornadas
+      na ordem em que o sistema considerar mais rápido de produzir (Consulte a
+      <xref linkend="sql-orderby" endterm="sql-orderby-title"> abaixo).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      A cláusula <literal>DISTINCT</literal> remove do resultado as linhas
+      duplicadas.
+      A cláusula <literal>DISTINCT ON</literal> remove as linhas que
+      correspondem a todas as expressões especificadas.
+      A cláusula <literal>ALL</literal> (o padrão) retorna todas as linhas
+      candidatas, incluindo as duplicadas (Consulte a
+      <xref linkend="sql-distinct" endterm="sql-distinct-title"> abaixo).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Se for especificada a cláusula <literal>LIMIT</literal> ou a cláusula
+      <literal>OFFSET</literal>, o comando <command>SELECT</command>
+      retorna somente um subconjunto das linhas do resultado (Consulte a
+      <xref linkend="sql-limit" endterm="sql-limit-title"> abaixo).
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      A cláusula <literal>FOR UPDATE</literal> faz o comando
+      <command>SELECT</command> bloquear as linhas selecionadas
+      contra atualizações concorrentes (Consulte a
+      <xref linkend="sql-for-update" endterm="sql-for-update-title"> abaixo).
+     </para>
+    </listitem>
+   </orderedlist>
+  </para>
+
+  <para>
+   É necessário possuir o privilégio <literal>SELECT</literal> na tabela para
+   poder ler seus valores. A utilização de <literal>FOR UPDATE</literal> requer
+   também o privilégio <literal>UPDATE</literal>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <refsect2 id="SQL-FROM">
+   <title id="sql-from-title">Cláusula <literal>FROM</literal></title>
+
+   <para>
+    A cláusula <literal>FROM</literal> especifica uma ou mais tabelas
+    fonte para o comando <command>SELECT</command>. Se várias fontes forem
+    especificadas, o resultado será o produto cartesiano (junção cruzada) de
+    todas as fontes, mas normalmente são incluídas condições de qualificação
+    para restringir as linhas retornadas a um pequeno subconjunto do produto
+    cartesiano.
+   </para>
+
+   <para>
+    A cláusula <literal>FROM</literal> pode conter os seguintes elementos:
+    <variablelist>
+     <varlistentry>
+      <term><replaceable class="parameter">nome_da_tabela</replaceable></term>
+      <listitem>
+       <para>
+        O nome (opcionalmente qualificado pelo esquema) de uma tabela ou de uma
+        visão existente.
+        Se a cláusula <literal>ONLY</literal> for especificada, somente esta
+        tabela será varrida.
+        Se a cláusula <literal>ONLY</literal> não for especificada, esta tabela
+        e todas as suas tabelas descendentes (se existirem) serão varridas.
+        Pode ser anexado um <literal>*</literal> ao nome da tabela para indicar
+        que as tabelas descendentes devem ser varridas, mas na versão corrente
+        este é o comportamento padrão; nas versões anteriores a 7.1
+        o comportamento padrão era <literal>ONLY</literal>.
+        O comportamento padrão pode ser modificado mudando o valor da opção de
+        configuração <xref linkend="guc-sql-inheritance">.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">aliás</replaceable></term>
+      <listitem>
+       <para>
+        Um nome substituto para o item da cláusula <literal>FROM</literal>
+        contendo o aliás.
+        O aliás é utilizado para abreviar, ou para eliminar ambigüidade
+        em auto-junções (onde a mesma tabela é varrida várias vezes).
+        Quando se fornece um aliás, o nome verdadeiro da tabela ou da função
+        fica totalmente escondido; se, por exemplo, for declarado
+        <literal>FROM foo AS f</literal>, o restante do comando
+        <command>SELECT</command> deve fazer referência a este item do
+        <literal>FROM</literal> como <literal>f</literal>, e não como
+        <literal>foo</literal>.
+        Se for escrito um aliás, também pode ser escrita uma lista de aliases de
+        coluna para fornecer nomes substitutos para uma ou mais colunas da
+        tabela.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">seleção</replaceable></term>
+      <listitem>
+       <para>
+        Pode haver sub-<command>SELECT</command> na cláusula
+        <literal>FROM</literal>. Atua como se sua saída fosse criada como uma
+        tabela temporária pela duração deste único comando
+        <command>SELECT</command>.
+        Deve ser observado que o sub-<command>SELECT</command> deve estar entre
+        parênteses, e que <emphasis>deve</emphasis> ser especificado um aliás
+        para o mesmo.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">nome_da_função</replaceable></term>
+      <listitem>
+       <para>
+        Podem estar presentes na cláusula <literal>FROM</literal> chamadas de
+        função (É especialmente útil no caso das funções que retornam um
+        conjunto de resultados, mas pode ser usada qualquer função).
+        Atua como se a sua saída fosse criada como uma tabela temporária pela
+        duração deste único comando <command>SELECT</command>.
+        Também pode ser utilizado um aliás.
+        Se for escrito um aliás, também pode ser escrita uma lista de aliases de
+        coluna para fornecer nomes substitutos para um ou mais atributos do
+        tipo composto retornado pela função.
+        Se a função tiver sido definida como retornando o tipo de dado
+        <type>record</type> então deve estar presente um aliás, ou a palavra
+        chave <literal>AS</literal> seguida por uma lista de definições de
+        coluna na forma
+        <literal>( <replaceable
+        class="parameter">nome_de_coluna</replaceable> <replaceable
+        class="parameter">tipo_de_dado</replaceable> <optional>, ... </optional>
+        )</literal>. A lista de definições de coluna deve corresponder ao
+        número e tipo reais das colunas retornadas pela função.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><replaceable class="parameter">tipo_de_junção</replaceable></term>
+      <listitem>
+       <para>
+        Um entre
+        <itemizedlist>
+         <listitem>
+          <para><literal>[ INNER ] JOIN</literal></para>
+         </listitem>
+         <listitem>
+          <para><literal>LEFT [ OUTER ] JOIN</literal></para>
+         </listitem>
+         <listitem>
+          <para><literal>RIGHT [ OUTER ] JOIN</literal></para>
+         </listitem>
+         <listitem>
+          <para><literal>FULL [ OUTER ] JOIN</literal></para>
+         </listitem>
+         <listitem>
+          <para><literal>CROSS JOIN</literal></para>
+         </listitem>
+        </itemizedlist>
+
+        Para os tipos de junção <literal>INNER</literal> e
+        <literal>OUTER</literal> deve ser especificada uma condição de junção
+        designando exatamente um entre <literal>NATURAL</literal>,
+        <literal>ON <replaceable
+        class="parameter">condição_de_junção</replaceable></literal> ou
+        <literal>USING (<replaceable
+        class="parameter">coluna_de_junção</replaceable> [, ...])</literal>.
+        Veja abaixo o significado. Para <literal>CROSS JOIN</literal>,
+        nenhuma destas cláusulas pode estar presente.
+       </para>
+
+       <para>
+        A cláusula <literal>JOIN</literal> combina dois itens da cláusula
+        <literal>FROM</literal>.
+        Se for necessário devem ser utilizados parênteses para determinar a
+        ordem de aninhamento.
+        Na ausência de parênteses, a cláusula <literal>JOIN</literal> aninha da
+        esquerda para a direita.
+        Em todos os casos a cláusula <literal>JOIN</literal> tem nível de
+        precedência superior ao das vírgulas que separam os itens da cláusula
+        <literal>FROM</literal>.
+       </para>
+
+       <para>
+        <literal>CROSS JOIN</literal> e <literal>INNER JOIN</literal>
+        produzem um produto cartesiano simples, o mesmo resultado obtido
+        listando os dois itens no nível superior da cláusula <literal>FROM</literal>,
+        mas restrito pela condição de junção (se houver).
+        <literal>CROSS JOIN</literal> é equivalente a <literal>INNER JOIN ON
+        (TRUE)</literal>, ou seja, nenhuma linha é removida pela qualificação.
+        Estes tipos de junção são apenas uma notação conveniente, uma
+        vez que não fazem nada que não poderia ser feito usando simplesmente
+        <literal>FROM</literal> e <literal>WHERE</literal>.
+       </para>
+
+       <para>
+        <literal>LEFT OUTER JOIN</literal> retorna todas as linhas presentes no
+        produto cartesiano qualificado (ou seja, todas as linhas combinadas que
+        passam pela sua condição de junção), mais uma cópia de cada linha da
+        tabela à esquerda para a qual não há linha na tabela à direita que passe
+        pela condição de junção.
+        As linhas da tabela à esquerda são estendidas por toda a largura da
+        tabela de junção, inserindo valores nulos para as colunas da tabela à
+        direita.
+        Deve ser observado que somente a condição da própria cláusula
+        <literal>JOIN</literal> é considerada ao decidir quais linhas
+        possuem correspondência.
+        As condições externas são aplicadas depois.
+       </para>
+
+       <para>
+        De forma inversa, <literal>RIGHT OUTER JOIN</literal> retorna todas as
+        linhas da junção, mais uma linha para cada linha da tabela à direita sem
+        correspondência (estendida com nulos à esquerda).
+        É apenas uma notação conveniente, uma vez que pode ser convertido em
+        <literal>LEFT OUTER JOIN</literal> trocando as entradas à direita e à
+        esquerda.
+       </para>
+
+       <para>
+        <literal>FULL OUTER JOIN</literal> retorna todas as linhas da junção,
+        mais uma linha para cada linha da tabela à esquerda sem correspondência,
+        (estendida com nulos à direita), mais uma linha para cada linha da
+        tabela à direita sem correspondência (estendida com nulos à esquerda).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>ON <replaceable class="parameter">condição_de_junção</replaceable></literal></term>
+      <listitem>
+       <para>
+        A <replaceable class="parameter">condição_de_junção</replaceable> é
+        uma expressão que resulta em um valor do tipo
+        <type>boolean</type> (semelhante à cláusula <literal>WHERE</literal>)
+        que especifica quais linhas da junção são consideradas
+        correspondentes.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>USING (<replaceable class="parameter">coluna_de_junção</replaceable> [, ...])</literal></term>
+      <listitem>
+       <para>
+        A cláusula com a forma <literal>USING ( a, b, ... )</literal> é uma
+        abreviação de <literal>ON tabela_à_esquerda.a = tabela_à_direita.a AND
+        tabela_à_esquerda.b = tabela_à_direita.b ...</literal>.
+        <literal>USING</literal> também implica que somente será incluída na
+        saída da junção uma de cada par de colunas equivalentes, e não as duas.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>NATURAL</literal></term>
+      <listitem>
+       <para>
+        <literal>NATURAL</literal> é uma forma abreviada para a lista
+        <literal>USING</literal> mencionando todas as colunas das duas tabelas
+        que possuem o mesmo nome.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+  </refsect2>
+
+  <refsect2 id="SQL-WHERE">
+   <title id="sql-where-title">Cláusula <literal>WHERE</literal></title>
+
+   <para>
+    A cláusula opcional <literal>WHERE</literal> possui a forma geral
+<synopsis>
+WHERE <replaceable class="parameter">condição</replaceable>
+</synopsis>
+    onde <replaceable class="parameter">condição</replaceable> é
+    uma expressão que produz um resultado do tipo
+    <type>boolean</type>.
+    Todas as linhas que não satisfazem a esta
+    condição são eliminadas da saída. A linha satisfaz a
+    condição se retorna verdade quando os valores reais da linha
+    são colocados no lugar das variáveis que os referenciam.
+   </para>
+  </refsect2>
+
+  <refsect2 id="SQL-GROUPBY">
+   <title id="sql-groupby-title">Cláusula <literal>GROUP BY</literal></title>
+
+   <para>
+    A cláusula opcional <literal>GROUP BY</literal> possui a forma geral
+<synopsis>
+GROUP BY <replaceable class="parameter">expressão</replaceable> [, ...]
+</synopsis>
+   </para>
+
+   <para>
+    A cláusula <literal>GROUP BY</literal> condensa em uma única linha todas as
+    linhas selecionadas que compartilham os mesmos valores para as expressões
+    de agrupamento.
+    A <replaceable class="parameter">expressão</replaceable> pode ser o nome de
+    uma coluna da entrada, ou o nome ou o número ordinal de uma coluna da saída
+    (lista de itens do <command>SELECT</command>), ou uma expressão arbitrária
+    formada por valores das colunas da entrada.
+    Havendo ambigüidade, o nome na cláusula <literal>GROUP BY</literal> será
+    interpretado como sendo o nome da coluna da entrada, e não o nome da coluna
+    da saída.
+   </para>
+
+   <para>
+    As funções de agregação, caso sejam usadas, são computadas entre todas as
+    linhas que constituem cada grupo, produzindo um valor separado para cada
+    grupo (enquanto sem <literal>GROUP BY</literal>, uma agregação produz um
+    único valor computado entre todas as linhas selecionadas).
+    Quando <literal>GROUP BY</literal> está presente, não é válido a lista de
+    expressões do <command>SELECT</command> fazer referência a colunas
+    não agrupadas, exceto dentro das funções de agregação, uma vez que
+    haveria mais de um valor possível retornado para uma coluna não agrupada.
+   </para>
+  </refsect2>
+
+  <refsect2 id="SQL-HAVING">
+   <title id="sql-having-title">Cláusula <literal>HAVING</literal></title>
+
+   <para>
+    A cláusula opcional <literal>HAVING</literal> possui a forma geral
+<synopsis>
+HAVING <replaceable class="parameter">condição</replaceable>
+</synopsis>
+    onde <replaceable class="parameter">condição</replaceable>
+    é especificada da mesma forma que na cláusula <literal>WHERE</literal>.
+   </para>
+
+   <para>
+    A cláusula <literal>HAVING</literal> elimina os grupos de linhas que não
+    satisfazem a condição. A cláusula <literal>HAVING</literal> é diferente
+    da cláusula <literal>WHERE</literal>: <literal>WHERE</literal> filtra
+    individualmente as linhas antes do <literal>GROUP BY</literal> ser aplicado,
+    enquanto <literal>HAVING</literal> filtra grupos de linhas
+    criados pelo <literal>GROUP BY</literal>. Cada coluna referenciada na
+    <replaceable class="parameter">condição</replaceable> deve
+    referenciar sem ambigüidade uma coluna de agrupamento, a menos que a
+    referência apareça dentro de uma função de agregação.
+   </para>
+  </refsect2>
+
+  <refsect2 id="sql-select-list">
+   <title id="sql-select-list-title">Lista do <command>SELECT</command></title>
+
+   <para>
+    A lista do <command>SELECT</command> (entre as palavras chave
+    <literal>SELECT</literal> e <literal>FROM</literal>) especifica expressões
+    que formam as linhas de saída do comando <command>SELECT</command>.
+    As expressões podem (e geralmente fazem) referenciar colunas
+    computadas na cláusula <literal>FROM</literal>.
+    Usando a cláusula <literal>AS <replaceable
+    class="parameter">nome_de_saída</replaceable></literal>, pode ser
+    especificado outro nome para uma coluna da saída.
+    Este nome é usado, principalmente, como rótulo da coluna mostrada.
+    Também pode ser usado para fazer referência ao valor da coluna nas cláusulas
+    <literal>ORDER BY</literal> e <literal>GROUP BY</literal>, mas não nas
+    cláusulas <literal>WHERE</literal> e <literal>HAVING</literal>;
+    nestas, a expressão deve ser escrita.
+   </para>
+
+   <para>
+    Em vez da expressão pode ser escrito <literal>*</literal> na lista de saída,
+    como abreviação para todas as colunas das linhas selecionadas.
+    Também pode ser escrito <literal><replaceable
+    class="parameter">nome_da_tabela</replaceable>.*</literal> como
+    abreviação das colunas provenientes apenas desta tabela.
+   </para>
+  </refsect2>
+
+  <refsect2 id="SQL-UNION">
+   <title id="sql-union-title">Cláusula <literal>UNION</literal></title>
+
+   <para>
+    A cláusula <literal>UNION</literal> possui a forma geral
+<synopsis>
+<replaceable class="parameter">comando_de_seleção</replaceable> UNION [ ALL ] <replaceable class="parameter">comando_de_seleção</replaceable>
+</synopsis>
+    onde <replaceable class="parameter">comando_de_seleção</replaceable> é
+    qualquer comando <command>SELECT</command> sem as cláusulas <literal>ORDER
+    BY</literal>, <literal>LIMIT</literal> e <literal>FOR UPDATE</literal>
+    (as cláusulas <literal>ORDER BY</literal> e <literal>LIMIT</literal> podem
+    ser aplicadas a uma subexpressão se esta estiver entre parênteses.
+    Sem os parênteses, estas cláusulas são consideradas como aplicadas ao
+    resultado da cláusula <literal>UNION</literal>, e não à sua expressão de
+    entrada à direita).
+   </para>
+
+   <para>
+    O operador <literal>UNION</literal> computa o conjunto formado pela união
+    das linhas retornadas pelos comandos <command>SELECT</command> envolvidos.
+    Uma linha está presente no conjunto união dos dois conjuntos de resultados
+    se estiver presente em pelo menos um destes dois conjuntos de resultados.
+    Os dois comandos <command>SELECT</command> que representam os operandos
+    diretos do operador <literal>UNION</literal> devem produzir o mesmo número
+    de colunas, e as colunas correspondentes devem possuir tipos de dado
+    compatíveis.
+   </para>
+
+   <para>
+    O resultado do operador <literal>UNION</literal> não contém nenhuma linha
+    duplicada, a menos que a opção <literal>ALL</literal> seja especificada.
+    <literal>ALL</literal> não permite a eliminação das duplicatas; portanto,
+    <literal>UNION ALL</literal> geralmente é significativamente mais rápido do que
+    <literal>UNION</literal>; deve ser utilizado <literal>ALL</literal> se possível.
+   </para>
+
+   <para>
+    Havendo vários operadores <literal>UNION</literal> no mesmo comando
+    <command>SELECT</command>, estes são avaliados da esquerda para a direita,
+    a menos que os parênteses indiquem o contrário.
+   </para>
+
+   <para>
+    Atualmente não pode ser especificado <literal>FOR UPDATE</literal> nem para
+    o resultado do operador <literal>UNION</literal> nem para qualquer entrada
+    do operador <literal>UNION</literal>.
+   </para>
+  </refsect2>
+
+  <refsect2 id="SQL-INTERSECT">
+   <title id="sql-intersect-title">Cláusula <literal>INTERSECT</literal></title>
+
+   <para>
+    A cláusula <literal>INTERSECT</literal> possui a forma geral
+<synopsis>
+<replaceable class="parameter">comando_de_seleção</replaceable> INTERSECT [ ALL ] <replaceable class="parameter">comando_de_seleção</replaceable>
+</synopsis>
+    onde <replaceable class="parameter">comando_de_seleção</replaceable> é
+    qualquer comando <command>SELECT</command> sem as cláusulas <literal>ORDER
+    BY</literal>, <literal>LIMIT</literal> e <literal>FOR UPDATE</literal>.
+   </para>
+
+   <para>
+    O operador <literal>INTERSECT</literal> computa o conjunto formado pela
+    interseção das linhas retornadas pelos comandos <command>SELECT</command>
+    envolvidos. Uma linha está na interseção dos dois conjuntos de resultados
+    se estiver presente nos dois conjuntos de resultados.
+   </para>
+
+   <para>
+    O resultado do operador <literal>INTERSECT</literal> não contém nenhuma linha
+    duplicada, a menos que a opção <literal>ALL</literal> seja especificada.
+    Usando <literal>ALL</literal>, uma linha contendo <replaceable>m</replaceable>
+    duplicatas na tabela à esquerda e <replaceable>n</replaceable> duplicatas na tabela à
+    direita, aparece min(<replaceable>m</replaceable>,<replaceable>n</replaceable>) vezes no conjunto
+    de resultados.
+   </para>
+
+   <para>
+    Havendo vários operadores <literal>INTERSECT</literal> no mesmo comando
+    <command>SELECT</command>, estes são avaliados da esquerda para a direita,
+    a menos que os parênteses indiquem outra ordem.
+    O operador <literal>INTERSECT</literal> tem nível de precedência superior
+    ao do operador <literal>UNION</literal>, ou seja, <literal>A UNION B
+    INTERSECT C</literal> é lido como <literal>A UNION (B INTERSECT C)</literal>.
+   </para>
+
+   <para>
+    Atualmente a cláusula <literal>FOR UPDATE</literal> não pode ser especificada
+    para o resultado do operador <literal>INTERSECT</literal>, nem em qualquer
+    entrada do operador <literal>INTERSECT</literal>.
+   </para>
+  </refsect2>
+
+  <refsect2 id="SQL-EXCEPT">
+   <title id="sql-except-title">Cláusula <literal>EXCEPT</literal></title>
+
+   <para>
+    A cláusula <literal>EXCEPT</literal> possui a forma geral
+<synopsis>
+<replaceable class="parameter">comando_de_seleção</replaceable> EXCEPT [ ALL ] <replaceable class="parameter">comando_de_seleção</replaceable>
+</synopsis>
+    onde <replaceable class="parameter">comando_de_seleção</replaceable> é
+    qualquer comando <command>SELECT</command> sem as cláusulas <literal>ORDER
+    BY</literal>, <literal>LIMIT</literal> e <literal>FOR UPDATE</literal>.
+   </para>
+
+   <para>
+    O operador <literal>EXCEPT</literal> computa o conjunto de linhas
+    presentes no resultado do comando <command>SELECT</command> à esquerda,
+    mas que não estão presentes no resultado do comando à direita.
+   </para>
+
+   <para>
+    O resultado do operador <literal>EXCEPT</literal> não contém nenhuma linha
+    duplicada, a menos que a cláusula <literal>ALL</literal> seja especificada.
+    Usando <literal>ALL</literal>, uma linha que possua <replaceable>m</replaceable>
+    duplicatas na tabela à esquerda e <replaceable>n</replaceable> duplicatas na tabela à
+    direita aparece max(<replaceable>m</replaceable>-<replaceable>n</replaceable>,0) vezes no conjunto
+    de resultados.
+   </para>
+
+   <para>
+    Havendo vários operadores <literal>EXCEPT</literal> no mesmo comando
+    <command>SELECT</command>, estes são processados da esquerda para a direita,
+    a menos que os parênteses especifiquem outra ordem.
+    O operador <literal>EXCEPT</literal> possui o mesmo nível de precedência do
+    operador <literal>UNION</literal>.
+   </para>
+
+   <para>
+    Atualmente a cláusula <literal>FOR UPDATE</literal> não pode ser especificada
+    para o resultado do operador <literal>EXCEPT</literal>, nem em nenhuma entrada do
+    operador <literal>EXCEPT</literal>.
+   </para>
+  </refsect2>
+
+  <refsect2 id="SQL-ORDERBY">
+   <title id="sql-orderby-title">Cláusula <literal>ORDER BY</literal></title>
+
+   <para>
+    A cláusula opcional <literal>ORDER BY</literal> possui a forma geral
+<synopsis>
+ORDER BY <replaceable class="parameter">expressão</replaceable> [ ASC | DESC | USING <replaceable class="parameter">operador</replaceable> ] [, ...]
+</synopsis>
+    onde <replaceable class="parameter">expressão</replaceable> pode ser
+    o nome ou o número ordinal de uma coluna da saída
+    (item da lista do <command>SELECT</command>), ou pode ser uma
+    expressão arbitrária formada por valores das colunas da entrada.
+   </para>
+
+   <para>
+    A cláusula <literal>ORDER BY</literal> faz as linhas do resultado serem
+    classificadas de acordo com as expressões especificadas. Se duas linhas são
+    iguais de acordo com a expressão mais à esquerda, estas são comparadas
+    de acordo com a próxima expressão, e assim por diante. Se forem iguais
+    de acordo com todas as expressões especificadas, são retornadas
+    em uma ordem dependente da implementação.
+   </para>
+
+   <para>
+    O número ordinal se refere à posição ordinal (esquerda para a direita)
+    da coluna do resultado. Esta funcionalidade torna possível definir uma
+    ordenação baseada em uma coluna que não possui um nome único.
+    Isto nunca é absolutamente necessário, porque sempre é possível
+    atribuir um nome à coluna do resultado usando a cláusula
+    <literal>AS</literal>.
+   </para>
+
+   <para>
+    Também é possível utilizar expressões arbitrárias na cláusula
+    <literal>ORDER BY</literal>, incluindo colunas que não aparecem
+    na lista de resultado do <command>SELECT</command>. Portanto,
+    o seguinte comando é válido:
+<programlisting>
+SELECT nome FROM distribuidores ORDER BY codigo;
+</programlisting>
+    A limitação desta funcionalidade é que a cláusula
+    <literal>ORDER BY</literal> aplicada ao resultado de
+    <literal>UNION</literal>, <literal>INTERSECT</literal> ou
+    <literal>EXCEPT</literal> pode especificar apenas nomes de coluna ou
+    números, mas não expressões.
+   </para>
+
+   <para>
+    Se a expressão no <literal>ORDER BY</literal> for simplesmente um nome
+    correspondendo tanto ao nome de uma coluna do resultado quanto ao nome de
+    uma coluna da entrada, o <literal>ORDER BY</literal> interpreta como sendo
+    o nome da coluna do resultado.
+    Esta é a escolha oposta à feita pelo <literal>GROUP BY</literal> na
+    mesma situação. Esta incoerência existe para ficar compatível
+    com o padrão SQL.
+   </para>
+
+   <para>
+    Pode ser adicionada, opcionalmente, a palavra chave <literal>ASC</literal>
+    (ascendente) ou <literal>DESC</literal> (descendente) após cada expressão na
+    cláusula <literal>ORDER BY</literal>.
+    Se nenhuma das duas for especificada, <literal>ASC</literal> é assumido por
+    padrão.
+    Como alternativa, pode ser especificado o nome de um operador de ordenação
+    específico na cláusula <literal>USING</literal>.
+    Geralmente <literal>ASC</literal> é  equivalente a
+    <literal>USING &lt;</literal> e geralmente <literal>DESC</literal> é
+    equivalente a <literal>USING &gt;</literal> (Mas o criador de um tipo de
+    dado definido pelo usuário pode definir exatamente qual é a ordem de
+    classificação padrão, podendo corresponder a operadores com outros nomes).
+   </para>
+
+   <para>
+    O valor nulo é classificado em uma posição mais alta do que qualquer outro
+    valor.
+    Em outras palavras, na ordem de classificação ascendente os valores nulos
+    ficam no final, e na ordem de classificação descendente os valores nulos
+    ficam no início.
+   </para>
+
+   <para>
+    Dados na forma de cadeias de caracteres são classificados de acordo com a ordem
+    de classificação (<literal>collation</literal>)
+    estabelecida quando o agrupamento de bancos de dados foi inicializado.
+   </para>
+  </refsect2>
+
+  <refsect2 id="sql-distinct">
+   <title id="sql-distinct-title">Cláusula <literal>DISTINCT</literal></title>
+
+   <para>
+    Se for especificada a cláusula <literal>DISTINCT</literal>, todas as linhas
+    duplicadas são removidas do conjunto de resultados (é mantida uma linha para
+    cada grupo de duplicatas).
+    A cláusula <literal>ALL</literal> especifica o oposto: todas as linhas são
+    mantidas; este é o padrão.
+   </para>
+
+   <para>
+    <literal>DISTINCT ON ( <replaceable
+    class="parameter">expressão</replaceable> [, ...] )</literal>
+    preserva apenas a primeira linha de cada conjunto de linhas onde as
+    expressões fornecidas forem iguais. As expressões em
+    <literal>DISTINCT ON</literal> são interpretadas usando as mesmas regras da
+    cláusula <literal>ORDER BY</literal> (veja acima). Deve ser observado que a
+    <quote>primeira linha</quote> de cada conjunto é imprevisível, a menos que
+    seja utilizado <literal>ORDER BY</literal> para garantir que a linha
+    desejada apareça na frente. Por exemplo,
+<programlisting>
+SELECT DISTINCT ON (local) local, data, condicao
+    FROM tbl_condicao_climatica
+    ORDER BY local, data DESC;
+</programlisting>
+    mostra o relatório de condição climática mais recente para cada local, mas
+    se não tivesse sido usado <literal>ORDER BY</literal> para obrigar a
+    ordem descendente dos valores da data para cada local, teria sido
+    obtido um relatório com datas imprevisíveis para cada local.
+   </para>
+
+   <para>
+    As expressões em <literal>DISTINCT ON</literal> devem corresponder às
+    expressões mais à esquerda no <literal>ORDER BY</literal>. A cláusula
+    <literal>ORDER BY</literal> normalmente contém expressões adicionais para
+    determinar a precedência desejada das linhas dentro de cada grupo
+    <literal>DISTINCT ON</literal>.
+   </para>
+  </refsect2>
+
+  <refsect2 id="SQL-LIMIT">
+   <title id="sql-limit-title">Cláusula <literal>LIMIT</literal></title>
+
+   <para>
+    A cláusula <literal>LIMIT</literal> consiste em duas
+    subcláusulas independentes:
+<synopsis>
+LIMIT { <replaceable class="parameter">contador</replaceable> | ALL }
+OFFSET <replaceable class="parameter">início</replaceable>
+</synopsis>
+    onde <replaceable class="parameter">contador</replaceable> especifica o
+    número máximo de linhas a serem retornadas, enquanto <replaceable
+    class="parameter">início</replaceable> especifica o número de linhas
+    a serem puladas antes de começar a retornar as linhas.
+    Quando as duas são especificadas, as
+    <replaceable class="parameter">início</replaceable> primeiras linhas são
+    puladas antes de começar a contar as
+    <replaceable class="parameter">contador</replaceable> linhas a serem
+    retornadas.
+   </para>
+
+   <para>
+    Ao se usar a cláusula <literal>LIMIT</literal> é uma boa idéia usar também
+    a cláusula <literal>ORDER BY</literal> para colocar as linhas do resultado
+    dentro de uma ordem única.
+    Caso contrário será retornado um subconjunto imprevisível de linhas da
+    consulta &mdash; pode-se estar querendo receber da décima a vigésima linha,
+    mas da décima a vigésima em que ordem? Não é possível  saber qual será a
+    ordem, a não ser que <literal>ORDER BY</literal> seja especificado.
+   </para>
+
+   <para>
+    O planejador de comandos leva <literal>LIMIT</literal> em consideração
+    ao gerar o plano da consulta, por isso é muito provável serem obtidos planos
+    diferentes (produzindo linhas em ordens diferentes) dependendo do que for
+    especificado para <literal>LIMIT</literal> e <literal>OFFSET</literal>.
+    Portanto, utilizar valores diferentes para
+    <literal>LIMIT</literal>/<literal>OFFSET</literal> para selecionar
+    subconjuntos diferentes do resultado da consulta <emphasis>produz
+    resultados inconsistentes</emphasis>, a não ser que seja exigida uma ordem
+    previsível para os resultados utilizando <literal>ORDER BY</literal>.
+    Isto não está errado; isto é uma conseqüência direta do fato do SQL não
+    prometer retornar os resultados de uma consulta em nenhuma ordem específica,
+    a não ser que <literal>ORDER BY</literal> seja utilizado para impor esta ordem.
+   </para>
+  </refsect2>
+
+  <refsect2 id="SQL-FOR-UPDATE">
+   <title id="sql-for-update-title">Cláusula <literal>FOR UPDATE</literal></title>
+
+   <para>
+    A cláusula <literal>FOR UPDATE</literal> possui a forma
+<synopsis>
+FOR UPDATE [ OF <replaceable class="parameter">nome_da_tabela</replaceable> [, ...] ]
+</synopsis>
+   </para>
+
+   <para>
+    A cláusula <literal>FOR UPDATE</literal> faz as linhas selecionadas pelo
+    comando <command>SELECT</command> serem bloqueadas como se fosse para
+    atualização. Isto impede a modificação ou exclusão destas linhas por
+    outras transações até a transação corrente terminar. Ou seja,
+    outras transações tentando usar os comandos <command>UPDATE</command>,
+    <command>DELETE</command> ou <command>SELECT FOR UPDATE</command>
+    nestas linhas ficam bloqueadas até a transação corrente terminar.
+    Também, se um comando <command>UPDATE</command>, <command>DELETE</command>,
+    ou <command>SELECT FOR UPDATE</command> de outra transação já tiver
+    bloqueado uma ou várias destas linhas, o <command>SELECT FOR
+    UPDATE</command> fica aguardando a outra transação completar e, então,
+    bloqueia e retorna a linha atualizada (ou nenhuma linha, se a
+    linha foi excluída). Para obter mais explicações consulte o <xref
+    linkend="mvcc">.
+   </para>
+
+   <para>
+    Se forem especificados nomes de tabelas na cláusula
+    <literal>FOR UPDATE</literal>, então somente as linhas oriundas destas
+    tabelas são bloqueadas; todas as outras tabelas usadas no
+    <command>SELECT</command> são simplesmente lidas como de costume.
+   </para>
+
+   <para>
+    <literal>FOR UPDATE</literal> não pode ser utilizado nos contextos onde as
+    linhas retornadas não podem ser claramente identificadas com as linhas
+    individuais da tabela; por exemplo, não pode ser utilizado junto com
+    agregações.
+   </para>
+
+   <para>
+    É possível para um comando <command>SELECT</command> que utiliza ambas as cláusulas
+	<literal>LIMIT</literal> e <literal>FOR UPDATE</literal>, retornar
+	menos linhas do que especificado pelo <literal>LIMIT</literal>.
+	Isto porque a cláusula <literal>LIMIT</literal> seleciona um número de linhas,
+	mas pode bloquear pedidos de bloqueio <literal>FOR UPDATE</literal>.
+	Após o comando <literal>SELECT</literal> ser desbloqueado, a qualificação da consulta
+	pode não ser correspondida e a linha não é retornada pelo comando <literal>SELECT</literal>.
+   </para>
+
+   <para>
+    <literal>FOR UPDATE</literal> pode estar antes de
+    <literal>LIMIT</literal> para manter a compatibilidade com as versões do
+    <productname>PostgreSQL</productname> anteriores a 7.3. Entretanto,
+    será executado após o <literal>LIMIT</literal> e, portanto,
+    este é o lugar adequado para ser escrito.
+   </para>
+  </refsect2>
+ </refsect1>
+
+ <refsect1>
+  <title>Exemplos</title>
+
+  <para>
+   Para efetuar a junção da tabela <literal>filmes</literal> com a tabela
+   <literal>distribuidores</literal>:
+
+<programlisting>
+SELECT f.titulo, f.did, d.nome, f.data_prod, f.tipo
+    FROM distribuidores d, filmes f
+    WHERE f.did = d.did
+
+       titulo      | did |     nome     | data_prod  |   tipo
+-------------------+-----+--------------+------------+----------
+ The Third Man     | 101 | British Lion | 1949-12-23 | Drama
+ The African Queen | 101 | British Lion | 1951-08-11 | Romantic
+ ...
+</programlisting>
+  </para>
+
+  <para>
+   Para somar a coluna <literal>duracao</literal> de todos os filmes, e agrupar
+   os resultados por <literal>tipo</literal>:
+
+<programlisting>
+SELECT tipo, sum(duracao) AS total FROM filmes GROUP BY tipo;
+
+   tipo   | total
+----------+-------
+ Action   | 07:34
+ Comedy   | 02:58
+ Drama    | 14:28
+ Musical  | 06:42
+ Romantic | 04:38
+</programlisting>
+  </para>
+
+  <para>
+   Para somar a coluna <literal>duracao</literal> de todos os filmes, agrupar
+   os resultados por <literal>tipo</literal>, e mostrar apenas os grupos com
+   total inferior a 5 horas:
+
+<programlisting>
+SELECT tipo, sum(duracao) AS total
+    FROM filmes
+    GROUP BY tipo
+    HAVING sum(duracao) &lt; interval '5 hours';
+
+   tipo   | total
+----------+-------
+ Comédia  | 02:58
+ Romance  | 04:38
+</programlisting>
+  </para>
+
+  <para>
+   Os dois exemplos a seguir são formas idênticas de classificação
+   dos resultados individuais de acordo com o conteúdo da segunda coluna
+   (<literal>nome</literal>):
+
+<programlisting>
+SELECT * FROM distribuidores ORDER BY nome;
+SELECT * FROM distribuidores ORDER BY 2;
+
+ did |       nome
+-----+------------------
+ 109 | 20th Century Fox
+ 110 | Bavaria Atelier
+ 101 | British Lion
+ 107 | Columbia
+ 102 | Jean Luc Godard
+ 113 | Luso films
+ 104 | Mosfilm
+ 103 | Paramount
+ 106 | Toho
+ 105 | United Artists
+ 111 | Walt Disney
+ 112 | Warner Bros.
+ 108 | Westward
+</programlisting>
+  </para>
+
+  <para>
+   O próximo exemplo mostra como obter a união da tabela
+   <literal>distribuidores</literal> com a tabela <literal>atores</literal>,
+   restringindo o resultado aos nomes que iniciam pela letra W em cada uma das
+   tabelas. Somente são desejadas linhas distintas, por isso a palavra chave
+   <literal>ALL</literal> é omitida:
+
+<programlisting>
+distribuidores              atores:
+ did |     nome              id |     nome
+-----+--------------        ----+----------------
+ 108 | Westward               1 | Woody Allen
+ 111 | Walt Disney            2 | Warren Beatty
+ 112 | Warner Bros.           3 | Walter Matthau
+ ...                         ...
+
+SELECT distribuidores.nome
+    FROM   distribuidores
+    WHERE  distribuidores.nome LIKE 'W%'
+UNION
+SELECT atores.nome
+    FROM   atores
+    WHERE  atores.nome LIKE 'W%';
+
+      nome
+----------------
+ Walt Disney
+ Walter Matthau
+ Warner Bros.
+ Warren Beatty
+ Westward
+ Woody Allen
+</programlisting>
+  </para>
+
+  <para>
+   Este exemplo mostra como usar uma função na cláusula <literal>FROM</literal>,
+   com e sem uma lista de definição de colunas:
+
+<programlisting>
+CREATE FUNCTION distribuidores(int) RETURNS SETOF distribuidores AS $$
+    SELECT * FROM distribuidores WHERE did = $1;
+$$ LANGUAGE SQL;
+
+SELECT * FROM distribuidores(111);
+
+ did |    nome
+-----+-------------
+ 111 | Walt Disney
+
+CREATE FUNCTION distribuidores_2(int) RETURNS SETOF record AS $$
+    SELECT * FROM distribuidores WHERE did = $1;
+$$ LANGUAGE SQL;
+
+SELECT * FROM distribuidores_2(111) AS (f1 int, f2 text);
+
+ f1  |     f2
+-----+-------------
+ 111 | Walt Disney
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   Obviamente, o comando <command>SELECT</command> é compatível
+   com o padrão SQL. Entretanto, existem algumas extensões e algumas
+   funcionalidades faltando.
+  </para>
+
+  <refsect2>
+   <title>Cláusula <literal>FROM</literal> omitida</title>
+
+   <para>
+    O <productname>PostgreSQL</productname> permite omitir a cláusula
+    <literal>FROM</literal>. Tem uso direto no
+    cômputo de resultados de expressões simples:
+<programlisting>
+SELECT 2+2;
+
+ ?column?
+----------
+        4
+</programlisting>
+    Alguns outros bancos de dados <acronym>SQL</acronym> não podem fazer isto,
+    a não ser introduzindo uma tabela fictícia de uma linha para executar o
+    comando <command>SELECT</command>.
+   </para>
+
+   <para>
+    Uma utilização menos óbvia desta funcionalidade é abreviar comandos
+    <command>SELECT</command> comuns de tabelas:
+<programlisting>
+SELECT distribuidores.* WHERE distribuidores.nome = 'Westward';
+
+ did |   nome
+-----+----------
+ 108 | Westward
+</programlisting>
+    Isso funciona porque é adicionado um item implícito no
+    <literal>FROM</literal> para cada tabela que é referenciada nas outras
+    partes do comando <command>SELECT</command>, mas que não é mencionada no
+    <literal>FROM</literal>.
+   </para>
+
+   <para>
+    Ao mesmo tempo em que é uma forma conveniente de abreviar, é fácil ser usado
+    incorretamente. Por exemplo, o comando
+<programlisting>
+SELECT distribuidores.* FROM distribuidores d;
+</programlisting>
+    provavelmente deve ser um engano; é mais provável que se deseje
+<programlisting>
+SELECT d.* FROM distribuidores d;
+</programlisting>
+    do que a junção sem restrições
+<programlisting>
+SELECT distribuidores.* FROM distribuidores d, distribuidores distribuidores;
+</programlisting>
+    que seria obtida na verdade. Para ajudar a detectar este tipo de engano, o
+    <productname>PostgreSQL</productname> adverte se uma
+    funcionalidade <literal>FROM</literal> implícita é utilizada em um comando
+    <command>SELECT</command> que também contenha uma cláusula
+    <literal>FROM</literal> explícita. Também é possível desabilitar
+    a funcionalidade de <literal>FROM</literal>-implícito definindo a parâmetro
+    <xref linkend="guc-add-missing-from"> como falso.
+   </para>
+  </refsect2>
+
+  <refsect2>
+   <title>A palavra chave <literal>AS</literal></title>
+
+   <para>
+    No padrão SQL, a palavra chave opcional <literal>AS</literal> é sem
+    efeito, podendo ser omitida sem afetar o significado. O analisador do
+    <productname>PostgreSQL</productname> requer esta palavra chave quando uma
+    coluna da saída é renomeada, porque a funcionalidade de extensividade de
+    tipo conduz o analisador a ambigüidades caso não esteja presente.
+    Entretanto, <literal>AS</literal> é opcional nos itens do
+    <literal>FROM</literal>.
+   </para>
+  </refsect2>
+
+  <refsect2>
+   <title>Espaço de nomes disponível para <literal>GROUP BY</literal> e <literal>ORDER BY</literal></title>
+
+   <para>
+    No padrão SQL-92, a cláusula <literal>ORDER BY</literal> somente pode
+    utilizar nomes ou números das colunas do resultado, enquanto a cláusula
+    <literal>GROUP BY</literal> somente pode utilizar expressões baseadas nos
+    nomes das colunas da entrada.
+    O <productname>PostgreSQL</productname> estende estas duas cláusulas para
+    permitir, também, a outra escolha (mas utiliza a interpretação padrão se
+    houver ambigüidade).
+    O <productname>PostgreSQL</productname> também permite que as duas cláusulas
+    especifiquem expressões arbitrárias. Deve ser observado que os nomes que
+    aparecem na expressão são sempre considerados como nomes das colunas da
+    entrada, e não como nomes das colunas do resultado.
+   </para>
+
+   <para>
+    O SQL:1999 utiliza uma definição um pouco diferente, que não é inteiramente
+    compatível com o SQL-92.
+    Entretanto, na maioria dos casos o <productname>PostgreSQL</productname>
+    interpreta uma expressão presente em <literal>ORDER BY</literal> ou
+    <literal>GROUP BY</literal> da mesma maneira que o SQL:1999.
+   </para>
+  </refsect2>
+
+  <refsect2>
+   <title>Cláusulas fora do padrão</title>
+
+   <para>
+    As cláusulas <literal>DISTINCT ON</literal>,
+    <literal>LIMIT</literal> e <literal>OFFSET</literal> não são
+    definidas no padrão SQL.
+   </para>
+  </refsect2>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

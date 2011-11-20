@@ -1,0 +1,94 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/start_transaction.sgml,v 1.15 2006/09/16 00:30:20 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-START-TRANSACTION">
+ <refmeta>
+  <refentrytitle id="SQL-START-TRANSACTION-TITLE">START TRANSACTION</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>START TRANSACTION</refname>
+  <refpurpose>inicia um bloco de transação</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-start-transaction">
+  <primary>START TRANSACTION</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+START TRANSACTION [ <replaceable class="parameter">modo_da_transação</replaceable> [, ...] ]
+
+onde <replaceable class="parameter">modo_da_transação</replaceable> é um entre:
+
+    ISOLATION LEVEL { SERIALIZABLE | REPEATABLE READ | READ COMMITTED | READ UNCOMMITTED }
+    READ WRITE | READ ONLY
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   Este comando inicia um novo bloco transação. Se for especificado o nível de
+   isolamento, ou modo de ler/escrever, a nova transação terá estas
+   características, como se <xref linkend="sql-set-transaction"
+   endterm="sql-set-transaction-title"> fosse executado. É idêntico ao
+   comando <xref linkend="sql-begin" endterm="sql-begin-title">.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <para>
+   Veja em <xref linkend="sql-set-transaction"
+   endterm="sql-set-transaction-title"> as informações sobre o significado
+   dos parâmetros deste comando.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibilidade</title>
+
+  <para>
+   No padrão, não é necessário utilizar <command>START TRANSACTION</command>
+   para iniciar um bloco de transação: qualquer comando SQL inicia,
+   implicitamente, um bloco de transação.
+   O comportamento do <productname>PostgreSQL</productname> pode ser visto como
+   utilizando, implicitamente, um comando <command>COMMIT</command> após cada
+   comando que não vem após um comando <command>START TRANSACTION</command>
+   (ou <command>BEGIN</command>) sendo isto, portanto, geralmente chamado de
+   <quote>auto-efetivação</quote> (<literal>autocommit</literal>).
+   Outros sistemas de bancos de dados relacionais podem oferecer a
+   funcionalidade de auto-efetivação como uma comodidade.
+  </para>
+
+  <para>
+   O padrão SQL requer a presença de vírgulas entre os
+   <replaceable class="parameter">modos_da_transação</replaceable>, mas por
+   razões históricas o <productname>PostgreSQL</productname> permite a omissão
+   destas vírgulas.
+  </para>
+
+  <para>
+   Consulte também a seção sobre compatibilidade de
+   <xref linkend="sql-set-transaction" endterm="sql-set-transaction-title">.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-begin" endterm="sql-begin-title"></member>
+   <member><xref linkend="sql-commit" endterm="sql-commit-title"></member>
+   <member><xref linkend="sql-rollback" endterm="sql-rollback-title"></member>
+   <member><xref linkend="sql-savepoint" endterm="sql-savepoint-title"></member>
+   <member><xref linkend="sql-set-transaction" endterm="sql-set-transaction-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>

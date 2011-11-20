@@ -1,0 +1,293 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/prepare_transaction.sgml,v 1.5 2006/09/16 00:30:19 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-PREPARE-TRANSACTION">
+ <refmeta>
+  <refentrytitle id="sql-prepare-transaction-title">PREPARE TRANSACTION</refentrytitle>
+  <refmiscinfo>SQL - Instruções da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>PREPARE TRANSACTION</refname>
+  <refpurpose>prepara a transação corrente para uma efetivação de duas fases</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-prepare-transaction">
+  <primary>PREPARE TRANSACTION</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+PREPARE TRANSACTION <replaceable class="parameter">id_transação</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>PREPARE TRANSACTION</command> prepara a transação
+   corrente para uma efetivação de duas fases (<foreignphrase>two-phase commit</>).
+   Após este comando ser executado, a transação não estará mais associada à
+   sessão corrente; em vez disto, seu estado estará inteiramente armazenado
+   em disco, existindo uma probabilidade muito alta que a efetivação seja
+   bem-sucedida, mesmo que ocorra uma queda do banco de dados antes que a
+   efetivação seja requisitada.
+   <footnote>
+    <para>
+     Wikipedia &mdash;
+     <emphasis>Protocolo de efetivação em duas fases</emphasis> &mdash;
+     Em redes de computadores e bancos de dados, o protocolo de efetivação em
+     duas fases é um algoritmo distribuído que permite todos os nós de um
+     sistema distribuído concordarem em efetivar a transação.
+     O protocolo resulta em que todos os nós efetivam ou interrompem a
+     transação, mesmo no caso de falhas na rede ou nos nós.
+     Entretanto, de acordo com o trabalho de
+     <personname><surname>Skeen</surname></personname> e
+     <personname><surname>Stonebraker</surname></personname>,
+     o protocolo não tratará mais de uma falha aleatória de cada vez.
+     As duas fases do algoritmo são: a fase requisição de efetivação,
+     onde o coordenador tenta preparar todos os co-participantes;
+     a fase de efetivação, onde o coordenador completa as transações em
+     todos os co-participantes.
+     <ulink url="http://en.wikipedia.org/wiki/Two-phase_commit">
+     Wikipedia, the free encyclopedia</ulink> (N. do T.)
+   <footnote>
+    <para>
+     <productname>Oracle</productname> &mdash;
+     <emphasis>Mecanismo de efetivação em duas fases</emphasis> &mdash;
+     Diferentemente de uma transação em um banco de dados local, a transação
+     distribuída envolve a alteração de dados em vários bancos de dados.
+     Consequentemente, o processamento da transação distribuída é mais
+     complicado, porque o banco de dados precisa coordenar a efetivação ou o
+     desfazimento das alterações da transaão como uma unidade autocontida.
+     Em outras palavras, toda a transação é efetivada ou toda a transação é
+     desfeita.
+     O banco de dados garante a integridade dos dados em uma transação
+     distribuída utilizando o mecanismo de efetivação em duas fases.
+     Na fase de preparação, o nó que iniciou a transação pede aos outros nós
+     participantes que prometam efetivar a transação.
+     Se esta promessa não for possível, então será pedido a todos os nós que
+     desfaçam a transação.
+     Todos os nós que participam de uma transação distribuída devem realizar a
+     mesma ação: devem todos efetivar ou desfazer a transação.
+     O banco de dados controla e monitora automaticamente a efetivaçao ou o
+     desfazimento da transação distribuída, e mantém a integridade do
+     banco de dados global (a coleção de bancos de dados participantes da
+     transação) utilizando o mecanismo de efetivação de duas fases.
+     Este mecanismo é inteiramente transparente, não requerendo nenhuma
+     programação por parte do usuário ou do desenvolvedor do aplicativo.
+     <ulink url="http://download-east.oracle.com/docs/cd/B14117_01/server.101/b10739/ds_txns.htm#i1007795">
+     <trademark class='registered'>Oracle</trademark> Database Administrator's
+     Guide 10g Release 1 (10.1) Part Number B10739-01</ulink> (N. do T.)
+    </para>
+   </footnote>
+   <footnote>
+    <para>
+     <productname>SQL Server</productname> &mdash;
+     As transações distribuídas envolvem dois ou mais servidores conhecidos
+     como gerenciadores de recursos.
+     O gerenciamento da transação deve ser coordenado entre os gerenciadores de
+     recursos por um componente servidor chamado de gerenciador de transações.
+     Cada instância do Mecanismo de Banco de Dados do
+     <productname>SQL Server</productname> pode operar como um gerenciador de
+     recursos em transações distribuídas coordenadas por gerenciadores de
+     transações, como o <quote><productname>Microsoft Distributed Transaction
+     Coordinator (MS DTC)</productname></quote>, ou outros gerenciadores de
+     transações que suportam a especificação <literal>X/Open XA</literal>
+     para o processamento de transações distribuídas.
+     No aplicativo, a transação distribuída é gerenciada de forma muito
+     idêntica à de uma transação local.
+     No final da transação, o aplicativo requisita que a transação seja
+     efetivada ou desfeita.
+     Uma efetivação distribuída deve ser gerenciada diferentemente pelo
+     gerenciador de transações para minimizar o risco de uma falha de rede
+     resultar em que alguns gerenciadores de recursos sejam bem-sucedidos ao
+     efetivar enquanto outros desfazem a transação.
+     Isto é obtido gerenciando o processo de efetivação em duas fases
+     (a fase de preparação e a fase de efetivação), que é conhecido por
+     efetivação em duas fases (<foreignphrase>two-phase commit</foreignphrase>
+     &mdash; <literal>2PC</literal>).
+     <emphasis>Fase de preparação</emphasis> &mdash;
+     Quando o gerenciador de transações recebe o pedido de efetivação, envia o
+     comando de preparação para todos os gerenciadores de recursos envolvidos
+     na transação.
+     Cada gerenciador de recursos faz tudo que é necessário para tornar a
+     transação durável.
+     À medida que cada gerenciador de recursos completa a fase de preparação,
+     retorna a indicação de sucesso ou falha na preparação para o
+     gerenciador de transações.
+     <emphasis>Fase de efetivação</emphasis> &mdash;
+     Se o gerenciador de transações receber indicação de preparação bem-sucedida
+     de todos os gerenciadores de recursos, enviará um comando de efetivação
+     para cada gerenciador de recursos.
+     O gerenciador de recursos poderá, então, completar a efetivação.
+     Se todos os gerenciadores de recursos relatarem efetivações bem-sucedidas,
+     o gerenciador de transações enviará  uma notificação de sucesso para o
+     aplicativo.
+     Se algum gerenciador de recursos relatar uma falha ao preparar,
+     o gerenciador de transações enviará o comando de desfazer para cada um
+     dos gerenciadores de recursos, e informará a falha ao efetivar para o
+     aplicativo.
+     <ulink url="http://msdn2.microsoft.com/en-us/library/ms191440.aspx">
+     SQL Server 2005 Books Online &mdash; Distributed Transactions
+     (Database Engine)</ulink> (N. do T.)
+    </para>
+   </footnote>
+   <footnote>
+    <para>
+     <productname>DB2</productname> &mdash;
+     O gerenciador de transações do <productname>DB2</productname> atribui
+     identificadores às transações, monitora o progresso, e assume a
+     responsibilidade pelo término ou falha da transação.
+     O sistema de banco de dados <productname>DB2</productname> e o
+     <productname>DB2 Connect</productname> fornecem um gerenciador de
+     transações.
+     O <productname>DB2</productname> armazena as informações da transação no
+     banco de dados designado.
+     O gerenciador de banco de dados fornece funções de gerenciamento de
+     transação que podem ser utilizadas para coordenar a atualização de vários
+     bancos de dados em uma única unidade de trabalho.
+     O banco de dados cliente coordena automaticamente a unidade de trabalho,
+     e utiliza o banco de dados gerenciador de transações para registrar cada
+     transação e acompanhar seu status de conclusão.
+     O gerenciador de transações do <productname>DB2</productname>
+     pode ser utilizado com bancos de dados <productname>DB2</productname>.
+     Se existirem outros recursos além de bancos de dados
+     <productname>DB2</productname> participando da transação efetivada em
+     duas fases, pode ser utilizado um gerenciador de transações em conformidade
+     com o XA.
+
+    </para>
+   </footnote>
+  </para>
+
+  <para>
+   Uma vez preparada, a transação poderá ser efetivada ou desfeita
+   posteriormente através dos comandos
+   <xref linkend="sql-commit-prepared" endterm="sql-commit-prepared-title"> e
+   <xref linkend="sql-rollback-prepared" endterm="sql-rollback-prepared-title">,
+   respectivamente.
+   Estes comandos podem ser submetidos a partir de qualquer sessão, e não
+   apenas pela sessão que executou a transação original.
+  </para>
+
+  <para>
+   Do ponto de vista da sessão emitente, o comando
+   <command>PREPARE TRANSACTION</command> não é diferente do comando
+   <command>ROLLBACK</>: após executá-lo, não existirá mais uma
+   transação corrente ativa, e os efeitos da transação preparada não serão
+   mais visíveis (Os efeitos voltarão a ser visíveis novamente se a
+   transação for efetivada).
+  </para>
+
+  <para>
+   Se o comando <command>PREPARE TRANSACTION</command> falhar por algum motivo,
+   se tornará um <command>ROLLBACK</>: a transação corrente será cancelada.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">id_transação</replaceable></term>
+    <listitem>
+     <para>
+      Um identificador arbitrário que identificará posteriormente esta
+      transação para o comando <command>COMMIT PREPARED</command> ou
+      <command>ROLLBACK PREPARED</command>.
+      O identificador deve ser escrito como um literal cadeia de caracteres,
+      e deve ter menos de 200 bytes de comprimento.
+      Não pode ser o mesmo identificador utilizado por qualquer outra
+      transação preparada no momento.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Observações</title>
+
+  <para>
+   Este comando deve ser utilizado dentro de um bloco de transação.
+   Para iniciar um bloco de transação é utilizado o comando
+   <xref linkend="sql-begin" endterm="sql-begin-title">.
+  </para>
+
+  <para>
+   Atualmente não é permitido utilizar o comando <command>PREPARE</command>
+   para uma transação que executa qualquer operação envolvendo tabelas
+   temporárias, ou cria qualquer cursor com a cláusula <literal>WITH HOLD</>.
+   Estas funcionalidades são muito ligadas à sessão corrente para serem
+   úteis em uma transação a ser preparada.
+  </para>
+
+  <para>
+   Se a transação modificar algum parâmetro em tempo de execução com o
+   comando <command>SET</command>, estes efeitos persistirão após o comando
+   <command>PREPARE TRANSACTION</command> ser executado, não sendo afetados por
+   um <command>COMMIT PREPARED</command> ou <command>ROLLBACK PREPARED</command>
+   posterior. Portanto, sob este aspecto, o comando
+   <command>PREPARE TRANSACTION</command> atua mais como o comando
+   <command>COMMIT</command> do que como o comando <command>ROLLBACK</command>.
+  </para>
+
+  <para>
+   A visão do sistema
+   <link linkend="view-pg-prepared-xacts">
+   <database class="table">pg_prepared_xacts</database></link>
+   mostra todas as transações preparadas disponíveis no momento.
+  </para>
+
+  <para>
+   Do ponto de vista do desempenho não é aconselhável deixar transações no
+   estado preparado por um longo período de tempo: isto, por exemplo,
+   interfere com a capacidade de recuperar espaço de armazenamento do
+   comando <command>VACUUM</command>.
+   Também deve-se ter em mente que a transação continuará prendendo todos os
+   bloqueios obtidos.
+   A utilização pretendida para esta funcionalidade é que normalmente a
+   transação preparada seja efetivada ou desfeita tão logo o gerenciador
+   de transação externo tenha verificado se os outros bancos de dados
+   também estão preparados para efetivar.
+  </para>
+
+  <para>
+   Caso se pretenda fazer um uso sério de transações preparadas, provavelmente
+   será desejado incrementar o valor do parâmetro de configuração
+   <xref linkend="guc-max-prepared-transactions">, porque a definição padrão
+   é bastante pequena (para evitar desperdício de recursos por aqueles que
+   não utilizam esta funcionalidade).
+   Recomenda-se que seja pelo menos igual ao valor do parâmetro de
+   configuração <xref linkend="guc-max-connections">, para que toda sessão
+   possa ter uma transação preparada pendente.
+  </para>
+ </refsect1>
+
+ <refsect1 id="sql-prepare-transaction-examples">
+  <title id="sql-prepare-transaction-examples-title">Exemplos</title>
+  <para>
+   Preparar a transação corrente para uma efetivação de duas fases,
+   utilizando <literal>foobar</literal> como identificador da transação:
+
+<programlisting>
+PREPARE TRANSACTION 'foobar';
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-commit-prepared" endterm="sql-commit-prepared-title"></member>
+   <member><xref linkend="sql-rollback-prepared" endterm="sql-rollback-prepared-title"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>

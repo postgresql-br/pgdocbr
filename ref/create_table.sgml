@@ -1,0 +1,1026 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/create_table.sgml,v 1.90.4.1 2005/01/22 23:23:53 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATETABLE">
+ <refmeta>
+  <refentrytitle id="sql-createtable-title">CREATE TABLE</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE TABLE</refname>
+  <refpurpose>cria uma tabela</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createtable">
+  <primary>CREATE TABLE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE [ [ GLOBAL | LOCAL ] { TEMPORARY | TEMP } ] TABLE <replaceable class="parameter">nome_da_tabela</replaceable> (
+  { <replaceable class="parameter">nome_da_coluna</replaceable> <replaceable class="parameter">tipo_de_dado</replaceable> [ DEFAULT <replaceable>expressão_padrão</replaceable> ] [ <replaceable class="parameter">restrição_de_coluna</replaceable> [ ... ] ]
+    | <replaceable>restrição_de_tabela</replaceable>
+    | LIKE <replaceable>tabela_ancestral</replaceable> [ { INCLUDING | EXCLUDING } DEFAULTS ] }  [, ... ]
+)
+[ INHERITS ( <replaceable>tabela_ancestral</replaceable> [, ... ] ) ]
+[ WITH OIDS | WITHOUT OIDS ]
+[ ON COMMIT { PRESERVE ROWS | DELETE ROWS | DROP } ]
+[ TABLESPACE <replaceable class="parameter">espaço_de_tabelas</replaceable> ]
+
+onde <replaceable class="parameter">restrição_de_coluna</replaceable> é:
+
+[ CONSTRAINT <replaceable class="parameter">nome_da_restrição</replaceable> ]
+{ NOT NULL |
+  NULL |
+  UNIQUE [ USING INDEX TABLESPACE <replaceable class="parameter">espaço_de_tabelas</replaceable> ] |
+  PRIMARY KEY [ USING INDEX TABLESPACE <replaceable class="parameter">espaço_de_tabelas</replaceable> ] |
+  CHECK (<replaceable class="parameter">expressão</replaceable>) |
+  REFERENCES <replaceable class="parameter">tabela_referenciada</replaceable> [ ( <replaceable class="parameter">coluna_referenciada</replaceable> ) ]
+    [ MATCH FULL | MATCH PARTIAL | MATCH SIMPLE ]
+    [ ON DELETE <replaceable class="parameter">ação</replaceable> ] [ ON UPDATE <replaceable class="parameter">ação</replaceable> ] }
+    [ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]
+
+e <replaceable class="parameter">restrição_de_tabela</replaceable> é:
+
+[ CONSTRAINT <replaceable class="parameter">nome_da_restrição</replaceable> ]
+{ UNIQUE ( <replaceable class="parameter">nome_da_coluna</replaceable> [, ... ] ) [ USING INDEX TABLESPACE <replaceable class="parameter">espaço_de_tabelas</replaceable> ] |
+  PRIMARY KEY ( <replaceable class="parameter">nome_da_coluna</replaceable> [, ... ] ) [ USING INDEX TABLESPACE <replaceable class="parameter">espaço_de_tabelas</replaceable> ] |
+  CHECK ( <replaceable class="parameter">expressão</replaceable> ) |
+  FOREIGN KEY ( <replaceable class="parameter">nome_da_coluna</replaceable> [, ... ] )
+    REFERENCES <replaceable class="parameter">tabela_referenciada</replaceable> [ ( <replaceable class="parameter">coluna_referenciada</replaceable> [, ... ] ) ]
+    [ MATCH FULL | MATCH PARTIAL | MATCH SIMPLE ] [ ON DELETE <replaceable class="parameter">ação</replaceable> ] [ ON UPDATE <replaceable class="parameter">ação</replaceable> ] }
+    [ DEFERRABLE | NOT DEFERRABLE ] [ INITIALLY DEFERRED | INITIALLY IMMEDIATE ]
+</synopsis>
+
+ </refsynopsisdiv>
+
+ <refsect1 id="SQL-CREATETABLE-description">
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>CREATE TABLE</command> cria uma tabela, inicialmente vazia,
+   no banco de dados corrente. O usuário que executa o comando se torna o dono
+   da tabela.
+  </para>
+
+  <para>
+   Se o nome do esquema for fornecido (por exemplo, <literal>CREATE TABLE
+   meu_esquema.minha_tabela ...</literal>) então a tabela é criada no esquema
+   especificado, senão é criada no esquema corrente.
+   As tabelas temporárias são criadas em um esquema especial e, portanto, o nome
+   do esquema não pode ser especificado ao se criar tabelas temporárias.
+   O nome da tabela deve ser distinto do nome de qualquer outra tabela,
+   seqüência, índice ou visão no mesmo esquema.
+  </para>
+
+  <para>
+   O comando <command>CREATE TABLE</command> também cria, automaticamente,
+   o tipo de dado que representa o tipo composto correspondendo
+   a uma linha da tabela. Portanto, as tabelas não podem ter o mesmo nome
+   de um tipo de dado existente no mesmo esquema.
+  </para>
+
+  <para>
+   As cláusulas de restrição opcionais especificam as restrições (ou testes) que
+   as linhas novas ou modificadas devem satisfazer para a operação de inserção
+   ou de modificação ser aceita. Uma restrição é um objeto SQL que ajuda a
+   definir o conjunto de valores válidos para a tabela de várias maneiras.
+  </para>
+
+  <para>
+   Existem duas formas para definir restrições: restrições de tabela e
+   restrições de coluna. A restrição de coluna é definida como parte da
+   definição da coluna. A definição da restrição de tabela não é limitada
+   a uma única coluna, podendo incluir mais de uma coluna.
+   Toda restrição de coluna também pode ser escrita como restrição de tabela;
+   a restrição de coluna é somente uma notação conveniente para ser usada
+   quando a restrição afeta apenas uma coluna.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parâmetros</title>
+
+  <variablelist>
+
+   <varlistentry>
+    <term><literal>TEMPORARY</literal> ou <literal>TEMP</literal></term>
+    <listitem>
+     <para>
+      Se for especificado, a tabela é criada como sendo temporária.
+      As tabelas temporárias são automaticamente removidas no final da
+      sessão ou, opcionalmente, no fim da transação corrente (consulte
+      <literal>ON COMMIT</literal> abaixo).
+      As tabelas permanentes existentes não são visíveis na sessão corrente
+      enquanto existirem tabelas temporárias com o mesmo nome,
+      a não ser que sejam referenciadas por um nome qualificado pelo esquema.
+      Todo índice criado em tabela temporária também é temporário.
+     </para>
+
+     <para>
+      Opcionalmente, <literal>GLOBAL</literal> ou <literal>LOCAL</literal>
+      podem ser escritos antes de <literal>TEMPORARY</literal> e de
+      <literal>TEMP</literal>. Isto não faz qualquer diferença no
+      <productname>PostgreSQL</productname>, mas consulte
+      <xref linkend="sql-createtable-compatibility"
+      endterm="sql-createtable-compatibility-title">.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">nome_da_tabela</replaceable></term>
+    <listitem>
+     <para>
+      O nome (opcionalmente qualificado pelo esquema) da tabela a ser criada.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">nome_da_coluna</replaceable></term>
+    <listitem>
+     <para>
+      O nome da coluna a ser criada na nova tabela.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">tipo_de_dado</replaceable></term>
+    <listitem>
+     <para>
+      O tipo de dado da coluna. Pode incluir especificadores de matriz
+      (<literal>array</literal>).
+      Para obter informações adicionais sobre os tipos de dado suportados pelo
+      <productname>PostgreSQL</productname> consulte o <xref linkend="datatype">.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>DEFAULT
+    <replaceable>expressão_padrão</replaceable></literal></term>
+    <listitem>
+     <para>
+      A cláusula <literal>DEFAULT</literal> atribui um valor de dado padrão para
+      a coluna em cuja definição está presente. O valor pode ser qualquer
+      expressão sem variável (<literal>variable-free</literal>)
+      (subconsultas e referências cruzadas para outras colunas da mesma tabela
+      não são permitidas). O tipo de dado da expressão padrão deve corresponder
+      ao tipo de dado da coluna.
+     </para>
+
+     <para>
+      A expressão padrão é utilizada em todas as operações de inserção que
+      não especificam valor para a coluna. Se não houver valor padrão
+      para a coluna, então o valor padrão é o valor nulo.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>INHERITS ( <replaceable>tabela_ancestral</replaceable> [, ... ] )</literal></term>
+    <listitem>
+     <para>
+      A cláusula opcional <literal>INHERITS</literal> (herda) especifica uma
+      lista de tabelas das quais a nova tabela herda, automaticamente, todas as
+      colunas.
+     </para>
+
+     <para>
+      O uso de <literal>INHERITS</literal> cria um relacionamento persistente entre
+      a nova tabela descendente e suas tabelas ancestrais. As modificações de
+      esquema nas tabelas ancestrais normalmente se propagam para as tabelas
+      descendentes também e, por padrão, os dados das tabelas descendentes são
+      incluídos na varredura das tabelas ancestrais.
+     </para>
+
+     <para>
+      Se o mesmo nome de coluna existir em mais de uma tabela ancestral
+      um erro é relatado, a menos que os tipo de dado das colunas seja o mesmo
+      em todas as tabelas ancestrais. Não havendo conflito, então as colunas
+      duplicadas são unidas para formar uma única coluna da nova tabela.
+      Se a lista de nomes de colunas da nova tabela contiver um nome de coluna
+      que também é herdado, da mesma forma o tipo de dado deve ser o mesmo das
+      colunas herdadas, e a definição das colunas será unida em uma única
+      coluna. Entretanto, declarações de colunas novas e herdadas com o mesmo
+      nome não precisam especificar restrições idênticas: todas as restrições
+      fornecidas em qualquer uma das declarações são unidas, sendo todas
+      aplicadas à nova tabela. Se a nova tabela especificar, explicitamente, um
+      valor padrão para a coluna, este valor padrão substitui o valor padrão das
+      declarações herdadas. Não sendo assim, toda tabela ancestral que
+      especificar um valor padrão para a coluna deve especificar o mesmo valor,
+      ou um erro será relatado.
+     </para>
+<!--
+     <para>
+      <productname>PostgreSQL</> automatically allows the
+     created table to inherit
+      functions on tables above it in the inheritance hierarchy; that
+      is, if we create table <literal>foo</literal> inheriting from
+      <literal>bar</literal>, then functions that accept the tuple
+      type <literal>bar</literal> can also be applied to instances of
+      <literal>foo</literal>.  (Currently, this works reliably for
+      functions on the first or only parent table, but not so well for
+      functions on additional parents.)
+     </para>
+-->
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>LIKE <replaceable>tabela_ancestral</replaceable> [ { INCLUDING | EXCLUDING } DEFAULTS ]</literal></term>
+    <listitem>
+     <para>
+      A cláusula <literal>LIKE</literal> especifica a tabela da qual
+      a nova tabela copia, automaticamente, todos os nomes de coluna,
+      seus tipos de dado, e restrições de não-nulo.
+     </para>
+     <para>
+      Ao contrário do <literal>INHERITS</literal>, a nova tabela e a tabela
+      original ficam completamente separadas após o término da criação.
+      Mudanças na tabela original não são aplicadas à nova tabela, e não é
+      possível incluir dados da nova tabela na varredura da tabela original.
+     </para>
+     <para>
+      As expressões de valor padrão, existentes nas definições das colunas,
+      somente são copiadas quando se especifica
+      <literal>INCLUDING DEFAULTS</literal>. O comportamento padrão é excluir
+      as expressões de valor padrão, fazendo com que todas as colunas da nova
+      tabela tenham como valor padrão o valor nulo.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>WITH OIDS</literal></term>
+    <term><literal>WITHOUT OIDS</literal></term>
+    <listitem>
+     <para>
+      Esta cláusula opcional especifica se as linhas da nova tabela
+      devem possuir OIDs (identificadores de objeto) atribuídos.
+      Se não for especificado nem <literal>WITH OIDS</literal> nem
+      <literal>WITHOUT OIDS</literal>, o valor padrão dependerá do parâmetro de
+      configuração <xref linkend="guc-default-with-oids">; se a nova tabela
+      herdar de alguma tabela que possua OIDs, então <literal>WITH OIDS</literal>
+      é forçado mesmo que o comando contenha <literal>WITHOUT OIDS</literal>.
+     </para>
+
+     <para>
+      Se <literal>WITHOUT OIDS</literal> for especificado ou estiver implícito,
+      a nova tabela não armazena OIDs e nenhum OID será atribuído para uma
+      linha inserida na mesma. Normalmente isto é considerado vantajoso, uma vez
+      que reduz o consumo de OIDs e, portanto, adia o reinício do contador
+      de 32-bits do OID. Quando o contador reinicia, não se pode mais assumir
+      que os OIDs sejam únicos, o que os torna muito menos úteis. Além disso,
+      a exclusão dos OIDs da tabela reduz o espaço requerido para armazenar a
+      tabela no disco em 4 bytes por linha (na maioria das máquinas),
+      melhorando um pouco o desempenho.
+     </para>
+
+     <para>
+      Para remover os OIDs da tabela após esta ter sido criada deve ser
+      utilizado o comando
+      <xref linkend="sql-altertable" endterm="sql-altertable-title">.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>CONSTRAINT <replaceable class="parameter">nome_da_restrição</replaceable></literal></term>
+    <listitem>
+     <para>
+      Um nome opcional para a restrição de coluna ou de tabela. Se não for
+      especificado, o nome será gerado pelo sistema.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>NOT NULL</literal></term>
+    <listitem>
+     <para>
+      A coluna não pode conter valores nulos.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>NULL</literal></term>
+    <listitem>
+     <para>
+      A coluna pode conter valores nulos. Este é o padrão.
+     </para>
+
+     <para>
+      Esta cláusula só está disponível para manter a compatibilidade com
+      bancos de dados SQL fora do padrão. Sua utilização nos novos aplicativos
+      é desencorajada.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>UNIQUE</literal> (restrição de coluna)</term>
+    <term><literal>UNIQUE ( <replaceable class="parameter">nome_da_coluna</replaceable> [, ... ] )</literal> (restrição de tabela)</term>
+
+    <listitem>
+     <para>
+      A restrição <literal>UNIQUE</literal> especifica que
+      um grupo de uma ou mais colunas da tabela pode conter apenas
+      valores únicos. O comportamento da restrição de unicidade de tabela é
+      o mesmo da restrição de unicidade de coluna, mas com a capacidade
+      adicional de envolver várias colunas.
+     </para>
+
+     <para>
+      Para a finalidade de restrição de unicidade, valores nulos não são
+      considerados iguais.
+     </para>
+
+     <para>
+      Cada restrição de unicidade de tabela deve especificar um conjunto de
+      colunas diferente do conjunto de colunas especificado por qualquer outra
+      restrição de unicidade e, também, da chave primária definida para a tabela
+      (Senão, seria apenas a mesma restrição declarada duas vezes).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>PRIMARY KEY</> (restrição de coluna)</term>
+    <term><literal>PRIMARY KEY ( <replaceable class="parameter">nome_da_coluna</replaceable> [, ... ] )</> (restrição de tabela)</term>
+    <listitem>
+     <para>
+      A restrição de chave primária especifica que a coluna, ou colunas, da
+      tabela podem conter apenas valores únicos (não duplicados) e não nulos.
+      Tecnicamente a chave primária (<literal>PRIMARY KEY</literal>) é
+      simplesmente uma combinação de unicidade (<literal>UNIQUE</literal>) com
+      não nulo (<literal>NOT NULL</literal>), mas identificar um conjunto de
+      colunas como chave primária também fornece metadados sobre o projeto do
+      esquema, porque chaves primárias têm como conseqüência permitir que outras
+      tabelas possam depender deste conjunto de colunas como identificador único
+      para linhas.
+     </para>
+
+     <para>
+      Somente pode ser especificada uma chave primária para cada tabela, seja
+      como restrição de coluna ou como restrição de tabela.
+     </para>
+
+     <para>
+      A restrição de chave primária deve especificar um conjunto de colunas
+      diferente de outro conjunto de colunas especificado por uma restrição de
+      unicidade definido para a mesma tabela.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>CHECK (<replaceable class="parameter">expressão</replaceable>)</literal></term>
+    <listitem>
+     <para>
+      A cláusula <literal>CHECK</literal> especifica uma expressão, que produz
+      um resultado booleano, que as linhas novas ou atualizadas devem satisfazer
+      para a operação de inserção ou de atualização ser bem-sucedida.
+      Expressões avaliadas como TRUE ou UNKNOWN são bem-sucedidas.
+      Se alguma linha de uma operação de inserção ou de atualização produzir um
+      resultado FALSE uma exceção de erro é lançada e a inserção ou atualização
+      não altera o banco de dados.
+      Uma restrição de verificação especificada como uma restrição de coluna
+      deve fazer referência somente ao valor desta coluna, enquanto uma
+      expressão que aparece como uma restrição de tabela pode fazer referência
+      a várias colunas.
+     </para>
+
+     <para>
+      Atualmente as expressões <literal>CHECK</literal> não podem conter
+      subconsultas, nem fazer referência a variáveis que não sejam colunas da
+      linha corrente.
+     </para>
+    </listitem>
+   </varlistentry>
+
+
+   <varlistentry>
+    <term><literal>REFERENCES <replaceable class="parameter">tabela_referenciada</replaceable> [ ( <replaceable class="parameter">coluna_referenciada</replaceable> ) ] [ MATCH <replaceable class="parameter">tipo_de_correspondência</replaceable> ] [ ON DELETE <replaceable class="parameter">ação</replaceable> ] [ ON UPDATE <replaceable class="parameter">ação</replaceable> ]</literal> (restrição de coluna)</term>
+
+   <term><literal>FOREIGN KEY ( <replaceable class="parameter">coluna</replaceable> [, ... ] )
+    REFERENCES <replaceable class="parameter">tabela_referenciada</replaceable> [ ( <replaceable class="parameter">coluna_referenciada</replaceable> [, ... ] ) ]
+    [ MATCH <replaceable class="parameter">tipo_de_correspondência</replaceable> ]
+    [ ON DELETE <replaceable class="parameter">ação</replaceable> ]
+    [ ON UPDATE <replaceable class="parameter">ação</replaceable> ]</literal>
+    (restrição de tabela)</term>
+
+    <listitem>
+     <para>
+      Estas cláusulas especificam uma restrição de chave estrangeira,
+      que requer que um grupo de uma ou mais colunas da nova tabela
+      deva conter apenas valores
+      correspondendo a valores
+      nas colunas referenciadas
+      de alguma linha da tabela referenciada.
+      Se a <replaceable class="parameter">coluna_referenciada</replaceable>
+      for omitida, a chave primária da
+      <replaceable class="parameter">tabela_referenciada</replaceable>
+      será utilizada.
+      As colunas referenciadas devem ser colunas de uma restrição
+      de unicidade ou de chave primária na tabela referenciada.
+     </para>
+
+     <para>
+      Os valores inseridos nas colunas que fazem referência são comparados com
+      os valores das colunas referenciadas da tabela referenciada utilizando o
+      tipo de comparação especificado. Existem três tipos de comparação:
+      <literal>MATCH FULL</literal>, <literal>MATCH PARTIAL</literal> e
+      <literal>MATCH SIMPLE</literal>, que também é o padrão.
+      <literal>MATCH FULL</literal> não permite uma coluna de uma chave
+      estrangeira com várias colunas ser nula, a menos que todas as colunas da
+      chave estrangeira sejam nulas.
+      <literal>MATCH SIMPLE</literal> permite que algumas colunas da chave
+      estrangeira sejam nulas, enquanto outras colunas da chave estrangeira
+      não são nulas.
+      <literal>MATCH PARTIAL</literal> ainda não está implementado.
+     </para>
+
+     <para>
+      Além disso, quando os dados das colunas referenciadas são modificados,
+      certas ações são realizadas nos dados das colunas desta tabela.
+      A cláusula <literal>ON DELETE</literal> especifica a ação a ser realizada
+      quando uma linha referenciada da tabela referenciada é excluída. Da mesma
+      forma, a cláusula <literal>ON UPDATE</literal> especifica a ação a ser
+      realizada quando uma coluna referenciada  da tabela referenciada é
+      atualizada para um novo valor. Se a linha for atualizada, mas a coluna
+      referenciada não mudar de valor, nenhuma ação é executada.
+      As ações referenciais fora
+      <literal>NO ACTION</literal> não podem ser postergadas, mesmo que a
+      restrição seja declarada como postergável (<literal>deferrable</literal>).
+      São possíveis as seguintes ações para cada cláusula:
+
+      <variablelist>
+       <varlistentry>
+        <term><literal>NO ACTION</literal></term>
+        <listitem>
+         <para>
+          Produz um erro indicando que a exclusão ou a atualização
+          cria uma violação da restrição de chave estrangeira.
+          Se a restrição for postergada, este erro será produzido em tempo
+          de verificação de restrição se ainda houver alguma linha
+          fazendo referência.
+          Esta é a ação padrão.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>RESTRICT</literal></term>
+        <listitem>
+         <para>
+          Produz um erro indicando que a exclusão ou a atualização
+          cria uma violação da restrição de chave estrangeira.
+          É o mesmo que <literal>NO ACTION</literal>, exceto que
+          a verificação não é postergável.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>CASCADE</literal></term>
+        <listitem>
+         <para>
+          Exclui qualquer linha que faça referência à linha excluída,
+          ou atualiza o valor da coluna que faz referência para o novo
+          valor da coluna referenciada, respectivamente.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>SET NULL</literal></term>
+        <listitem>
+         <para>
+          Atribui o valor nulo às colunas que fazem referência.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>SET DEFAULT</literal></term>
+        <listitem>
+         <para>
+          Atribui o valor padrão às colunas que fazem referência.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
+     </para>
+
+     <para>
+      Se as colunas referenciadas forem modificadas com freqüência, pode ser
+      útil adicionar um índice à coluna da chave estrangeira para que as ações
+      referenciais associadas à coluna da chave estrangeira possam ser
+      realizadas com mais eficiência.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>DEFERRABLE</literal></term>
+    <term><literal>NOT DEFERRABLE</literal></term>
+    <listitem>
+     <para>
+      Estas cláusulas controlam se a restrição pode ser postergada. Uma
+      restrição que não pode ser postergada é verificada imediatamente
+      após cada comando. A verificação das restrições postergáveis
+      pode ser adiada para o final da transação (usando o comando
+      <xref linkend="sql-set-constraints" endterm="sql-set-constraints-title">).
+      <literal>NOT DEFERRABLE</literal> é o padrão. Atualmente somente as
+      restrições de chave estrangeira aceitam esta cláusula. Todos os outros
+      tipos de restrição não são postergáveis.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>INITIALLY IMMEDIATE</literal></term>
+    <term><literal>INITIALLY DEFERRED</literal></term>
+    <listitem>
+     <para>
+      Se uma restrição for postergável, esta cláusula especifica o instante
+      padrão para verificar a restrição. Se a restrição for
+      <literal>INITIALLY IMMEDIATE</literal>, então será verificada após cada
+      instrução. Este é o padrão. Se a restrição for
+      <literal>INITIALLY DEFERRED</literal>, então será verificada apenas no
+      final da transação. O instante de verificação da restrição pode ser
+      alterado pelo comando
+      <xref linkend="sql-set-constraints" endterm="sql-set-constraints-title">.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>ON COMMIT</literal></term>
+    <listitem>
+     <para>
+      O comportamento das tabelas temporárias ao término do bloco de
+      transação pode ser controlado utilizando <literal>ON COMMIT</literal>.
+      As três opções são:
+
+      <variablelist>
+       <varlistentry>
+        <term><literal>PRESERVE ROWS</literal></term>
+        <listitem>
+         <para>
+          Nenhuma ação especial é realizada ao término da transação.
+          Este é o comportamento padrão.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>DELETE ROWS</literal></term>
+        <listitem>
+         <para>
+          Todas as linhas da tabela temporária são excluídas ao término de
+          cada bloco de transação.  Essencialmente, um
+          <xref linkend="sql-truncate"> é feito após cada efetivação.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>DROP</literal></term>
+        <listitem>
+         <para>
+          A tabela temporária é removida ao término do bloco
+          de transação corrente.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>TABLESPACE <replaceable class="parameter">espaço_de_tabelas</replaceable></literal></term>
+    <listitem>
+     <para>
+      O <replaceable class="parameter">espaço_de_tabelas</replaceable>
+      é o nome do espaço de tabelas onde a nova tabela será criada.
+      Se não for especificado será utilizado o
+      <xref linkend="guc-default-tablespace">, ou o espaço de tabelas padrão
+      do banco de dados se <varname>default_tablespace</varname> for uma cadeia de
+      caracteres vazia.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>USING INDEX TABLESPACE <replaceable class="parameter">espaço_de_tabelas</replaceable></literal></term>
+    <listitem>
+     <para>
+      Esta cláusula permite selecionar o espaço de tabelas onde o índice
+      associado à restrição <literal>UNIQUE</literal> ou <literal>PRIMARY
+      KEY</literal> será criado.
+      Se não for especificado será utilizado o
+      <xref linkend="guc-default-tablespace">, ou o espaço de tabelas padrão
+      do banco de dados se <varname>default_tablespace</varname> for uma cadeia de
+      caracteres vazia.
+     </para>
+    </listitem>
+   </varlistentry>
+
+  </variablelist>
+ </refsect1>
+
+ <refsect1 id="SQL-CREATETABLE-notes">
+  <title>Observações</title>
+
+    <para>
+     Não se recomenda usar OIDs nos novos aplicativos; é preferível
+     utilizar <literal>SERIAL</literal>, ou outro gerador de seqüências,
+     como chave primária da tabela, sempre que for possível.
+     Entretanto, se o aplicativo já faz uso de OIDs para identificar linhas
+     específicas da tabela, é recomendado criar uma restrição de unicidade
+     para a coluna <structfield>oid</structfield> da tabela, para garantir que
+     os OIDs na tabela realmente identificam unicamente uma linha, mesmo após
+     o contador reiniciar.
+     Evite supor que os OIDs são únicos entre tabelas; se for necessário um
+     identificador único para todo o banco de dados, use a combinação de
+     <structfield>tableoid</structfield> (OID de tabela) com o OID de linha para
+     esta finalidade.
+    </para>
+
+    <tip>
+     <para>
+      O uso de <literal>WITHOUT OIDS</literal> não é recomendado
+      para tabelas sem chave primária, porque sem um OID e sem uma
+      chave de dados única fica difícil identificar uma linha específica.
+     </para>
+    </tip>
+
+    <para>
+     O <productname>PostgreSQL</productname> cria, automaticamente, um índice
+     para cada restrição de unicidade e de chave primária para impor a
+     unicidade. Portanto, não é necessário criar explicitamente um índice
+     para as colunas da chave primária (Consulte o comando <xref
+     linkend="sql-createindex" endterm="sql-createindex-title"> para obter mais
+     informações).
+    </para>
+
+    <para>
+     As restrições de unicidade e de chave primária não são herdadas na
+     implementação corrente, tornando o comportamento da combinação
+     de herança com restrição de unicidade um tanto disfuncional.
+    </para>
+
+  <para>
+   Uma tabela não pode ter mais de 1600 colunas (Na prática o
+   limite efetivo é menor, por causa da restrição do comprimento das tuplas).
+  </para>
+
+ </refsect1>
+
+
+ <refsect1 id="SQL-CREATETABLE-examples">
+  <title>Exemplos</title>
+
+  <para>
+   Criar a tabela <structname>filmes</structname> e a tabela
+   <structname>distribuidores</structname>:
+
+<programlisting>
+CREATE TABLE filmes (
+    cod_filme   char(5) CONSTRAINT pk_filmes PRIMARY KEY,
+    titulo      varchar(40) NOT NULL,
+    did         integer NOT NULL,
+    data_prod   date,
+    tipo        varchar(10),
+    duracao     interval hour to minute
+);
+</programlisting>
+
+<programlisting>
+CREATE TABLE distribuidores (
+     did    integer PRIMARY KEY DEFAULT nextval('serial'),
+     nome   varchar(40) NOT NULL CHECK (nome &lt;&gt; '')
+);
+</programlisting>
+  </para>
+
+  <para>
+   Criar uma tabela com uma matriz de 2 dimensões:
+
+<programlisting>
+CREATE TABLE matriz2d_int (
+    matriz  int[][]
+);
+</programlisting>
+  </para>
+
+  <para>
+   Definir uma restrição de unicidade para a tabela <literal>filmes</literal>.
+   Restrições de unicidade usando a sintaxe de restrição de tabela
+   podem ser definidas envolvendo uma ou mais colunas da tabela.
+
+<programlisting>
+CREATE TABLE filmes (
+    cod_filme   char(5),
+    titulo      varchar(40),
+    did         integer,
+    data_prod   date,
+    tipo        varchar(10),
+    duracao     interval hour to minute,
+    CONSTRAINT  unq_data_prod UNIQUE(data_prod)
+);
+</programlisting>
+  </para>
+
+  <para>
+   Definir uma restrição de verificação,
+   usando a sintaxe de restrição de coluna:
+
+<programlisting>
+CREATE TABLE distribuidores (
+    did     integer CHECK (did &gt; 100),
+    nome    varchar(40)
+);
+</programlisting>
+  </para>
+
+  <para>
+   Definir uma restrição de verificação,
+   usando a sintaxe de restrição de tabela:
+
+<programlisting>
+CREATE TABLE distribuidores (
+    did     integer,
+    nome    varchar(40)
+    CONSTRAINT chk_dist CHECK (did &gt; 100 AND nome &lt;&gt; '')
+);
+</programlisting>
+  </para>
+
+  <para>
+   Definir uma restrição de chave primária, usando a sintaxe de restrição de
+   tabela, para a tabela <structname>filmes</structname>.
+   As restrições de chave primária com sintaxe de restrição de tabela
+   podem ser definidas usando uma ou mais colunas da tabela.
+
+<programlisting>
+CREATE TABLE filmes (
+    cod_filme   char(5),
+    titulo      varchar(40),
+    did         integer,
+    data_prod   date,
+    tipo        varchar(10),
+    duracao     interval hour to minute,
+    CONSTRAINT  pk_filmes PRIMARY KEY(cod_filme,titulo)
+);
+</programlisting>
+  </para>
+
+  <para>
+   Definir a restrição de chave primária para a tabela
+   <structname>distribuidores</structname>. Os dois exemplos abaixo são
+   equivalentes, o primeiro utiliza a sintaxe de restrição de tabela,
+   e o segundo utiliza a sintaxe de restrição de coluna.
+
+<programlisting>
+CREATE TABLE distribuidores (
+    did     integer,
+    nome    varchar(40),
+    PRIMARY KEY(did)
+);
+</programlisting>
+
+<programlisting>
+CREATE TABLE distribuidores (
+    did     integer PRIMARY KEY,
+    nome    varchar(40)
+);
+</programlisting>
+  </para>
+
+  <para>
+   O comando abaixo atribui uma constante literal como valor padrão para a
+   coluna <literal>nome</literal>, faz o valor padrão da
+   coluna <literal>did</literal> ser gerado pela seleção do próximo
+   valor de um objeto de seqüência, e faz o valor padrão da coluna
+   <literal>data_mod</literal> ser o momento em que
+   a linha foi inserida.
+
+<programlisting>
+CREATE TABLE distribuidores (
+    nome      varchar(40) DEFAULT 'Luso Films',
+    did       integer DEFAULT nextval('seq_distribuidores'),
+    data_mod  timestamp DEFAULT current_timestamp
+);
+</programlisting>
+  </para>
+
+  <para>
+   Definir duas restrições de coluna <literal>NOT NULL</literal> na tabela
+   <classname>distribuidores</classname>, sendo que uma delas recebe
+   um nome fornecido:
+
+<programlisting>
+CREATE TABLE distribuidores (
+    did     integer CONSTRAINT nao_nulo NOT NULL,
+    nome    varchar(40) NOT NULL
+);
+</programlisting>
+    </para>
+
+    <para>
+     Definir uma restrição de unicidade para a coluna <literal>nome</literal>:
+
+<programlisting>
+CREATE TABLE distribuidores (
+    did     integer,
+    nome    varchar(40) UNIQUE
+);
+</programlisting>
+
+     O comando acima é equivalente ao mostrado abaixo,
+     especificado como uma restrição de tabela:
+
+<programlisting>
+CREATE TABLE distribuidores (
+    did     integer,
+    nome    varchar(40),
+    UNIQUE(nome)
+);
+</programlisting>
+  </para>
+
+  <para>
+   Criar a tabela <structname>cinemas</structname> no espaço de tabelas
+   <structname>vol_disco1</structname>:
+
+<programlisting>
+CREATE TABLE cinemas (
+        id serial,
+        nome text,
+        local text
+) TABLESPACE vol_disco1;
+</programlisting>
+  </para>
+
+ </refsect1>
+
+ <refsect1 id="SQL-CREATETABLE-compatibility">
+  <title id="SQL-CREATETABLE-compatibility-title">Compatibilidade</title>
+
+  <para>
+   O comando <command>CREATE TABLE</command> está em conformidade com o SQL-92
+   e com um subconjunto do SQL:1999, com as exceções listadas abaixo.
+  </para>
+
+  <refsect2>
+   <title>Tabelas temporárias</title>
+
+   <para>
+    Embora a sintaxe de <literal>CREATE TEMPORARY TABLE</literal> se pareça com
+    a do padrão SQL, o efeito não é o mesmo. No padrão as tabelas temporárias
+    são definidas apenas uma vez, passando a existir automaticamente (começando
+    com um conteúdo vazio) para todas as sessões que necessitarem destas.
+    Em vez disso, o <productname>PostgreSQL</productname> requer que cada sessão
+    execute seu próprio comando <literal>CREATE TEMPORARY TABLE</literal> para
+    cada tabela temporária a ser utilizada, permitindo que sessões diferentes
+    usem o mesmo nome de tabela temporária para finalidades diferentes,
+    enquanto que a abordagem do padrão restringe todas as instâncias de um
+    determinado nome de tabela temporária terem a mesma estrutura de tabela.
+   </para>
+
+   <para>
+    A definição do padrão para o comportamento de tabelas temporárias é
+    amplamente ignorado. O comportamento do <productname>PostgreSQL</productname>
+    neste ponto é semelhante ao de vários outros bancos de dado SQL.
+   </para>
+
+   <para>
+    A distinção feita pelo padrão entre tabelas temporárias globais e locais
+    não está presente no <productname>PostgreSQL</productname>, uma vez que esta
+    distinção depende do conceito de módulos, que o
+    <productname>PostgreSQL</productname> não possui. Por motivo de
+    compatibilidade, o <productname>PostgreSQL</productname>
+    aceita as palavras chave <literal>GLOBAL</literal> e <literal>LOCAL</literal>
+    na declaração da tabela temporária, mas estas não produzem efeito.
+   </para>
+
+   <para>
+    A cláusula <literal>ON COMMIT</literal> para as tabelas temporárias também
+    lembra o padrão SQL, mas possui algumas diferenças. Se a cláusula
+    <literal>ON COMMIT</literal> for omitida, o padrão SQL especifica que o
+    comportamento padrão deve ser <literal>ON COMMIT DELETE ROWS</literal>.
+    Entretanto, o comportamento padrão no <productname>PostgreSQL</productname>
+    é <literal>ON COMMIT PRESERVE ROWS</literal>. A opção
+    <literal>ON COMMIT DROP</literal> não existe no padrão SQL.
+   </para>
+  </refsect2>
+
+  <refsect2>
+   <title>Restrições de verificação de coluna</title>
+
+   <para>
+    O padrão SQL estabelece que as restrições de coluna <literal>CHECK</literal>
+    só podem fazer referência à coluna onde estão aplicadas; somente a restrição
+    <literal>CHECK</literal> de tabela pode fazer referência a várias colunas.
+    O <productname>PostgreSQL</productname> não impõe esta restrição;
+    as restrições de coluna e de tabela são tratadas da mesma maneira.
+   </para>
+  </refsect2>
+
+  <refsect2>
+   <title><quote>Restrição</quote> <literal>NULL</literal></title>
+
+   <para>
+    A <quote>restrição</quote> <literal>NULL</literal> (na verdade uma
+    não restrição) é uma extensão do <productname>PostgreSQL</productname>
+    ao padrão SQL incluída para manter a compatibilidade com alguns
+    outros sistemas de banco de dados (e por simetria com a restrição
+    <literal>NOT NULL</literal>). Uma vez que este é o padrão para qualquer
+    coluna, sua presença é desnecessária.
+   </para>
+  </refsect2>
+
+  <refsect2>
+   <title>Herança</title>
+
+   <para>
+    Heranças múltiplas por meio da cláusula <literal>INHERITS</literal> é uma
+    extensão do <productname>PostgreSQL</productname> à linguagem. O SQL:1999
+    (mas não o SQL-92) define herança única utilizando uma sintaxe diferente e
+    semânticas diferentes. O estilo de herança do SQL:1999 ainda não é
+    suportado pelo <productname>PostgreSQL</productname>.
+   </para>
+  </refsect2>
+
+  <refsect2>
+   <title>Identificadores de Objeto (Object IDs)</title>
+
+   <para>
+    O conceito de OIDs (identificadores de objeto)
+    do <productname>PostgreSQL</productname> não é padrão.
+   </para>
+  </refsect2>
+
+  <refsect2>
+   <title>Tabelas sem coluna</title>
+
+   <para>
+    O <productname>PostgreSQL</productname> permite a criação de tabelas sem
+    colunas (por exemplo, <literal>CREATE TABLE foo();</literal>). Isto é uma
+    extensão ao padrão SQL, que não permite tabelas com zero coluna. As tabelas
+    sem coluna não são muito úteis, mas se não forem permitidas criam um caso
+    especial para o comando <command>ALTER TABLE DROP COLUMN</command> e, por
+    isso, parece mais simples ignorar esta restrição contida na especificação.
+   </para>
+  </refsect2>
+
+  <refsect2>
+   <title>Espaços de tabelas</title>
+
+   <para>
+    O conceito de espaços de tabelas do <productname>PostgreSQL</productname>
+    não faz parte do padrão. Portanto, as cláusulas
+    <literal>TABLESPACE</literal> e <literal>USING INDEX TABLESPACE</literal>
+    são extensões.
+   </para>
+  </refsect2>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-altertable" endterm="sql-altertable-title"></member>
+   <member><xref linkend="sql-droptable" endterm="sql-droptable-title"></member>
+   <member><xref linkend="sql-createtablespace" endterm="sql-createtablespace-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

@@ -1,0 +1,482 @@
+<!--
+$PostgreSQL: pgsql/doc/src/sgml/ref/grant.sgml,v 1.44.4.1 2005/01/22 23:23:53 momjian Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-GRANT">
+ <refmeta>
+  <refentrytitle id="sql-grant-title">GRANT</refentrytitle>
+  <refmiscinfo>SQL - Comandos da Linguagem</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>GRANT</refname>
+  <refpurpose>define privilégios de acesso</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-grant">
+  <primary>GRANT</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+GRANT { { SELECT | INSERT | UPDATE | DELETE | RULE | REFERENCES | TRIGGER }
+    [,...] | ALL [ PRIVILEGES ] }
+    ON [ TABLE ] <replaceable class="parameter">nome_da_tabela</replaceable> [, ...]
+    TO { <replaceable class="parameter">nome_do_usuário</replaceable> | GROUP <replaceable class="parameter">nome_do_grupo</replaceable> | PUBLIC } [, ...] [ WITH GRANT OPTION ]
+
+GRANT { { CREATE | TEMPORARY | TEMP } [,...] | ALL [ PRIVILEGES ] }
+    ON DATABASE <replaceable>nome_do_banco_de_dados</replaceable> [, ...]
+    TO { <replaceable class="parameter">nome_do_usuário</replaceable> | GROUP <replaceable class="parameter">nome_do_grupo</replaceable> | PUBLIC } [, ...] [ WITH GRANT OPTION ]
+
+GRANT { EXECUTE | ALL [ PRIVILEGES ] }
+    ON FUNCTION <replaceable>nome_da_função</replaceable> ([<replaceable>tipo</replaceable>, ...]) [, ...]
+    TO { <replaceable class="parameter">nome_do_usuário</replaceable> | GROUP <replaceable class="parameter">nome_do_grupo</replaceable> | PUBLIC } [, ...] [ WITH GRANT OPTION ]
+
+GRANT { USAGE | ALL [ PRIVILEGES ] }
+    ON LANGUAGE <replaceable>nome_da_linguagem</replaceable> [, ...]
+    TO { <replaceable class="parameter">nome_do_usuário</replaceable> | GROUP <replaceable class="parameter">nome_do_grupo</replaceable> | PUBLIC } [, ...] [ WITH GRANT OPTION ]
+
+GRANT { { CREATE | USAGE } [,...] | ALL [ PRIVILEGES ] }
+    ON SCHEMA <replaceable>nome_do_esquema</replaceable> [, ...]
+    TO { <replaceable class="parameter">nome_do_usuário</replaceable> | GROUP <replaceable class="parameter">nome_do_grupo</replaceable> | PUBLIC } [, ...] [ WITH GRANT OPTION ]
+
+GRANT { CREATE | ALL [ PRIVILEGES ] }
+    ON TABLESPACE <replaceable>nome_do_espaço_de_tabelas</replaceable> [, ...]
+    TO { <replaceable class="parameter">nome_do_usuário</replaceable> | GROUP <replaceable class="parameter">nome_do_grupo</replaceable> | PUBLIC } [, ...] [ WITH GRANT OPTION ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="sql-grant-description">
+  <title>Descrição</title>
+
+  <para>
+   O comando <command>GRANT</command> concede privilégios específicos
+   para um objeto (tabela, visão, seqüência, banco de dados, função,
+   linguagem procedural, esquema ou espaço de tabelas)
+   para um ou mais usuários ou grupos de usuários.
+   Estes privilégios são adicionados aos já concedidos, caso existam.
+  </para>
+
+  <para>
+   A palavra chave <literal>PUBLIC</literal> indica que o privilégio deve
+   ser concedido para todos os usuários, inclusive aos que vierem a ser criados
+   posteriormente. <literal>PUBLIC</literal> pode ser considerado como
+   um grupo definido implicitamente que sempre inclui todos os usuários.
+   Um determinado usuário possui a soma dos privilégios
+   concedidos diretamente para o mesmo, mais os privilégios concedidos para
+   todos os grupos que este seja membro, mais os privilégios concedidos para
+   <literal>PUBLIC</literal>.
+  </para>
+
+  <para>
+   Se for especificado <literal>WITH GRANT OPTION</literal> quem recebe o
+   privilégio pode, por sua vez, conceder o privilégio a outros.
+   Sem esta opção de concessão quem recebe não pode conceder o privilégio.
+   Atualmente as opções de concessão somente podem ser concedidas a usuários
+   individuais, e não a grupos ou <literal>PUBLIC</literal>.
+  </para>
+
+  <para>
+   Não é necessário conceder privilégios para o dono do objeto
+   (geralmente o usuário que o criou), porque o dono possui todos os privilégios
+   por padrão (Entretanto, o dono pode decidir revogar alguns de seus próprios
+   privilégios por motivo de segurança).
+   O direito de remover um objeto, ou de alterar a sua definição de alguma
+   forma, não é descrito por um privilégio que possa ser concedido; é inerente
+   ao dono e não pode ser concedido ou revogado.
+   O dono possui também, implicitamente, todas as opções de concessão para o
+   objeto.
+  </para>
+
+  <para>
+   Dependendo do tipo do objeto, os privilégios iniciais padrão podem
+   incluir a concessão de alguns privilégios para <literal>PUBLIC</literal>.
+   O padrão é: não permitir o acesso público para tabelas, esquemas e espaços de tabelas;
+   privilégio de criação de tabela <literal>TEMP</literal> para bancos de dados;
+   privilégio <literal>EXECUTE</literal> para funções; e
+   privilégio <literal>USAGE</literal> para linguagens.
+   O dono do objeto pode, é claro, revogar estes privilégios (para a máxima
+   segurança deve ser executado o comando <command>REVOKE</command> na mesma
+   transação que criar o objeto; dessa forma não haverá
+   tempo para que outro usuário possa usar o objeto).
+  </para>
+
+  <para>
+   Os privilégios possíveis são:
+
+   <variablelist>
+    <varlistentry>
+     <term>SELECT</term>
+     <listitem>
+      <para>
+       Permite consultar (<xref linkend="sql-select" endterm="sql-select-title">)
+       qualquer coluna da tabela, visão ou seqüência especificada. Também permite
+       utilizar o comando <xref linkend="sql-copy" endterm="sql-copy-title"> TO.
+       Para as seqüências, este privilégio também permite o uso da função
+       <function>currval</function>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>INSERT</term>
+     <listitem>
+      <para>
+       Permite inserir (<xref linkend="sql-insert" endterm="sql-insert-title">)
+       novas linhas na tabela especificada. Também permite utilizar o comando
+       <xref linkend="sql-copy" endterm="sql-copy-title"> FROM.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>UPDATE</term>
+     <listitem>
+      <para>
+       Permite modificar (<xref linkend="sql-update" endterm="sql-update-title">)
+       os dados de qualquer coluna da tabela especificada.
+       O comando <literal>SELECT ... FOR UPDATE</literal> também requer este
+       privilégio (além do privilégio <literal>SELECT</literal>).
+       Para as seqüências, este privilégio permite o uso das funções
+       <function>nextval</function> e <function>setval</function>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>DELETE</term>
+     <listitem>
+      <para>
+       Permite excluir (<xref linkend="sql-delete" endterm="sql-delete-title">)
+       linhas da tabela especificada.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>RULE</term>
+     <listitem>
+      <para>
+       Permite criar regras para a tabela ou para a visão (Consulte o comando
+       <xref linkend="sql-createrule" endterm="sql-createrule-title">).
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>REFERENCES</term>
+     <listitem>
+      <para>
+       Para criar uma restrição de chave estrangeira é
+       necessário possuir este privilégio, tanto na tabela
+       que faz referência quanto na tabela que é referenciada.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>TRIGGER</term>
+     <listitem>
+      <para>
+       Permite criar gatilhos na tabela especificada (Consulte o comando
+       <xref linkend="sql-createtrigger" endterm="sql-createtrigger-title">).
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>CREATE</term>
+     <listitem>
+      <para>
+       Para bancos de dados, permite a criação de novos esquemas no banco de
+       dados.
+      </para>
+      <para>
+       Para esquemas, permite a criação de novos objetos no esquema.
+       Para mudar o nome de um objeto existente é necessário ser o dono do
+       objeto <emphasis>e</emphasis> possuir este privilégio no esquema que o
+       contém.
+      </para>
+      <para>
+       Para espaços de tabelas, permite a criação de tabelas e índices no espaço
+       de tabelas, e permite também a criação de bancos de dados que possuam este
+       espaço de tabelas como seu espaço de tabelas padrão (Deve ser observado
+       que revogar este privilégio não altera a colocação dos objetos existentes).
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>TEMPORARY</term>
+     <term>TEMP</term>
+     <listitem>
+      <para>
+       Permite a criação de tabelas temporárias ao usar o banco de dados.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>EXECUTE</term>
+     <listitem>
+      <para>
+       Permite utilizar a função especificada e qualquer
+       operador implementado por cima da função. Este é
+       o único tipo de privilégio aplicável às funções
+       (Esta sintaxe funciona para as funções de agregação, da mesma forma).
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>USAGE</term>
+     <listitem>
+      <para>
+       Para as linguagens procedurais, permite o uso da linguagem
+       especificada para criar funções nesta linguagem. Este é o
+       único tipo de privilégio aplicável às linguagens procedurais.
+      </para>
+      <para>
+       Para os esquemas, permite acessar os objetos contidos no esquema
+       especificado (assumindo que os privilégios requeridos para os próprios
+       objetos estejam atendidos). Essencialmente, permite a quem recebe a
+       concessão <quote>procurar</quote> por objetos dentro do esquema.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term>ALL PRIVILEGES</term>
+     <listitem>
+      <para>
+       Concede todos os privilégios disponíveis de uma só vez.
+       A palavra chave <literal>PRIVILEGES</literal> é opcional no
+       <productname>PostgreSQL</productname>, embora seja requerida
+       pelo SQL estrito.
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+
+   Os privilégios requeridos por outros comandos estão listados nas
+   páginas de referência dos respectivos comandos.
+  </para>
+ </refsect1>
+
+
+ <refsect1 id="SQL-GRANT-notes">
+  <title>Observações</title>
+
+   <para>
+    O comando <xref linkend="sql-revoke" endterm="sql-revoke-title">
+    é utilizado para revogar privilégios de acesso.
+   </para>
+
+   <para>
+    Quando alguém, que não é dono do objeto, tenta conceder privilégios para
+    o objeto, o comando falha imediatamente se o usuário não possuir algum
+    privilégio para o objeto.
+    Desde que algum privilégio esteja disponível o comando prossegue, mas só
+    concede os privilégios para os quais o usuário tem a opção de concessão.
+    A forma <command>GRANT ALL PRIVILEGES</command> emite uma mensagem de advertência
+    se nenhuma opção de concessão for possuída, enquanto as outras formas
+    emitem mensagem de advertência se a opção de concessão para algum dos
+    privilégios especificamente nomeados no comando não for possuída
+    (Em princípio estas declarações também se aplicam ao dono do objeto,
+    mas como o dono é sempre tratado como possuindo todas as opções de
+    concessão estes casos nunca ocorrem).
+   </para>
+
+   <para>
+    Deve ser observado que os superusuários do banco de dados podem acessar
+    todos os objetos, sem considerar os privilégios definidos para o objeto.
+    Isto é comparável aos direitos do usuário <literal>root</literal> no sistema
+    operacional Unix.
+    Assim como no caso do <literal>root</literal>, não é aconselhável operar
+    como um superusuário a não ser quando for absolutamente necessário.
+   </para>
+
+   <para>
+    Se um superusuário decidir executar o comando <command>GRANT</command> ou
+    o comando <command>REVOKE</command>, o comando é executado como se tivesse
+    sido executado pelo dono do objeto afetado.
+    Em particular, os privilégio concedidos através deste comando aparecem como
+    se tivessem sido concedidos pelo dono do objeto.
+   </para>
+
+   <para>
+    Atualmente o <productname>PostgreSQL</productname> não suporta conceder ou
+    revogar privilégios para colunas individuais da tabela.
+    Uma forma possível de transpor esta limitação é criar uma visão possuindo
+    apenas as colunas desejadas e, então, conceder os privilégios para a visão.
+   </para>
+
+   <para>
+    Pode ser usado o comando <command>\z</command> do aplicativo
+    <xref linkend="app-psql"> para obter informações sobre os privilégios
+    concedidos como, por exemplo:
+<programlisting>
+=&gt; \z minha_tabela
+
+                        Access privileges for database "lusitania"
+ Schema |    Name      | Type  |                     Access privileges
+--------+--------------+-------+------------------------------------------------------------
+ public | minha_tabela | table | {miriam=arwdRxt/miriam,=r/miriam,"group todos=arw/miriam"}
+(1 linha)
+</programlisting>
+    As entradas mostradas pelo comando <command>\z</command> são interpretadas
+    da seguinte forma:
+<screen>
+              =xxxx -- privilégios concedidos para PUBLIC
+         uname=xxxx -- privilégios concedidos para o usuário
+   group gname=xxxx -- privilégios concedidos para o grupo
+
+                  r -- SELECT ("read")
+                  w -- UPDATE ("write")
+                  a -- INSERT ("append")
+                  d -- DELETE
+                  R -- RULE
+                  x -- REFERENCES
+                  t -- TRIGGER
+                  X -- EXECUTE
+                  U -- USAGE
+                  C -- CREATE
+                  T -- TEMPORARY
+            arwdRxt -- ALL PRIVILEGES (para tabelas)
+                  * -- opção de concessão para o privilégio precedente
+
+              /yyyy -- usuário que concedeu este privilégio
+</screen>
+
+    O exemplo mostrado acima seria visto pela usuária <literal>miriam</literal>
+    após esta ter criado a tabela <literal>minha_tabela</literal> e executado:
+
+<programlisting>
+GRANT SELECT ON minha_tabela TO PUBLIC;
+GRANT SELECT, UPDATE, INSERT ON minha_tabela TO GROUP todos;
+</programlisting>
+   </para>
+
+   <para>
+    Se a coluna <quote>Access privileges</quote> estiver vazia para um
+    determinado objeto, isto significa que o objeto possui os privilégios padrão
+    (ou seja, suas colunas de privilégio são nulas). Os privilégios padrão
+    sempre incluem todos os privilégios para o dono, e podem incluir alguns
+    privilégios para <literal>PUBLIC</literal> dependendo do tipo do objeto,
+    como foi explicado acima. O primeiro comando <command>GRANT</command> ou
+    <command>REVOKE</command> em um objeto cria uma instância dos privilégios
+    padrão (produzindo, por exemplo, <literal>{=,miriam=arwdRxt}</literal>) e,
+    em seguida, modifica esta instância de acordo com a solicitação especificada.
+   </para>
+
+   <para>
+    Deve ser observado que as opções de concessão implícitas do dono não são
+    marcadas na visualização dos privilégios de acesso.
+    O <literal>*</literal> aparece somente quando as opções de concessão foram
+    concedidas explicitamente para alguém.
+   </para>
+ </refsect1>
+
+ <refsect1 id="sql-grant-examples">
+  <title>Exemplos</title>
+
+  <para>
+   Conceder, para todos os usuários, o privilégio de inserção na tabela
+   <literal>filmes</literal>:
+
+<programlisting>
+GRANT INSERT ON filmes TO PUBLIC;
+</programlisting>
+  </para>
+
+  <para>
+   Conceder para o usuário <literal>manuel</literal> todos os privilégios
+   disponíveis na visão <literal>tipos</literal>:
+
+<programlisting>
+GRANT ALL PRIVILEGES ON tipos TO manuel;
+</programlisting>
+
+   Deve ser observado que, embora o comando acima realmente concede todos os
+   privilégios se for executado por um superusuário ou pelo dono de
+   <literal>tipos</literal>, se for executado por outra pessoa somente concederá
+   as permissões para as quais esta outra pessoa tiver a opção de conceder.
+  </para>
+ </refsect1>
+
+ <refsect1 id="sql-grant-compatibility">
+  <title>Compatibilidade</title>
+
+   <para>
+    De acordo com o padrão SQL, a palavra chave <literal>PRIVILEGES</literal>
+    em <literal>ALL PRIVILEGES</literal> é requerida. O padrão
+    SQL não permite definir privilégios para mais de um
+    objeto por comando.
+   </para>
+
+   <para>
+    O <productname>PostgreSQL</productname> permite ao dono do objeto revogar
+    seus próprios privilégios ordinários: por exemplo, o dono da tabela pode
+    tornar a tabela somente de leitura para ele mesmo revogando seus próprios
+    privilégios de INSERT, UPDATE e DELETE.
+    De acordo com o padrão SQL isto não é possível.
+    A razão é que o <productname>PostgreSQL</productname> trata os privilégios
+    do dono como tendo sido concedidos pelo dono para ele mesmo; portanto ele
+    também pode revogá-los.
+    No padrão SQL os privilégios do dono são concedidos pela entidade assumida
+    <quote>_SYSTEM</quote>.
+    Em não sendo o <quote>_SYSTEM</quote>, o dono não pode revogar estes direitos.
+   </para>
+
+   <para>
+    O padrão SQL permite definir privilégios para as colunas individuais
+    da tabela:
+
+<synopsis>
+GRANT <replaceable class="PARAMETER">privilégios</replaceable>
+    ON <replaceable class="parameter">tabela</replaceable> [ ( <replaceable class="parameter">coluna</replaceable> [, ...] ) ] [, ...]
+    TO { PUBLIC | <replaceable class="parameter">nome_do_usuário</replaceable> [, ...] } [ WITH GRANT OPTION ]
+</synopsis>
+   </para>
+
+   <para>
+    O padrão <acronym>SQL</acronym> permite conceder o privilégio
+    <literal>USAGE</literal> em outros tipos de objeto: conjuntos de caracteres,
+    classificações (<literal>collations</literal>), traduções e domínios.
+   </para>
+
+   <para>
+    O privilégio <literal>RULE</literal>, e os privilégios
+    para bancos de dados, espaços de tabelas, esquemas, linguagens e seqüências
+    são extensões do <productname>PostgreSQL</productname>.
+   </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Consulte também</title>
+
+  <simpara>
+   <xref linkend="sql-revoke" endterm="sql-revoke-title">
+  </simpara>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->
