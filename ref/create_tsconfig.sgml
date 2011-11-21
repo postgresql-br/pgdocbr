@@ -1,11 +1,12 @@
 <!--
-$PostgreSQL: pgsql/doc/src/sgml/ref/create_tsconfig.sgml,v 1.1 2007/08/21 21:08:47 tgl Exp $
+doc/src/sgml/ref/create_tsconfig.sgml
 PostgreSQL documentation
 -->
 
 <refentry id="SQL-CREATETSCONFIG">
  <refmeta>
-  <refentrytitle id="sql-createtsconfig-title">CREATE TEXT SEARCH CONFIGURATION</refentrytitle>
+  <refentrytitle>CREATE TEXT SEARCH CONFIGURATION</refentrytitle>
+  <manvolnum>7</manvolnum>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -59,7 +60,7 @@ CREATE TEXT SEARCH CONFIGURATION <replaceable class="parameter">name</replaceabl
    Refer to <xref linkend="textsearch"> for further information.
   </para>
  </refsect1>
-  
+
  <refsect1>
   <title>Parameters</title>
 
@@ -93,7 +94,7 @@ CREATE TEXT SEARCH CONFIGURATION <replaceable class="parameter">name</replaceabl
    </varlistentry>
   </variablelist>
  </refsect1>
-  
+
  <refsect1>
   <title>Notes</title>
 
@@ -104,7 +105,7 @@ CREATE TEXT SEARCH CONFIGURATION <replaceable class="parameter">name</replaceabl
   </para>
 
  </refsect1>
- 
+
  <refsect1>
   <title>Compatibility</title>
 
@@ -118,8 +119,8 @@ CREATE TEXT SEARCH CONFIGURATION <replaceable class="parameter">name</replaceabl
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-altertsconfig" endterm="sql-altertsconfig-title"></member>
-   <member><xref linkend="sql-droptsconfig" endterm="sql-droptsconfig-title"></member>
+   <member><xref linkend="sql-altertsconfig"></member>
+   <member><xref linkend="sql-droptsconfig"></member>
   </simplelist>
  </refsect1>
 </refentry>

@@ -1,11 +1,12 @@
 <!--
-$PostgreSQL$
+doc/src/sgml/ref/drop_tsparser.sgml
 PostgreSQL documentation
 -->
 
 <refentry id="SQL-DROPTSPARSER">
  <refmeta>
-  <refentrytitle id="SQL-DROPTSPARSER-TITLE">DROP TEXT SEARCH PARSER</refentrytitle>
+  <refentrytitle>DROP TEXT SEARCH PARSER</refentrytitle>
+  <manvolnum>7</manvolnum>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -13,7 +14,7 @@ PostgreSQL documentation
   <refname>DROP TEXT SEARCH PARSER</refname>
   <refpurpose>remove a text search parser</refpurpose>
  </refnamediv>
-  
+
  <indexterm zone="sql-droptsparser">
   <primary>DROP TEXT SEARCH PARSER</primary>
  </indexterm>
@@ -32,7 +33,7 @@ DROP TEXT SEARCH PARSER [ IF EXISTS ] <replaceable class="PARAMETER">name</repla
    parser.  You must be a superuser to use this command.
   </para>
  </refsect1>
-  
+
  <refsect1>
   <title>Parameters</title>
 
@@ -93,7 +94,7 @@ DROP TEXT SEARCH PARSER my_parser;
    drop such configurations along with the parser.
   </para>
  </refsect1>
- 
+
  <refsect1>
   <title>Compatibility</title>
 
@@ -107,8 +108,8 @@ DROP TEXT SEARCH PARSER my_parser;
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-altertsparser" endterm="sql-altertsparser-title"></member>
-   <member><xref linkend="sql-createtsparser" endterm="sql-createtsparser-title"></member>
+   <member><xref linkend="sql-altertsparser"></member>
+   <member><xref linkend="sql-createtsparser"></member>
   </simplelist>
  </refsect1>
 

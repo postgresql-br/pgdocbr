@@ -1,6 +1,6 @@
-<!-- $PostgreSQL$ -->
+<!-- doc/src/sgml/pageinspect.sgml -->
 
-<sect1 id="pageinspect">
+<sect1 id="pageinspect" xreflabel="pageinspect">
  <title>pageinspect</title>
 
  <indexterm zone="pageinspect">
@@ -19,7 +19,7 @@
   <variablelist>
    <varlistentry>
     <term>
-     <function>get_raw_page(text, int) returns bytea</function>
+     <function>get_raw_page(relname text, fork text, blkno int) returns bytea</function>
     </term>
 
     <listitem>
@@ -27,13 +27,30 @@
       <function>get_raw_page</function> reads the specified block of the named
       table and returns a copy as a <type>bytea</> value.  This allows a
       single time-consistent copy of the block to be obtained.
+      <replaceable>fork</replaceable> should be <literal>'main'</literal> for
+      the main data fork, or <literal>'fsm'</literal> for the free space map,
+      or <literal>'vm'</literal> for the visibility map.
      </para>
     </listitem>
    </varlistentry>
 
    <varlistentry>
     <term>
-     <function>page_header(bytea) returns record</function>
+     <function>get_raw_page(relname text, blkno int) returns bytea</function>
+    </term>
+
+    <listitem>
+     <para>
+      A shorthand version of <function>get_raw_page</function>, for reading
+      from the main fork.  Equivalent to
+      <literal>get_raw_page(relname, 'main', blkno)</literal>
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term>
+     <function>page_header(page bytea) returns record</function>
     </term>
 
     <listitem>
@@ -45,15 +62,12 @@
      <para>
       A page image obtained with <function>get_raw_page</function> should be
       passed as argument.  For example:
-     </para>
-     <programlisting>
+<screen>
 test=# SELECT * FROM page_header(get_raw_page('pg_class', 0));
     lsn    | tli | flags | lower | upper | special | pagesize | version | prune_xid
 -----------+-----+-------+-------+-------+---------+----------+---------+-----------
  0/24A1B50 |   1 |     1 |   232 |   368 |    8192 |     8192 |       4 |         0
-     </programlisting>
-
-     <para>
+</screen>
       The returned columns correspond to the fields in the
       <structname>PageHeaderData</> struct.
       See <filename>src/include/storage/bufpage.h</> for details.
@@ -63,7 +77,7 @@ test=# SELECT * FROM page_header(get_raw_page('pg_class', 0));
 
    <varlistentry>
     <term>
-     <function>heap_page_items(bytea) returns setof record</function>
+     <function>heap_page_items(page bytea) returns setof record</function>
     </term>
 
     <listitem>
@@ -76,11 +90,9 @@ test=# SELECT * FROM page_header(get_raw_page('pg_class', 0));
      <para>
       A heap page image obtained with <function>get_raw_page</function> should
       be passed as argument.  For example:
-     </para>
-     <programlisting>
+<screen>
 test=# SELECT * FROM heap_page_items(get_raw_page('pg_class', 0));
-     </programlisting>
-     <para>
+</screen>
       See <filename>src/include/storage/itemid.h</> and
       <filename>src/include/access/htup.h</> for explanations of the fields
       returned.
@@ -90,15 +102,14 @@ test=# SELECT * FROM heap_page_items(get_raw_page('pg_class', 0));
 
    <varlistentry>
     <term>
-     <function>bt_metap(text) returns record</function>
+     <function>bt_metap(relname text) returns record</function>
     </term>
 
     <listitem>
      <para>
-      <function>bt_metap</function> returns information about a btree
+      <function>bt_metap</function> returns information about a B-tree
       index's metapage.  For example:
-     </para>
-     <programlisting>
+<screen>
 test=# SELECT * FROM bt_metap('pg_cast_oid_index');
 -[ RECORD 1 ]-----
 magic     | 340322
@@ -107,21 +118,21 @@ root      | 1
 level     | 0
 fastroot  | 1
 fastlevel | 0
-     </programlisting>
+</screen>
+     </para>
     </listitem>
    </varlistentry>
 
    <varlistentry>
     <term>
-     <function>bt_page_stats(text, int) returns record</function>
+     <function>bt_page_stats(relname text, blkno int) returns record</function>
     </term>
 
     <listitem>
      <para>
       <function>bt_page_stats</function> returns summary information about
-      single pages of btree indexes.  For example:
-     </para>
-     <programlisting>
+      single pages of B-tree indexes.  For example:
+<screen>
 test=# SELECT * FROM bt_page_stats('pg_cast_oid_index', 1);
 -[ RECORD 1 ]-+-----
 blkno         | 1
@@ -135,21 +146,21 @@ btpo_prev     | 0
 btpo_next     | 0
 btpo          | 0
 btpo_flags    | 3
-     </programlisting>
+</screen>
+     </para>
     </listitem>
    </varlistentry>
 
    <varlistentry>
     <term>
-     <function>bt_page_items(text, int) returns setof record</function>
+     <function>bt_page_items(relname text, blkno int) returns setof record</function>
     </term>
 
     <listitem>
      <para>
       <function>bt_page_items</function> returns detailed information about
-      all of the items on a btree index page.  For example:
-     </para>
-     <programlisting>
+      all of the items on a B-tree index page.  For example:
+<screen>
 test=# SELECT * FROM bt_page_items('pg_cast_oid_index', 1);
  itemoffset |  ctid   | itemlen | nulls | vars |    data
 ------------+---------+---------+-------+------+-------------
@@ -161,7 +172,28 @@ test=# SELECT * FROM bt_page_items('pg_cast_oid_index', 1);
           6 | (0,6)   |      12 | f     | f    | 28 27 00 00
           7 | (0,7)   |      12 | f     | f    | 29 27 00 00
           8 | (0,8)   |      12 | f     | f    | 2a 27 00 00
-     </programlisting>
+</screen>
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term>
+     <function>fsm_page_contents(page bytea) returns text</function>
+    </term>
+
+    <listitem>
+     <para>
+      <function>fsm_page_contents</function> shows the internal node structure
+      of a FSM page. The output is a multiline string, with one line per
+      node in the binary tree within the page. Only those nodes that are not
+      zero are printed. The so-called "next" pointer, which points to the
+      next slot to be returned from the page, is also printed.
+     </para>
+     <para>
+      See <filename>src/backend/storage/freespace/README</> for more
+      information on the structure of an FSM page.
+     </para>
     </listitem>
    </varlistentry>
   </variablelist>

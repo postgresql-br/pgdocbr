@@ -1,11 +1,12 @@
 <!--
-$PostgreSQL: pgsql/doc/src/sgml/ref/create_tsdictionary.sgml,v 1.1 2007/08/21 21:08:47 tgl Exp $
+doc/src/sgml/ref/create_tsdictionary.sgml
 PostgreSQL documentation
 -->
 
 <refentry id="SQL-CREATETSDICTIONARY">
  <refmeta>
-  <refentrytitle id="sql-createtsdictionary-title">CREATE TEXT SEARCH DICTIONARY</refentrytitle>
+  <refentrytitle>CREATE TEXT SEARCH DICTIONARY</refentrytitle>
+  <manvolnum>7</manvolnum>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -52,7 +53,7 @@ CREATE TEXT SEARCH DICTIONARY <replaceable class="parameter">name</replaceable> 
    Refer to <xref linkend="textsearch"> for further information.
   </para>
  </refsect1>
-  
+
  <refsect1>
   <title>Parameters</title>
 
@@ -102,7 +103,7 @@ CREATE TEXT SEARCH DICTIONARY <replaceable class="parameter">name</replaceable> 
    The options can appear in any order.
   </para>
  </refsect1>
-  
+
  <refsect1>
   <title>Examples</title>
 
@@ -117,9 +118,9 @@ CREATE TEXT SEARCH DICTIONARY my_russian (
     language = russian,
     stopwords = myrussian
 );
-</programlisting>  
+</programlisting>
  </refsect1>
- 
+
  <refsect1>
   <title>Compatibility</title>
 
@@ -133,8 +134,8 @@ CREATE TEXT SEARCH DICTIONARY my_russian (
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-altertsdictionary" endterm="sql-altertsdictionary-title"></member>
-   <member><xref linkend="sql-droptsdictionary" endterm="sql-droptsdictionary-title"></member>
+   <member><xref linkend="sql-altertsdictionary"></member>
+   <member><xref linkend="sql-droptsdictionary"></member>
   </simplelist>
  </refsect1>
 </refentry>

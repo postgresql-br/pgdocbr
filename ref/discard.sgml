@@ -1,11 +1,12 @@
 <!--
-$PostgreSQL: pgsql/doc/src/sgml/ref/discard.sgml,v 1.1 2007/04/26 16:13:09 neilc Exp $
+doc/src/sgml/ref/discard.sgml
 PostgreSQL documentation
 -->
 
 <refentry id="SQL-DISCARD">
  <refmeta>
-  <refentrytitle id="SQL-DISCARD-TITLE">DISCARD</refentrytitle>
+  <refentrytitle>DISCARD</refentrytitle>
+  <manvolnum>7</manvolnum>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -70,19 +71,19 @@ DISCARD { ALL | PLANS | TEMPORARY | TEMP }
     <listitem>
      <para>
       Releases all temporary resources associated with the current
-      session and resets the session to its initial state. This has
-      the same effect as executing the following sequence of
-      statements:
+      session and resets the session to its initial state.
+      Currently, this has the same effect as executing the following sequence
+      of statements:
 <programlisting>
 SET SESSION AUTHORIZATION DEFAULT;
 RESET ALL;
 DEALLOCATE ALL;
 CLOSE ALL;
 UNLISTEN *;
+SELECT pg_advisory_unlock_all();
 DISCARD PLANS;
 DISCARD TEMP;
-</programlisting>
-     </para>
+</programlisting></para>
     </listitem>
    </varlistentry>
 

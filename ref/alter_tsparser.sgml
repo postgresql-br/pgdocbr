@@ -1,29 +1,31 @@
 <!--
-$PostgreSQL$
+doc/src/sgml/ref/alter_tsparser.sgml
 PostgreSQL documentation
 -->
 
 <refentry id="SQL-ALTERTSPARSER">
  <refmeta>
-  <refentrytitle id="SQL-ALTERTSPARSER-TITLE">ALTER TEXT SEARCH PARSER</refentrytitle>
+  <refentrytitle>ALTER TEXT SEARCH PARSER</refentrytitle>
+  <manvolnum>7</manvolnum>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
  <refnamediv>
   <refname>ALTER TEXT SEARCH PARSER</refname>
   <refpurpose>change the definition of a text search parser</refpurpose>
- </refnamediv>  
-  
+ </refnamediv>
+
  <indexterm zone="sql-altertsparser">
   <primary>ALTER TEXT SEARCH PARSER</primary>
  </indexterm>
 
  <refsynopsisdiv>
 <synopsis>
-ALTER TEXT SEARCH PARSER <replaceable>name</replaceable> RENAME TO <replaceable>newname</replaceable>
+ALTER TEXT SEARCH PARSER <replaceable>name</replaceable> RENAME TO <replaceable>new_name</replaceable>
+ALTER TEXT SEARCH PARSER <replaceable>name</replaceable> SET SCHEMA <replaceable>new_schema</replaceable>
 </synopsis>
  </refsynopsisdiv>
-  
+
  <refsect1>
   <title>Description</title>
 
@@ -37,7 +39,7 @@ ALTER TEXT SEARCH PARSER <replaceable>name</replaceable> RENAME TO <replaceable>
    You must be a superuser to use <command>ALTER TEXT SEARCH PARSER</>.
   </para>
  </refsect1>
-  
+
  <refsect1>
   <title>Parameters</title>
 
@@ -52,10 +54,19 @@ ALTER TEXT SEARCH PARSER <replaceable>name</replaceable> RENAME TO <replaceable>
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">newname</replaceable></term>
+    <term><replaceable class="parameter">new_name</replaceable></term>
     <listitem>
      <para>
       The new name of the text search parser.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">new_schema</replaceable></term>
+    <listitem>
+     <para>
+      The new schema for the text search parser.
      </para>
     </listitem>
    </varlistentry>
@@ -75,8 +86,8 @@ ALTER TEXT SEARCH PARSER <replaceable>name</replaceable> RENAME TO <replaceable>
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-createtsparser" endterm="sql-createtsparser-title"></member>
-   <member><xref linkend="sql-droptsparser" endterm="sql-droptsparser-title"></member>
+   <member><xref linkend="sql-createtsparser"></member>
+   <member><xref linkend="sql-droptsparser"></member>
   </simplelist>
  </refsect1>
 </refentry>

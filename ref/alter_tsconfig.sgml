@@ -1,19 +1,20 @@
 <!--
-$PostgreSQL: pgsql/doc/src/sgml/ref/alter_tsconfig.sgml,v 1.2 2007/08/22 05:13:50 tgl Exp $
+doc/src/sgml/ref/alter_tsconfig.sgml
 PostgreSQL documentation
 -->
 
 <refentry id="SQL-ALTERTSCONFIG">
  <refmeta>
-  <refentrytitle id="SQL-ALTERTSCONFIG-TITLE">ALTER TEXT SEARCH CONFIGURATION</refentrytitle>
+  <refentrytitle>ALTER TEXT SEARCH CONFIGURATION</refentrytitle>
+  <manvolnum>7</manvolnum>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
  <refnamediv>
   <refname>ALTER TEXT SEARCH CONFIGURATION</refname>
   <refpurpose>change the definition of a text search configuration</refpurpose>
- </refnamediv>  
-  
+ </refnamediv>
+
  <indexterm zone="sql-altertsconfig">
   <primary>ALTER TEXT SEARCH CONFIGURATION</primary>
  </indexterm>
@@ -30,11 +31,12 @@ ALTER TEXT SEARCH CONFIGURATION <replaceable>name</replaceable>
     ALTER MAPPING FOR <replaceable class="parameter">token_type</replaceable> [, ... ] REPLACE <replaceable class="parameter">old_dictionary</replaceable> WITH <replaceable class="parameter">new_dictionary</replaceable>
 ALTER TEXT SEARCH CONFIGURATION <replaceable>name</replaceable>
     DROP MAPPING [ IF EXISTS ] FOR <replaceable class="parameter">token_type</replaceable> [, ... ]
-ALTER TEXT SEARCH CONFIGURATION <replaceable>name</replaceable> RENAME TO <replaceable>newname</replaceable>
-ALTER TEXT SEARCH CONFIGURATION <replaceable>name</replaceable> OWNER TO <replaceable>newowner</replaceable>
+ALTER TEXT SEARCH CONFIGURATION <replaceable>name</replaceable> RENAME TO <replaceable>new_name</replaceable>
+ALTER TEXT SEARCH CONFIGURATION <replaceable>name</replaceable> OWNER TO <replaceable>new_owner</replaceable>
+ALTER TEXT SEARCH CONFIGURATION <replaceable>name</replaceable> SET SCHEMA <replaceable>new_schema</replaceable>
 </synopsis>
  </refsynopsisdiv>
-  
+
  <refsect1>
   <title>Description</title>
 
@@ -50,7 +52,7 @@ ALTER TEXT SEARCH CONFIGURATION <replaceable>name</replaceable> OWNER TO <replac
    <command>ALTER TEXT SEARCH CONFIGURATION</>.
   </para>
  </refsect1>
-  
+
  <refsect1>
   <title>Parameters</title>
 
@@ -106,7 +108,7 @@ ALTER TEXT SEARCH CONFIGURATION <replaceable>name</replaceable> OWNER TO <replac
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">newname</replaceable></term>
+    <term><replaceable class="parameter">new_name</replaceable></term>
     <listitem>
      <para>
       The new name of the text search configuration.
@@ -115,10 +117,19 @@ ALTER TEXT SEARCH CONFIGURATION <replaceable>name</replaceable> OWNER TO <replac
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">newowner</replaceable></term>
+    <term><replaceable class="parameter">new_owner</replaceable></term>
     <listitem>
      <para>
       The new owner of the text search configuration.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">new_schema</replaceable></term>
+    <listitem>
+     <para>
+      The new schema for the text search configuration.
      </para>
     </listitem>
    </varlistentry>
@@ -155,7 +166,7 @@ ALTER TEXT SEARCH CONFIGURATION <replaceable>name</replaceable> OWNER TO <replac
 <programlisting>
 ALTER TEXT SEARCH CONFIGURATION my_config
   ALTER MAPPING REPLACE english WITH swedish;
-</programlisting>  
+</programlisting>
  </refsect1>
 
  <refsect1>
@@ -171,8 +182,8 @@ ALTER TEXT SEARCH CONFIGURATION my_config
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-createtsconfig" endterm="sql-createtsconfig-title"></member>
-   <member><xref linkend="sql-droptsconfig" endterm="sql-droptsconfig-title"></member>
+   <member><xref linkend="sql-createtsconfig"></member>
+   <member><xref linkend="sql-droptsconfig"></member>
   </simplelist>
  </refsect1>
 </refentry>

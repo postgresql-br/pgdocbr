@@ -1,6 +1,6 @@
-<!-- $PostgreSQL$ -->
+<!-- doc/src/sgml/pgrowlocks.sgml -->
 
-<sect1 id="pgrowlocks">
+<sect1 id="pgrowlocks" xreflabel="pgrowlocks">
  <title>pgrowlocks</title>
 
  <indexterm zone="pgrowlocks">
@@ -15,18 +15,18 @@
  <sect2>
   <title>Overview</title>
 
-  <synopsis>
+<synopsis>
 pgrowlocks(text) returns setof record
-  </synopsis>
+</synopsis>
 
   <para>
    The parameter is the name of a table.  The result is a set of records,
    with one row for each locked row within the table.  The output columns
-   are:
+   are shown in <xref linkend="pgrowlocks-columns">.
   </para>
 
-  <table>
-   <title><function>pgrowlocks</> output columns</title>
+  <table id="pgrowlocks-columns">
+   <title><function>pgrowlocks</> Output Columns</title>
 
    <tgroup cols="3">
     <thead>
@@ -101,10 +101,10 @@ pgrowlocks(text) returns setof record
    rows. If you want to take a look at the row contents at the same time, you
    could do something like this:
 
-  <programlisting>
+<programlisting>
 SELECT * FROM accounts AS a, pgrowlocks('accounts') AS p
   WHERE p.locked_row = a.ctid;
-  </programlisting>
+</programlisting>
 
    Be aware however that (as of <productname>PostgreSQL</> 8.3) such a
    query will be very inefficient.
@@ -112,9 +112,9 @@ SELECT * FROM accounts AS a, pgrowlocks('accounts') AS p
  </sect2>
 
  <sect2>
-  <title>Sample output</title>
+  <title>Sample Output</title>
 
-  <programlisting>
+<screen>
 test=# SELECT * FROM pgrowlocks('t1');
  locked_row | lock_type | locker | multi |   xids    |     pids
 ------------+-----------+--------+-------+-----------+---------------
@@ -123,7 +123,7 @@ test=# SELECT * FROM pgrowlocks('t1');
       (0,3) | Exclusive |    804 | f     | {804}     | {29066}
       (0,4) | Exclusive |    804 | f     | {804}     | {29066}
 (4 rows)
-  </programlisting>
+</screen>
  </sect2>
 
  <sect2>

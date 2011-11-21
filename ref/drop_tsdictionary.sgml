@@ -1,11 +1,12 @@
 <!--
-$PostgreSQL$
+doc/src/sgml/ref/drop_tsdictionary.sgml
 PostgreSQL documentation
 -->
 
 <refentry id="SQL-DROPTSDICTIONARY">
  <refmeta>
-  <refentrytitle id="SQL-DROPTSDICTIONARY-TITLE">DROP TEXT SEARCH DICTIONARY</refentrytitle>
+  <refentrytitle>DROP TEXT SEARCH DICTIONARY</refentrytitle>
+  <manvolnum>7</manvolnum>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
@@ -13,7 +14,7 @@ PostgreSQL documentation
   <refname>DROP TEXT SEARCH DICTIONARY</refname>
   <refpurpose>remove a text search dictionary</refpurpose>
  </refnamediv>
-  
+
  <indexterm zone="sql-droptsdictionary">
   <primary>DROP TEXT SEARCH DICTIONARY</primary>
  </indexterm>
@@ -33,7 +34,7 @@ DROP TEXT SEARCH DICTIONARY [ IF EXISTS ] <replaceable class="PARAMETER">name</r
    dictionary.
   </para>
  </refsect1>
-  
+
  <refsect1>
   <title>Parameters</title>
 
@@ -95,7 +96,7 @@ DROP TEXT SEARCH DICTIONARY english;
    drop such configurations along with the dictionary.
   </para>
  </refsect1>
- 
+
  <refsect1>
   <title>Compatibility</title>
 
@@ -109,8 +110,8 @@ DROP TEXT SEARCH DICTIONARY english;
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-altertsdictionary" endterm="sql-altertsdictionary-title"></member>
-   <member><xref linkend="sql-createtsdictionary" endterm="sql-createtsdictionary-title"></member>
+   <member><xref linkend="sql-altertsdictionary"></member>
+   <member><xref linkend="sql-createtsdictionary"></member>
   </simplelist>
  </refsect1>
 

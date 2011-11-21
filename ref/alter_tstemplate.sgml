@@ -1,29 +1,31 @@
 <!--
-$PostgreSQL$
+doc/src/sgml/ref/alter_tstemplate.sgml
 PostgreSQL documentation
 -->
 
 <refentry id="SQL-ALTERTSTEMPLATE">
  <refmeta>
-  <refentrytitle id="SQL-ALTERTSTEMPLATE-TITLE">ALTER TEXT SEARCH TEMPLATE</refentrytitle>
+  <refentrytitle>ALTER TEXT SEARCH TEMPLATE</refentrytitle>
+  <manvolnum>7</manvolnum>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
  <refnamediv>
   <refname>ALTER TEXT SEARCH TEMPLATE</refname>
   <refpurpose>change the definition of a text search template</refpurpose>
- </refnamediv>  
-  
+ </refnamediv>
+
  <indexterm zone="sql-altertstemplate">
   <primary>ALTER TEXT SEARCH TEMPLATE</primary>
  </indexterm>
 
  <refsynopsisdiv>
 <synopsis>
-ALTER TEXT SEARCH TEMPLATE <replaceable>name</replaceable> RENAME TO <replaceable>newname</replaceable>
+ALTER TEXT SEARCH TEMPLATE <replaceable>name</replaceable> RENAME TO <replaceable>new_name</replaceable>
+ALTER TEXT SEARCH TEMPLATE <replaceable>name</replaceable> SET SCHEMA <replaceable>new_schema</replaceable>
 </synopsis>
  </refsynopsisdiv>
-  
+
  <refsect1>
   <title>Description</title>
 
@@ -37,7 +39,7 @@ ALTER TEXT SEARCH TEMPLATE <replaceable>name</replaceable> RENAME TO <replaceabl
    You must be a superuser to use <command>ALTER TEXT SEARCH TEMPLATE</>.
   </para>
  </refsect1>
-  
+
  <refsect1>
   <title>Parameters</title>
 
@@ -52,10 +54,19 @@ ALTER TEXT SEARCH TEMPLATE <replaceable>name</replaceable> RENAME TO <replaceabl
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">newname</replaceable></term>
+    <term><replaceable class="parameter">new_name</replaceable></term>
     <listitem>
      <para>
       The new name of the text search template.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">new_schema</replaceable></term>
+    <listitem>
+     <para>
+      The new schema for the text search template.
      </para>
     </listitem>
    </varlistentry>
@@ -75,8 +86,8 @@ ALTER TEXT SEARCH TEMPLATE <replaceable>name</replaceable> RENAME TO <replaceabl
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-createtstemplate" endterm="sql-createtstemplate-title"></member>
-   <member><xref linkend="sql-droptstemplate" endterm="sql-droptstemplate-title"></member>
+   <member><xref linkend="sql-createtstemplate"></member>
+   <member><xref linkend="sql-droptstemplate"></member>
   </simplelist>
  </refsect1>
 </refentry>

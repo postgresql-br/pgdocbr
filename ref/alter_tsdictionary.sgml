@@ -1,19 +1,20 @@
 <!--
-$PostgreSQL: pgsql/doc/src/sgml/ref/alter_tsdictionary.sgml,v 1.2 2007/08/22 01:39:44 tgl Exp $
+doc/src/sgml/ref/alter_tsdictionary.sgml
 PostgreSQL documentation
 -->
 
 <refentry id="SQL-ALTERTSDICTIONARY">
  <refmeta>
-  <refentrytitle id="SQL-ALTERTSDICTIONARY-TITLE">ALTER TEXT SEARCH DICTIONARY</refentrytitle>
+  <refentrytitle>ALTER TEXT SEARCH DICTIONARY</refentrytitle>
+  <manvolnum>7</manvolnum>
   <refmiscinfo>SQL - Language Statements</refmiscinfo>
  </refmeta>
 
  <refnamediv>
   <refname>ALTER TEXT SEARCH DICTIONARY</refname>
   <refpurpose>change the definition of a text search dictionary</refpurpose>
- </refnamediv>  
-  
+ </refnamediv>
+
  <indexterm zone="sql-altertsdictionary">
   <primary>ALTER TEXT SEARCH DICTIONARY</primary>
  </indexterm>
@@ -23,11 +24,12 @@ PostgreSQL documentation
 ALTER TEXT SEARCH DICTIONARY <replaceable>name</replaceable> (
     <replaceable class="parameter">option</replaceable> [ = <replaceable class="parameter">value</replaceable> ] [, ... ]
 )
-ALTER TEXT SEARCH DICTIONARY <replaceable>name</replaceable> RENAME TO <replaceable>newname</replaceable>
-ALTER TEXT SEARCH DICTIONARY <replaceable>name</replaceable> OWNER TO <replaceable>newowner</replaceable>
+ALTER TEXT SEARCH DICTIONARY <replaceable>name</replaceable> RENAME TO <replaceable>new_name</replaceable>
+ALTER TEXT SEARCH DICTIONARY <replaceable>name</replaceable> OWNER TO <replaceable>new_owner</replaceable>
+ALTER TEXT SEARCH DICTIONARY <replaceable>name</replaceable> SET SCHEMA <replaceable>new_schema</replaceable>
 </synopsis>
  </refsynopsisdiv>
-  
+
  <refsect1>
   <title>Description</title>
 
@@ -42,7 +44,7 @@ ALTER TEXT SEARCH DICTIONARY <replaceable>name</replaceable> OWNER TO <replaceab
    <command>ALTER TEXT SEARCH DICTIONARY</>.
   </para>
  </refsect1>
-  
+
  <refsect1>
   <title>Parameters</title>
 
@@ -79,7 +81,7 @@ ALTER TEXT SEARCH DICTIONARY <replaceable>name</replaceable> OWNER TO <replaceab
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">newname</replaceable></term>
+    <term><replaceable class="parameter">new_name</replaceable></term>
     <listitem>
      <para>
       The new name of the text search dictionary.
@@ -88,10 +90,19 @@ ALTER TEXT SEARCH DICTIONARY <replaceable>name</replaceable> OWNER TO <replaceab
    </varlistentry>
 
    <varlistentry>
-    <term><replaceable class="parameter">newowner</replaceable></term>
+    <term><replaceable class="parameter">new_owner</replaceable></term>
     <listitem>
      <para>
       The new owner of the text search dictionary.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">new_schema</replaceable></term>
+    <listitem>
+     <para>
+      The new schema for the text search dictionary.
      </para>
     </listitem>
    </varlistentry>
@@ -101,7 +112,7 @@ ALTER TEXT SEARCH DICTIONARY <replaceable>name</replaceable> OWNER TO <replaceab
    Template-specific options can appear in any order.
   </para>
  </refsect1>
-  
+
  <refsect1>
   <title>Examples</title>
 
@@ -112,7 +123,7 @@ ALTER TEXT SEARCH DICTIONARY <replaceable>name</replaceable> OWNER TO <replaceab
 
 <programlisting>
 ALTER TEXT SEARCH DICTIONARY my_dict ( StopWords = newrussian );
-</programlisting>  
+</programlisting>
 
   <para>
    The following example command changes the language option to dutch,
@@ -121,7 +132,7 @@ ALTER TEXT SEARCH DICTIONARY my_dict ( StopWords = newrussian );
 
 <programlisting>
 ALTER TEXT SEARCH DICTIONARY my_dict ( language = dutch, StopWords );
-</programlisting>  
+</programlisting>
 
   <para>
    The following example command <quote>updates</> the dictionary's
@@ -152,8 +163,8 @@ ALTER TEXT SEARCH DICTIONARY my_dict ( dummy );
   <title>See Also</title>
 
   <simplelist type="inline">
-   <member><xref linkend="sql-createtsdictionary" endterm="sql-createtsdictionary-title"></member>
-   <member><xref linkend="sql-droptsdictionary" endterm="sql-droptsdictionary-title"></member>
+   <member><xref linkend="sql-createtsdictionary"></member>
+   <member><xref linkend="sql-droptsdictionary"></member>
   </simplelist>
  </refsect1>
 </refentry>
