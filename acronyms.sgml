@@ -4,9 +4,12 @@
  <title>Acronyms</title>
 
  <para>
+   Este é uma lista de acronyms comumente usados no <productname>PostgreSQL</>
+   documentação e discussão sobre <productname>PostgreSQL</>.
+ <!--
   This is a list of acronyms commonly used in the <productname>PostgreSQL</>
   documentation and in discussions about <productname>PostgreSQL</>.
-
+-->
   <variablelist>
 
    <varlistentry>
