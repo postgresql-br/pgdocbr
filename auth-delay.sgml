@@ -8,16 +8,21 @@
  </indexterm>
 
  <para>
-  <filename>auth_delay</filename> causes the server to pause briefly before
+  <filename>auth_delay</filename>faz com que o servidor faça uma breve pausa antes 
+  antes de relatar a falha de autenticação, fazendo com que ataques de força bruta contas senha
+  dos bancos de dados seja mais difícil.
+  
+  <!--causes the server to pause briefly before
   reporting authentication failure, to make brute-force attacks on database
   passwords more difficult.  Note that it does nothing to prevent
   denial-of-service attacks, and may even exacerbate them, since processes
   that are waiting before reporting authentication failure will still consume
-  connection slots.
+  connection slots.-->
  </para>
 
  <para>
-  In order to function, this module must be loaded via
+     Em outras funções, este módulo deve ser carregado via
+  <!--In order to function, this module must be loaded via-->
   <xref linkend="guc-shared-preload-libraries"> in <filename>postgresql.conf</>.
  </para>
 
@@ -30,21 +35,27 @@
      <varname>auth_delay.milliseconds</varname> (<type>int</type>)
     </term>
     <indexterm>
-     <primary><varname>auth_delay.milliseconds</> configuration parameter</primary>
+     <primary><varname>auth_delay.milliseconds</> Parâmetros de  configuração</primary>
     </indexterm>
     <listitem>
      <para>
-      The number of milliseconds to wait before reporting an authentication
-      failure.  The default is 0.
+	       O número de milessegundos para esperar antes de reportar uma falha de autenticação.
+		   O Padrão é 0.
+      <!--The number of milliseconds to wait before reporting an authentication
+      failure.  The default is 0.-->
      </para>
     </listitem>
    </varlistentry>
   </variablelist>
 
   <para>
-   In order to set these parameters in your <filename>postgresql.conf</> file,
+       Para definir essse parâmetro no arquivo <filename>postgresql.conf</>,
+   você vai precisar <literal>auth_delay</> para
+   <xref linkend="guc-custom-variable-classes">.  Uso tipico pode ser:
+   <!--In order to set these parameters in your <filename>postgresql.conf</> file,
    you will need to add <literal>auth_delay</> to
    <xref linkend="guc-custom-variable-classes">.  Typical usage might be:
+   -->
   </para>
 
 <programlisting>
